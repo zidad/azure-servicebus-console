@@ -12,6 +12,7 @@ public class CachingQueueService(IQueueService inner, ServiceBusConnection conne
             foreach (var q in cached)
             {
                 if (ct.IsCancellationRequested) yield break;
+                q.IsRefreshing = true;
                 yield return q;
             }
 

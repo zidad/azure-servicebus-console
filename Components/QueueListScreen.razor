@@ -63,10 +63,10 @@
                                         OnFocus="@(_ => _focusedItem = captured.Name)"
                                         OnBlur="@(_ => _focusedItem = null)" />
                         </SpectreTD>
-                        <SpectreTD Align="Justify.Right">@q.ActiveMessageCount</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@(q.DeadLetterMessageCount > 0 ? $"! {q.DeadLetterMessageCount}" : "0")</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@q.ScheduledMessageCount</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@q.TransferMessageCount</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@(q.IsRefreshing ? "…" : q.ActiveMessageCount.ToString())</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@(q.IsRefreshing ? "…" : q.DeadLetterMessageCount > 0 ? $"! {q.DeadLetterMessageCount}" : "0")</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@(q.IsRefreshing ? "…" : q.ScheduledMessageCount.ToString())</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@(q.IsRefreshing ? "…" : q.TransferMessageCount.ToString())</SpectreTD>
                     </SpectreTR>
                 }
             </SpectreTBody>
@@ -107,6 +107,7 @@
         _error = string.Empty;
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var transitionRendered = false;
 
         try
         {
@@ -116,18 +117,39 @@
                 var idx = _all.FindIndex(x => x.Name == q.Name);
                 if (idx >= 0) _all[idx] = q;
                 else _all.Add(q);
-                await InvokeAsync(SortAndFilter);
+
+                if (!q.IsRefreshing && !transitionRendered)
+                {
+                    transitionRendered = true;
+                    SortAndUpdateFilterState();
+                    await InvokeAsync(StateHasChanged);
+                }
             }
 
-            // Remove stale items that weren't in the live results
             if (!_cts.IsCancellationRequested)
             {
                 _all.RemoveAll(q => !seen.Contains(q.Name));
-                SortAndFilter();
+                SortAndUpdateFilterState();
             }
+
+            await InvokeAsync(StateHasChanged);
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
+        catch (Exception ex) { _error = ex.Message; await InvokeAsync(StateHasChanged); }
+    }
+
+    private void SortAndUpdateFilterState()
+    {
+        _all = [.. _all.OrderByDescending(q => q.DeadLetterMessageCount).ThenBy(q => q.Name)];
+        UpdateFilterState(_filter);
+    }
+
+    private void UpdateFilterState(string? value)
+    {
+        _filter = value;
+        _filtered = string.IsNullOrWhiteSpace(value)
+            ? _all
+            : _all.Where(q => q.Name.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
     }
 
     private void SortAndFilter()

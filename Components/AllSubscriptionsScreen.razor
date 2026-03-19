@@ -63,9 +63,9 @@
                                         OnFocus="@(_ => _focusedItem = captured)"
                                         OnBlur="@(_ => _focusedItem = null)" />
                         </SpectreTD>
-                        <SpectreTD Align="Justify.Right">@s.ActiveMessageCount</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@(s.DeadLetterMessageCount > 0 ? $"! {s.DeadLetterMessageCount}" : "0")</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@s.TransferMessageCount</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@(s.IsRefreshing ? "…" : s.ActiveMessageCount.ToString())</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@(s.IsRefreshing ? "…" : s.DeadLetterMessageCount > 0 ? $"! {s.DeadLetterMessageCount}" : "0")</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@(s.IsRefreshing ? "…" : s.TransferMessageCount.ToString())</SpectreTD>
                     </SpectreTR>
                 }
             </SpectreTBody>
@@ -106,6 +106,7 @@
         _error = string.Empty;
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var transitionRendered = false;
 
         try
         {
@@ -116,17 +117,42 @@
                 var idx = _all.FindIndex(x => x.TopicName == s.TopicName && x.Name == s.Name);
                 if (idx >= 0) _all[idx] = s;
                 else _all.Add(s);
-                await InvokeAsync(SortAndFilter);
+
+                if (!s.IsRefreshing && !transitionRendered)
+                {
+                    transitionRendered = true;
+                    SortAndUpdateFilterState();
+                    await InvokeAsync(StateHasChanged);
+                }
             }
 
             if (!_cts.IsCancellationRequested)
             {
                 _all.RemoveAll(s => !seen.Contains($"{s.TopicName}/{s.Name}"));
-                SortAndFilter();
+                SortAndUpdateFilterState();
             }
+
+            await InvokeAsync(StateHasChanged);
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
+        catch (Exception ex) { _error = ex.Message; await InvokeAsync(StateHasChanged); }
+    }
+
+    private void SortAndUpdateFilterState()
+    {
+        _all = [.. _all.OrderByDescending(s => s.TotalMessageCount).ThenBy(s => s.TopicName).ThenBy(s => s.Name)];
+        UpdateFilterState(_filter);
+    }
+
+    private void UpdateFilterState(string? value)
+    {
+        _filter = value;
+        _filtered = string.IsNullOrWhiteSpace(value)
+            ? _all
+            : _all.Where(s =>
+                s.TopicName.Contains(value, StringComparison.OrdinalIgnoreCase) ||
+                s.Name.Contains(value, StringComparison.OrdinalIgnoreCase))
+              .ToList();
     }
 
     private void SortAndFilter()
