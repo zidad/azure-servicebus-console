@@ -49,4 +49,28 @@ public class CachingTopicService(ITopicService inner, ServiceBusConnection conne
         if (!ct.IsCancellationRequested && live.Count > 0)
             _ = cache.SaveAsync(key, live);
     }
+
+    public async IAsyncEnumerable<SubscriptionInfo> GetAllSubscriptionsAsync(
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var key = $"{connection.CurrentNamespace}/all-subscriptions.json";
+
+        var cached = await cache.LoadAsync<SubscriptionInfo>(key);
+        if (cached != null)
+            foreach (var s in cached)
+            {
+                if (ct.IsCancellationRequested) yield break;
+                yield return s;
+            }
+
+        var live = new List<SubscriptionInfo>();
+        await foreach (var s in inner.GetAllSubscriptionsAsync(ct))
+        {
+            live.Add(s);
+            yield return s;
+        }
+
+        if (!ct.IsCancellationRequested && live.Count > 0)
+            _ = cache.SaveAsync(key, live);
+    }
 }

@@ -51,6 +51,11 @@
                                 OnClick="@(() => OnBrowseTopics.InvokeAsync())"
                                 FocusedColor="@Color.DodgerBlue1"
                                 FocusOrder="4" />
+                    <Markup Content="  " />
+                    <TextButton Content="All Subscriptions"
+                                OnClick="@(() => OnBrowseAllSubscriptions.InvokeAsync())"
+                                FocusedColor="@Color.DodgerBlue1"
+                                FocusOrder="5" />
                 </Columns>
             </Padder>
         }
@@ -77,6 +82,7 @@
 
     [Parameter] public EventCallback OnBrowseQueues { get; set; }
     [Parameter] public EventCallback OnBrowseTopics { get; set; }
+    [Parameter] public EventCallback OnBrowseAllSubscriptions { get; set; }
 
     private readonly string[] _subscriptions = SubscriptionOptions;
     private string? _selectedSubscription;
