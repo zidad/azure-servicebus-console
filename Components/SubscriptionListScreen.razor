@@ -1,0 +1,90 @@
+@namespace LLMAgentTUI.Components
+
+@inject TopicService TopicService
+
+<Rows>
+    <Columns>
+        <Markup Content="@($"Subscriptions — {TopicName}")" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+        <Markup Content="  " />
+        <TextButton Content="< Back" OnClick="@(() => OnBack.InvokeAsync())" FocusedColor="@Color.Yellow" FocusOrder="1" />
+        <Markup Content="  " />
+        <TextButton Content="Refresh" OnClick="LoadSubscriptions" FocusedColor="@Color.Green" FocusOrder="2" />
+    </Columns>
+
+    @if (_loading)
+    {
+        <Padder Padding="@(new(0, 1, 0, 0))">
+            <Columns>
+                <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                <Markup Content="Loading subscriptions..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+            </Columns>
+        </Padder>
+    }
+    else
+    {
+        <Padder Padding="@(new(0, 1, 0, 0))">
+            <Markup Content="@($"{_subscriptions.Count} subscription(s)")" Foreground="@Color.Grey" />
+        </Padder>
+
+        <SpectreTable Expand="true" Border="TableBorder.Rounded">
+            <SpectreTHead>
+                <SpectreTR>
+                    <SpectreTH Align="Justify.Left">Subscription</SpectreTH>
+                    <SpectreTH Align="Justify.Right">Active</SpectreTH>
+                    <SpectreTH Align="Justify.Right">DLQ</SpectreTH>
+                    <SpectreTH Align="Justify.Right">Transfer</SpectreTH>
+                </SpectreTR>
+            </SpectreTHead>
+            <SpectreTBody>
+                @foreach (var s in _subscriptions)
+                {
+                    <SpectreTR>
+                        <SpectreTD>@s.Name</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@s.ActiveMessageCount</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@(s.DeadLetterMessageCount > 0 ? $"! {s.DeadLetterMessageCount}" : "0")</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@s.TransferMessageCount</SpectreTD>
+                    </SpectreTR>
+                }
+            </SpectreTBody>
+        </SpectreTable>
+    }
+</Rows>
+
+@if (!string.IsNullOrEmpty(_error))
+{
+    <Padder Padding="@(new(0, 1, 0, 0))">
+        <Panel BorderColor="@Color.Red" Title="Error" Expand="true">
+            <Markup Content="@_error.Replace("[", "[[").Replace("]", "]]")" Foreground="@Color.Red" />
+        </Panel>
+    </Padder>
+}
+
+@code {
+    [Parameter, EditorRequired] public string TopicName { get; set; } = "";
+    [Parameter] public EventCallback OnBack { get; set; }
+
+    private List<SubscriptionInfo> _subscriptions = [];
+    private bool _loading;
+    private string _error = string.Empty;
+
+    protected override async Task OnInitializedAsync() => await LoadSubscriptions();
+
+    private async Task LoadSubscriptions()
+    {
+        _loading = true;
+        _error = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            _subscriptions = await TopicService.GetSubscriptionsAsync(TopicName);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+}

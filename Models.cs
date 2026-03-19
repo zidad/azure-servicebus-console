@@ -1,0 +1,45 @@
+namespace ServiceBusConsole;
+
+public class NamespaceInfo
+{
+    public required string Name { get; set; }
+    public required string FullyQualifiedNamespace { get; set; }
+    public required string ResourceGroup { get; set; }
+    public required string Location { get; set; }
+}
+
+public class QueueInfo
+{
+    public required string Name { get; set; }
+    public long ActiveMessageCount { get; set; }
+    public long DeadLetterMessageCount { get; set; }
+    public long ScheduledMessageCount { get; set; }
+    public long TransferMessageCount { get; set; }
+}
+
+public class TopicInfo
+{
+    public required string Name { get; set; }
+    public int SubscriptionCount { get; set; }
+    public long ScheduledMessageCount { get; set; }
+}
+
+public class SubscriptionInfo
+{
+    public required string Name { get; set; }
+    public long ActiveMessageCount { get; set; }
+    public long DeadLetterMessageCount { get; set; }
+    public long TransferMessageCount { get; set; }
+}
+
+public class MessageInfo
+{
+    public required string MessageId { get; set; }
+    public long SequenceNumber { get; set; }
+    public DateTimeOffset EnqueuedTime { get; set; }
+    public string ContentType { get; set; } = "";
+    public string Subject { get; set; } = "";
+    public string Body { get; set; } = "";
+    public int DeliveryCount { get; set; }
+    public Dictionary<string, string> Properties { get; set; } = new();
+}

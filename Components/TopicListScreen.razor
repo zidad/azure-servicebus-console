@@ -1,0 +1,130 @@
+@namespace LLMAgentTUI.Components
+
+@inject TopicService TopicService
+
+<Rows @onkeydown="HandleKeyDown">
+    <Columns>
+        <Markup Content="Topics" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+        <Markup Content="  " />
+        <TextButton Content="< Back" OnClick="@(() => OnBack.InvokeAsync())" FocusedColor="@Color.Yellow" FocusOrder="2" />
+        <Markup Content="  " />
+        <TextButton Content="Refresh" OnClick="LoadTopics" FocusedColor="@Color.Green" FocusOrder="3" />
+    </Columns>
+
+    <Padder Padding="@(new(0, 1, 0, 0))">
+        <TextInput Value="@_filter"
+                   ValueChanged="ApplyFilter"
+                   OnFocus="@(_ => _filterFocused = true)"
+                   OnBlur="@(_ => _filterFocused = false)"
+                   Placeholder="Type to filter..."
+                   Expand="true"
+                   FocusOrder="1" />
+    </Padder>
+
+    @if (_loading)
+    {
+        <Padder Padding="@(new(0, 1, 0, 0))">
+            <Columns>
+                <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                <Markup Content="Loading topics..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+            </Columns>
+        </Padder>
+    }
+    else
+    {
+        <Padder Padding="@(new(0, 1, 0, 0))">
+            <Markup Content="@($"{_filtered.Count} topic(s)")" Foreground="@Color.Grey" />
+        </Padder>
+
+        <SpectreTable Expand="true" Border="TableBorder.Rounded">
+            <SpectreTHead>
+                <SpectreTR>
+                    <SpectreTH Align="Justify.Left">Topic</SpectreTH>
+                    <SpectreTH Align="Justify.Right">Subscriptions</SpectreTH>
+                    <SpectreTH Align="Justify.Right">Scheduled</SpectreTH>
+                </SpectreTR>
+            </SpectreTHead>
+            <SpectreTBody>
+                @{ var i = 0; }
+                @foreach (var t in _filtered.Take(MaxRows))
+                {
+                    var captured = t;
+                    var focusOrder = 4 + i++;
+                    <SpectreTR>
+                        <SpectreTD>
+                            <TextButton Content="@captured.Name"
+                                        OnClick="@(() => OnBrowseTopic.InvokeAsync(captured.Name))"
+                                        FocusedColor="@Color.DodgerBlue1"
+                                        FocusOrder="@focusOrder" />
+                        </SpectreTD>
+                        <SpectreTD Align="Justify.Right">@t.SubscriptionCount</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@t.ScheduledMessageCount</SpectreTD>
+                    </SpectreTR>
+                }
+            </SpectreTBody>
+        </SpectreTable>
+    }
+</Rows>
+
+@if (!string.IsNullOrEmpty(_error))
+{
+    <Padder Padding="@(new(0, 1, 0, 0))">
+        <Panel BorderColor="@Color.Red" Title="Error" Expand="true">
+            <Markup Content="@_error.Replace("[", "[[").Replace("]", "]]")" Foreground="@Color.Red" />
+        </Panel>
+    </Padder>
+}
+
+@code {
+    [Parameter] public EventCallback OnBack { get; set; }
+    [Parameter] public EventCallback<string> OnBrowseTopic { get; set; }
+
+    private List<TopicInfo> _all = [];
+    private List<TopicInfo> _filtered = [];
+    private string? _filter;
+    private bool _filterFocused;
+    private bool _loading;
+    private string _error = string.Empty;
+
+    private static int MaxRows => Math.Max(5, Console.WindowHeight - 12);
+
+    protected override async Task OnInitializedAsync() => await LoadTopics();
+
+    private async Task LoadTopics()
+    {
+        _loading = true;
+        _error = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            _all = await TopicService.GetTopicsAsync();
+            ApplyFilter(_filter);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private void ApplyFilter(string? value)
+    {
+        _filter = value;
+        _filtered = string.IsNullOrWhiteSpace(value)
+            ? _all
+            : _all.Where(t => t.Name.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
+        StateHasChanged();
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (_filterFocused || e.CtrlKey || e.AltKey || e.MetaKey) return;
+
+        if (e.Key == "Backspace") { ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]); return; }
+        if (e.Key == "Escape") { ApplyFilter(null); return; }
+        if (e.Key.Length == 1 && !char.IsControl(e.Key[0])) ApplyFilter((_filter ?? "") + e.Key);
+    }
+}

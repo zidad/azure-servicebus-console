@@ -25,7 +25,11 @@ hostBuilder.ConfigureServices(services =>
     var credential = new AzureCliCredential();
     services.AddSingleton(credential);
     services.AddSingleton(new ArmClient(credential));
-    services.AddSingleton<SBClient>();
+    services.AddSingleton<ServiceBusConnection>();
+    services.AddSingleton<NamespaceService>();
+    services.AddSingleton<QueueService>();
+    services.AddSingleton<TopicService>();
+    services.AddSingleton<MessageService>();
 
     services.Configure<ConsoleAppOptions>(options =>
     {

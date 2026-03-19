@@ -1,0 +1,64 @@
+@namespace LLMAgentTUI.Components
+
+<Rows>
+    <Columns>
+        <Markup Content="Message Detail" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+        <Markup Content="  " />
+        <TextButton Content="< Back" OnClick="@(() => OnBack.InvokeAsync())" FocusedColor="@Color.Yellow" FocusOrder="1" />
+    </Columns>
+
+    <Padder Padding="@(new(0, 1, 0, 0))">
+        <Panel Title="Properties" BorderColor="@Color.Grey" Expand="true" Padding="@(new(1, 0, 1, 0))">
+            <SpectreTable Expand="true" Border="TableBorder.Simple">
+                <SpectreTHead>
+                    <SpectreTR>
+                        <SpectreTH>Property</SpectreTH>
+                        <SpectreTH>Value</SpectreTH>
+                    </SpectreTR>
+                </SpectreTHead>
+                <SpectreTBody>
+                    <SpectreTR><SpectreTD>Message ID</SpectreTD><SpectreTD>@Message.MessageId</SpectreTD></SpectreTR>
+                    <SpectreTR><SpectreTD>Sequence #</SpectreTD><SpectreTD>@Message.SequenceNumber</SpectreTD></SpectreTR>
+                    <SpectreTR><SpectreTD>Subject</SpectreTD><SpectreTD>@Message.Subject</SpectreTD></SpectreTR>
+                    <SpectreTR><SpectreTD>Content Type</SpectreTD><SpectreTD>@Message.ContentType</SpectreTD></SpectreTR>
+                    <SpectreTR><SpectreTD>Enqueued</SpectreTD><SpectreTD>@Message.EnqueuedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss")</SpectreTD></SpectreTR>
+                    <SpectreTR><SpectreTD>Delivery Count</SpectreTD><SpectreTD>@Message.DeliveryCount</SpectreTD></SpectreTR>
+                    @foreach (var prop in Message.Properties)
+                    {
+                        <SpectreTR>
+                            <SpectreTD>@prop.Key</SpectreTD>
+                            <SpectreTD>@prop.Value</SpectreTD>
+                        </SpectreTR>
+                    }
+                </SpectreTBody>
+            </SpectreTable>
+        </Panel>
+    </Padder>
+
+    <Padder Padding="@(new(0, 1, 0, 0))">
+        <Panel Title="Body" BorderColor="@Color.Grey" Expand="true" Padding="@(new(1, 0, 1, 0))">
+            <Markup Content="@EscapeMarkup(FormatBody(Message.Body))" />
+        </Panel>
+    </Padder>
+</Rows>
+
+@code {
+    [Parameter, EditorRequired] public MessageInfo Message { get; set; } = null!;
+    [Parameter] public EventCallback OnBack { get; set; }
+
+    private static string EscapeMarkup(string text) =>
+        text.Replace("[", "[[").Replace("]", "]]");
+
+    private static string FormatBody(string body)
+    {
+        try
+        {
+            var doc = System.Text.Json.JsonDocument.Parse(body);
+            return System.Text.Json.JsonSerializer.Serialize(doc, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        }
+        catch
+        {
+            return body;
+        }
+    }
+}
