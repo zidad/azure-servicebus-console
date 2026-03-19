@@ -1,6 +1,7 @@
 @namespace LLMAgentTUI.Components
+@implements IDisposable
 
-@inject QueueService QueueService
+@inject IQueueService QueueService
 
 <Rows @onkeydown="HandleKeyDown">
     <Columns>
@@ -21,7 +22,7 @@
                    FocusOrder="1" />
     </Padder>
 
-    @if (_loading)
+    @if (_all.Count == 0)
     {
         <Padder Padding="@(new(0, 1, 0, 0))">
             <Columns>
@@ -87,34 +88,49 @@
     private List<QueueInfo> _filtered = [];
     private string? _filter;
     private bool _filterFocused;
-    private bool _loading;
     private string _error = string.Empty;
+    private CancellationTokenSource _cts = new();
 
     private static int MaxRows => Math.Max(5, Console.WindowHeight - 12);
+
+    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 
     protected override async Task OnInitializedAsync() => await LoadQueues();
 
     private async Task LoadQueues()
     {
-        _loading = true;
+        _cts.Cancel();
+        _cts = new CancellationTokenSource();
         _error = string.Empty;
-        StateHasChanged();
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         try
         {
-            _all = (await QueueService.GetQueuesAsync())
-                .OrderByDescending(q => q.DeadLetterMessageCount)
-                .ThenBy(q => q.Name)
-                .ToList();
-            ApplyFilter(_filter);
-        }
-        catch (Exception ex)
-        {
-            _error = ex.Message;
-        }
+            await foreach (var q in QueueService.GetQueuesAsync(_cts.Token))
+            {
+                seen.Add(q.Name);
+                var idx = _all.FindIndex(x => x.Name == q.Name);
+                if (idx >= 0) _all[idx] = q;
+                else _all.Add(q);
+                SortAndFilter();
+            }
 
-        _loading = false;
-        StateHasChanged();
+            // Remove stale items that weren't in the live results
+            if (!_cts.IsCancellationRequested)
+            {
+                _all.RemoveAll(q => !seen.Contains(q.Name));
+                SortAndFilter();
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
+    }
+
+    private void SortAndFilter()
+    {
+        _all = [.. _all.OrderByDescending(q => q.DeadLetterMessageCount).ThenBy(q => q.Name)];
+        ApplyFilter(_filter);
     }
 
     private void ApplyFilter(string? value)
@@ -129,9 +145,7 @@
     private void HandleKeyDown(KeyboardEventArgs e)
     {
         if (_filterFocused || e.CtrlKey || e.AltKey || e.MetaKey) return;
-
         if (e.Key == "Backspace") { ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]); return; }
-        if (e.Key == "Escape") { ApplyFilter(null); return; }
         if (e.Key.Length == 1 && !char.IsControl(e.Key[0])) ApplyFilter((_filter ?? "") + e.Key);
     }
 }

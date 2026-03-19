@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ServiceBusConsole;
 
-public class MessageService(ServiceBusConnection connection, ILogger<MessageService> logger)
+public class MessageService(ServiceBusConnection connection, ILogger<MessageService> logger) : IMessageService
 {
     public async Task<List<MessageInfo>> PeekMessagesAsync(string queueName, int count, bool fromDlq = false)
     {

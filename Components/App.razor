@@ -1,40 +1,43 @@
 @namespace LLMAgentTUI.Components
+@using Microsoft.AspNetCore.Components.Web
 @using RazorConsole.Components
 @using ServiceBusConsole
 
-@switch (_screen)
-{
-    case Screen.Connection:
-        <ConnectionScreen OnBrowseQueues="@(() => Navigate(Screen.QueueList))"
-                          OnBrowseTopics="@(() => Navigate(Screen.TopicList))" />
-        break;
+<Rows @onkeydown="HandleGlobalKeyDown">
+    @switch (_screen)
+    {
+        case Screen.Connection:
+            <ConnectionScreen OnBrowseQueues="@(() => Navigate(Screen.QueueList))"
+                              OnBrowseTopics="@(() => Navigate(Screen.TopicList))" />
+            break;
 
-    case Screen.QueueList:
-        <QueueListScreen OnBack="@(() => Navigate(Screen.Connection))"
-                         OnBrowseQueue="@(args => NavigateToQueue(args.Name, args.Dlq))" />
-        break;
+        case Screen.QueueList:
+            <QueueListScreen OnBack="@GoBack"
+                             OnBrowseQueue="@(args => NavigateToQueue(args.Name, args.Dlq))" />
+            break;
 
-    case Screen.TopicList:
-        <TopicListScreen OnBack="@(() => Navigate(Screen.Connection))"
-                         OnBrowseTopic="@(name => NavigateToTopic(name))" />
-        break;
+        case Screen.TopicList:
+            <TopicListScreen OnBack="@GoBack"
+                             OnBrowseTopic="@(name => NavigateToTopic(name))" />
+            break;
 
-    case Screen.SubscriptionList:
-        <SubscriptionListScreen TopicName="@(_topicName!)"
-                                OnBack="@(() => Navigate(Screen.TopicList))" />
-        break;
+        case Screen.SubscriptionList:
+            <SubscriptionListScreen TopicName="@(_topicName!)"
+                                    OnBack="@GoBack" />
+            break;
 
-    case Screen.QueueBrowser:
-        <QueueBrowserScreen QueueName="@(_queueName!)"
-                            OnBack="@(() => Navigate(Screen.QueueList))"
-                            OnViewMessage="@(msg => NavigateToMessage(msg))" />
-        break;
+        case Screen.QueueBrowser:
+            <QueueBrowserScreen QueueName="@(_queueName!)"
+                                OnBack="@GoBack"
+                                OnViewMessage="@(msg => NavigateToMessage(msg))" />
+            break;
 
-    case Screen.MessageDetail:
-        <MessageDetailScreen Message="@(_viewingMessage!)"
-                             OnBack="@(() => Navigate(Screen.QueueBrowser))" />
-        break;
-}
+        case Screen.MessageDetail:
+            <MessageDetailScreen Message="@(_viewingMessage!)"
+                                 OnBack="@GoBack" />
+            break;
+    }
+</Rows>
 
 @code {
     private enum Screen { Connection, QueueList, TopicList, SubscriptionList, QueueBrowser, MessageDetail }
@@ -43,6 +46,26 @@
     private string? _queueName;
     private string? _topicName;
     private MessageInfo? _viewingMessage;
+
+    private void GoBack()
+    {
+        _screen = _screen switch
+        {
+            Screen.MessageDetail   => Screen.QueueBrowser,
+            Screen.QueueBrowser    => Screen.QueueList,
+            Screen.SubscriptionList => Screen.TopicList,
+            Screen.QueueList       => Screen.Connection,
+            Screen.TopicList       => Screen.Connection,
+            _                      => Screen.Connection
+        };
+        StateHasChanged();
+    }
+
+    private void HandleGlobalKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape" && _screen != Screen.Connection)
+            GoBack();
+    }
 
     private void Navigate(Screen screen)
     {

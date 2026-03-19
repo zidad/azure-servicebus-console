@@ -2,52 +2,50 @@ using Microsoft.Extensions.Logging;
 
 namespace ServiceBusConsole;
 
-public class TopicService(ServiceBusConnection connection, ILogger<TopicService> logger)
+public class TopicService(ServiceBusConnection connection, ILogger<TopicService> logger) : ITopicService
 {
-    public async Task<List<TopicInfo>> GetTopicsAsync()
+    public async IAsyncEnumerable<TopicInfo> GetTopicsAsync(
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
         logger.LogInformation("Listing topics");
-        var topics = new List<TopicInfo>();
 
-        await foreach (var page in connection.AdminClient.GetTopicsAsync().AsPages())
+        await foreach (var page in connection.AdminClient.GetTopicsAsync().AsPages().WithCancellation(ct))
         {
             foreach (var topic in page.Values)
             {
-                var runtime = await connection.AdminClient.GetTopicRuntimePropertiesAsync(topic.Name);
-                topics.Add(new TopicInfo
+                ct.ThrowIfCancellationRequested();
+                var runtime = await connection.AdminClient.GetTopicRuntimePropertiesAsync(topic.Name, ct);
+
+                yield return new TopicInfo
                 {
                     Name = topic.Name,
                     SubscriptionCount = runtime.Value.SubscriptionCount,
                     ScheduledMessageCount = runtime.Value.ScheduledMessageCount
-                });
+                };
             }
         }
-
-        logger.LogInformation("Found {Count} topics", topics.Count);
-        return topics;
     }
 
-    public async Task<List<SubscriptionInfo>> GetSubscriptionsAsync(string topicName)
+    public async IAsyncEnumerable<SubscriptionInfo> GetSubscriptionsAsync(
+        string topicName, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
         logger.LogInformation("Listing subscriptions for topic {Topic}", topicName);
-        var subscriptions = new List<SubscriptionInfo>();
 
-        await foreach (var page in connection.AdminClient.GetSubscriptionsAsync(topicName).AsPages())
+        await foreach (var page in connection.AdminClient.GetSubscriptionsAsync(topicName).AsPages().WithCancellation(ct))
         {
             foreach (var sub in page.Values)
             {
-                var runtime = await connection.AdminClient.GetSubscriptionRuntimePropertiesAsync(topicName, sub.SubscriptionName);
-                subscriptions.Add(new SubscriptionInfo
+                ct.ThrowIfCancellationRequested();
+                var runtime = await connection.AdminClient.GetSubscriptionRuntimePropertiesAsync(topicName, sub.SubscriptionName, ct);
+
+                yield return new SubscriptionInfo
                 {
                     Name = sub.SubscriptionName,
                     ActiveMessageCount = runtime.Value.ActiveMessageCount,
                     DeadLetterMessageCount = runtime.Value.DeadLetterMessageCount,
                     TransferMessageCount = runtime.Value.TransferMessageCount
-                });
+                };
             }
         }
-
-        logger.LogInformation("Found {Count} subscriptions for {Topic}", subscriptions.Count, topicName);
-        return subscriptions;
     }
 }

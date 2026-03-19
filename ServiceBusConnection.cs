@@ -10,9 +10,12 @@ public class ServiceBusConnection(AzureCliCredential credential, ILogger<Service
     private ServiceBusAdministrationClient? _adminClient;
     private ServiceBusClient? _busClient;
 
+    public string? CurrentNamespace { get; private set; }
+
     public void SetNamespace(string fullyQualifiedNamespace)
     {
         logger.LogInformation("Connecting to namespace {Namespace}", fullyQualifiedNamespace);
+        CurrentNamespace = fullyQualifiedNamespace;
         _adminClient = new ServiceBusAdministrationClient($"https://{fullyQualifiedNamespace}", credential);
         _busClient = new ServiceBusClient($"sb://{fullyQualifiedNamespace}/", credential);
     }

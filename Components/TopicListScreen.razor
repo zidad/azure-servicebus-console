@@ -1,6 +1,7 @@
 @namespace LLMAgentTUI.Components
+@implements IDisposable
 
-@inject TopicService TopicService
+@inject ITopicService TopicService
 
 <Rows @onkeydown="HandleKeyDown">
     <Columns>
@@ -21,7 +22,7 @@
                    FocusOrder="1" />
     </Padder>
 
-    @if (_loading)
+    @if (_all.Count == 0)
     {
         <Padder Padding="@(new(0, 1, 0, 0))">
             <Columns>
@@ -83,31 +84,42 @@
     private List<TopicInfo> _filtered = [];
     private string? _filter;
     private bool _filterFocused;
-    private bool _loading;
     private string _error = string.Empty;
+    private CancellationTokenSource _cts = new();
 
     private static int MaxRows => Math.Max(5, Console.WindowHeight - 12);
+
+    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 
     protected override async Task OnInitializedAsync() => await LoadTopics();
 
     private async Task LoadTopics()
     {
-        _loading = true;
+        _cts.Cancel();
+        _cts = new CancellationTokenSource();
         _error = string.Empty;
-        StateHasChanged();
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         try
         {
-            _all = await TopicService.GetTopicsAsync();
-            ApplyFilter(_filter);
-        }
-        catch (Exception ex)
-        {
-            _error = ex.Message;
-        }
+            await foreach (var t in TopicService.GetTopicsAsync(_cts.Token))
+            {
+                seen.Add(t.Name);
+                var idx = _all.FindIndex(x => x.Name == t.Name);
+                if (idx >= 0) _all[idx] = t;
+                else _all.Add(t);
+                ApplyFilter(_filter);
+            }
 
-        _loading = false;
-        StateHasChanged();
+            if (!_cts.IsCancellationRequested)
+            {
+                _all.RemoveAll(t => !seen.Contains(t.Name));
+                ApplyFilter(_filter);
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
     }
 
     private void ApplyFilter(string? value)
@@ -122,9 +134,7 @@
     private void HandleKeyDown(KeyboardEventArgs e)
     {
         if (_filterFocused || e.CtrlKey || e.AltKey || e.MetaKey) return;
-
         if (e.Key == "Backspace") { ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]); return; }
-        if (e.Key == "Escape") { ApplyFilter(null); return; }
         if (e.Key.Length == 1 && !char.IsControl(e.Key[0])) ApplyFilter((_filter ?? "") + e.Key);
     }
 }
