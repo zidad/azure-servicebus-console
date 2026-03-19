@@ -1,5 +1,10 @@
 namespace ServiceBusConsole;
 
+public record MessageSource(string EntityName, bool IsDlq, string? TopicName = null, string? SubscriptionName = null)
+{
+    public bool IsSubscription => TopicName is not null && SubscriptionName is not null;
+}
+
 public class NamespaceInfo
 {
     public required string Name { get; set; }

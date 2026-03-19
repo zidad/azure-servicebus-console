@@ -1,0 +1,29 @@
+@namespace LLMAgentTUI.Components
+
+<ModalWindow IsOpened="@IsOpened">
+    <Panel Title="Confirm deletion" BorderColor="@Color.Red" Padding="@(new(2, 1, 2, 1))">
+        <Rows>
+            <Markup Content="@Message.Replace("[", "[[").Replace("]", "]]")" />
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Columns>
+                    <TextButton Content="Yes, delete"
+                                OnClick="@(() => OnConfirm.InvokeAsync())"
+                                FocusedColor="@Color.Red"
+                                FocusOrder="1" />
+                    <Markup Content="   " />
+                    <TextButton Content="Cancel"
+                                OnClick="@(() => OnCancel.InvokeAsync())"
+                                FocusedColor="@Color.Grey"
+                                FocusOrder="2" />
+                </Columns>
+            </Padder>
+        </Rows>
+    </Panel>
+</ModalWindow>
+
+@code {
+    [Parameter, EditorRequired] public bool IsOpened { get; set; }
+    [Parameter, EditorRequired] public string Message { get; set; } = "";
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+}

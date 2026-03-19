@@ -56,7 +56,9 @@
                             <TextButton Content="@captured.Name"
                                         OnClick="@(() => OnBrowseTopic.InvokeAsync(captured.Name))"
                                         FocusedColor="@Color.DodgerBlue1"
-                                        FocusOrder="@focusOrder" />
+                                        FocusOrder="@focusOrder"
+                                        @onfocus="@(() => _focusedItem = captured.Name)"
+                                        @onblur="@(() => _focusedItem = null)" />
                         </SpectreTD>
                         <SpectreTD Align="Justify.Right">@t.SubscriptionCount</SpectreTD>
                         <SpectreTD Align="Justify.Right">@t.ScheduledMessageCount</SpectreTD>
@@ -66,6 +68,11 @@
         </SpectreTable>
     }
 </Rows>
+
+<ConfirmModal IsOpened="@(_pendingDelete is not null)"
+              Message="@($"Delete topic '{_pendingDelete}' and all its subscriptions? This cannot be undone.")"
+              OnConfirm="ConfirmDelete"
+              OnCancel="@(() => _pendingDelete = null)" />
 
 @if (!string.IsNullOrEmpty(_error))
 {
@@ -84,6 +91,8 @@
     private List<TopicInfo> _filtered = [];
     private string? _filter;
     private bool _filterFocused;
+    private string? _focusedItem;
+    private string? _pendingDelete;
     private string _error = string.Empty;
     private CancellationTokenSource _cts = new();
 
@@ -134,7 +143,28 @@
     private void HandleKeyDown(KeyboardEventArgs e)
     {
         if (_filterFocused || e.CtrlKey || e.AltKey || e.MetaKey) return;
-        if (e.Key == "Backspace") { ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]); return; }
+        if (e.Key == "Backspace")
+        {
+            if (_focusedItem is not null) { _pendingDelete = _focusedItem; StateHasChanged(); }
+            else ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]);
+            return;
+        }
         if (e.Key.Length == 1 && !char.IsControl(e.Key[0])) ApplyFilter((_filter ?? "") + e.Key);
+    }
+
+    private async Task ConfirmDelete()
+    {
+        var name = _pendingDelete!;
+        _pendingDelete = null;
+        _error = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            await TopicService.DeleteTopicAsync(name);
+            _all.RemoveAll(t => t.Name == name);
+            ApplyFilter(_filter);
+        }
+        catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
     }
 }

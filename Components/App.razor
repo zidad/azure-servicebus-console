@@ -19,50 +19,68 @@
 
         case Screen.TopicList:
             <TopicListScreen OnBack="@GoBack"
-                             OnBrowseTopic="@(name => NavigateToTopic(name))" />
+                             OnBrowseTopic="@(name => NavigateToSubscriptionList(name))" />
             break;
 
         case Screen.SubscriptionList:
             <SubscriptionListScreen TopicName="@(_topicName!)"
-                                    OnBack="@GoBack" />
+                                    OnBack="@GoBack"
+                                    OnBrowseSubscription="@(args => NavigateToSubscriptionBrowser(args.TopicName, args.SubscriptionName))" />
             break;
 
         case Screen.AllSubscriptions:
-            <AllSubscriptionsScreen OnBack="@GoBack" />
+            <AllSubscriptionsScreen OnBack="@GoBack"
+                                    OnBrowseSubscription="@(args => NavigateToSubscriptionBrowser(args.TopicName, args.SubscriptionName))" />
             break;
 
         case Screen.QueueBrowser:
             <QueueBrowserScreen QueueName="@(_queueName!)"
                                 OnBack="@GoBack"
-                                OnViewMessage="@(msg => NavigateToMessage(msg))" />
+                                OnViewMessage="@(args => NavigateToMessage(args.Message, args.Source))" />
+            break;
+
+        case Screen.SubscriptionBrowser:
+            <SubscriptionBrowserScreen TopicName="@(_topicName!)"
+                                       SubscriptionName="@(_subscriptionName!)"
+                                       OnBack="@GoBack"
+                                       OnViewMessage="@(args => NavigateToMessage(args.Message, args.Source))" />
             break;
 
         case Screen.MessageDetail:
             <MessageDetailScreen Message="@(_viewingMessage!)"
+                                 Source="@(_messageSource!)"
                                  OnBack="@GoBack" />
             break;
     }
 </Rows>
 
 @code {
-    private enum Screen { Connection, QueueList, TopicList, SubscriptionList, AllSubscriptions, QueueBrowser, MessageDetail }
+    private enum Screen
+    {
+        Connection, QueueList, TopicList, SubscriptionList, AllSubscriptions,
+        QueueBrowser, SubscriptionBrowser, MessageDetail
+    }
 
     private Screen _screen = Screen.Connection;
+    private Screen _previousScreen = Screen.Connection;
     private string? _queueName;
     private string? _topicName;
+    private string? _subscriptionName;
     private MessageInfo? _viewingMessage;
+    private MessageSource? _messageSource;
 
     private void GoBack()
     {
         _screen = _screen switch
         {
-            Screen.MessageDetail    => Screen.QueueBrowser,
-            Screen.QueueBrowser     => Screen.QueueList,
-            Screen.SubscriptionList => Screen.TopicList,
-            Screen.QueueList        => Screen.Connection,
-            Screen.TopicList        => Screen.Connection,
-            Screen.AllSubscriptions => Screen.Connection,
-            _                       => Screen.Connection
+            Screen.MessageDetail     => _previousScreen,
+            Screen.QueueBrowser      => Screen.QueueList,
+            Screen.SubscriptionBrowser => _previousScreen,
+            Screen.SubscriptionList  => Screen.TopicList,
+            Screen.QueueList         => Screen.Connection,
+            Screen.TopicList         => Screen.Connection,
+            Screen.AllSubscriptions  => Screen.Connection,
+            _                        => Screen.Connection
         };
         StateHasChanged();
     }
@@ -86,16 +104,27 @@
         StateHasChanged();
     }
 
-    private void NavigateToTopic(string name)
+    private void NavigateToSubscriptionList(string topicName)
     {
-        _topicName = name;
+        _topicName = topicName;
         _screen = Screen.SubscriptionList;
         StateHasChanged();
     }
 
-    private void NavigateToMessage(MessageInfo msg)
+    private void NavigateToSubscriptionBrowser(string topicName, string subscriptionName)
     {
+        _previousScreen = _screen;
+        _topicName = topicName;
+        _subscriptionName = subscriptionName;
+        _screen = Screen.SubscriptionBrowser;
+        StateHasChanged();
+    }
+
+    private void NavigateToMessage(MessageInfo msg, MessageSource source)
+    {
+        _previousScreen = _screen;
         _viewingMessage = msg;
+        _messageSource = source;
         _screen = Screen.MessageDetail;
         StateHasChanged();
     }

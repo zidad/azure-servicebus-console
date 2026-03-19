@@ -29,4 +29,10 @@ public class QueueService(ServiceBusConnection connection, ILogger<QueueService>
             }
         }
     }
+
+    public async Task DeleteQueueAsync(string queueName)
+    {
+        logger.LogWarning("Deleting queue {Queue}", queueName);
+        await connection.AdminClient.DeleteQueueAsync(queueName);
+    }
 }

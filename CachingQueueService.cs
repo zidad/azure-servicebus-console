@@ -25,4 +25,6 @@ public class CachingQueueService(IQueueService inner, ServiceBusConnection conne
         if (!ct.IsCancellationRequested && live.Count > 0)
             _ = cache.SaveAsync(key, live);
     }
+
+    public Task DeleteQueueAsync(string queueName) => inner.DeleteQueueAsync(queueName);
 }

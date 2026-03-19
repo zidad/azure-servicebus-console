@@ -5,7 +5,7 @@
 
 <Rows>
     <Columns>
-        <Markup Content="@($"{QueueName}{(_isDlq ? " (DLQ)" : "")}")"
+        <Markup Content="@($"{TopicName} / {SubscriptionName}{(_isDlq ? " (DLQ)" : "")}")"
                 Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
         <Markup Content="  " />
         <TextButton Content="< Back" OnClick="@(() => OnBack.InvokeAsync())" FocusedColor="@Color.Yellow" FocusOrder="1" />
@@ -19,17 +19,11 @@
             <Markup Content="  " />
             @if (!_isDlq)
             {
-                <TextButton Content="View DLQ"
-                            OnClick="@(() => SwitchDlq(true))"
-                            FocusedColor="@Color.Yellow"
-                            FocusOrder="4" />
+                <TextButton Content="View DLQ" OnClick="@(() => SwitchDlq(true))" FocusedColor="@Color.Yellow" FocusOrder="4" />
             }
             else
             {
-                <TextButton Content="View active"
-                            OnClick="@(() => SwitchDlq(false))"
-                            FocusedColor="@Color.Green"
-                            FocusOrder="4" />
+                <TextButton Content="View active" OnClick="@(() => SwitchDlq(false))" FocusedColor="@Color.Green" FocusOrder="4" />
             }
         </Columns>
     </Padder>
@@ -106,7 +100,8 @@
 }
 
 @code {
-    [Parameter, EditorRequired] public string QueueName { get; set; } = "";
+    [Parameter, EditorRequired] public string TopicName { get; set; } = "";
+    [Parameter, EditorRequired] public string SubscriptionName { get; set; } = "";
     [Parameter] public EventCallback OnBack { get; set; }
     [Parameter] public EventCallback<(MessageInfo Message, MessageSource Source)> OnViewMessage { get; set; }
 
@@ -118,7 +113,7 @@
     private MessageInfo? _pendingDelete;
 
     private static int MaxRows => Math.Max(5, Console.WindowHeight - 12);
-    private MessageSource MessageSource => new(QueueName, _isDlq);
+    private MessageSource MessageSource => new(SubscriptionName, _isDlq, TopicName, SubscriptionName);
 
     public void Dispose() { }
 
@@ -137,7 +132,7 @@
         _error = string.Empty;
         StateHasChanged();
 
-        try { _messages = await MessageService.PeekMessagesAsync(QueueName, MaxRows, _isDlq); }
+        try { _messages = await MessageService.PeekSubscriptionMessagesAsync(TopicName, SubscriptionName, MaxRows, _isDlq); }
         catch (Exception ex) { _error = ex.Message; }
 
         _loading = false;
@@ -150,7 +145,7 @@
         _error = string.Empty;
         StateHasChanged();
 
-        try { _messages = await MessageService.ReceiveMessagesAsync(QueueName, MaxRows, _isDlq); }
+        try { _messages = await MessageService.ReceiveSubscriptionMessagesAsync(TopicName, SubscriptionName, MaxRows, _isDlq); }
         catch (Exception ex) { _error = ex.Message; }
 
         _loading = false;
