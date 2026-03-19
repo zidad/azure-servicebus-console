@@ -73,4 +73,7 @@ public class CachingTopicService(ITopicService inner, ServiceBusConnection conne
         if (!ct.IsCancellationRequested && live.Count > 0)
             _ = cache.SaveAsync(key, live);
     }
+
+    public Task DeleteTopicAsync(string topicName) => inner.DeleteTopicAsync(topicName);
+    public Task DeleteSubscriptionAsync(string topicName, string subscriptionName) => inner.DeleteSubscriptionAsync(topicName, subscriptionName);
 }

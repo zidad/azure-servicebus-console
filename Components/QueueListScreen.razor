@@ -2,6 +2,7 @@
 @implements IDisposable
 
 @inject IQueueService QueueService
+@inject IMessageService MessageService
 
 <Rows @onkeydown="HandleKeyDown">
     <Columns>
@@ -58,7 +59,9 @@
                             <TextButton Content="@captured.Name"
                                         OnClick="@(() => OnBrowseQueue.InvokeAsync((captured.Name, false)))"
                                         FocusedColor="@Color.DodgerBlue1"
-                                        FocusOrder="@focusOrder" />
+                                        FocusOrder="@focusOrder"
+                                        @onfocus="@(() => _focusedItem = captured.Name)"
+                                        @onblur="@(() => _focusedItem = null)" />
                         </SpectreTD>
                         <SpectreTD Align="Justify.Right">@q.ActiveMessageCount</SpectreTD>
                         <SpectreTD Align="Justify.Right">@(q.DeadLetterMessageCount > 0 ? $"! {q.DeadLetterMessageCount}" : "0")</SpectreTD>
@@ -70,6 +73,11 @@
         </SpectreTable>
     }
 </Rows>
+
+<ConfirmModal IsOpened="@(_pendingDelete is not null)"
+              Message="@($"Delete queue '{_pendingDelete}'? This cannot be undone.")"
+              OnConfirm="ConfirmDelete"
+              OnCancel="@(() => _pendingDelete = null)" />
 
 @if (!string.IsNullOrEmpty(_error))
 {
@@ -88,6 +96,8 @@
     private List<QueueInfo> _filtered = [];
     private string? _filter;
     private bool _filterFocused;
+    private string? _focusedItem;
+    private string? _pendingDelete;
     private string _error = string.Empty;
     private CancellationTokenSource _cts = new();
 
@@ -145,7 +155,28 @@
     private void HandleKeyDown(KeyboardEventArgs e)
     {
         if (_filterFocused || e.CtrlKey || e.AltKey || e.MetaKey) return;
-        if (e.Key == "Backspace") { ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]); return; }
+        if (e.Key == "Backspace")
+        {
+            if (_focusedItem is not null) { _pendingDelete = _focusedItem; StateHasChanged(); }
+            else ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]);
+            return;
+        }
         if (e.Key.Length == 1 && !char.IsControl(e.Key[0])) ApplyFilter((_filter ?? "") + e.Key);
+    }
+
+    private async Task ConfirmDelete()
+    {
+        var name = _pendingDelete!;
+        _pendingDelete = null;
+        _error = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            await QueueService.DeleteQueueAsync(name);
+            _all.RemoveAll(q => q.Name == name);
+            SortAndFilter();
+        }
+        catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
     }
 }

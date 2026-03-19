@@ -48,11 +48,21 @@
                 </SpectreTR>
             </SpectreTHead>
             <SpectreTBody>
+                @{ var i = 0; }
                 @foreach (var s in _filtered.Take(MaxRows))
                 {
+                    var captured = s;
+                    var focusOrder = 4 + i++;
                     <SpectreTR>
                         <SpectreTD>@s.TopicName</SpectreTD>
-                        <SpectreTD>@s.Name</SpectreTD>
+                        <SpectreTD>
+                            <TextButton Content="@captured.Name"
+                                        OnClick="@(() => OnBrowseSubscription.InvokeAsync((captured.TopicName, captured.Name)))"
+                                        FocusedColor="@Color.DodgerBlue1"
+                                        FocusOrder="@focusOrder"
+                                        @onfocus="@(() => _focusedItem = captured)"
+                                        @onblur="@(() => _focusedItem = null)" />
+                        </SpectreTD>
                         <SpectreTD Align="Justify.Right">@s.ActiveMessageCount</SpectreTD>
                         <SpectreTD Align="Justify.Right">@(s.DeadLetterMessageCount > 0 ? $"! {s.DeadLetterMessageCount}" : "0")</SpectreTD>
                         <SpectreTD Align="Justify.Right">@s.TransferMessageCount</SpectreTD>
@@ -62,6 +72,11 @@
         </SpectreTable>
     }
 </Rows>
+
+<ConfirmModal IsOpened="@(_pendingDelete is not null)"
+              Message="@($"Delete subscription '{_pendingDelete?.Name}' from topic '{_pendingDelete?.TopicName}'? This cannot be undone.")"
+              OnConfirm="ConfirmDelete"
+              OnCancel="@(() => _pendingDelete = null)" />
 
 @if (!string.IsNullOrEmpty(_error))
 {
@@ -74,11 +89,14 @@
 
 @code {
     [Parameter] public EventCallback OnBack { get; set; }
+    [Parameter] public EventCallback<(string TopicName, string SubscriptionName)> OnBrowseSubscription { get; set; }
 
     private List<SubscriptionInfo> _all = [];
     private List<SubscriptionInfo> _filtered = [];
     private string? _filter;
     private bool _filterFocused;
+    private SubscriptionInfo? _focusedItem;
+    private SubscriptionInfo? _pendingDelete;
     private string _error = string.Empty;
     private CancellationTokenSource _cts = new();
 
@@ -139,7 +157,28 @@
     private void HandleKeyDown(KeyboardEventArgs e)
     {
         if (_filterFocused || e.CtrlKey || e.AltKey || e.MetaKey) return;
-        if (e.Key == "Backspace") { ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]); return; }
+        if (e.Key == "Backspace")
+        {
+            if (_focusedItem is not null) { _pendingDelete = _focusedItem; StateHasChanged(); }
+            else ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]);
+            return;
+        }
         if (e.Key.Length == 1 && !char.IsControl(e.Key[0])) ApplyFilter((_filter ?? "") + e.Key);
+    }
+
+    private async Task ConfirmDelete()
+    {
+        var sub = _pendingDelete!;
+        _pendingDelete = null;
+        _error = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            await TopicService.DeleteSubscriptionAsync(sub.TopicName, sub.Name);
+            _all.RemoveAll(s => s.TopicName == sub.TopicName && s.Name == sub.Name);
+            SortAndFilter();
+        }
+        catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
     }
 }

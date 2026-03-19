@@ -61,4 +61,16 @@ public class TopicService(ServiceBusConnection connection, ILogger<TopicService>
                 yield return sub;
         }
     }
+
+    public async Task DeleteTopicAsync(string topicName)
+    {
+        logger.LogWarning("Deleting topic {Topic}", topicName);
+        await connection.AdminClient.DeleteTopicAsync(topicName);
+    }
+
+    public async Task DeleteSubscriptionAsync(string topicName, string subscriptionName)
+    {
+        logger.LogWarning("Deleting subscription {Subscription} from topic {Topic}", subscriptionName, topicName);
+        await connection.AdminClient.DeleteSubscriptionAsync(topicName, subscriptionName);
+    }
 }

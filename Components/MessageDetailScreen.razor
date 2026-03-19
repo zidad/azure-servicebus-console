@@ -1,10 +1,14 @@
 @namespace LLMAgentTUI.Components
 
+@inject IMessageService MessageService
+
 <Rows>
     <Columns>
         <Markup Content="Message Detail" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
         <Markup Content="  " />
         <TextButton Content="< Back" OnClick="@(() => OnBack.InvokeAsync())" FocusedColor="@Color.Yellow" FocusOrder="1" />
+        <Markup Content="  " />
+        <TextButton Content="Delete" OnClick="@(() => _confirmDelete = true)" FocusedColor="@Color.Red" FocusOrder="2" />
     </Columns>
 
     <Padder Padding="@(new(0, 1, 0, 0))">
@@ -42,9 +46,41 @@
     </Padder>
 </Rows>
 
+<ConfirmModal IsOpened="@_confirmDelete"
+              Message="@($"Delete message #{Message.SequenceNumber} from {Source.EntityName}?")"
+              OnConfirm="ConfirmDelete"
+              OnCancel="@(() => _confirmDelete = false)" />
+
+@if (!string.IsNullOrEmpty(_error))
+{
+    <Padder Padding="@(new(0, 1, 0, 0))">
+        <Panel BorderColor="@Color.Red" Title="Error" Expand="true">
+            <Markup Content="@_error.Replace("[", "[[").Replace("]", "]]")" Foreground="@Color.Red" />
+        </Panel>
+    </Padder>
+}
+
 @code {
     [Parameter, EditorRequired] public MessageInfo Message { get; set; } = null!;
+    [Parameter, EditorRequired] public MessageSource Source { get; set; } = null!;
     [Parameter] public EventCallback OnBack { get; set; }
+
+    private bool _confirmDelete;
+    private string _error = string.Empty;
+
+    private async Task ConfirmDelete()
+    {
+        _confirmDelete = false;
+        _error = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            await MessageService.DeleteMessageAsync(Source, Message.SequenceNumber);
+            await OnBack.InvokeAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
+    }
 
     private static string EscapeMarkup(string text) =>
         text.Replace("[", "[[").Replace("]", "]]");
@@ -56,9 +92,6 @@
             var doc = System.Text.Json.JsonDocument.Parse(body);
             return System.Text.Json.JsonSerializer.Serialize(doc, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
         }
-        catch
-        {
-            return body;
-        }
+        catch { return body; }
     }
 }
