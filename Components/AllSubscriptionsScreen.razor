@@ -53,7 +53,7 @@
                 {
                     var captured = s;
                     var focusOrder = 4 + i++;
-                    <SpectreTR>
+                    <SpectreTR @key="@($"{captured.TopicName}/{captured.Name}")">
                         <SpectreTD>@s.TopicName</SpectreTD>
                         <SpectreTD>
                             <TextButton Content="@captured.Name"

@@ -51,7 +51,7 @@
                 {
                     var captured = t;
                     var focusOrder = 4 + i++;
-                    <SpectreTR>
+                    <SpectreTR @key="captured.Name">
                         <SpectreTD>
                             <TextButton Content="@captured.Name"
                                         OnClick="@(() => OnBrowseTopic.InvokeAsync(captured.Name))"
