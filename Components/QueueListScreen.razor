@@ -116,7 +116,7 @@
                 var idx = _all.FindIndex(x => x.Name == q.Name);
                 if (idx >= 0) _all[idx] = q;
                 else _all.Add(q);
-                SortAndFilter();
+                await InvokeAsync(SortAndFilter);
             }
 
             // Remove stale items that weren't in the live results

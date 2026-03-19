@@ -99,7 +99,7 @@
                 var idx = _subscriptions.FindIndex(x => x.Name == s.Name);
                 if (idx >= 0) _subscriptions[idx] = s;
                 else _subscriptions.Add(s);
-                StateHasChanged();
+                await InvokeAsync(StateHasChanged);
             }
 
             if (!_cts.IsCancellationRequested)
