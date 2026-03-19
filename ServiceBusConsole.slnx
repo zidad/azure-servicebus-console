@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="ServiceBusConsole.csproj" />
+  <Project Path="lib/RazorConsole/src/RazorConsole.Core/RazorConsole.Core.csproj" />
+</Solution>

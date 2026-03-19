@@ -1,0 +1,119 @@
+@namespace LLMAgentTUI.Components
+
+@inject NamespaceService NamespaceService
+@inject ServiceBusConnection Connection
+
+<Figlet Content="SB Console" Color="@Color.DodgerBlue1" Justify="Justify.Left" />
+
+<Panel Title="Connection" BorderColor="@Color.Grey" Expand="true" Padding="@(new(1, 0, 1, 0))">
+    <Rows>
+        <Select TValue="string" Options="@_subscriptions"
+                Value="@_selectedSubscription"
+                ValueChanged="@(async (string v) => await OnSubscriptionSelected(v))"
+                Placeholder="Azure Subscription..."
+                Expand="true"
+                FocusOrder="1"
+                SelectedOptionForeground="@Color.DodgerBlue1" />
+
+        @if (_namespacesLoading)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Columns>
+                    <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                    <Markup Content="Discovering namespaces..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+                </Columns>
+            </Padder>
+        }
+        else if (_namespaceOptions.Length > 0)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Select TValue="string" Options="@_namespaceOptions"
+                        Value="@_selectedNamespaceOption"
+                        ValueChanged="@((string v) => OnNamespaceSelected(v))"
+                        Placeholder="Service Bus Namespace..."
+                        Expand="true"
+                        FocusOrder="2"
+                        SelectedOptionForeground="@Color.DodgerBlue1" />
+            </Padder>
+        }
+
+        @if (_selectedNamespaceOption is not null && !_namespacesLoading)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Columns>
+                    <TextButton Content="Browse Queues"
+                                OnClick="@(() => OnBrowseQueues.InvokeAsync())"
+                                FocusedColor="@Color.DodgerBlue1"
+                                FocusOrder="3" />
+                    <Markup Content="  " />
+                    <TextButton Content="Browse Topics"
+                                OnClick="@(() => OnBrowseTopics.InvokeAsync())"
+                                FocusedColor="@Color.DodgerBlue1"
+                                FocusOrder="4" />
+                </Columns>
+            </Padder>
+        }
+    </Rows>
+</Panel>
+
+@if (!string.IsNullOrEmpty(_error))
+{
+    <Padder Padding="@(new(0, 1, 0, 0))">
+        <Panel BorderColor="@Color.Red" Title="Error" Expand="true">
+            <Markup Content="@_error.Replace("[", "[[").Replace("]", "]]")" Foreground="@Color.Red" />
+        </Panel>
+    </Padder>
+}
+
+@code {
+    private static readonly string[] SubscriptionOptions =
+    [
+        "dev  (47ec78b6-8202-44cd-b2ea-adce486f7ff2)",
+        "tst  (f20969f7-2f17-4932-a7af-359e073160f2)",
+        "act  (365d1707-ec13-4e11-ad0a-919e5240ef03)",
+        "prd  (b8dbcf16-ed76-4c29-932b-b93ce96b0e6c)"
+    ];
+
+    [Parameter] public EventCallback OnBrowseQueues { get; set; }
+    [Parameter] public EventCallback OnBrowseTopics { get; set; }
+
+    private readonly string[] _subscriptions = SubscriptionOptions;
+    private string? _selectedSubscription;
+    private NamespaceInfo[] _namespaces = [];
+    private string[] _namespaceOptions = [];
+    private string? _selectedNamespaceOption;
+    private bool _namespacesLoading;
+    private string _error = string.Empty;
+
+    private async Task OnSubscriptionSelected(string value)
+    {
+        _selectedSubscription = value;
+        _selectedNamespaceOption = null;
+        _error = string.Empty;
+        _namespacesLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var subscriptionId = value[(value.IndexOf('(') + 1)..value.IndexOf(')')];
+            _namespaces = (await NamespaceService.GetNamespacesAsync(subscriptionId)).ToArray();
+            _namespaceOptions = _namespaces.Select(n => n.Name).ToArray();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+
+        _namespacesLoading = false;
+        StateHasChanged();
+    }
+
+    private void OnNamespaceSelected(string value)
+    {
+        _selectedNamespaceOption = value;
+        var ns = _namespaces.FirstOrDefault(n => n.Name == value);
+        if (ns is not null)
+            Connection.SetNamespace(ns.FullyQualifiedNamespace);
+        StateHasChanged();
+    }
+}
