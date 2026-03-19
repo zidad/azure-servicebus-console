@@ -1,6 +1,7 @@
 @namespace LLMAgentTUI.Components
+@implements IDisposable
 
-@inject NamespaceService NamespaceService
+@inject INamespaceService NamespaceService
 @inject ServiceBusConnection Connection
 
 <Figlet Content="SB Console" Color="@Color.DodgerBlue1" Justify="Justify.Left" />
@@ -79,30 +80,44 @@
 
     private readonly string[] _subscriptions = SubscriptionOptions;
     private string? _selectedSubscription;
-    private NamespaceInfo[] _namespaces = [];
+    private List<NamespaceInfo> _namespaces = [];
     private string[] _namespaceOptions = [];
     private string? _selectedNamespaceOption;
     private bool _namespacesLoading;
     private string _error = string.Empty;
+    private CancellationTokenSource _cts = new();
+
+    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 
     private async Task OnSubscriptionSelected(string value)
     {
         _selectedSubscription = value;
         _selectedNamespaceOption = null;
         _error = string.Empty;
+        _namespaces.Clear();
+        _namespaceOptions = [];
+
+        _cts.Cancel();
+        _cts = new CancellationTokenSource();
+
         _namespacesLoading = true;
         StateHasChanged();
 
         try
         {
             var subscriptionId = value[(value.IndexOf('(') + 1)..value.IndexOf(')')];
-            _namespaces = (await NamespaceService.GetNamespacesAsync(subscriptionId)).ToArray();
-            _namespaceOptions = _namespaces.Select(n => n.Name).ToArray();
+            await foreach (var ns in NamespaceService.GetNamespacesAsync(subscriptionId, _cts.Token))
+            {
+                _namespacesLoading = false;
+                var idx = _namespaces.FindIndex(x => x.Name == ns.Name);
+                if (idx >= 0) _namespaces[idx] = ns;
+                else _namespaces.Add(ns);
+                _namespaceOptions = _namespaces.Select(n => n.Name).ToArray();
+                StateHasChanged();
+            }
         }
-        catch (Exception ex)
-        {
-            _error = ex.Message;
-        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { _error = ex.Message; }
 
         _namespacesLoading = false;
         StateHasChanged();

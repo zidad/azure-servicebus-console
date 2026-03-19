@@ -1,6 +1,7 @@
 @namespace LLMAgentTUI.Components
+@implements IDisposable
 
-@inject TopicService TopicService
+@inject ITopicService TopicService
 
 <Rows>
     <Columns>
@@ -11,7 +12,7 @@
         <TextButton Content="Refresh" OnClick="LoadSubscriptions" FocusedColor="@Color.Green" FocusOrder="2" />
     </Columns>
 
-    @if (_loading)
+    @if (_subscriptions.Count == 0)
     {
         <Padder Padding="@(new(0, 1, 0, 0))">
             <Columns>
@@ -64,27 +65,39 @@
     [Parameter] public EventCallback OnBack { get; set; }
 
     private List<SubscriptionInfo> _subscriptions = [];
-    private bool _loading;
     private string _error = string.Empty;
+    private CancellationTokenSource _cts = new();
+
+    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 
     protected override async Task OnInitializedAsync() => await LoadSubscriptions();
 
     private async Task LoadSubscriptions()
     {
-        _loading = true;
+        _cts.Cancel();
+        _cts = new CancellationTokenSource();
         _error = string.Empty;
-        StateHasChanged();
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         try
         {
-            _subscriptions = await TopicService.GetSubscriptionsAsync(TopicName);
-        }
-        catch (Exception ex)
-        {
-            _error = ex.Message;
-        }
+            await foreach (var s in TopicService.GetSubscriptionsAsync(TopicName, _cts.Token))
+            {
+                seen.Add(s.Name);
+                var idx = _subscriptions.FindIndex(x => x.Name == s.Name);
+                if (idx >= 0) _subscriptions[idx] = s;
+                else _subscriptions.Add(s);
+                StateHasChanged();
+            }
 
-        _loading = false;
-        StateHasChanged();
+            if (!_cts.IsCancellationRequested)
+            {
+                _subscriptions.RemoveAll(s => !seen.Contains(s.Name));
+                StateHasChanged();
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
     }
 }

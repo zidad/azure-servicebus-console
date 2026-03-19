@@ -26,10 +26,16 @@ hostBuilder.ConfigureServices(services =>
     services.AddSingleton(credential);
     services.AddSingleton(new ArmClient(credential));
     services.AddSingleton<ServiceBusConnection>();
-    services.AddSingleton<NamespaceService>();
-    services.AddSingleton<QueueService>();
-    services.AddSingleton<TopicService>();
-    services.AddSingleton<MessageService>();
+    services.AddSingleton<FileCache>();
+
+    services.AddSingleton<INamespaceService, NamespaceService>();
+    services.AddSingleton<IQueueService, QueueService>();
+    services.AddSingleton<ITopicService, TopicService>();
+    services.AddSingleton<IMessageService, MessageService>();
+
+    services.Decorate<INamespaceService, CachingNamespaceService>();
+    services.Decorate<IQueueService, CachingQueueService>();
+    services.Decorate<ITopicService, CachingTopicService>();
 
     services.Configure<ConsoleAppOptions>(options =>
     {
