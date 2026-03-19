@@ -12,6 +12,7 @@ public class CachingTopicService(ITopicService inner, ServiceBusConnection conne
             foreach (var t in cached)
             {
                 if (ct.IsCancellationRequested) yield break;
+                t.IsRefreshing = true;
                 yield return t;
             }
 
@@ -36,6 +37,7 @@ public class CachingTopicService(ITopicService inner, ServiceBusConnection conne
             foreach (var s in cached)
             {
                 if (ct.IsCancellationRequested) yield break;
+                s.IsRefreshing = true;
                 yield return s;
             }
 
@@ -60,6 +62,7 @@ public class CachingTopicService(ITopicService inner, ServiceBusConnection conne
             foreach (var s in cached)
             {
                 if (ct.IsCancellationRequested) yield break;
+                s.IsRefreshing = true;
                 yield return s;
             }
 

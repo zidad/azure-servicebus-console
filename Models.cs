@@ -20,6 +20,7 @@ public class QueueInfo
     public long DeadLetterMessageCount { get; set; }
     public long ScheduledMessageCount { get; set; }
     public long TransferMessageCount { get; set; }
+    public bool IsRefreshing { get; set; }
 }
 
 public class TopicInfo
@@ -27,6 +28,7 @@ public class TopicInfo
     public required string Name { get; set; }
     public int SubscriptionCount { get; set; }
     public long ScheduledMessageCount { get; set; }
+    public bool IsRefreshing { get; set; }
 }
 
 public class SubscriptionInfo
@@ -36,6 +38,7 @@ public class SubscriptionInfo
     public long ActiveMessageCount { get; set; }
     public long DeadLetterMessageCount { get; set; }
     public long TransferMessageCount { get; set; }
+    public bool IsRefreshing { get; set; }
 
     public long TotalMessageCount => ActiveMessageCount + DeadLetterMessageCount + TransferMessageCount;
 }

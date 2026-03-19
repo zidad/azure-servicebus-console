@@ -51,9 +51,9 @@
                                         OnFocus="@(_ => _focusedItem = captured.Name)"
                                         OnBlur="@(_ => _focusedItem = null)" />
                         </SpectreTD>
-                        <SpectreTD Align="Justify.Right">@s.ActiveMessageCount</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@(s.DeadLetterMessageCount > 0 ? $"! {s.DeadLetterMessageCount}" : "0")</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@s.TransferMessageCount</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@(s.IsRefreshing ? "…" : s.ActiveMessageCount.ToString())</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@(s.IsRefreshing ? "…" : s.DeadLetterMessageCount > 0 ? $"! {s.DeadLetterMessageCount}" : "0")</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@(s.IsRefreshing ? "…" : s.TransferMessageCount.ToString())</SpectreTD>
                     </SpectreTR>
                 }
             </SpectreTBody>
@@ -90,6 +90,7 @@
         _error = string.Empty;
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var transitionRendered = false;
 
         try
         {
@@ -99,17 +100,21 @@
                 var idx = _subscriptions.FindIndex(x => x.Name == s.Name);
                 if (idx >= 0) _subscriptions[idx] = s;
                 else _subscriptions.Add(s);
-                await InvokeAsync(StateHasChanged);
+
+                if (!s.IsRefreshing && !transitionRendered)
+                {
+                    transitionRendered = true;
+                    await InvokeAsync(StateHasChanged);
+                }
             }
 
             if (!_cts.IsCancellationRequested)
-            {
                 _subscriptions.RemoveAll(s => !seen.Contains(s.Name));
-                StateHasChanged();
-            }
+
+            await InvokeAsync(StateHasChanged);
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
+        catch (Exception ex) { _error = ex.Message; await InvokeAsync(StateHasChanged); }
     }
 
     public void HandleKeyDown(KeyboardEventArgs e)
