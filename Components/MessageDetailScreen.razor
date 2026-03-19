@@ -51,14 +51,7 @@
               OnConfirm="ConfirmDelete"
               OnCancel="@(() => _confirmDelete = false)" />
 
-@if (!string.IsNullOrEmpty(_error))
-{
-    <Padder Padding="@(new(0, 1, 0, 0))">
-        <Panel BorderColor="@Color.Red" Title="Error" Expand="true">
-            <Markup Content="@_error.Replace("[", "[[").Replace("]", "]]")" Foreground="@Color.Red" />
-        </Panel>
-    </Padder>
-}
+<ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
 
 @code {
     [Parameter, EditorRequired] public MessageInfo Message { get; set; } = null!;
