@@ -71,8 +71,8 @@
                                         OnClick="@(() => OnViewMessage.InvokeAsync((captured, MessageSource)))"
                                         FocusedColor="@Color.DodgerBlue1"
                                         FocusOrder="@focusOrder"
-                                        @onfocus="@(() => _focusedMessage = captured)"
-                                        @onblur="@(() => _focusedMessage = null)" />
+                                        OnFocus="@(_ => _focusedMessage = captured)"
+                                        OnBlur="@(_ => _focusedMessage = null)" />
                         </SpectreTD>
                         <SpectreTD>@Truncate(m.MessageId, 30)</SpectreTD>
                         <SpectreTD>@Truncate(m.Subject, 25)</SpectreTD>

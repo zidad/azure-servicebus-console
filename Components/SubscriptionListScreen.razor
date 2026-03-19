@@ -48,8 +48,8 @@
                                         OnClick="@(() => OnBrowseSubscription.InvokeAsync((TopicName, captured.Name)))"
                                         FocusedColor="@Color.DodgerBlue1"
                                         FocusOrder="@focusOrder"
-                                        @onfocus="@(() => _focusedItem = captured.Name)"
-                                        @onblur="@(() => _focusedItem = null)" />
+                                        OnFocus="@(_ => _focusedItem = captured.Name)"
+                                        OnBlur="@(_ => _focusedItem = null)" />
                         </SpectreTD>
                         <SpectreTD Align="Justify.Right">@s.ActiveMessageCount</SpectreTD>
                         <SpectreTD Align="Justify.Right">@(s.DeadLetterMessageCount > 0 ? $"! {s.DeadLetterMessageCount}" : "0")</SpectreTD>
