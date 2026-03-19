@@ -146,7 +146,6 @@
     {
         if (_filterFocused || e.CtrlKey || e.AltKey || e.MetaKey) return;
         if (e.Key == "Backspace") { ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]); return; }
-        if (e.Key == "Escape") { ApplyFilter(null); return; }
         if (e.Key.Length == 1 && !char.IsControl(e.Key[0])) ApplyFilter((_filter ?? "") + e.Key);
     }
 }
