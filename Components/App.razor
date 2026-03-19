@@ -8,7 +8,8 @@
     {
         case Screen.Connection:
             <ConnectionScreen OnBrowseQueues="@(() => Navigate(Screen.QueueList))"
-                              OnBrowseTopics="@(() => Navigate(Screen.TopicList))" />
+                              OnBrowseTopics="@(() => Navigate(Screen.TopicList))"
+                              OnBrowseAllSubscriptions="@(() => Navigate(Screen.AllSubscriptions))" />
             break;
 
         case Screen.QueueList:
@@ -26,6 +27,10 @@
                                     OnBack="@GoBack" />
             break;
 
+        case Screen.AllSubscriptions:
+            <AllSubscriptionsScreen OnBack="@GoBack" />
+            break;
+
         case Screen.QueueBrowser:
             <QueueBrowserScreen QueueName="@(_queueName!)"
                                 OnBack="@GoBack"
@@ -40,7 +45,7 @@
 </Rows>
 
 @code {
-    private enum Screen { Connection, QueueList, TopicList, SubscriptionList, QueueBrowser, MessageDetail }
+    private enum Screen { Connection, QueueList, TopicList, SubscriptionList, AllSubscriptions, QueueBrowser, MessageDetail }
 
     private Screen _screen = Screen.Connection;
     private string? _queueName;
@@ -51,12 +56,13 @@
     {
         _screen = _screen switch
         {
-            Screen.MessageDetail   => Screen.QueueBrowser,
-            Screen.QueueBrowser    => Screen.QueueList,
+            Screen.MessageDetail    => Screen.QueueBrowser,
+            Screen.QueueBrowser     => Screen.QueueList,
             Screen.SubscriptionList => Screen.TopicList,
-            Screen.QueueList       => Screen.Connection,
-            Screen.TopicList       => Screen.Connection,
-            _                      => Screen.Connection
+            Screen.QueueList        => Screen.Connection,
+            Screen.TopicList        => Screen.Connection,
+            Screen.AllSubscriptions => Screen.Connection,
+            _                       => Screen.Connection
         };
         StateHasChanged();
     }
