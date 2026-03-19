@@ -1,0 +1,716 @@
+@namespace LLMAgentTUI.Components
+@using Microsoft.AspNetCore.Components.Web
+@using RazorConsole.Components
+@using ServiceBusConsole
+@using Spectre.Console
+
+@inject SBClient Client
+
+@if (_screen == Screen.Connection)
+{
+    <Figlet Content="SB Console" Color="@Color.DodgerBlue1" Justify="Justify.Left" />
+
+    <Panel Title="Connection" BorderColor="@Color.Grey" Expand="true" Padding="@(new(1, 0, 1, 0))">
+        <Rows>
+            <Select TValue="string" Options="@_subscriptions"
+                    Value="@_selectedSubscription"
+                    ValueChanged="@(async (string v) => await OnSubscriptionSelected(v))"
+                    Placeholder="Azure Subscription..."
+                    Expand="true"
+                    FocusOrder="1"
+                    SelectedOptionForeground="@Color.DodgerBlue1" />
+
+            @if (_namespacesLoading)
+            {
+                <Padder Padding="@(new(0, 1, 0, 0))">
+                    <Columns>
+                        <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                        <Markup Content="Discovering namespaces..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+                    </Columns>
+                </Padder>
+            }
+            else if (_namespaceOptions.Length > 0)
+            {
+                <Padder Padding="@(new(0, 1, 0, 0))">
+                    <Select TValue="string" Options="@_namespaceOptions"
+                            Value="@_selectedNamespaceOption"
+                            ValueChanged="@(async (string v) => await OnNamespaceSelected(v))"
+                            Placeholder="Service Bus Namespace..."
+                            Expand="true"
+                            FocusOrder="2"
+                            SelectedOptionForeground="@Color.DodgerBlue1" />
+                </Padder>
+            }
+
+            @if (_selectedNamespaceOption is not null && !_namespacesLoading)
+            {
+                <Padder Padding="@(new(0, 1, 0, 0))">
+                    <Columns>
+                        <TextButton Content="Browse Queues"
+                                    OnClick="@(async () => await LoadQueues())"
+                                    FocusedColor="@Color.DodgerBlue1"
+                                    FocusOrder="3" />
+                        <Markup Content="  " />
+                        <TextButton Content="Browse Topics"
+                                    OnClick="@(async () => await LoadTopics())"
+                                    FocusedColor="@Color.DodgerBlue1"
+                                    FocusOrder="4" />
+                    </Columns>
+                </Padder>
+            }
+        </Rows>
+    </Panel>
+}
+else if (_screen == Screen.QueueList)
+{
+    <Rows @onkeydown="HandleFilterKeyDown">
+        <Columns>
+            <Markup Content="Queues" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+            <Markup Content="  " />
+            <TextButton Content="< Back" OnClick="GoBack" FocusedColor="@Color.Yellow" FocusOrder="2" />
+            <Markup Content="  " />
+            <TextButton Content="Refresh" OnClick="@(async () => await LoadQueues())" FocusedColor="@Color.Green" FocusOrder="3" />
+        </Columns>
+
+        <Padder Padding="@(new(0, 1, 0, 0))">
+            <TextInput Value="@_filter"
+                       ValueChanged="@((string? v) => ApplyFilter(v))"
+                       OnFocus="@(_ => _filterFocused = true)"
+                       OnBlur="@(_ => _filterFocused = false)"
+                       Placeholder="Type to filter..."
+                       Expand="true"
+                       FocusOrder="1" />
+        </Padder>
+
+        @if (_dataLoading)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Columns>
+                    <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                    <Markup Content="Loading queues..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+                </Columns>
+            </Padder>
+        }
+        else
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Markup Content="@($"{_filteredQueues.Count} queue(s)")" Foreground="@Color.Grey" />
+            </Padder>
+
+            <SpectreTable Expand="true" Border="TableBorder.Rounded">
+                <SpectreTHead>
+                    <SpectreTR>
+                        <SpectreTH Align="Justify.Left">Queue</SpectreTH>
+                        <SpectreTH Align="Justify.Right">Active</SpectreTH>
+                        <SpectreTH Align="Justify.Right">DLQ</SpectreTH>
+                        <SpectreTH Align="Justify.Right">Scheduled</SpectreTH>
+                        <SpectreTH Align="Justify.Right">Transfer</SpectreTH>
+                    </SpectreTR>
+                </SpectreTHead>
+                <SpectreTBody>
+                    @{ var queueIndex = 0; }
+                    @foreach (var q in _filteredQueues.Take(MaxTableRows))
+                    {
+                        var capturedQ = q;
+                        var focusOrder = 4 + queueIndex++;
+                        <SpectreTR>
+                            <SpectreTD>
+                                <TextButton Content="@capturedQ.Name"
+                                            OnClick="@(async () => await BrowseQueue(capturedQ.Name, false))"
+                                            FocusedColor="@Color.DodgerBlue1"
+                                            FocusOrder="@focusOrder" />
+                            </SpectreTD>
+                            <SpectreTD Align="Justify.Right">@q.ActiveMessageCount</SpectreTD>
+                            <SpectreTD Align="Justify.Right">@(q.DeadLetterMessageCount > 0 ? $"! {q.DeadLetterMessageCount}" : "0")</SpectreTD>
+                            <SpectreTD Align="Justify.Right">@q.ScheduledMessageCount</SpectreTD>
+                            <SpectreTD Align="Justify.Right">@q.TransferMessageCount</SpectreTD>
+                        </SpectreTR>
+                    }
+                </SpectreTBody>
+            </SpectreTable>
+
+        }
+    </Rows>
+}
+else if (_screen == Screen.TopicList)
+{
+    <Rows @onkeydown="HandleFilterKeyDown">
+        <Columns>
+            <Markup Content="Topics" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+            <Markup Content="  " />
+            <TextButton Content="< Back" OnClick="GoBack" FocusedColor="@Color.Yellow" FocusOrder="2" />
+            <Markup Content="  " />
+            <TextButton Content="Refresh" OnClick="@(async () => await LoadTopics())" FocusedColor="@Color.Green" FocusOrder="3" />
+        </Columns>
+
+        <Padder Padding="@(new(0, 1, 0, 0))">
+            <TextInput Value="@_filter"
+                       ValueChanged="@((string? v) => ApplyFilter(v))"
+                       OnFocus="@(_ => _filterFocused = true)"
+                       OnBlur="@(_ => _filterFocused = false)"
+                       Placeholder="Type to filter..."
+                       Expand="true"
+                       FocusOrder="1" />
+        </Padder>
+
+        @if (_dataLoading)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Columns>
+                    <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                    <Markup Content="Loading topics..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+                </Columns>
+            </Padder>
+        }
+        else
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Markup Content="@($"{_filteredTopics.Count} topic(s)")" Foreground="@Color.Grey" />
+            </Padder>
+
+            <SpectreTable Expand="true" Border="TableBorder.Rounded">
+                <SpectreTHead>
+                    <SpectreTR>
+                        <SpectreTH Align="Justify.Left">Topic</SpectreTH>
+                        <SpectreTH Align="Justify.Right">Subscriptions</SpectreTH>
+                        <SpectreTH Align="Justify.Right">Scheduled</SpectreTH>
+                    </SpectreTR>
+                </SpectreTHead>
+                <SpectreTBody>
+                    @{ var topicIndex = 0; }
+                    @foreach (var t in _filteredTopics.Take(MaxTableRows))
+                    {
+                        var capturedT = t;
+                        var focusOrder = 4 + topicIndex++;
+                        <SpectreTR>
+                            <SpectreTD>
+                                <TextButton Content="@capturedT.Name"
+                                            OnClick="@(async () => await LoadSubscriptions(capturedT.Name))"
+                                            FocusedColor="@Color.DodgerBlue1"
+                                            FocusOrder="@focusOrder" />
+                            </SpectreTD>
+                            <SpectreTD Align="Justify.Right">@t.SubscriptionCount</SpectreTD>
+                            <SpectreTD Align="Justify.Right">@t.ScheduledMessageCount</SpectreTD>
+                        </SpectreTR>
+                    }
+                </SpectreTBody>
+            </SpectreTable>
+        }
+    </Rows>
+}
+else if (_screen == Screen.SubscriptionList)
+{
+    <Rows>
+        <Columns>
+            <Markup Content="@($"Subscriptions — {_browsingTopic}")" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+            <Markup Content="  " />
+            <TextButton Content="< Back" OnClick="GoBack" FocusedColor="@Color.Yellow" FocusOrder="1" />
+            <Markup Content="  " />
+            <TextButton Content="Refresh" OnClick="@(async () => await LoadSubscriptions(_browsingTopic!))" FocusedColor="@Color.Green" FocusOrder="2" />
+        </Columns>
+
+        @if (_dataLoading)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Columns>
+                    <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                    <Markup Content="Loading subscriptions..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+                </Columns>
+            </Padder>
+        }
+        else
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Markup Content="@($"{_subscriptions2.Count} subscription(s)")" Foreground="@Color.Grey" />
+            </Padder>
+
+            <SpectreTable Expand="true" Border="TableBorder.Rounded">
+                <SpectreTHead>
+                    <SpectreTR>
+                        <SpectreTH Align="Justify.Left">Subscription</SpectreTH>
+                        <SpectreTH Align="Justify.Right">Active</SpectreTH>
+                        <SpectreTH Align="Justify.Right">DLQ</SpectreTH>
+                        <SpectreTH Align="Justify.Right">Transfer</SpectreTH>
+                    </SpectreTR>
+                </SpectreTHead>
+                <SpectreTBody>
+                    @foreach (var s in _subscriptions2)
+                    {
+                        <SpectreTR>
+                            <SpectreTD>@s.Name</SpectreTD>
+                            <SpectreTD Align="Justify.Right">@s.ActiveMessageCount</SpectreTD>
+                            <SpectreTD Align="Justify.Right">@(s.DeadLetterMessageCount > 0 ? $"! {s.DeadLetterMessageCount}" : "0")</SpectreTD>
+                            <SpectreTD Align="Justify.Right">@s.TransferMessageCount</SpectreTD>
+                        </SpectreTR>
+                    }
+                </SpectreTBody>
+            </SpectreTable>
+        }
+    </Rows>
+}
+else if (_screen == Screen.QueueBrowser)
+{
+    <Rows>
+        <Columns>
+            <Markup Content="@($"{_browsingQueue}{(_browsingDlq ? " (DLQ)" : "")}")"
+                    Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+            <Markup Content="  " />
+            <TextButton Content="< Back" OnClick="GoBack" FocusedColor="@Color.Yellow" FocusOrder="1" />
+        </Columns>
+
+        <Padder Padding="@(new(0, 1, 0, 0))">
+            <Columns>
+                <TextButton Content="Peek from start"
+                            OnClick="@(async () => await PeekMessages())"
+                            FocusedColor="@Color.Green"
+                            FocusOrder="2" />
+                <Markup Content="  " />
+                <TextButton Content="Receive (destructive)"
+                            OnClick="@(async () => await ReceiveMessages())"
+                            FocusedColor="@Color.Red"
+                            FocusOrder="3" />
+                @if (!_browsingDlq)
+                {
+                    <Markup Content="  " />
+                    <TextButton Content="View DLQ"
+                                OnClick="@(async () => await BrowseQueue(_browsingQueue!, true))"
+                                FocusedColor="@Color.Yellow"
+                                FocusOrder="4" />
+                }
+                else
+                {
+                    <Markup Content="  " />
+                    <TextButton Content="View active"
+                                OnClick="@(async () => await BrowseQueue(_browsingQueue!, false))"
+                                FocusedColor="@Color.Green"
+                                FocusOrder="4" />
+                }
+            </Columns>
+        </Padder>
+
+        @if (_messagesLoading)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Columns>
+                    <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                    <Markup Content="Loading messages..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+                </Columns>
+            </Padder>
+        }
+        else if (_messages.Count > 0)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Markup Content="@($"{_messages.Count} message(s)  |  Tab to navigate, Enter to view")" Foreground="@Color.Grey" />
+            </Padder>
+
+            <SpectreTable Expand="true" Border="TableBorder.Simple">
+                <SpectreTHead>
+                    <SpectreTR>
+                        <SpectreTH Align="Justify.Right">#</SpectreTH>
+                        <SpectreTH Align="Justify.Left">Message ID</SpectreTH>
+                        <SpectreTH Align="Justify.Left">Subject</SpectreTH>
+                        <SpectreTH Align="Justify.Left">Enqueued</SpectreTH>
+                        <SpectreTH Align="Justify.Right">Delivery</SpectreTH>
+                    </SpectreTR>
+                </SpectreTHead>
+                <SpectreTBody>
+                    @{ var msgIndex = 0; }
+                    @foreach (var m in _messages)
+                    {
+                        var capturedM = m;
+                        var focusOrder = 5 + msgIndex++;
+                        <SpectreTR>
+                            <SpectreTD Align="Justify.Right">
+                                <TextButton Content="@capturedM.SequenceNumber.ToString()"
+                                            OnClick="@(() => ViewMessage(capturedM))"
+                                            FocusedColor="@Color.DodgerBlue1"
+                                            FocusOrder="@focusOrder" />
+                            </SpectreTD>
+                            <SpectreTD>@Truncate(m.MessageId, 30)</SpectreTD>
+                            <SpectreTD>@Truncate(m.Subject, 25)</SpectreTD>
+                            <SpectreTD>@m.EnqueuedTime.LocalDateTime.ToString("HH:mm:ss")</SpectreTD>
+                            <SpectreTD Align="Justify.Right">@m.DeliveryCount</SpectreTD>
+                        </SpectreTR>
+                    }
+                </SpectreTBody>
+            </SpectreTable>
+        }
+        else if (!_messagesLoading)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Markup Content="No messages. Use Peek or Receive to load." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+            </Padder>
+        }
+    </Rows>
+}
+else if (_screen == Screen.MessageDetail)
+{
+    <Rows>
+        <Columns>
+            <Markup Content="Message Detail" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+            <Markup Content="  " />
+            <TextButton Content="< Back" OnClick="GoBack" FocusedColor="@Color.Yellow" FocusOrder="1" />
+        </Columns>
+
+        @if (_viewingMessage is not null)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Panel Title="Properties" BorderColor="@Color.Grey" Expand="true" Padding="@(new(1, 0, 1, 0))">
+                    <SpectreTable Expand="true" Border="TableBorder.Simple">
+                        <SpectreTHead>
+                            <SpectreTR>
+                                <SpectreTH>Property</SpectreTH>
+                                <SpectreTH>Value</SpectreTH>
+                            </SpectreTR>
+                        </SpectreTHead>
+                        <SpectreTBody>
+                            <SpectreTR>
+                                <SpectreTD>Message ID</SpectreTD>
+                                <SpectreTD>@_viewingMessage.MessageId</SpectreTD>
+                            </SpectreTR>
+                            <SpectreTR>
+                                <SpectreTD>Sequence #</SpectreTD>
+                                <SpectreTD>@_viewingMessage.SequenceNumber</SpectreTD>
+                            </SpectreTR>
+                            <SpectreTR>
+                                <SpectreTD>Subject</SpectreTD>
+                                <SpectreTD>@_viewingMessage.Subject</SpectreTD>
+                            </SpectreTR>
+                            <SpectreTR>
+                                <SpectreTD>Content Type</SpectreTD>
+                                <SpectreTD>@_viewingMessage.ContentType</SpectreTD>
+                            </SpectreTR>
+                            <SpectreTR>
+                                <SpectreTD>Enqueued</SpectreTD>
+                                <SpectreTD>@_viewingMessage.EnqueuedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss")</SpectreTD>
+                            </SpectreTR>
+                            <SpectreTR>
+                                <SpectreTD>Delivery Count</SpectreTD>
+                                <SpectreTD>@_viewingMessage.DeliveryCount</SpectreTD>
+                            </SpectreTR>
+                            @foreach (var prop in _viewingMessage.Properties)
+                            {
+                                <SpectreTR>
+                                    <SpectreTD>@prop.Key</SpectreTD>
+                                    <SpectreTD>@prop.Value</SpectreTD>
+                                </SpectreTR>
+                            }
+                        </SpectreTBody>
+                    </SpectreTable>
+                </Panel>
+            </Padder>
+
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Panel Title="Body" BorderColor="@Color.Grey" Expand="true" Padding="@(new(1, 0, 1, 0))">
+                    <Markup Content="@EscapeMarkup(FormatBody(_viewingMessage.Body))" />
+                </Panel>
+            </Padder>
+        }
+    </Rows>
+}
+
+@if (!string.IsNullOrEmpty(_error))
+{
+    <Padder Padding="@(new(0, 1, 0, 0))">
+        <Panel BorderColor="@Color.Red" Title="Error" Expand="true">
+            <Markup Content="@EscapeMarkup(_error)" Foreground="@Color.Red" />
+        </Panel>
+    </Padder>
+}
+
+@code {
+    private enum Screen { Connection, QueueList, TopicList, SubscriptionList, QueueBrowser, MessageDetail }
+
+
+    private static readonly string[] Subscriptions =
+    [
+        "dev  (47ec78b6-8202-44cd-b2ea-adce486f7ff2)",
+        "tst  (f20969f7-2f17-4932-a7af-359e073160f2)",
+        "act  (365d1707-ec13-4e11-ad0a-919e5240ef03)",
+        "prd  (b8dbcf16-ed76-4c29-932b-b93ce96b0e6c)"
+    ];
+
+    private Screen _screen = Screen.Connection;
+    private Screen _previousScreen = Screen.Connection;
+
+    private string[] _subscriptions = Subscriptions;
+    private string? _selectedSubscription;
+
+    private NamespaceInfo[] _namespaces = [];
+    private string[] _namespaceOptions = [];
+    private string? _selectedNamespaceOption;
+    private bool _namespacesLoading;
+
+    private List<QueueInfo> _allQueues = [];
+    private List<QueueInfo> _filteredQueues = [];
+    private List<TopicInfo> _allTopics = [];
+    private List<TopicInfo> _filteredTopics = [];
+    private string? _filter;
+    private bool _filterFocused;
+    private bool _dataLoading;
+
+    private string? _browsingTopic;
+    private List<SubscriptionInfo> _subscriptions2 = [];
+
+    private string? _browsingQueue;
+    private bool _browsingDlq;
+    private List<MessageInfo> _messages = [];
+    private bool _messagesLoading;
+
+    private MessageInfo? _viewingMessage;
+
+    private string _error = string.Empty;
+
+    private static int MaxTableRows => Math.Max(5, Console.WindowHeight - 12);
+
+    private async Task OnSubscriptionSelected(string value)
+    {
+        _selectedSubscription = value;
+        _selectedNamespaceOption = null;
+        _error = string.Empty;
+
+        _namespacesLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var subscriptionId = ExtractSubscriptionId(value);
+            _namespaces = (await Client.GetNamespacesAsync(subscriptionId)).ToArray();
+            _namespaceOptions = _namespaces.Select(n => n.Name).ToArray();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+
+        _namespacesLoading = false;
+        StateHasChanged();
+    }
+
+    private Task OnNamespaceSelected(string value)
+    {
+        _selectedNamespaceOption = value;
+
+        var ns = _namespaces.FirstOrDefault(n => n.Name == value);
+        if (ns is not null)
+            Client.SetNamespace(ns.FullyQualifiedNamespace);
+
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+
+    private async Task LoadQueues()
+    {
+        _screen = Screen.QueueList;
+        _dataLoading = true;
+        _error = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            _allQueues = await Client.GetQueuesAsync();
+            SortQueues();
+            _filteredQueues = _allQueues;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+
+        _dataLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadTopics()
+    {
+        _screen = Screen.TopicList;
+        _dataLoading = true;
+        _error = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            _allTopics = await Client.GetTopicsWithCountsAsync();
+            _filteredTopics = _allTopics;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+
+        _dataLoading = false;
+        StateHasChanged();
+    }
+
+    private void ApplyFilter(string? value)
+    {
+        _filter = value;
+
+        if (_screen == Screen.QueueList)
+        {
+            _filteredQueues = string.IsNullOrWhiteSpace(value)
+                ? _allQueues
+                : _allQueues.Where(q => q.Name.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+        else if (_screen == Screen.TopicList)
+        {
+            _filteredTopics = string.IsNullOrWhiteSpace(value)
+                ? _allTopics
+                : _allTopics.Where(t => t.Name.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task BrowseQueue(string queueName, bool dlq)
+    {
+        _previousScreen = _screen;
+        _screen = Screen.QueueBrowser;
+        _browsingQueue = queueName;
+        _browsingDlq = dlq;
+        _messages = [];
+        _error = string.Empty;
+        StateHasChanged();
+
+        await PeekMessages();
+    }
+
+    private async Task PeekMessages()
+    {
+        _messagesLoading = true;
+        _error = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            _messages = await Client.PeekMessagesAsync(_browsingQueue!, MaxTableRows, _browsingDlq);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+
+        _messagesLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task ReceiveMessages()
+    {
+        _messagesLoading = true;
+        _error = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            _messages = await Client.ReceiveMessagesAsync(_browsingQueue!, MaxTableRows, _browsingDlq);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+
+        _messagesLoading = false;
+        StateHasChanged();
+    }
+
+    private void ViewMessage(MessageInfo msg)
+    {
+        _previousScreen = Screen.QueueBrowser;
+        _screen = Screen.MessageDetail;
+        _viewingMessage = msg;
+        StateHasChanged();
+    }
+
+    private async Task LoadSubscriptions(string topicName)
+    {
+        _browsingTopic = topicName;
+        _screen = Screen.SubscriptionList;
+        _dataLoading = true;
+        _error = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            _subscriptions2 = await Client.GetSubscriptionsAsync(topicName);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+
+        _dataLoading = false;
+        StateHasChanged();
+    }
+
+    private Task GoBack()
+    {
+        _error = string.Empty;
+
+        if (_screen == Screen.MessageDetail)
+            _screen = Screen.QueueBrowser;
+        else if (_screen == Screen.QueueBrowser)
+            _screen = Screen.QueueList;
+        else if (_screen == Screen.SubscriptionList)
+            _screen = Screen.TopicList;
+        else
+            _screen = Screen.Connection;
+
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private void SortQueues()
+    {
+        _allQueues = _allQueues
+            .OrderByDescending(q => q.DeadLetterMessageCount)
+            .ThenBy(q => q.Name)
+            .ToList();
+    }
+
+    private void HandleFilterKeyDown(KeyboardEventArgs e)
+    {
+        if (_filterFocused || e.CtrlKey || e.AltKey || e.MetaKey) return;
+
+        if (e.Key == "Backspace")
+        {
+            if (!string.IsNullOrEmpty(_filter))
+                ApplyFilter(_filter[..^1]);
+            return;
+        }
+
+        if (e.Key == "Escape")
+        {
+            ApplyFilter(null);
+            return;
+        }
+
+        if (e.Key.Length == 1 && !char.IsControl(e.Key[0]))
+            ApplyFilter((_filter ?? "") + e.Key);
+    }
+
+    private static string ExtractSubscriptionId(string display) =>
+        display[(display.IndexOf('(') + 1)..display.IndexOf(')')];
+
+    private static string Truncate(string value, int maxLength) =>
+        value.Length <= maxLength ? value : value[..(maxLength - 1)] + "…";
+
+    private static string EscapeMarkup(string text) =>
+        text.Replace("[", "[[").Replace("]", "]]");
+
+    private static string FormatBody(string body)
+    {
+        try
+        {
+            var element = System.Text.Json.JsonDocument.Parse(body);
+            return System.Text.Json.JsonSerializer.Serialize(element, new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+        }
+        catch
+        {
+            return body;
+        }
+    }
+}

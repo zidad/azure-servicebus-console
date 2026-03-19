@@ -1,0 +1,3 @@
+[submodule "lib/RazorConsole"]
+	path = lib/RazorConsole
+	url = https://github.com/RazorConsole/RazorConsole.git
