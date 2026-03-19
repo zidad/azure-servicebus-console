@@ -111,7 +111,7 @@
                 var idx = _all.FindIndex(x => x.Name == t.Name);
                 if (idx >= 0) _all[idx] = t;
                 else _all.Add(t);
-                ApplyFilter(_filter);
+                await InvokeAsync(() => ApplyFilter(_filter));
             }
 
             if (!_cts.IsCancellationRequested)

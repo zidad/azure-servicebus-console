@@ -116,7 +116,7 @@
                 var idx = _all.FindIndex(x => x.TopicName == s.TopicName && x.Name == s.Name);
                 if (idx >= 0) _all[idx] = s;
                 else _all.Add(s);
-                SortAndFilter();
+                await InvokeAsync(SortAndFilter);
             }
 
             if (!_cts.IsCancellationRequested)
