@@ -1,0 +1,37 @@
+using Azure.Identity;
+using Azure.ResourceManager;
+using LLMAgentTUI.Components;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using RazorConsole.Core;
+using ServiceBusConsole;
+
+var logDir = Path.Combine(AppContext.BaseDirectory, "logs");
+Directory.CreateDirectory(logDir);
+var logFile = Path.Combine(logDir, $"session-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+
+IHostBuilder hostBuilder = Host.CreateDefaultBuilder(args)
+    .UseRazorConsole<App>()
+    .ConfigureLogging(logging =>
+    {
+        logging.ClearProviders();
+        logging.AddProvider(new FileLoggerProvider(logFile));
+        logging.SetMinimumLevel(LogLevel.Debug);
+    });
+
+hostBuilder.ConfigureServices(services =>
+{
+    var credential = new AzureCliCredential();
+    services.AddSingleton(credential);
+    services.AddSingleton(new ArmClient(credential));
+    services.AddSingleton<SBClient>();
+
+    services.Configure<ConsoleAppOptions>(options =>
+    {
+        options.AutoClearConsole = true;
+    });
+});
+
+var host = hostBuilder.Build();
+await host.RunAsync();
