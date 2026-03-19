@@ -59,7 +59,7 @@
                 {
                     var captured = m;
                     var focusOrder = 5 + i++;
-                    <SpectreTR>
+                    <SpectreTR @key="captured.SequenceNumber">
                         <SpectreTD Align="Justify.Right">
                             <TextButton Content="@captured.SequenceNumber.ToString()"
                                         OnClick="@(() => OnViewMessage.InvokeAsync((captured, MessageSource)))"
