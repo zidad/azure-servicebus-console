@@ -1,4 +1,4 @@
-@page "/topics/{TopicName}/{SubscriptionName}"
+@page "/subscription-browser"
 @namespace ServiceBusConsole.Pages
 
 @inject NavigationManager Nav
@@ -94,7 +94,7 @@
             <Markup Content="   " />
             <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
             <Markup Content="   " />
-            <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo($"/topics/{Uri.EscapeDataString(TopicName)}"))" FocusedColor="@Color.Yellow" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
+            <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo(string.IsNullOrEmpty(TopicName) ? "/topics" : $"/topics/{Uri.EscapeDataString(TopicName)}"))" FocusedColor="@Color.Yellow" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
         </Columns>
     </Padder>
 </Rows>
@@ -107,8 +107,8 @@
 <ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
 
 @code {
-    [Parameter] public string TopicName { get; set; } = "";
-    [Parameter] public string SubscriptionName { get; set; } = "";
+    private string TopicName => NavState.TopicName ?? "";
+    private string SubscriptionName => NavState.SubscriptionName ?? "";
 
     private bool _isDlq;
     private bool _isAutoForwarding;
@@ -176,7 +176,7 @@
         if (e.CtrlKey || e.AltKey || e.MetaKey) return;
         switch (e.Key)
         {
-            case "Escape": Nav.NavigateTo($"/topics/{Uri.EscapeDataString(TopicName)}"); return;
+            case "Escape": Nav.NavigateTo(string.IsNullOrEmpty(TopicName) ? "/topics" : $"/topics/{Uri.EscapeDataString(TopicName)}"); return;
             case "F6": _ = SwitchDlq(!_isDlq); return;
             case "F7": _ = PeekMessages(); return;
             case "F8": _ = ReceiveMessages(); return;

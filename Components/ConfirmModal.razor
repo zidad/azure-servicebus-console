@@ -6,14 +6,14 @@
             <Markup Content="@Message.Replace("[", "[[").Replace("]", "]]")" />
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
-                    <TextButton Content="Yes, delete"
-                                OnClick="@(() => OnConfirm.InvokeAsync())"
-                                FocusedColor="@Color.Red"
-                                FocusOrder="1" />
-                    <Markup Content="   " />
                     <TextButton Content="Cancel"
                                 OnClick="@(() => OnCancel.InvokeAsync())"
                                 FocusedColor="@Color.Grey"
+                                FocusOrder="1" />
+                    <Markup Content="   " />
+                    <TextButton Content="Yes, delete"
+                                OnClick="@(() => OnConfirm.InvokeAsync())"
+                                FocusedColor="@Color.Red"
                                 FocusOrder="2" />
                 </Columns>
             </Padder>

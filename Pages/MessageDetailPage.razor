@@ -86,7 +86,7 @@ else
         var src = NavState.MessageSource;
         if (src is null) { Nav.NavigateTo("/"); return; }
         if (src.IsSubscription)
-            Nav.NavigateTo($"/topics/{Uri.EscapeDataString(src.TopicName!)}/{Uri.EscapeDataString(src.SubscriptionName!)}");
+            { NavState.TopicName = src.TopicName; NavState.SubscriptionName = src.SubscriptionName; Nav.NavigateTo("/subscription-browser"); }
         else
             Nav.NavigateTo($"/queues/{Uri.EscapeDataString(src.EntityName)}");
     }

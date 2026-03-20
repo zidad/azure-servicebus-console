@@ -8,4 +8,6 @@ public class NavigationState
 {
     public MessageInfo? Message { get; set; }
     public MessageSource? MessageSource { get; set; }
+    public string? TopicName { get; set; }
+    public string? SubscriptionName { get; set; }
 }

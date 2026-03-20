@@ -3,6 +3,7 @@
 @implements IDisposable
 
 @inject NavigationManager Nav
+@inject NavigationState NavState
 @inject ServiceBusConnection Connection
 @inject ITopicService TopicService
 
@@ -48,7 +49,7 @@
                     <SpectreTR @key="captured.Name">
                         <SpectreTD>
                             <TextButton Content="@captured.Name"
-                                        OnClick="@(() => Nav.NavigateTo($"/topics/{Uri.EscapeDataString(TopicName)}/{Uri.EscapeDataString(captured.Name)}"))"
+                                        OnClick="@(() => { NavState.TopicName = TopicName; NavState.SubscriptionName = captured.Name; Nav.NavigateTo("/subscription-browser"); })"
                                         FocusedColor="@Color.DodgerBlue1"
                                         FocusOrder="@fo"
                                         OnFocus="@(_ => _focusedItem = captured.Name)"
