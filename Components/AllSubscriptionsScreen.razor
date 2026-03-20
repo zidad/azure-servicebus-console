@@ -61,7 +61,8 @@
                                         FocusedColor="@Color.DodgerBlue1"
                                         FocusOrder="@focusOrder"
                                         OnFocus="@(_ => _focusedItem = captured)"
-                                        OnBlur="@(_ => _focusedItem = null)" />
+                                        OnBlur="@(_ => _focusedItem = null)"
+                                        OnKeyDown="@HandleKeyDown" />
                         </SpectreTD>
                         <SpectreTD Align="Justify.Right">@(s.IsRefreshing ? "…" : s.ActiveMessageCount.ToString())</SpectreTD>
                         <SpectreTD Align="Justify.Right">@(s.IsRefreshing ? "…" : s.DeadLetterMessageCount > 0 ? $"! {s.DeadLetterMessageCount}" : "0")</SpectreTD>
