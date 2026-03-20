@@ -1,16 +1,14 @@
-@namespace LLMAgentTUI.Components
+@page "/topics"
+@namespace ServiceBusConsole.Pages
 @implements IDisposable
 
+@inject NavigationManager Nav
 @inject ITopicService TopicService
 
 <Rows @onkeydown="HandleKeyDown">
-    <Columns>
+    <Panel BorderColor="@Color.Grey37" Expand="true" Padding="@(new(0, 0, 0, 0))">
         <Markup Content="Topics" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
-        <Markup Content="  " />
-        <TextButton Content="< Back" OnClick="@(() => OnBack.InvokeAsync())" FocusedColor="@Color.Yellow" FocusOrder="2" />
-        <Markup Content="  " />
-        <TextButton Content="Refresh" OnClick="LoadTopics" FocusedColor="@Color.Green" FocusOrder="3" />
-    </Columns>
+    </Panel>
 
     <Padder Padding="@(new(0, 1, 0, 0))">
         <TextInput Value="@_filter"
@@ -50,13 +48,13 @@
                 @foreach (var t in _filtered.Take(MaxRows))
                 {
                     var captured = t;
-                    var focusOrder = 4 + i++;
+                    var fo = 6 + i++;
                     <SpectreTR @key="captured.Name">
                         <SpectreTD>
                             <TextButton Content="@captured.Name"
-                                        OnClick="@(() => OnBrowseTopic.InvokeAsync(captured.Name))"
+                                        OnClick="@(() => Nav.NavigateTo($"/topics/{Uri.EscapeDataString(captured.Name)}"))"
                                         FocusedColor="@Color.DodgerBlue1"
-                                        FocusOrder="@focusOrder"
+                                        FocusOrder="@fo"
                                         OnFocus="@(_ => _focusedItem = captured.Name)"
                                         OnBlur="@(_ => _focusedItem = null)"
                                         OnKeyDown="@HandleKeyDown" />
@@ -68,6 +66,16 @@
             </SpectreTBody>
         </SpectreTable>
     }
+
+    <Padder Padding="@(new(1, 0, 0, 0))">
+        <Columns>
+            <TextButton Content="[F5] Refresh" OnClick="LoadTopics" FocusedColor="@Color.Green" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+            <Markup Content="   " />
+            <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+            <Markup Content="   " />
+            <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Color.Yellow" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+        </Columns>
+    </Padder>
 </Rows>
 
 <ConfirmModal IsOpened="@(_pendingDelete is not null)"
@@ -78,9 +86,6 @@
 <ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
 
 @code {
-    [Parameter] public EventCallback OnBack { get; set; }
-    [Parameter] public EventCallback<string> OnBrowseTopic { get; set; }
-
     private List<TopicInfo> _all = [];
     private List<TopicInfo> _filtered = [];
     private string? _filter;
@@ -111,8 +116,7 @@
             {
                 seen.Add(t.Name);
                 var idx = _all.FindIndex(x => x.Name == t.Name);
-                if (idx >= 0) _all[idx] = t;
-                else _all.Add(t);
+                if (idx >= 0) _all[idx] = t; else _all.Add(t);
 
                 if (!t.IsRefreshing && !transitionRendered)
                 {
@@ -127,40 +131,15 @@
                 _all.RemoveAll(t => !seen.Contains(t.Name));
                 UpdateFilterState(_filter);
             }
-
             await InvokeAsync(StateHasChanged);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { _error = ex.Message; await InvokeAsync(StateHasChanged); }
     }
 
-    private void UpdateFilterState(string? value)
+    private void TriggerDelete()
     {
-        _filter = value;
-        _filtered = string.IsNullOrWhiteSpace(value)
-            ? _all
-            : _all.Where(t => t.Name.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
-    }
-
-    private void ApplyFilter(string? value)
-    {
-        _filter = value;
-        _filtered = string.IsNullOrWhiteSpace(value)
-            ? _all
-            : _all.Where(t => t.Name.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
-        StateHasChanged();
-    }
-
-    private void HandleKeyDown(KeyboardEventArgs e)
-    {
-        if (_filterFocused || e.CtrlKey || e.AltKey || e.MetaKey) return;
-        if (e.Key == "Backspace")
-        {
-            if (_focusedItem is not null) { _pendingDelete = _focusedItem; StateHasChanged(); }
-            else ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]);
-            return;
-        }
-        if (e.Key.Length == 1 && !char.IsControl(e.Key[0])) ApplyFilter((_filter ?? "") + e.Key);
+        if (_focusedItem is not null) { _pendingDelete = _focusedItem; StateHasChanged(); }
     }
 
     private async Task ConfirmDelete()
@@ -169,13 +148,39 @@
         _pendingDelete = null;
         _error = string.Empty;
         StateHasChanged();
-
-        try
-        {
-            await TopicService.DeleteTopicAsync(name);
-            _all.RemoveAll(t => t.Name == name);
-            ApplyFilter(_filter);
-        }
+        try { await TopicService.DeleteTopicAsync(name); _all.RemoveAll(t => t.Name == name); ApplyFilter(_filter); }
         catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
+    }
+
+    private void UpdateFilterState(string? value)
+    {
+        _filter = value;
+        _filtered = string.IsNullOrWhiteSpace(value) ? _all
+            : _all.Where(t => t.Name.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+
+    private void ApplyFilter(string? value)
+    {
+        UpdateFilterState(value);
+        StateHasChanged();
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        switch (e.Key)
+        {
+            case "Escape": Nav.NavigateTo("/"); return;
+            case "F5": _ = LoadTopics(); return;
+            case "F9": case "Delete": TriggerDelete(); return;
+            case "Backspace":
+                if (_focusedItem is not null) TriggerDelete();
+                else if (!_filterFocused) ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]);
+                return;
+            default:
+                if (!_filterFocused && e.Key.Length == 1 && !char.IsControl(e.Key[0]))
+                    ApplyFilter((_filter ?? "") + e.Key);
+                break;
+        }
     }
 }

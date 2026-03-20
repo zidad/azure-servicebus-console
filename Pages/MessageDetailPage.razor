@@ -1,0 +1,127 @@
+@page "/message"
+@namespace ServiceBusConsole.Pages
+
+@inject NavigationManager Nav
+@inject IMessageService MessageService
+@inject NavigationState NavState
+
+@if (NavState.Message is null)
+{
+    <Markup Content="No message selected." Foreground="@Color.Red" />
+}
+else
+{
+    var msg = NavState.Message;
+    var src = NavState.MessageSource!;
+
+    <Rows @onkeydown="HandleKeyDown">
+        <Panel BorderColor="@Color.Grey37" Expand="true" Padding="@(new(0, 0, 0, 0))">
+            <Columns>
+                <Markup Content="@src.EntityName" Foreground="@Color.Grey" />
+                <Markup Content=" › " Foreground="@Color.Grey" />
+                <Markup Content="@($"Message #{msg.SequenceNumber}")" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+            </Columns>
+        </Panel>
+
+        <Padder Padding="@(new(0, 1, 0, 0))">
+            <Panel Title="Properties" BorderColor="@Color.Grey" Expand="true" Padding="@(new(1, 0, 1, 0))">
+                <SpectreTable Expand="true" Border="TableBorder.Simple">
+                    <SpectreTHead>
+                        <SpectreTR>
+                            <SpectreTH>Property</SpectreTH>
+                            <SpectreTH>Value</SpectreTH>
+                        </SpectreTR>
+                    </SpectreTHead>
+                    <SpectreTBody>
+                        <SpectreTR><SpectreTD>Message ID</SpectreTD><SpectreTD>@msg.MessageId</SpectreTD></SpectreTR>
+                        <SpectreTR><SpectreTD>Sequence #</SpectreTD><SpectreTD>@msg.SequenceNumber</SpectreTD></SpectreTR>
+                        <SpectreTR><SpectreTD>Subject</SpectreTD><SpectreTD>@msg.Subject</SpectreTD></SpectreTR>
+                        <SpectreTR><SpectreTD>Content Type</SpectreTD><SpectreTD>@msg.ContentType</SpectreTD></SpectreTR>
+                        <SpectreTR><SpectreTD>Enqueued</SpectreTD><SpectreTD>@msg.EnqueuedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss")</SpectreTD></SpectreTR>
+                        <SpectreTR><SpectreTD>Delivery Count</SpectreTD><SpectreTD>@msg.DeliveryCount</SpectreTD></SpectreTR>
+                        @foreach (var prop in msg.Properties)
+                        {
+                            <SpectreTR>
+                                <SpectreTD>@prop.Key</SpectreTD>
+                                <SpectreTD>@prop.Value</SpectreTD>
+                            </SpectreTR>
+                        }
+                    </SpectreTBody>
+                </SpectreTable>
+            </Panel>
+        </Padder>
+
+        <Padder Padding="@(new(0, 1, 0, 0))">
+            <Panel Title="Body" BorderColor="@Color.Grey" Expand="true" Padding="@(new(1, 0, 1, 0))">
+                <Markup Content="@EscapeMarkup(FormatBody(msg.Body))" />
+            </Panel>
+        </Padder>
+
+        <Padder Padding="@(new(1, 0, 0, 0))">
+            <Columns>
+                <TextButton Content="[F9] Delete" OnClick="@(() => _confirmDelete = true)"
+                            FocusedColor="@Color.Red" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+                <Markup Content="   " />
+                <TextButton Content="[Esc] Back" OnClick="GoBack"
+                            FocusedColor="@Color.Yellow" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
+            </Columns>
+        </Padder>
+    </Rows>
+
+    <ConfirmModal IsOpened="@_confirmDelete"
+                  Message="@($"Delete message #{msg.SequenceNumber} from {src.EntityName}?")"
+                  OnConfirm="ConfirmDelete"
+                  OnCancel="@(() => _confirmDelete = false)" />
+}
+
+<ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
+
+@code {
+    private bool _confirmDelete;
+    private string _error = string.Empty;
+
+    private void GoBack()
+    {
+        var src = NavState.MessageSource;
+        if (src is null) { Nav.NavigateTo("/"); return; }
+        if (src.IsSubscription)
+            Nav.NavigateTo($"/topics/{Uri.EscapeDataString(src.TopicName!)}/{Uri.EscapeDataString(src.SubscriptionName!)}");
+        else
+            Nav.NavigateTo($"/queues/{Uri.EscapeDataString(src.EntityName)}");
+    }
+
+    private async Task ConfirmDelete()
+    {
+        _confirmDelete = false;
+        _error = string.Empty;
+        StateHasChanged();
+        try
+        {
+            await MessageService.DeleteMessageAsync(NavState.MessageSource!, NavState.Message!.SequenceNumber);
+            GoBack();
+        }
+        catch (Exception ex) { _error = ex.Message.Split('\n')[0]; StateHasChanged(); }
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        switch (e.Key)
+        {
+            case "Escape": GoBack(); return;
+            case "F9": case "Delete": _confirmDelete = true; StateHasChanged(); return;
+        }
+    }
+
+    private static string EscapeMarkup(string text) => text.Replace("[", "[[").Replace("]", "]]");
+
+    private static string FormatBody(string body)
+    {
+        try
+        {
+            var doc = System.Text.Json.JsonDocument.Parse(body);
+            return System.Text.Json.JsonSerializer.Serialize(doc, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        }
+        catch { return body; }
+    }
+}

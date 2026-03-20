@@ -32,6 +32,7 @@ hostBuilder.ConfigureServices(services =>
     services.AddSingleton<IQueueService, QueueService>();
     services.AddSingleton<ITopicService, TopicService>();
     services.AddSingleton<IMessageService, MessageService>();
+    services.AddSingleton<NavigationState>();
 
     services.Decorate<INamespaceService, CachingNamespaceService>();
     services.Decorate<IQueueService, CachingQueueService>();

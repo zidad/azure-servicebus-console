@@ -1,16 +1,18 @@
-@namespace LLMAgentTUI.Components
+@page "/topics/{TopicName}"
+@namespace ServiceBusConsole.Pages
 @implements IDisposable
 
+@inject NavigationManager Nav
 @inject ITopicService TopicService
 
-<Rows>
-    <Columns>
-        <Markup Content="@($"Subscriptions — {TopicName}")" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
-        <Markup Content="  " />
-        <TextButton Content="< Back" OnClick="@(() => OnBack.InvokeAsync())" FocusedColor="@Color.Yellow" FocusOrder="1" />
-        <Markup Content="  " />
-        <TextButton Content="Refresh" OnClick="LoadSubscriptions" FocusedColor="@Color.Green" FocusOrder="2" />
-    </Columns>
+<Rows @onkeydown="HandleKeyDown">
+    <Panel BorderColor="@Color.Grey37" Expand="true" Padding="@(new(0, 0, 0, 0))">
+        <Columns>
+            <Markup Content="Topics" Foreground="@Color.Grey" />
+            <Markup Content=" › " Foreground="@Color.Grey" />
+            <Markup Content="@TopicName" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+        </Columns>
+    </Panel>
 
     @if (_subscriptions.Count == 0)
     {
@@ -24,7 +26,7 @@
     else
     {
         <Padder Padding="@(new(0, 1, 0, 0))">
-            <Markup Content="@($"{_subscriptions.Count} subscription(s)  |  Enter to browse, Backspace to delete")" Foreground="@Color.Grey" />
+            <Markup Content="@($"{_subscriptions.Count} subscription(s)  |  Enter to browse · Backspace to delete")" Foreground="@Color.Grey" />
         </Padder>
 
         <SpectreTable Expand="true" Border="TableBorder.Rounded">
@@ -41,13 +43,13 @@
                 @foreach (var s in _subscriptions)
                 {
                     var captured = s;
-                    var focusOrder = 3 + i++;
+                    var fo = 4 + i++;
                     <SpectreTR @key="captured.Name">
                         <SpectreTD>
                             <TextButton Content="@captured.Name"
-                                        OnClick="@(() => OnBrowseSubscription.InvokeAsync((TopicName, captured.Name)))"
+                                        OnClick="@(() => Nav.NavigateTo($"/topics/{Uri.EscapeDataString(TopicName)}/{Uri.EscapeDataString(captured.Name)}"))"
                                         FocusedColor="@Color.DodgerBlue1"
-                                        FocusOrder="@focusOrder"
+                                        FocusOrder="@fo"
                                         OnFocus="@(_ => _focusedItem = captured.Name)"
                                         OnBlur="@(_ => _focusedItem = null)"
                                         OnKeyDown="@HandleKeyDown" />
@@ -60,6 +62,16 @@
             </SpectreTBody>
         </SpectreTable>
     }
+
+    <Padder Padding="@(new(1, 0, 0, 0))">
+        <Columns>
+            <TextButton Content="[F5] Refresh" OnClick="LoadSubscriptions" FocusedColor="@Color.Green" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+            <Markup Content="   " />
+            <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+            <Markup Content="   " />
+            <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/topics"))" FocusedColor="@Color.Yellow" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
+        </Columns>
+    </Padder>
 </Rows>
 
 <ConfirmModal IsOpened="@(_pendingDelete is not null)"
@@ -70,9 +82,7 @@
 <ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
 
 @code {
-    [Parameter, EditorRequired] public string TopicName { get; set; } = "";
-    [Parameter] public EventCallback OnBack { get; set; }
-    [Parameter] public EventCallback<(string TopicName, string SubscriptionName)> OnBrowseSubscription { get; set; }
+    [Parameter] public string TopicName { get; set; } = "";
 
     private List<SubscriptionInfo> _subscriptions = [];
     private string? _focusedItem;
@@ -99,8 +109,7 @@
             {
                 seen.Add(s.Name);
                 var idx = _subscriptions.FindIndex(x => x.Name == s.Name);
-                if (idx >= 0) _subscriptions[idx] = s;
-                else _subscriptions.Add(s);
+                if (idx >= 0) _subscriptions[idx] = s; else _subscriptions.Add(s);
 
                 if (!s.IsRefreshing && !transitionRendered)
                 {
@@ -118,13 +127,9 @@
         catch (Exception ex) { _error = ex.Message; await InvokeAsync(StateHasChanged); }
     }
 
-    public void HandleKeyDown(KeyboardEventArgs e)
+    private void TriggerDelete()
     {
-        if (e.Key == "Backspace" && _focusedItem is not null)
-        {
-            _pendingDelete = _focusedItem;
-            StateHasChanged();
-        }
+        if (_focusedItem is not null) { _pendingDelete = _focusedItem; StateHasChanged(); }
     }
 
     private async Task ConfirmDelete()
@@ -133,13 +138,18 @@
         _pendingDelete = null;
         _error = string.Empty;
         StateHasChanged();
-
-        try
-        {
-            await TopicService.DeleteSubscriptionAsync(TopicName, name);
-            _subscriptions.RemoveAll(s => s.Name == name);
-            StateHasChanged();
-        }
+        try { await TopicService.DeleteSubscriptionAsync(TopicName, name); _subscriptions.RemoveAll(s => s.Name == name); StateHasChanged(); }
         catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        switch (e.Key)
+        {
+            case "Escape": Nav.NavigateTo("/topics"); return;
+            case "F5": _ = LoadSubscriptions(); return;
+            case "F9": case "Delete": case "Backspace": TriggerDelete(); return;
+        }
     }
 }

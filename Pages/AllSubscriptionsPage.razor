@@ -1,16 +1,14 @@
-@namespace LLMAgentTUI.Components
+@page "/subscriptions"
+@namespace ServiceBusConsole.Pages
 @implements IDisposable
 
+@inject NavigationManager Nav
 @inject ITopicService TopicService
 
 <Rows @onkeydown="HandleKeyDown">
-    <Columns>
+    <Panel BorderColor="@Color.Grey37" Expand="true" Padding="@(new(0, 0, 0, 0))">
         <Markup Content="All Subscriptions" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
-        <Markup Content="  " />
-        <TextButton Content="< Back" OnClick="@(() => OnBack.InvokeAsync())" FocusedColor="@Color.Yellow" FocusOrder="2" />
-        <Markup Content="  " />
-        <TextButton Content="Refresh" OnClick="LoadSubscriptions" FocusedColor="@Color.Green" FocusOrder="3" />
-    </Columns>
+    </Panel>
 
     <Padder Padding="@(new(0, 1, 0, 0))">
         <TextInput Value="@_filter"
@@ -52,14 +50,14 @@
                 @foreach (var s in _filtered.Take(MaxRows))
                 {
                     var captured = s;
-                    var focusOrder = 4 + i++;
+                    var fo = 6 + i++;
                     <SpectreTR @key="@($"{captured.TopicName}/{captured.Name}")">
                         <SpectreTD>@s.TopicName</SpectreTD>
                         <SpectreTD>
                             <TextButton Content="@captured.Name"
-                                        OnClick="@(() => OnBrowseSubscription.InvokeAsync((captured.TopicName, captured.Name)))"
+                                        OnClick="@(() => Nav.NavigateTo($"/topics/{Uri.EscapeDataString(captured.TopicName)}/{Uri.EscapeDataString(captured.Name)}"))"
                                         FocusedColor="@Color.DodgerBlue1"
-                                        FocusOrder="@focusOrder"
+                                        FocusOrder="@fo"
                                         OnFocus="@(_ => _focusedItem = captured)"
                                         OnBlur="@(_ => _focusedItem = null)"
                                         OnKeyDown="@HandleKeyDown" />
@@ -72,6 +70,16 @@
             </SpectreTBody>
         </SpectreTable>
     }
+
+    <Padder Padding="@(new(1, 0, 0, 0))">
+        <Columns>
+            <TextButton Content="[F5] Refresh" OnClick="LoadSubscriptions" FocusedColor="@Color.Green" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+            <Markup Content="   " />
+            <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+            <Markup Content="   " />
+            <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Color.Yellow" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+        </Columns>
+    </Padder>
 </Rows>
 
 <ConfirmModal IsOpened="@(_pendingDelete is not null)"
@@ -82,9 +90,6 @@
 <ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
 
 @code {
-    [Parameter] public EventCallback OnBack { get; set; }
-    [Parameter] public EventCallback<(string TopicName, string SubscriptionName)> OnBrowseSubscription { get; set; }
-
     private List<SubscriptionInfo> _all = [];
     private List<SubscriptionInfo> _filtered = [];
     private string? _filter;
@@ -116,8 +121,7 @@
                 var key = $"{s.TopicName}/{s.Name}";
                 seen.Add(key);
                 var idx = _all.FindIndex(x => x.TopicName == s.TopicName && x.Name == s.Name);
-                if (idx >= 0) _all[idx] = s;
-                else _all.Add(s);
+                if (idx >= 0) _all[idx] = s; else _all.Add(s);
 
                 if (!s.IsRefreshing && !transitionRendered)
                 {
@@ -132,11 +136,30 @@
                 _all.RemoveAll(s => !seen.Contains($"{s.TopicName}/{s.Name}"));
                 SortAndUpdateFilterState();
             }
-
             await InvokeAsync(StateHasChanged);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { _error = ex.Message; await InvokeAsync(StateHasChanged); }
+    }
+
+    private void TriggerDelete()
+    {
+        if (_focusedItem is not null) { _pendingDelete = _focusedItem; StateHasChanged(); }
+    }
+
+    private async Task ConfirmDelete()
+    {
+        var sub = _pendingDelete!;
+        _pendingDelete = null;
+        _error = string.Empty;
+        StateHasChanged();
+        try
+        {
+            await TopicService.DeleteSubscriptionAsync(sub.TopicName, sub.Name);
+            _all.RemoveAll(s => s.TopicName == sub.TopicName && s.Name == sub.Name);
+            SortAndFilter();
+        }
+        catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
     }
 
     private void SortAndUpdateFilterState()
@@ -148,12 +171,9 @@
     private void UpdateFilterState(string? value)
     {
         _filter = value;
-        _filtered = string.IsNullOrWhiteSpace(value)
-            ? _all
-            : _all.Where(s =>
-                s.TopicName.Contains(value, StringComparison.OrdinalIgnoreCase) ||
-                s.Name.Contains(value, StringComparison.OrdinalIgnoreCase))
-              .ToList();
+        _filtered = string.IsNullOrWhiteSpace(value) ? _all
+            : _all.Where(s => s.TopicName.Contains(value, StringComparison.OrdinalIgnoreCase)
+                            || s.Name.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
     }
 
     private void SortAndFilter()
@@ -164,41 +184,26 @@
 
     private void ApplyFilter(string? value)
     {
-        _filter = value;
-        _filtered = string.IsNullOrWhiteSpace(value)
-            ? _all
-            : _all.Where(s =>
-                s.TopicName.Contains(value, StringComparison.OrdinalIgnoreCase) ||
-                s.Name.Contains(value, StringComparison.OrdinalIgnoreCase))
-              .ToList();
+        UpdateFilterState(value);
         StateHasChanged();
     }
 
     private void HandleKeyDown(KeyboardEventArgs e)
     {
-        if (_filterFocused || e.CtrlKey || e.AltKey || e.MetaKey) return;
-        if (e.Key == "Backspace")
+        if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        switch (e.Key)
         {
-            if (_focusedItem is not null) { _pendingDelete = _focusedItem; StateHasChanged(); }
-            else ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]);
-            return;
+            case "Escape": Nav.NavigateTo("/"); return;
+            case "F5": _ = LoadSubscriptions(); return;
+            case "F9": case "Delete": TriggerDelete(); return;
+            case "Backspace":
+                if (_focusedItem is not null) TriggerDelete();
+                else if (!_filterFocused) ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]);
+                return;
+            default:
+                if (!_filterFocused && e.Key.Length == 1 && !char.IsControl(e.Key[0]))
+                    ApplyFilter((_filter ?? "") + e.Key);
+                break;
         }
-        if (e.Key.Length == 1 && !char.IsControl(e.Key[0])) ApplyFilter((_filter ?? "") + e.Key);
-    }
-
-    private async Task ConfirmDelete()
-    {
-        var sub = _pendingDelete!;
-        _pendingDelete = null;
-        _error = string.Empty;
-        StateHasChanged();
-
-        try
-        {
-            await TopicService.DeleteSubscriptionAsync(sub.TopicName, sub.Name);
-            _all.RemoveAll(s => s.TopicName == sub.TopicName && s.Name == sub.Name);
-            SortAndFilter();
-        }
-        catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
     }
 }
