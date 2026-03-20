@@ -80,7 +80,7 @@
     else
     {
         <Padder Padding="@(new(0, 1, 0, 0))">
-            <Markup Content="No messages. Use Peek or Receive to load." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+            <Markup Content="@(_isAutoForwarding ? "Auto-forwarding enabled — messages are forwarded to another entity." : "No messages. Use Peek or Receive to load.")" Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
         </Padder>
     }
 </Rows>
@@ -99,6 +99,7 @@
     [Parameter] public EventCallback<(MessageInfo Message, MessageSource Source)> OnViewMessage { get; set; }
 
     private bool _isDlq;
+    private bool _isAutoForwarding;
     private List<MessageInfo> _messages = [];
     private bool _loading;
     private string _error = string.Empty;
@@ -126,6 +127,7 @@
         StateHasChanged();
 
         try { _messages = await MessageService.PeekSubscriptionMessagesAsync(TopicName, SubscriptionName, MaxRows, _isDlq); }
+        catch (Exception ex) when (IsAutoForwardingError(ex)) { _isAutoForwarding = true; }
         catch (Exception ex) { _error = FormatError(ex); }
 
         _loading = false;
@@ -139,6 +141,7 @@
         StateHasChanged();
 
         try { _messages = await MessageService.ReceiveSubscriptionMessagesAsync(TopicName, SubscriptionName, MaxRows, _isDlq); }
+        catch (Exception ex) when (IsAutoForwardingError(ex)) { }
         catch (Exception ex) { _error = FormatError(ex); }
 
         _loading = false;
@@ -171,10 +174,9 @@
     private static string Truncate(string value, int maxLength) =>
         value.Length <= maxLength ? value : value[..(maxLength - 1)] + "…";
 
-    private static string FormatError(Exception ex)
-    {
-        if (ex.Message.Contains("auto-forwarding", StringComparison.OrdinalIgnoreCase))
-            return $"'{ex.Message.Split('.')[0].Trim()}' — this subscription uses auto-forwarding and messages are forwarded to another entity.";
-        return ex.Message.Split('\n')[0]; // first line only, strip Azure tracking IDs
-    }
+    private static bool IsAutoForwardingError(Exception ex) =>
+        ex.Message.Contains("auto-forwarding", StringComparison.OrdinalIgnoreCase);
+
+    private static string FormatError(Exception ex) =>
+        ex.Message.Split('\n')[0]; // first line only, strip Azure tracking IDs
 }
