@@ -40,5 +40,13 @@ public class FileCache(ILogger<FileCache> logger)
         }
     }
 
+    public static string CacheDirectory => BaseDir;
+
+    public void Clear()
+    {
+        try { if (System.IO.Directory.Exists(BaseDir)) System.IO.Directory.Delete(BaseDir, true); }
+        catch (Exception ex) { logger.LogWarning(ex, "Cache clear failed"); }
+    }
+
     private static string GetPath(string key) => Path.Combine(BaseDir, key);
 }

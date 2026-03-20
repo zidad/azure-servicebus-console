@@ -2,6 +2,7 @@
 @namespace ServiceBusConsole.Pages
 
 @inject NavigationManager Nav
+@inject ServiceBusConnection Connection
 @inject IMessageService MessageService
 @inject NavigationState NavState
 
@@ -120,6 +121,13 @@
     private static int MaxRows => Math.Max(5, Console.WindowHeight - 12);
     private MessageSource Source => new(SubscriptionName, _isDlq, TopicName, SubscriptionName);
 
+
+    protected override void OnInitialized()
+    {
+        if (Connection.CurrentNamespace is null)
+            Nav.NavigateTo("/");
+    }
+
     protected override async Task OnInitializedAsync() => await PeekMessages();
 
     private async Task SwitchDlq(bool dlq) { _isDlq = dlq; _messages = []; await PeekMessages(); }
@@ -172,7 +180,7 @@
             case "F6": _ = SwitchDlq(!_isDlq); return;
             case "F7": _ = PeekMessages(); return;
             case "F8": _ = ReceiveMessages(); return;
-            case "F9": case "Delete": case "Backspace": TriggerDelete(); return;
+            case "F9": case "Delete": case "\\": TriggerDelete(); return;
         }
     }
 

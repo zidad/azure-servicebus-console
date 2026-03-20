@@ -4,6 +4,7 @@
 @inject NavigationManager Nav
 @inject INamespaceService NamespaceService
 @inject ServiceBusConnection Connection
+@inject FileCache FileCache
 
 <Figlet Content="SB Console" Color="@Color.DodgerBlue1" Justify="Justify.Left" />
 
@@ -66,6 +67,14 @@
     </Rows>
 </Panel>
 
+<Padder Padding="@(new(0, 1, 0, 0))">
+    <Columns>
+        <Markup Content="@($"Cache: {FileCache.CacheDirectory}")" Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+        <Markup Content="   " />
+        <TextButton Content="Clear cache" OnClick="ClearCache" FocusedColor="@Color.Red" OnKeyDown="@HandleKeyDown" />
+    </Columns>
+</Padder>
+
 <ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
 
 @code {
@@ -88,13 +97,22 @@
 
     private void HandleKeyDown(KeyboardEventArgs e)
     {
-        if (e.CtrlKey || e.AltKey || e.MetaKey || _selectedNamespaceOption is null) return;
-        switch (e.Key)
+        if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        if (_selectedNamespaceOption is not null)
         {
-            case "F1": Nav.NavigateTo("/queues"); break;
-            case "F2": Nav.NavigateTo("/topics"); break;
-            case "F3": Nav.NavigateTo("/subscriptions"); break;
+            switch (e.Key)
+            {
+                case "F1": Nav.NavigateTo("/queues"); return;
+                case "F2": Nav.NavigateTo("/topics"); return;
+                case "F3": Nav.NavigateTo("/subscriptions"); return;
+            }
         }
+    }
+
+    private void ClearCache()
+    {
+        FileCache.Clear();
+        StateHasChanged();
     }
 
     private async Task OnSubscriptionSelected(string value)

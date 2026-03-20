@@ -3,6 +3,7 @@
 @implements IDisposable
 
 @inject NavigationManager Nav
+@inject ServiceBusConnection Connection
 @inject ITopicService TopicService
 
 <Rows @onkeydown="HandleKeyDown">
@@ -92,6 +93,13 @@
 
     public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 
+
+    protected override void OnInitialized()
+    {
+        if (Connection.CurrentNamespace is null)
+            Nav.NavigateTo("/");
+    }
+
     protected override async Task OnInitializedAsync() => await LoadSubscriptions();
 
     private async Task LoadSubscriptions()
@@ -149,7 +157,7 @@
         {
             case "Escape": Nav.NavigateTo("/topics"); return;
             case "F5": _ = LoadSubscriptions(); return;
-            case "F9": case "Delete": case "Backspace": TriggerDelete(); return;
+            case "F9": case "Delete": case "\\": TriggerDelete(); return;
         }
     }
 }

@@ -3,6 +3,7 @@
 @implements IDisposable
 
 @inject NavigationManager Nav
+@inject ServiceBusConnection Connection
 @inject ITopicService TopicService
 
 <Rows @onkeydown="HandleKeyDown">
@@ -99,6 +100,13 @@
 
     public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 
+
+    protected override void OnInitialized()
+    {
+        if (Connection.CurrentNamespace is null)
+            Nav.NavigateTo("/");
+    }
+
     protected override async Task OnInitializedAsync() => await LoadTopics();
 
     private async Task LoadTopics()
@@ -172,10 +180,9 @@
         {
             case "Escape": Nav.NavigateTo("/"); return;
             case "F5": _ = LoadTopics(); return;
-            case "F9": case "Delete": TriggerDelete(); return;
+            case "F9": case "Delete": case "\\": TriggerDelete(); return;
             case "Backspace":
-                if (_focusedItem is not null) TriggerDelete();
-                else if (!_filterFocused) ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]);
+                if (!_filterFocused) ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]);
                 return;
             default:
                 if (!_filterFocused && e.Key.Length == 1 && !char.IsControl(e.Key[0]))
