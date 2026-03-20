@@ -126,7 +126,7 @@
         StateHasChanged();
 
         try { _messages = await MessageService.PeekSubscriptionMessagesAsync(TopicName, SubscriptionName, MaxRows, _isDlq); }
-        catch (Exception ex) { _error = ex.Message; }
+        catch (Exception ex) { _error = FormatError(ex); }
 
         _loading = false;
         StateHasChanged();
@@ -139,7 +139,7 @@
         StateHasChanged();
 
         try { _messages = await MessageService.ReceiveSubscriptionMessagesAsync(TopicName, SubscriptionName, MaxRows, _isDlq); }
-        catch (Exception ex) { _error = ex.Message; }
+        catch (Exception ex) { _error = FormatError(ex); }
 
         _loading = false;
         StateHasChanged();
@@ -170,4 +170,11 @@
 
     private static string Truncate(string value, int maxLength) =>
         value.Length <= maxLength ? value : value[..(maxLength - 1)] + "…";
+
+    private static string FormatError(Exception ex)
+    {
+        if (ex.Message.Contains("auto-forwarding", StringComparison.OrdinalIgnoreCase))
+            return $"'{ex.Message.Split('.')[0].Trim()}' — this subscription uses auto-forwarding and messages are forwarded to another entity.";
+        return ex.Message.Split('\n')[0]; // first line only, strip Azure tracking IDs
+    }
 }
