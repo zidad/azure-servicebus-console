@@ -1,3 +1,4 @@
 [submodule "lib/RazorConsole"]
 	path = lib/RazorConsole
-	url = https://github.com/RazorConsole/RazorConsole.git
+	url = https://github.com/zidad/RazorConsole.git
+	branch = servicebus-console-patches

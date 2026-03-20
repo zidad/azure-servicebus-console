@@ -1,0 +1,211 @@
+@page "/queues"
+@namespace ServiceBusConsole.Pages
+@implements IDisposable
+
+@inject NavigationManager Nav
+@inject ServiceBusConnection Connection
+@inject IQueueService QueueService
+
+<Rows @onkeydown="HandleKeyDown">
+    <Panel BorderColor="@Color.Grey37" Expand="true" Padding="@(new(0, 0, 0, 0))">
+        <Markup Content="Queues" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+    </Panel>
+
+    <Padder Padding="@(new(0, 1, 0, 0))">
+        <TextInput Value="@_filter"
+                   ValueChanged="ApplyFilter"
+                   OnFocus="@(_ => _filterFocused = true)"
+                   OnBlur="@(_ => _filterFocused = false)"
+                   Placeholder="Type to filter..."
+                   Expand="true"
+                   FocusOrder="1" />
+    </Padder>
+
+    @if (_all.Count == 0)
+    {
+        <Padder Padding="@(new(0, 1, 0, 0))">
+            <Columns>
+                <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                <Markup Content="Loading queues..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+            </Columns>
+        </Padder>
+    }
+    else
+    {
+        <Padder Padding="@(new(0, 1, 0, 0))">
+            <Markup Content="@($"{_filtered.Count} queue(s)")" Foreground="@Color.Grey" />
+        </Padder>
+
+        <SpectreTable Expand="true" Border="TableBorder.Rounded">
+            <SpectreTHead>
+                <SpectreTR>
+                    <SpectreTH Align="Justify.Left">Queue</SpectreTH>
+                    <SpectreTH Align="Justify.Right">Active</SpectreTH>
+                    <SpectreTH Align="Justify.Right">DLQ</SpectreTH>
+                    <SpectreTH Align="Justify.Right">Scheduled</SpectreTH>
+                    <SpectreTH Align="Justify.Right">Transfer</SpectreTH>
+                </SpectreTR>
+            </SpectreTHead>
+            <SpectreTBody>
+                @{ var i = 0; }
+                @foreach (var q in _filtered.Take(MaxRows))
+                {
+                    var captured = q;
+                    var fo = 6 + i++;
+                    <SpectreTR @key="captured.Name">
+                        <SpectreTD>
+                            <TextButton Content="@captured.Name"
+                                        OnClick="@(() => Nav.NavigateTo($"/queues/{Uri.EscapeDataString(captured.Name)}"))"
+                                        FocusedColor="@Color.DodgerBlue1"
+                                        FocusOrder="@fo"
+                                        OnFocus="@(_ => _focusedItem = captured.Name)"
+                                        OnBlur="@(_ => _focusedItem = null)"
+                                        OnKeyDown="@HandleKeyDown" />
+                        </SpectreTD>
+                        <SpectreTD Align="Justify.Right">@(q.IsRefreshing ? "…" : q.ActiveMessageCount.ToString())</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@(q.IsRefreshing ? "…" : q.DeadLetterMessageCount > 0 ? $"! {q.DeadLetterMessageCount}" : "0")</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@(q.IsRefreshing ? "…" : q.ScheduledMessageCount.ToString())</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@(q.IsRefreshing ? "…" : q.TransferMessageCount.ToString())</SpectreTD>
+                    </SpectreTR>
+                }
+            </SpectreTBody>
+        </SpectreTable>
+    }
+
+    <Padder Padding="@(new(1, 0, 0, 0))">
+        <Columns>
+            <TextButton Content="[F5] Refresh" OnClick="LoadQueues" FocusedColor="@Color.Green" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+            <Markup Content="   " />
+            <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+            <Markup Content="   " />
+            <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Color.Yellow" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+        </Columns>
+    </Padder>
+</Rows>
+
+<ConfirmModal IsOpened="@(_pendingDelete is not null)"
+              Message="@($"Delete queue '{_pendingDelete}'? This cannot be undone.")"
+              OnConfirm="ConfirmDelete"
+              OnCancel="@(() => _pendingDelete = null)" />
+
+<ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
+
+@code {
+    private List<QueueInfo> _all = [];
+    private List<QueueInfo> _filtered = [];
+    private string? _filter;
+    private bool _filterFocused;
+    private string? _focusedItem;
+    private string? _pendingDelete;
+    private string _error = string.Empty;
+    private CancellationTokenSource _cts = new();
+
+    private static int MaxRows => Math.Max(5, Console.WindowHeight - 12);
+
+    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+
+
+    protected override void OnInitialized()
+    {
+        if (Connection.CurrentNamespace is null)
+            Nav.NavigateTo("/");
+    }
+
+    protected override async Task OnInitializedAsync() => await LoadQueues();
+
+    private async Task LoadQueues()
+    {
+        _cts.Cancel();
+        _cts = new CancellationTokenSource();
+        _error = string.Empty;
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var transitionRendered = false;
+
+        try
+        {
+            await foreach (var q in QueueService.GetQueuesAsync(_cts.Token))
+            {
+                seen.Add(q.Name);
+                var idx = _all.FindIndex(x => x.Name == q.Name);
+                if (idx >= 0) _all[idx] = q; else _all.Add(q);
+
+                if (!q.IsRefreshing && !transitionRendered)
+                {
+                    transitionRendered = true;
+                    SortAndUpdateFilterState();
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+
+            if (!_cts.IsCancellationRequested)
+            {
+                _all.RemoveAll(q => !seen.Contains(q.Name));
+                SortAndUpdateFilterState();
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { _error = ex.Message; await InvokeAsync(StateHasChanged); }
+    }
+
+    private void TriggerDelete()
+    {
+        if (_focusedItem is not null) { _pendingDelete = _focusedItem; StateHasChanged(); }
+    }
+
+    private async Task ConfirmDelete()
+    {
+        var name = _pendingDelete!;
+        _pendingDelete = null;
+        _error = string.Empty;
+        StateHasChanged();
+        try { await QueueService.DeleteQueueAsync(name); _all.RemoveAll(q => q.Name == name); SortAndFilter(); }
+        catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
+    }
+
+    private void SortAndUpdateFilterState()
+    {
+        _all = [.. _all.OrderByDescending(q => q.DeadLetterMessageCount).ThenBy(q => q.Name)];
+        UpdateFilterState(_filter);
+    }
+
+    private void UpdateFilterState(string? value)
+    {
+        _filter = value;
+        _filtered = string.IsNullOrWhiteSpace(value) ? _all
+            : _all.Where(q => q.Name.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+
+    private void SortAndFilter()
+    {
+        _all = [.. _all.OrderByDescending(q => q.DeadLetterMessageCount).ThenBy(q => q.Name)];
+        ApplyFilter(_filter);
+    }
+
+    private void ApplyFilter(string? value)
+    {
+        _filter = value;
+        _filtered = string.IsNullOrWhiteSpace(value) ? _all
+            : _all.Where(q => q.Name.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
+        StateHasChanged();
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        switch (e.Key)
+        {
+            case "Escape": Nav.NavigateTo("/"); return;
+            case "F5": _ = LoadQueues(); return;
+            case "F9": case "Delete": case "\\": TriggerDelete(); return;
+            case "Backspace":
+                if (!_filterFocused) ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]);
+                return;
+            default:
+                if (!_filterFocused && e.Key.Length == 1 && !char.IsControl(e.Key[0]))
+                    ApplyFilter((_filter ?? "") + e.Key);
+                break;
+        }
+    }
+}

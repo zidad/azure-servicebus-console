@@ -1,0 +1,20 @@
+@namespace LLMAgentTUI.Components
+
+<ModalWindow IsOpened="@(!string.IsNullOrEmpty(Message))">
+    <Panel Title="Error" BorderColor="@Color.Red" Padding="@(new(2, 1, 2, 1))">
+        <Rows>
+            <Markup Content="@Message.Replace("[", "[[").Replace("]", "]]")" Foreground="@Color.Red" />
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <TextButton Content="Dismiss"
+                            OnClick="@(() => OnDismiss.InvokeAsync())"
+                            FocusedColor="@Color.Grey"
+                            FocusOrder="1" />
+            </Padder>
+        </Rows>
+    </Panel>
+</ModalWindow>
+
+@code {
+    [Parameter] public string Message { get; set; } = "";
+    [Parameter] public EventCallback OnDismiss { get; set; }
+}

@@ -1,5 +1,10 @@
 namespace ServiceBusConsole;
 
+public record MessageSource(string EntityName, bool IsDlq, string? TopicName = null, string? SubscriptionName = null)
+{
+    public bool IsSubscription => TopicName is not null && SubscriptionName is not null;
+}
+
 public class NamespaceInfo
 {
     public required string Name { get; set; }
@@ -15,6 +20,7 @@ public class QueueInfo
     public long DeadLetterMessageCount { get; set; }
     public long ScheduledMessageCount { get; set; }
     public long TransferMessageCount { get; set; }
+    public bool IsRefreshing { get; set; }
 }
 
 public class TopicInfo
@@ -22,14 +28,19 @@ public class TopicInfo
     public required string Name { get; set; }
     public int SubscriptionCount { get; set; }
     public long ScheduledMessageCount { get; set; }
+    public bool IsRefreshing { get; set; }
 }
 
 public class SubscriptionInfo
 {
     public required string Name { get; set; }
+    public string TopicName { get; set; } = "";
     public long ActiveMessageCount { get; set; }
     public long DeadLetterMessageCount { get; set; }
     public long TransferMessageCount { get; set; }
+    public bool IsRefreshing { get; set; }
+
+    public long TotalMessageCount => ActiveMessageCount + DeadLetterMessageCount + TransferMessageCount;
 }
 
 public class MessageInfo

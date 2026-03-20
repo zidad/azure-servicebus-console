@@ -1,0 +1,193 @@
+@page "/topics"
+@namespace ServiceBusConsole.Pages
+@implements IDisposable
+
+@inject NavigationManager Nav
+@inject ServiceBusConnection Connection
+@inject ITopicService TopicService
+
+<Rows @onkeydown="HandleKeyDown">
+    <Panel BorderColor="@Color.Grey37" Expand="true" Padding="@(new(0, 0, 0, 0))">
+        <Markup Content="Topics" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+    </Panel>
+
+    <Padder Padding="@(new(0, 1, 0, 0))">
+        <TextInput Value="@_filter"
+                   ValueChanged="ApplyFilter"
+                   OnFocus="@(_ => _filterFocused = true)"
+                   OnBlur="@(_ => _filterFocused = false)"
+                   Placeholder="Type to filter..."
+                   Expand="true"
+                   FocusOrder="1" />
+    </Padder>
+
+    @if (_all.Count == 0)
+    {
+        <Padder Padding="@(new(0, 1, 0, 0))">
+            <Columns>
+                <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                <Markup Content="Loading topics..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+            </Columns>
+        </Padder>
+    }
+    else
+    {
+        <Padder Padding="@(new(0, 1, 0, 0))">
+            <Markup Content="@($"{_filtered.Count} topic(s)")" Foreground="@Color.Grey" />
+        </Padder>
+
+        <SpectreTable Expand="true" Border="TableBorder.Rounded">
+            <SpectreTHead>
+                <SpectreTR>
+                    <SpectreTH Align="Justify.Left">Topic</SpectreTH>
+                    <SpectreTH Align="Justify.Right">Subscriptions</SpectreTH>
+                    <SpectreTH Align="Justify.Right">Scheduled</SpectreTH>
+                </SpectreTR>
+            </SpectreTHead>
+            <SpectreTBody>
+                @{ var i = 0; }
+                @foreach (var t in _filtered.Take(MaxRows))
+                {
+                    var captured = t;
+                    var fo = 6 + i++;
+                    <SpectreTR @key="captured.Name">
+                        <SpectreTD>
+                            <TextButton Content="@captured.Name"
+                                        OnClick="@(() => Nav.NavigateTo($"/topics/{Uri.EscapeDataString(captured.Name)}"))"
+                                        FocusedColor="@Color.DodgerBlue1"
+                                        FocusOrder="@fo"
+                                        OnFocus="@(_ => _focusedItem = captured.Name)"
+                                        OnBlur="@(_ => _focusedItem = null)"
+                                        OnKeyDown="@HandleKeyDown" />
+                        </SpectreTD>
+                        <SpectreTD Align="Justify.Right">@(t.IsRefreshing ? "…" : t.SubscriptionCount.ToString())</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@(t.IsRefreshing ? "…" : t.ScheduledMessageCount.ToString())</SpectreTD>
+                    </SpectreTR>
+                }
+            </SpectreTBody>
+        </SpectreTable>
+    }
+
+    <Padder Padding="@(new(1, 0, 0, 0))">
+        <Columns>
+            <TextButton Content="[F5] Refresh" OnClick="LoadTopics" FocusedColor="@Color.Green" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+            <Markup Content="   " />
+            <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+            <Markup Content="   " />
+            <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Color.Yellow" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+        </Columns>
+    </Padder>
+</Rows>
+
+<ConfirmModal IsOpened="@(_pendingDelete is not null)"
+              Message="@($"Delete topic '{_pendingDelete}' and all its subscriptions? This cannot be undone.")"
+              OnConfirm="ConfirmDelete"
+              OnCancel="@(() => _pendingDelete = null)" />
+
+<ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
+
+@code {
+    private List<TopicInfo> _all = [];
+    private List<TopicInfo> _filtered = [];
+    private string? _filter;
+    private bool _filterFocused;
+    private string? _focusedItem;
+    private string? _pendingDelete;
+    private string _error = string.Empty;
+    private CancellationTokenSource _cts = new();
+
+    private static int MaxRows => Math.Max(5, Console.WindowHeight - 12);
+
+    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+
+
+    protected override void OnInitialized()
+    {
+        if (Connection.CurrentNamespace is null)
+            Nav.NavigateTo("/");
+    }
+
+    protected override async Task OnInitializedAsync() => await LoadTopics();
+
+    private async Task LoadTopics()
+    {
+        _cts.Cancel();
+        _cts = new CancellationTokenSource();
+        _error = string.Empty;
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var transitionRendered = false;
+
+        try
+        {
+            await foreach (var t in TopicService.GetTopicsAsync(_cts.Token))
+            {
+                seen.Add(t.Name);
+                var idx = _all.FindIndex(x => x.Name == t.Name);
+                if (idx >= 0) _all[idx] = t; else _all.Add(t);
+
+                if (!t.IsRefreshing && !transitionRendered)
+                {
+                    transitionRendered = true;
+                    UpdateFilterState(_filter);
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+
+            if (!_cts.IsCancellationRequested)
+            {
+                _all.RemoveAll(t => !seen.Contains(t.Name));
+                UpdateFilterState(_filter);
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { _error = ex.Message; await InvokeAsync(StateHasChanged); }
+    }
+
+    private void TriggerDelete()
+    {
+        if (_focusedItem is not null) { _pendingDelete = _focusedItem; StateHasChanged(); }
+    }
+
+    private async Task ConfirmDelete()
+    {
+        var name = _pendingDelete!;
+        _pendingDelete = null;
+        _error = string.Empty;
+        StateHasChanged();
+        try { await TopicService.DeleteTopicAsync(name); _all.RemoveAll(t => t.Name == name); ApplyFilter(_filter); }
+        catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
+    }
+
+    private void UpdateFilterState(string? value)
+    {
+        _filter = value;
+        _filtered = string.IsNullOrWhiteSpace(value) ? _all
+            : _all.Where(t => t.Name.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+
+    private void ApplyFilter(string? value)
+    {
+        UpdateFilterState(value);
+        StateHasChanged();
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        switch (e.Key)
+        {
+            case "Escape": Nav.NavigateTo("/"); return;
+            case "F5": _ = LoadTopics(); return;
+            case "F9": case "Delete": case "\\": TriggerDelete(); return;
+            case "Backspace":
+                if (!_filterFocused) ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]);
+                return;
+            default:
+                if (!_filterFocused && e.Key.Length == 1 && !char.IsControl(e.Key[0]))
+                    ApplyFilter((_filter ?? "") + e.Key);
+                break;
+        }
+    }
+}

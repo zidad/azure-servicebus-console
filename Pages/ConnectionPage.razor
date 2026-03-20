@@ -1,8 +1,10 @@
-@namespace LLMAgentTUI.Components
-@implements IDisposable
+@page "/"
+@namespace ServiceBusConsole.Pages
 
+@inject NavigationManager Nav
 @inject INamespaceService NamespaceService
 @inject ServiceBusConnection Connection
+@inject FileCache FileCache
 
 <Figlet Content="SB Console" Color="@Color.DodgerBlue1" Justify="Justify.Left" />
 
@@ -42,29 +44,38 @@
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
-                    <TextButton Content="Browse Queues"
-                                OnClick="@(() => OnBrowseQueues.InvokeAsync())"
+                    <TextButton Content="[F1] Queues"
+                                OnClick="@(() => Nav.NavigateTo("/queues"))"
                                 FocusedColor="@Color.DodgerBlue1"
-                                FocusOrder="3" />
+                                FocusOrder="3"
+                                OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
-                    <TextButton Content="Browse Topics"
-                                OnClick="@(() => OnBrowseTopics.InvokeAsync())"
+                    <TextButton Content="[F2] Topics"
+                                OnClick="@(() => Nav.NavigateTo("/topics"))"
                                 FocusedColor="@Color.DodgerBlue1"
-                                FocusOrder="4" />
+                                FocusOrder="4"
+                                OnKeyDown="@HandleKeyDown" />
+                    <Markup Content="  " />
+                    <TextButton Content="[F3] All Subscriptions"
+                                OnClick="@(() => Nav.NavigateTo("/subscriptions"))"
+                                FocusedColor="@Color.DodgerBlue1"
+                                FocusOrder="5"
+                                OnKeyDown="@HandleKeyDown" />
                 </Columns>
             </Padder>
         }
     </Rows>
 </Panel>
 
-@if (!string.IsNullOrEmpty(_error))
-{
-    <Padder Padding="@(new(0, 1, 0, 0))">
-        <Panel BorderColor="@Color.Red" Title="Error" Expand="true">
-            <Markup Content="@_error.Replace("[", "[[").Replace("]", "]]")" Foreground="@Color.Red" />
-        </Panel>
-    </Padder>
-}
+<Padder Padding="@(new(0, 1, 0, 0))">
+    <Columns>
+        <Markup Content="@($"Cache: {FileCache.CacheDirectory}")" Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+        <Markup Content="   " />
+        <TextButton Content="Clear cache" OnClick="ClearCache" FocusedColor="@Color.Red" OnKeyDown="@HandleKeyDown" />
+    </Columns>
+</Padder>
+
+<ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
 
 @code {
     private static readonly string[] SubscriptionOptions =
@@ -75,9 +86,6 @@
         "prd  (b8dbcf16-ed76-4c29-932b-b93ce96b0e6c)"
     ];
 
-    [Parameter] public EventCallback OnBrowseQueues { get; set; }
-    [Parameter] public EventCallback OnBrowseTopics { get; set; }
-
     private readonly string[] _subscriptions = SubscriptionOptions;
     private string? _selectedSubscription;
     private List<NamespaceInfo> _namespaces = [];
@@ -87,7 +95,25 @@
     private string _error = string.Empty;
     private CancellationTokenSource _cts = new();
 
-    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        if (_selectedNamespaceOption is not null)
+        {
+            switch (e.Key)
+            {
+                case "F1": Nav.NavigateTo("/queues"); return;
+                case "F2": Nav.NavigateTo("/topics"); return;
+                case "F3": Nav.NavigateTo("/subscriptions"); return;
+            }
+        }
+    }
+
+    private void ClearCache()
+    {
+        FileCache.Clear();
+        StateHasChanged();
+    }
 
     private async Task OnSubscriptionSelected(string value)
     {
@@ -96,10 +122,8 @@
         _error = string.Empty;
         _namespaces.Clear();
         _namespaceOptions = [];
-
         _cts.Cancel();
         _cts = new CancellationTokenSource();
-
         _namespacesLoading = true;
         StateHasChanged();
 
@@ -110,10 +134,9 @@
             {
                 _namespacesLoading = false;
                 var idx = _namespaces.FindIndex(x => x.Name == ns.Name);
-                if (idx >= 0) _namespaces[idx] = ns;
-                else _namespaces.Add(ns);
+                if (idx >= 0) _namespaces[idx] = ns; else _namespaces.Add(ns);
                 _namespaceOptions = _namespaces.Select(n => n.Name).ToArray();
-                StateHasChanged();
+                await InvokeAsync(StateHasChanged);
             }
         }
         catch (OperationCanceledException) { }
@@ -127,8 +150,7 @@
     {
         _selectedNamespaceOption = value;
         var ns = _namespaces.FirstOrDefault(n => n.Name == value);
-        if (ns is not null)
-            Connection.SetNamespace(ns.FullyQualifiedNamespace);
+        if (ns is not null) Connection.SetNamespace(ns.FullyQualifiedNamespace);
         StateHasChanged();
     }
 }

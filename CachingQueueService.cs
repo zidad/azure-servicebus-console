@@ -12,6 +12,7 @@ public class CachingQueueService(IQueueService inner, ServiceBusConnection conne
             foreach (var q in cached)
             {
                 if (ct.IsCancellationRequested) yield break;
+                q.IsRefreshing = true;
                 yield return q;
             }
 
@@ -25,4 +26,6 @@ public class CachingQueueService(IQueueService inner, ServiceBusConnection conne
         if (!ct.IsCancellationRequested && live.Count > 0)
             _ = cache.SaveAsync(key, live);
     }
+
+    public Task DeleteQueueAsync(string queueName) => inner.DeleteQueueAsync(queueName);
 }

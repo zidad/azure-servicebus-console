@@ -41,11 +41,36 @@ public class TopicService(ServiceBusConnection connection, ILogger<TopicService>
                 yield return new SubscriptionInfo
                 {
                     Name = sub.SubscriptionName,
+                    TopicName = topicName,
                     ActiveMessageCount = runtime.Value.ActiveMessageCount,
                     DeadLetterMessageCount = runtime.Value.DeadLetterMessageCount,
                     TransferMessageCount = runtime.Value.TransferMessageCount
                 };
             }
         }
+    }
+
+    public async IAsyncEnumerable<SubscriptionInfo> GetAllSubscriptionsAsync(
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    {
+        logger.LogInformation("Listing all subscriptions across all topics");
+
+        await foreach (var topic in GetTopicsAsync(ct))
+        {
+            await foreach (var sub in GetSubscriptionsAsync(topic.Name, ct))
+                yield return sub;
+        }
+    }
+
+    public async Task DeleteTopicAsync(string topicName)
+    {
+        logger.LogWarning("Deleting topic {Topic}", topicName);
+        await connection.AdminClient.DeleteTopicAsync(topicName);
+    }
+
+    public async Task DeleteSubscriptionAsync(string topicName, string subscriptionName)
+    {
+        logger.LogWarning("Deleting subscription {Subscription} from topic {Topic}", subscriptionName, topicName);
+        await connection.AdminClient.DeleteSubscriptionAsync(topicName, subscriptionName);
     }
 }

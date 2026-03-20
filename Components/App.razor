@@ -1,96 +1,13 @@
 @namespace LLMAgentTUI.Components
-@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Routing
 @using RazorConsole.Components
 @using ServiceBusConsole
 
-<Rows @onkeydown="HandleGlobalKeyDown">
-    @switch (_screen)
-    {
-        case Screen.Connection:
-            <ConnectionScreen OnBrowseQueues="@(() => Navigate(Screen.QueueList))"
-                              OnBrowseTopics="@(() => Navigate(Screen.TopicList))" />
-            break;
-
-        case Screen.QueueList:
-            <QueueListScreen OnBack="@GoBack"
-                             OnBrowseQueue="@(args => NavigateToQueue(args.Name, args.Dlq))" />
-            break;
-
-        case Screen.TopicList:
-            <TopicListScreen OnBack="@GoBack"
-                             OnBrowseTopic="@(name => NavigateToTopic(name))" />
-            break;
-
-        case Screen.SubscriptionList:
-            <SubscriptionListScreen TopicName="@(_topicName!)"
-                                    OnBack="@GoBack" />
-            break;
-
-        case Screen.QueueBrowser:
-            <QueueBrowserScreen QueueName="@(_queueName!)"
-                                OnBack="@GoBack"
-                                OnViewMessage="@(msg => NavigateToMessage(msg))" />
-            break;
-
-        case Screen.MessageDetail:
-            <MessageDetailScreen Message="@(_viewingMessage!)"
-                                 OnBack="@GoBack" />
-            break;
-    }
-</Rows>
-
-@code {
-    private enum Screen { Connection, QueueList, TopicList, SubscriptionList, QueueBrowser, MessageDetail }
-
-    private Screen _screen = Screen.Connection;
-    private string? _queueName;
-    private string? _topicName;
-    private MessageInfo? _viewingMessage;
-
-    private void GoBack()
-    {
-        _screen = _screen switch
-        {
-            Screen.MessageDetail   => Screen.QueueBrowser,
-            Screen.QueueBrowser    => Screen.QueueList,
-            Screen.SubscriptionList => Screen.TopicList,
-            Screen.QueueList       => Screen.Connection,
-            Screen.TopicList       => Screen.Connection,
-            _                      => Screen.Connection
-        };
-        StateHasChanged();
-    }
-
-    private void HandleGlobalKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Escape" && _screen != Screen.Connection)
-            GoBack();
-    }
-
-    private void Navigate(Screen screen)
-    {
-        _screen = screen;
-        StateHasChanged();
-    }
-
-    private void NavigateToQueue(string name, bool dlq)
-    {
-        _queueName = name;
-        _screen = Screen.QueueBrowser;
-        StateHasChanged();
-    }
-
-    private void NavigateToTopic(string name)
-    {
-        _topicName = name;
-        _screen = Screen.SubscriptionList;
-        StateHasChanged();
-    }
-
-    private void NavigateToMessage(MessageInfo msg)
-    {
-        _viewingMessage = msg;
-        _screen = Screen.MessageDetail;
-        StateHasChanged();
-    }
-}
+<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" />
+    </Found>
+    <NotFound>
+        <Markup Content="Page not found." Foreground="@Spectre.Console.Color.Red" />
+    </NotFound>
+</Router>
