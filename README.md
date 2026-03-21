@@ -4,12 +4,18 @@ A terminal UI browser for Azure Service Bus — explore namespaces, queues, topi
 
 ## Install
 
-Requires .NET 10 SDK and an active Azure CLI login.
+Requires [.NET 10 SDK](https://dotnet.microsoft.com/download) and an active Azure CLI login.
 
 ```bash
 dotnet tool install -g Net.Azure.ServiceBusConsole
 az login
-sbconsole
+azsb
+```
+
+To update to the latest version:
+
+```bash
+dotnet tool update -g Net.Azure.ServiceBusConsole
 ```
 
 > **Note:** Subscription IDs are currently hardcoded. See [Configuration](#configuration).
@@ -113,6 +119,17 @@ When a message ends up in a dead-letter queue, `F10` on the message list or mess
 3. Complete (permanently remove) the original from the DLQ
 
 The message is immediately removed from the list on success.
+
+## Releasing
+
+Publishing to NuGet is triggered by pushing a version tag:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The [publish workflow](.github/workflows/publish.yml) will pack and push to NuGet.org automatically. Requires a `NUGET_API_KEY` secret in the repository settings.
 
 ## Built with
 
