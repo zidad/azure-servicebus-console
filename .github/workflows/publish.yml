@@ -50,10 +50,10 @@ jobs:
       - name: Pack
         if: steps.tag_check.outputs.EXISTS == 'false'
         run: |
-          dotnet pack --configuration Release --no-build \
+          dotnet pack ServiceBusConsole.csproj --configuration Release --no-build \
             -p:Version=${{ steps.version.outputs.VERSION }} \
             --output ./artifacts
 
       - name: Push to NuGet
         if: steps.tag_check.outputs.EXISTS == 'false'
-        run: dotnet nuget push ./artifacts/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+        run: dotnet nuget push ./artifacts/Net.Azure.ServiceBusConsole.*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
