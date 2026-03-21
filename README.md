@@ -116,6 +116,6 @@ The message is immediately removed from the list on success.
 
 ## Built with
 
-- [RazorConsole](https://github.com/zidad/RazorConsole) — Blazor Razor components rendered to the terminal via Spectre.Console
+- [RazorConsole](https://github.com/RazorConsole/RazorConsole) — Blazor Razor components rendered to the terminal via Spectre.Console
 - [Azure.Messaging.ServiceBus](https://www.nuget.org/packages/Azure.Messaging.ServiceBus) — Service Bus client
 - [Azure.ResourceManager.ServiceBus](https://www.nuget.org/packages/Azure.ResourceManager.ServiceBus) — namespace discovery via ARM
