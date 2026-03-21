@@ -43,10 +43,14 @@ jobs:
           git tag v${{ steps.version.outputs.VERSION }}
           git push origin v${{ steps.version.outputs.VERSION }}
 
+      - name: Build
+        if: steps.tag_check.outputs.EXISTS == 'false'
+        run: dotnet build --configuration Release
+
       - name: Pack
         if: steps.tag_check.outputs.EXISTS == 'false'
         run: |
-          dotnet pack --configuration Release \
+          dotnet pack --configuration Release --no-build \
             -p:Version=${{ steps.version.outputs.VERSION }} \
             --output ./artifacts
 
