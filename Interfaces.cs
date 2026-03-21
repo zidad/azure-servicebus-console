@@ -27,4 +27,5 @@ public interface IMessageService
     Task<List<MessageInfo>> PeekSubscriptionMessagesAsync(string topicName, string subscriptionName, int count, bool fromDlq = false);
     Task<List<MessageInfo>> ReceiveSubscriptionMessagesAsync(string topicName, string subscriptionName, int count, bool fromDlq = false);
     Task DeleteMessageAsync(MessageSource source, long sequenceNumber);
+    Task RequeueMessageAsync(MessageSource source, long sequenceNumber);
 }

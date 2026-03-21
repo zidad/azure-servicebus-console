@@ -76,6 +76,45 @@ public class MessageService(ServiceBusConnection connection, ILogger<MessageServ
         throw new InvalidOperationException($"Message #{sequenceNumber} not found in {source.EntityName}");
     }
 
+    public async Task RequeueMessageAsync(MessageSource source, long sequenceNumber)
+    {
+        logger.LogWarning("Requeuing message #{SeqNum} from DLQ {Entity}", sequenceNumber, source.EntityName);
+
+        await using var receiver = source.IsSubscription
+            ? CreateSubscriptionReceiver(source.TopicName!, source.SubscriptionName!, ServiceBusReceiveMode.PeekLock, true)
+            : CreateQueueReceiver(source.EntityName, ServiceBusReceiveMode.PeekLock, true);
+
+        var destination = source.IsSubscription ? source.TopicName! : source.EntityName;
+        await using var sender = connection.BusClient.CreateSender(destination);
+
+        const int batchSize = 50;
+        const int maxMessages = 1000;
+        var scanned = 0;
+
+        while (scanned < maxMessages)
+        {
+            var batch = await receiver.ReceiveMessagesAsync(batchSize, TimeSpan.FromSeconds(3));
+            if (batch.Count == 0) break;
+
+            foreach (var msg in batch)
+            {
+                if (msg.SequenceNumber == sequenceNumber)
+                {
+                    await sender.SendMessageAsync(new ServiceBusMessage(msg));
+                    await receiver.CompleteMessageAsync(msg);
+                    logger.LogInformation("Requeued message #{SeqNum} to {Destination}", sequenceNumber, destination);
+                    return;
+                }
+
+                await receiver.AbandonMessageAsync(msg);
+            }
+
+            scanned += batch.Count;
+        }
+
+        throw new InvalidOperationException($"Message #{sequenceNumber} not found in DLQ of {source.EntityName}");
+    }
+
     private ServiceBusReceiver CreateQueueReceiver(string queueName, ServiceBusReceiveMode mode, bool fromDlq) =>
         connection.BusClient.CreateReceiver(queueName, new ServiceBusReceiverOptions
         {

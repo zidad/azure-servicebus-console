@@ -54,12 +54,20 @@ else
 
         <Padder Padding="@(new(0, 1, 0, 0))">
             <Panel Title="Body" BorderColor="@Color.Grey" Expand="true" Padding="@(new(1, 0, 1, 0))">
-                <Markup Content="@EscapeMarkup(FormatBody(msg.Body))" />
+                <ViewHeightScrollable LinesToRender="@(Math.Max(5, Console.WindowHeight / 2))" Scrollbar="new()">
+                    <Markup Content="@EscapeMarkup(FormatBody(msg.Body))" />
+                </ViewHeightScrollable>
             </Panel>
         </Padder>
 
         <Padder Padding="@(new(1, 0, 0, 0))">
             <Columns>
+                @if (IsDlq)
+                {
+                    <TextButton Content="[F10] Requeue" OnClick="RequeueMessage"
+                                FocusedColor="@Color.Green" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                    <Markup Content="   " />
+                }
                 <TextButton Content="[F9] Delete" OnClick="@(() => _confirmDelete = true)"
                             FocusedColor="@Color.Red" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
@@ -80,6 +88,8 @@ else
 @code {
     private bool _confirmDelete;
     private string _error = string.Empty;
+
+    private bool IsDlq => NavState.MessageSource?.IsDlq == true;
 
     private void GoBack()
     {
@@ -104,6 +114,18 @@ else
         catch (Exception ex) { _error = ex.Message.Split('\n')[0]; StateHasChanged(); }
     }
 
+    private async Task RequeueMessage()
+    {
+        _error = string.Empty;
+        StateHasChanged();
+        try
+        {
+            await MessageService.RequeueMessageAsync(NavState.MessageSource!, NavState.Message!.SequenceNumber);
+            GoBack();
+        }
+        catch (Exception ex) { _error = ex.Message.Split('\n')[0]; StateHasChanged(); }
+    }
+
     private void HandleKeyDown(KeyboardEventArgs e)
     {
         if (e.CtrlKey || e.AltKey || e.MetaKey) return;
@@ -111,6 +133,7 @@ else
         {
             case "Escape": GoBack(); return;
             case "F9": case "Delete": _confirmDelete = true; StateHasChanged(); return;
+            case "F10": if (IsDlq) _ = RequeueMessage(); return;
         }
     }
 

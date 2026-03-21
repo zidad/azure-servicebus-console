@@ -37,6 +37,7 @@
             <Markup Content="@($"{_filtered.Count} subscription(s)")" Foreground="@Color.Grey" />
         </Padder>
 
+        <Scrollable Items="@_filtered" PageSize="@(Math.Max(5, Console.WindowHeight - 12))" Scrollbar="new()">
         <SpectreTable Expand="true" Border="TableBorder.Rounded">
             <SpectreTHead>
                 <SpectreTR>
@@ -49,7 +50,7 @@
             </SpectreTHead>
             <SpectreTBody>
                 @{ var i = 0; }
-                @foreach (var s in _filtered.Take(MaxRows))
+                @foreach (var s in context.Items)
                 {
                     var captured = s;
                     var fo = 6 + i++;
@@ -57,20 +58,21 @@
                         <SpectreTD>@s.TopicName</SpectreTD>
                         <SpectreTD>
                             <TextButton Content="@captured.Name"
-                                        OnClick="@(() => { NavState.TopicName = captured.TopicName; NavState.SubscriptionName = captured.Name; Nav.NavigateTo("/subscription-browser"); })"
+                                        OnClick="@(() => { NavState.TopicName = captured.TopicName; NavState.SubscriptionName = captured.Name; NavState.ReturnPath = "/subscriptions"; Nav.NavigateTo("/subscription-browser"); })"
                                         FocusedColor="@Color.DodgerBlue1"
                                         FocusOrder="@fo"
                                         OnFocus="@(_ => _focusedItem = captured)"
                                         OnBlur="@(_ => _focusedItem = null)"
                                         OnKeyDown="@HandleKeyDown" />
                         </SpectreTD>
-                        <SpectreTD Align="Justify.Right">@(s.IsRefreshing ? "…" : s.ActiveMessageCount.ToString())</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@(s.IsRefreshing ? "…" : s.DeadLetterMessageCount > 0 ? $"! {s.DeadLetterMessageCount}" : "0")</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@(s.IsRefreshing ? "…" : s.TransferMessageCount.ToString())</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@if (s.IsRefreshing) { <Spinner /> } else { @s.ActiveMessageCount }</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@if (s.IsRefreshing) { <Spinner /> } else { @(s.DeadLetterMessageCount > 0 ? $"! {s.DeadLetterMessageCount}" : "0") }</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@if (s.IsRefreshing) { <Spinner /> } else { @s.TransferMessageCount }</SpectreTD>
                     </SpectreTR>
                 }
             </SpectreTBody>
         </SpectreTable>
+        </Scrollable>
     }
 
     <Padder Padding="@(new(1, 0, 0, 0))">
@@ -100,8 +102,6 @@
     private SubscriptionInfo? _pendingDelete;
     private string _error = string.Empty;
     private CancellationTokenSource _cts = new();
-
-    private static int MaxRows => Math.Max(5, Console.WindowHeight - 12);
 
     public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 
