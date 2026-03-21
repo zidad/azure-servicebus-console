@@ -36,6 +36,7 @@
             <Markup Content="@($"{_filtered.Count} queue(s)")" Foreground="@Color.Grey" />
         </Padder>
 
+        <Scrollable Items="@_filtered" PageSize="@(Math.Max(5, Console.WindowHeight - 12))" Scrollbar="new()">
         <SpectreTable Expand="true" Border="TableBorder.Rounded">
             <SpectreTHead>
                 <SpectreTR>
@@ -48,7 +49,7 @@
             </SpectreTHead>
             <SpectreTBody>
                 @{ var i = 0; }
-                @foreach (var q in _filtered.Take(MaxRows))
+                @foreach (var q in context.Items)
                 {
                     var captured = q;
                     var fo = 6 + i++;
@@ -62,14 +63,15 @@
                                         OnBlur="@(_ => _focusedItem = null)"
                                         OnKeyDown="@HandleKeyDown" />
                         </SpectreTD>
-                        <SpectreTD Align="Justify.Right">@(q.IsRefreshing ? "…" : q.ActiveMessageCount.ToString())</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@(q.IsRefreshing ? "…" : q.DeadLetterMessageCount > 0 ? $"! {q.DeadLetterMessageCount}" : "0")</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@(q.IsRefreshing ? "…" : q.ScheduledMessageCount.ToString())</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@(q.IsRefreshing ? "…" : q.TransferMessageCount.ToString())</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@if (q.IsRefreshing) { <Spinner /> } else { @q.ActiveMessageCount }</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@if (q.IsRefreshing) { <Spinner /> } else { @(q.DeadLetterMessageCount > 0 ? $"! {q.DeadLetterMessageCount}" : "0") }</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@if (q.IsRefreshing) { <Spinner /> } else { @q.ScheduledMessageCount }</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@if (q.IsRefreshing) { <Spinner /> } else { @q.TransferMessageCount }</SpectreTD>
                     </SpectreTR>
                 }
             </SpectreTBody>
         </SpectreTable>
+        </Scrollable>
     }
 
     <Padder Padding="@(new(1, 0, 0, 0))">
@@ -99,8 +101,6 @@
     private string? _pendingDelete;
     private string _error = string.Empty;
     private CancellationTokenSource _cts = new();
-
-    private static int MaxRows => Math.Max(5, Console.WindowHeight - 12);
 
     public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 

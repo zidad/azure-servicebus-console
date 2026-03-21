@@ -1,4 +1,5 @@
 @namespace LLMAgentTUI.Components
+@inject RazorConsole.Core.Focus.FocusManager FocusManager
 
 <ModalWindow IsOpened="@IsOpened">
     <Panel Title="Confirm deletion" BorderColor="@Color.Red" Padding="@(new(2, 1, 2, 1))">
@@ -6,7 +7,8 @@
             <Markup Content="@Message.Replace("[", "[[").Replace("]", "]]")" />
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
-                    <TextButton Content="Cancel"
+                    <TextButton @ref="_cancelButton"
+                                Content="Cancel"
                                 OnClick="@(() => OnCancel.InvokeAsync())"
                                 FocusedColor="@Color.Grey"
                                 FocusOrder="1" />
@@ -26,4 +28,14 @@
     [Parameter, EditorRequired] public string Message { get; set; } = "";
     [Parameter] public EventCallback OnConfirm { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
+
+    private TextButton? _cancelButton;
+    private bool _wasOpened;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (IsOpened && !_wasOpened && _cancelButton is not null)
+            await FocusManager.FocusAsync(_cancelButton.FocusKey);
+        _wasOpened = IsOpened;
+    }
 }

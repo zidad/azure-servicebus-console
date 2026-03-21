@@ -32,6 +32,7 @@
             <Markup Content="@($"{_messages.Count} message(s)")" Foreground="@Color.Grey" />
         </Padder>
 
+        <Scrollable Items="@_messages" PageSize="@(Math.Max(5, Console.WindowHeight - 12))" Scrollbar="new()">
         <SpectreTable Expand="true" Border="TableBorder.Simple">
             <SpectreTHead>
                 <SpectreTR>
@@ -44,7 +45,7 @@
             </SpectreTHead>
             <SpectreTBody>
                 @{ var i = 0; }
-                @foreach (var m in _messages)
+                @foreach (var m in context.Items)
                 {
                     var captured = m;
                     var fo = 6 + i++;
@@ -66,6 +67,7 @@
                 }
             </SpectreTBody>
         </SpectreTable>
+        </Scrollable>
     }
     else
     {
@@ -89,6 +91,11 @@
                 <TextButton Content="[F6] View Active" OnClick="@(() => SwitchDlq(false))" FocusedColor="@Color.Green" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
             }
             <Markup Content="   " />
+            @if (_isDlq)
+            {
+                <TextButton Content="[F10] Requeue" OnClick="RequeueMessage" FocusedColor="@Color.Green" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
+                <Markup Content="   " />
+            }
             <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
             <Markup Content="   " />
             <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/queues"))" FocusedColor="@Color.Yellow" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
@@ -113,7 +120,7 @@
     private MessageInfo? _focusedMessage;
     private MessageInfo? _pendingDelete;
 
-    private static int MaxRows => Math.Max(5, Console.WindowHeight - 12);
+    private const int FetchLimit = 100;
     private MessageSource Source => new(QueueName, _isDlq);
 
 
@@ -130,7 +137,7 @@
     private async Task PeekMessages()
     {
         _loading = true; _error = string.Empty; StateHasChanged();
-        try { _messages = await MessageService.PeekMessagesAsync(QueueName, MaxRows, _isDlq); }
+        try { _messages = await MessageService.PeekMessagesAsync(QueueName, FetchLimit, _isDlq); }
         catch (Exception ex) { _error = ex.Message; }
         _loading = false; StateHasChanged();
     }
@@ -138,7 +145,7 @@
     private async Task ReceiveMessages()
     {
         _loading = true; _error = string.Empty; StateHasChanged();
-        try { _messages = await MessageService.ReceiveMessagesAsync(QueueName, MaxRows, _isDlq); }
+        try { _messages = await MessageService.ReceiveMessagesAsync(QueueName, FetchLimit, _isDlq); }
         catch (Exception ex) { _error = ex.Message; }
         _loading = false; StateHasChanged();
     }
@@ -164,16 +171,34 @@
         StateHasChanged();
     }
 
+    private async Task RequeueMessage()
+    {
+        if (_focusedMessage is null) return;
+        var msg = _focusedMessage;
+        _error = string.Empty; StateHasChanged();
+        try
+        {
+            await MessageService.RequeueMessageAsync(Source, msg.SequenceNumber);
+            _messages.Remove(msg);
+            _focusedMessage = null;
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        StateHasChanged();
+    }
+
     private void HandleKeyDown(KeyboardEventArgs e)
     {
         if (e.CtrlKey || e.AltKey || e.MetaKey) return;
         switch (e.Key)
         {
-            case "Escape": Nav.NavigateTo("/queues"); return;
+            case "Escape":
+                if (_pendingDelete is not null) { _pendingDelete = null; StateHasChanged(); return; }
+                Nav.NavigateTo("/queues"); return;
             case "F6": _ = SwitchDlq(!_isDlq); return;
             case "F7": _ = PeekMessages(); return;
             case "F8": _ = ReceiveMessages(); return;
             case "F9": case "Delete": case "\\": TriggerDelete(); return;
+            case "F10": if (_isDlq && _focusedMessage is not null) _ = RequeueMessage(); return;
         }
     }
 

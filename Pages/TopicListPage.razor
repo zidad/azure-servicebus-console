@@ -36,6 +36,7 @@
             <Markup Content="@($"{_filtered.Count} topic(s)")" Foreground="@Color.Grey" />
         </Padder>
 
+        <Scrollable Items="@_filtered" PageSize="@(Math.Max(5, Console.WindowHeight - 12))" Scrollbar="new()">
         <SpectreTable Expand="true" Border="TableBorder.Rounded">
             <SpectreTHead>
                 <SpectreTR>
@@ -46,7 +47,7 @@
             </SpectreTHead>
             <SpectreTBody>
                 @{ var i = 0; }
-                @foreach (var t in _filtered.Take(MaxRows))
+                @foreach (var t in context.Items)
                 {
                     var captured = t;
                     var fo = 6 + i++;
@@ -60,12 +61,13 @@
                                         OnBlur="@(_ => _focusedItem = null)"
                                         OnKeyDown="@HandleKeyDown" />
                         </SpectreTD>
-                        <SpectreTD Align="Justify.Right">@(t.IsRefreshing ? "…" : t.SubscriptionCount.ToString())</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@(t.IsRefreshing ? "…" : t.ScheduledMessageCount.ToString())</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@if (t.IsRefreshing) { <Spinner /> } else { @t.SubscriptionCount }</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@if (t.IsRefreshing) { <Spinner /> } else { @t.ScheduledMessageCount }</SpectreTD>
                     </SpectreTR>
                 }
             </SpectreTBody>
         </SpectreTable>
+        </Scrollable>
     }
 
     <Padder Padding="@(new(1, 0, 0, 0))">
@@ -95,8 +97,6 @@
     private string? _pendingDelete;
     private string _error = string.Empty;
     private CancellationTokenSource _cts = new();
-
-    private static int MaxRows => Math.Max(5, Console.WindowHeight - 12);
 
     public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 

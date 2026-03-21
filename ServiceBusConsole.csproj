@@ -4,6 +4,14 @@
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <PackAsTool>true</PackAsTool>
+        <ToolCommandName>sbconsole</ToolCommandName>
+        <PackageId>Net.Azure.ServiceBusConsole</PackageId>
+        <Version>0.1.0</Version>
+        <Authors>zidad</Authors>
+        <Description>Terminal UI for browsing Azure Service Bus namespaces, queues, topics, and messages.</Description>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <RepositoryUrl>https://github.com/zidad/azure-servicebus-console</RepositoryUrl>
     </PropertyGroup>
     <ItemGroup>
       <Compile Remove="lib/**" />

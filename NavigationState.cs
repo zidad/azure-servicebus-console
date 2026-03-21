@@ -10,4 +10,5 @@ public class NavigationState
     public MessageSource? MessageSource { get; set; }
     public string? TopicName { get; set; }
     public string? SubscriptionName { get; set; }
+    public string? ReturnPath { get; set; }
 }
