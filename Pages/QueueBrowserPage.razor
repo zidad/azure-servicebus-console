@@ -48,7 +48,7 @@
                 @foreach (var m in context.Items)
                 {
                     var captured = m;
-                    var fo = 6 + i++;
+                    var fo = 7 + i++;
                     <SpectreTR @key="captured.SequenceNumber">
                         <SpectreTD Align="Justify.Right">
                             <TextButton Content="@captured.SequenceNumber.ToString()"
@@ -78,27 +78,27 @@
 
     <Padder Padding="@(new(1, 0, 0, 0))">
         <Columns>
-            <TextButton Content="[F7] Peek" OnClick="PeekMessages" FocusedColor="@Color.Green" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+            <TextButton Content="[F7] Peek" OnClick="PeekMessages" FocusedColor="@Color.Green" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
             <Markup Content="   " />
-            <TextButton Content="[F8] Receive" OnClick="ReceiveMessages" FocusedColor="@Color.Red" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+            <TextButton Content="[F8] Receive" OnClick="ReceiveMessages" FocusedColor="@Color.Red" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
             <Markup Content="   " />
             @if (!_isDlq)
             {
-                <TextButton Content="[F6] View DLQ" OnClick="@(() => SwitchDlq(true))" FocusedColor="@Color.Yellow" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F6] View DLQ" OnClick="@(() => SwitchDlq(true))" FocusedColor="@Color.Yellow" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
             }
             else
             {
-                <TextButton Content="[F6] View Active" OnClick="@(() => SwitchDlq(false))" FocusedColor="@Color.Green" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F6] View Active" OnClick="@(() => SwitchDlq(false))" FocusedColor="@Color.Green" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
             }
             <Markup Content="   " />
             @if (_isDlq)
             {
-                <TextButton Content="[F10] Requeue" OnClick="RequeueMessage" FocusedColor="@Color.Green" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F10] Requeue" OnClick="RequeueMessage" FocusedColor="@Color.Green" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
             }
             <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
             <Markup Content="   " />
-            <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/queues"))" FocusedColor="@Color.Yellow" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
+            <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/queues"))" FocusedColor="@Color.Yellow" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
         </Columns>
     </Padder>
 </Rows>

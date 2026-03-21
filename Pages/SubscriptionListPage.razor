@@ -69,11 +69,11 @@
 
     <Padder Padding="@(new(1, 0, 0, 0))">
         <Columns>
-            <TextButton Content="[F5] Refresh" OnClick="LoadSubscriptions" FocusedColor="@Color.Green" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+            <TextButton Content="[F5] Refresh" OnClick="LoadSubscriptions" FocusedColor="@Color.Green" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
             <Markup Content="   " />
-            <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+            <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
             <Markup Content="   " />
-            <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/topics"))" FocusedColor="@Color.Yellow" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
+            <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/topics"))" FocusedColor="@Color.Yellow" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
         </Columns>
     </Padder>
 </Rows>

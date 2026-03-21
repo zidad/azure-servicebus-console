@@ -65,14 +65,14 @@ else
                 @if (IsDlq)
                 {
                     <TextButton Content="[F10] Requeue" OnClick="RequeueMessage"
-                                FocusedColor="@Color.Green" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                                FocusedColor="@Color.Green" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="   " />
                 }
                 <TextButton Content="[F9] Delete" OnClick="@(() => _confirmDelete = true)"
                             FocusedColor="@Color.Red" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
                 <TextButton Content="[Esc] Back" OnClick="GoBack"
-                            FocusedColor="@Color.Yellow" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
+                            FocusedColor="@Color.Yellow" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
     </Rows>

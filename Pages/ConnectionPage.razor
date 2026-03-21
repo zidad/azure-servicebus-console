@@ -71,7 +71,7 @@
     <Columns>
         <Markup Content="@($"Cache: {FileCache.CacheDirectory}")" Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
         <Markup Content="   " />
-        <TextButton Content="Clear cache" OnClick="ClearCache" FocusedColor="@Color.Red" OnKeyDown="@HandleKeyDown" />
+        <TextButton Content="Clear cache" OnClick="ClearCache" FocusedColor="@Color.Red" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
     </Columns>
 </Padder>
 
