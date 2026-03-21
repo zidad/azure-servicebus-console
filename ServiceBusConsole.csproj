@@ -5,7 +5,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <PackAsTool>true</PackAsTool>
-        <ToolCommandName>sbconsole</ToolCommandName>
+        <ToolCommandName>azsb</ToolCommandName>
         <PackageId>Net.Azure.ServiceBusConsole</PackageId>
         <Version>0.1.0</Version>
         <Authors>zidad</Authors>

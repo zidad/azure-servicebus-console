@@ -2,8 +2,8 @@ name: Publish
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 jobs:
   publish:
@@ -12,20 +12,42 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - name: Extract version from tag
+      - name: Extract version from csproj
         id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+        run: |
+          VERSION=$(grep -oP '(?<=<Version>)[^<]+' ServiceBusConsole.csproj)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check if tag already exists
+        id: tag_check
+        run: |
+          if git ls-remote --tags origin "refs/tags/v${{ steps.version.outputs.VERSION }}" | grep -q .; then
+            echo "EXISTS=true" >> $GITHUB_OUTPUT
+          else
+            echo "EXISTS=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Tag release
+        if: steps.tag_check.outputs.EXISTS == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag v${{ steps.version.outputs.VERSION }}
+          git push origin v${{ steps.version.outputs.VERSION }}
 
       - name: Pack
-        run: >
-          dotnet pack --configuration Release
-          -p:Version=${{ steps.version.outputs.VERSION }}
-          --output ./artifacts
+        if: steps.tag_check.outputs.EXISTS == 'false'
+        run: |
+          dotnet pack --configuration Release \
+            -p:Version=${{ steps.version.outputs.VERSION }} \
+            --output ./artifacts
 
       - name: Push to NuGet
+        if: steps.tag_check.outputs.EXISTS == 'false'
         run: dotnet nuget push ./artifacts/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
