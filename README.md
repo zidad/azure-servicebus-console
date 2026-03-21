@@ -122,14 +122,15 @@ The message is immediately removed from the list on success.
 
 ## Releasing
 
-Publishing to NuGet is triggered by pushing a version tag:
+Every push to `main` checks the `<Version>` in `ServiceBusConsole.csproj`. If a tag for that version doesn't exist yet, the [publish workflow](.github/workflows/publish.yml) will automatically create the tag, pack, and push to NuGet.org.
 
-```bash
-git tag v0.1.0
-git push origin v0.1.0
+To release a new version, bump the version in `ServiceBusConsole.csproj` and merge to `main`:
+
+```xml
+<Version>0.2.0</Version>
 ```
 
-The [publish workflow](.github/workflows/publish.yml) will pack and push to NuGet.org automatically. Requires a `NUGET_API_KEY` secret in the repository settings.
+Requires a `NUGET_API_KEY` secret in the repository settings.
 
 ## Built with
 
