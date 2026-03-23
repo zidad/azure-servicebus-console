@@ -7,7 +7,7 @@
         <PackAsTool>true</PackAsTool>
         <ToolCommandName>azsb</ToolCommandName>
         <PackageId>Net.Azure.ServiceBusConsole</PackageId>
-        <Version>0.2.1</Version>
+        <Version>0.3.0</Version>
         <Authors>zidad</Authors>
         <Description>Terminal UI for browsing Azure Service Bus namespaces, queues, topics, and messages.</Description>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
