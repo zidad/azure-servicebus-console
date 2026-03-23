@@ -8,6 +8,13 @@
 
 <Figlet Content="SB Console" Color="@Color.DodgerBlue1" Justify="Justify.Left" />
 
+<Panel Title="⚠ Work In Progress" BorderColor="@Color.DarkOrange" Expand="true" Padding="@(new(1, 0, 1, 0))">
+    <Rows>
+        <Markup Content="This application is still in early development. Many features are unstable or incomplete." Foreground="@Color.DarkOrange" Decoration="@Decoration.Bold" />
+        <Markup Content="Use with caution — especially destructive operations (delete, receive)." Foreground="@Color.Grey" />
+    </Rows>
+</Panel>
+
 <Panel Title="Connection" BorderColor="@Color.Grey" Expand="true" Padding="@(new(1, 0, 1, 0))">
     <Rows>
         <Select TValue="string" Options="@_subscriptions"
