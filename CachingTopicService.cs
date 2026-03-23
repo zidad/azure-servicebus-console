@@ -77,6 +77,37 @@ public class CachingTopicService(ITopicService inner, ServiceBusConnection conne
             _ = cache.SaveAsync(key, live);
     }
 
-    public Task DeleteTopicAsync(string topicName) => inner.DeleteTopicAsync(topicName);
-    public Task DeleteSubscriptionAsync(string topicName, string subscriptionName) => inner.DeleteSubscriptionAsync(topicName, subscriptionName);
+    public async Task DeleteTopicAsync(string topicName)
+    {
+        await inner.DeleteTopicAsync(topicName);
+        var topicsKey = $"{connection.CurrentNamespace}/topics.json";
+        var cached = await cache.LoadAsync<TopicInfo>(topicsKey);
+        if (cached is not null)
+        {
+            cached.RemoveAll(t => t.Name.Equals(topicName, StringComparison.OrdinalIgnoreCase));
+            _ = cache.SaveAsync(topicsKey, cached);
+        }
+    }
+
+    public async Task DeleteSubscriptionAsync(string topicName, string subscriptionName)
+    {
+        await inner.DeleteSubscriptionAsync(topicName, subscriptionName);
+
+        var subsKey = $"{connection.CurrentNamespace}/topics/{topicName}/subscriptions.json";
+        var cachedSubs = await cache.LoadAsync<SubscriptionInfo>(subsKey);
+        if (cachedSubs is not null)
+        {
+            cachedSubs.RemoveAll(s => s.Name.Equals(subscriptionName, StringComparison.OrdinalIgnoreCase));
+            _ = cache.SaveAsync(subsKey, cachedSubs);
+        }
+
+        var allKey = $"{connection.CurrentNamespace}/all-subscriptions.json";
+        var cachedAll = await cache.LoadAsync<SubscriptionInfo>(allKey);
+        if (cachedAll is not null)
+        {
+            cachedAll.RemoveAll(s => s.TopicName.Equals(topicName, StringComparison.OrdinalIgnoreCase)
+                                  && s.Name.Equals(subscriptionName, StringComparison.OrdinalIgnoreCase));
+            _ = cache.SaveAsync(allKey, cachedAll);
+        }
+    }
 }
