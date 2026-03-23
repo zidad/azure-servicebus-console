@@ -110,7 +110,7 @@
 @code {
     [Parameter] public string QueueName { get; set; } = "";
 
-    private bool _isDlq;
+    private bool _isDlq = true;
     private List<MessageInfo> _messages = [];
     private bool _loading;
     private string _error = string.Empty;

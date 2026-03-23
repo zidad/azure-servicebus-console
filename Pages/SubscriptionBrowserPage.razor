@@ -114,7 +114,7 @@
     private string TopicName => NavState.TopicName ?? "";
     private string SubscriptionName => NavState.SubscriptionName ?? "";
 
-    private bool _isDlq;
+    private bool _isDlq = true;
     private bool _isAutoForwarding;
     private List<MessageInfo> _messages = [];
     private bool _loading;
