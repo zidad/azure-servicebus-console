@@ -45,22 +45,19 @@
                     <SpectreTH Align="Justify.Right">Delivery</SpectreTH>
                 </SpectreTR>
             </SpectreTHead>
-            <SpectreTBody>
+            <SpectreTBody Navigable="true"
+                          FocusOrder="7"
+                          RowCount="@context.Items.Count"
+                          SelectedIndex="@_selectedIndex"
+                          SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedMessage = context.Items.ElementAtOrDefault(i); })"
+                          OnActivate="@(() => { if (context.Items.ElementAtOrDefault(_selectedIndex) is {} m) ViewMessage(m); })"
+                          OnKeyDown="@HandleKeyDown">
                 @{ var i = 0; }
                 @foreach (var m in context.Items)
                 {
-                    var captured = m;
-                    var fo = 7 + i++;
-                    <SpectreTR @key="captured.SequenceNumber">
-                        <SpectreTD Align="Justify.Right">
-                            <TextButton Content="@captured.SequenceNumber.ToString()"
-                                        OnClick="@(() => ViewMessage(captured))"
-                                        FocusedColor="@Color.DodgerBlue1"
-                                        FocusOrder="@fo"
-                                        OnFocus="@(_ => _focusedMessage = captured)"
-                                        OnBlur="@(_ => _focusedMessage = null)"
-                                        OnKeyDown="@HandleKeyDown" />
-                        </SpectreTD>
+                    var idx = i++;
+                    <SpectreTR @key="m.SequenceNumber" RowIndex="@idx">
+                        <SpectreTD Align="Justify.Right">@m.SequenceNumber</SpectreTD>
                         <SpectreTD>@Truncate(m.MessageId, 30)</SpectreTD>
                         <SpectreTD>@Truncate(m.Subject, 25)</SpectreTD>
                         <SpectreTD>@m.EnqueuedTime.LocalDateTime.ToString("HH:mm:ss")</SpectreTD>
@@ -117,11 +114,12 @@
     private string TopicName => NavState.TopicName ?? "";
     private string SubscriptionName => NavState.SubscriptionName ?? "";
 
-    private bool _isDlq;
+    private bool _isDlq = true;
     private bool _isAutoForwarding;
     private List<MessageInfo> _messages = [];
     private bool _loading;
     private string _error = string.Empty;
+    private int _selectedIndex;
     private MessageInfo? _focusedMessage;
     private MessageInfo? _pendingDelete;
 
@@ -137,7 +135,7 @@
 
     protected override async Task OnInitializedAsync() => await PeekMessages();
 
-    private async Task SwitchDlq(bool dlq) { _isDlq = dlq; _messages = []; await PeekMessages(); }
+    private async Task SwitchDlq(bool dlq) { _isDlq = dlq; _messages = []; _selectedIndex = 0; _focusedMessage = null; await PeekMessages(); }
 
     private async Task PeekMessages()
     {
@@ -145,6 +143,7 @@
         try { _messages = await MessageService.PeekSubscriptionMessagesAsync(TopicName, SubscriptionName, FetchLimit, _isDlq); }
         catch (Exception ex) when (ex.Message.Contains("auto-forwarding", StringComparison.OrdinalIgnoreCase)) { _isAutoForwarding = true; }
         catch (Exception ex) { _error = ex.Message.Split('\n')[0]; }
+        _focusedMessage = _messages.ElementAtOrDefault(_selectedIndex);
         _loading = false; StateHasChanged();
     }
 
@@ -154,6 +153,7 @@
         try { _messages = await MessageService.ReceiveSubscriptionMessagesAsync(TopicName, SubscriptionName, FetchLimit, _isDlq); }
         catch (Exception ex) when (ex.Message.Contains("auto-forwarding", StringComparison.OrdinalIgnoreCase)) { _isAutoForwarding = true; }
         catch (Exception ex) { _error = ex.Message.Split('\n')[0]; }
+        _focusedMessage = _messages.ElementAtOrDefault(_selectedIndex);
         _loading = false; StateHasChanged();
     }
 
@@ -173,7 +173,7 @@
     {
         var msg = _pendingDelete!;
         _pendingDelete = null; _error = string.Empty; StateHasChanged();
-        try { await MessageService.DeleteMessageAsync(Source, msg.SequenceNumber); _messages.Remove(msg); }
+        try { await MessageService.DeleteMessageAsync(Source, msg.SequenceNumber); _messages.Remove(msg); _focusedMessage = _messages.ElementAtOrDefault(_selectedIndex); }
         catch (Exception ex) { _error = ex.Message.Split('\n')[0]; }
         StateHasChanged();
     }
@@ -189,7 +189,7 @@
         {
             await MessageService.RequeueMessageAsync(Source, msg.SequenceNumber);
             _messages.Remove(msg);
-            _focusedMessage = null;
+            _focusedMessage = _messages.ElementAtOrDefault(_selectedIndex);
         }
         catch (Exception ex) { _error = ex.Message.Split('\n')[0]; }
         StateHasChanged();

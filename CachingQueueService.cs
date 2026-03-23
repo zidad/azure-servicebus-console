@@ -27,5 +27,15 @@ public class CachingQueueService(IQueueService inner, ServiceBusConnection conne
             _ = cache.SaveAsync(key, live);
     }
 
-    public Task DeleteQueueAsync(string queueName) => inner.DeleteQueueAsync(queueName);
+    public async Task DeleteQueueAsync(string queueName)
+    {
+        await inner.DeleteQueueAsync(queueName);
+        var key = $"{connection.CurrentNamespace}/queues.json";
+        var cached = await cache.LoadAsync<QueueInfo>(key);
+        if (cached is not null)
+        {
+            cached.RemoveAll(q => q.Name.Equals(queueName, StringComparison.OrdinalIgnoreCase));
+            _ = cache.SaveAsync(key, cached);
+        }
+    }
 }

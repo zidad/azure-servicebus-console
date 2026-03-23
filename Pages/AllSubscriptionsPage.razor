@@ -46,28 +46,27 @@
                     <SpectreTH Align="Justify.Right">Active</SpectreTH>
                     <SpectreTH Align="Justify.Right">DLQ</SpectreTH>
                     <SpectreTH Align="Justify.Right">Transfer</SpectreTH>
+                    <SpectreTH></SpectreTH>
                 </SpectreTR>
             </SpectreTHead>
-            <SpectreTBody>
+            <SpectreTBody Navigable="true"
+                          FocusOrder="6"
+                          RowCount="@context.Items.Count"
+                          SelectedIndex="@_selectedIndex"
+                          SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = context.Items.ElementAtOrDefault(i); })"
+                          OnActivate="@(() => { if (context.Items.ElementAtOrDefault(_selectedIndex) is {} s) { NavState.TopicName = s.TopicName; NavState.SubscriptionName = s.Name; NavState.ReturnPath = "/subscriptions"; Nav.NavigateTo("/subscription-browser"); } })"
+                          OnKeyDown="@HandleKeyDown">
                 @{ var i = 0; }
                 @foreach (var s in context.Items)
                 {
-                    var captured = s;
-                    var fo = 6 + i++;
-                    <SpectreTR @key="@($"{captured.TopicName}/{captured.Name}")">
+                    var idx = i++;
+                    <SpectreTR @key="@($"{s.TopicName}/{s.Name}")" RowIndex="@idx">
                         <SpectreTD>@s.TopicName</SpectreTD>
-                        <SpectreTD>
-                            <TextButton Content="@captured.Name"
-                                        OnClick="@(() => { NavState.TopicName = captured.TopicName; NavState.SubscriptionName = captured.Name; NavState.ReturnPath = "/subscriptions"; Nav.NavigateTo("/subscription-browser"); })"
-                                        FocusedColor="@Color.DodgerBlue1"
-                                        FocusOrder="@fo"
-                                        OnFocus="@(_ => _focusedItem = captured)"
-                                        OnBlur="@(_ => _focusedItem = null)"
-                                        OnKeyDown="@HandleKeyDown" />
-                        </SpectreTD>
-                        <SpectreTD Align="Justify.Right">@if (s.IsRefreshing) { <Spinner /> } else { @s.ActiveMessageCount }</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@if (s.IsRefreshing) { <Spinner /> } else { @(s.DeadLetterMessageCount > 0 ? $"! {s.DeadLetterMessageCount}" : "0") }</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@if (s.IsRefreshing) { <Spinner /> } else { @s.TransferMessageCount }</SpectreTD>
+                        <SpectreTD>@s.Name</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@s.ActiveMessageCount</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@(s.DeadLetterMessageCount > 0 ? $"! {s.DeadLetterMessageCount}" : "0")</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@s.TransferMessageCount</SpectreTD>
+                        <SpectreTD>@if (s.IsRefreshing) { <Spinner /> }</SpectreTD>
                     </SpectreTR>
                 }
             </SpectreTBody>
@@ -98,6 +97,7 @@
     private List<SubscriptionInfo> _filtered = [];
     private string? _filter;
     private bool _filterFocused;
+    private int _selectedIndex;
     private SubscriptionInfo? _focusedItem;
     private SubscriptionInfo? _pendingDelete;
     private string _error = string.Empty;
@@ -121,7 +121,6 @@
         _error = string.Empty;
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var transitionRendered = false;
 
         try
         {
@@ -132,9 +131,8 @@
                 var idx = _all.FindIndex(x => x.TopicName == s.TopicName && x.Name == s.Name);
                 if (idx >= 0) _all[idx] = s; else _all.Add(s);
 
-                if (!s.IsRefreshing && !transitionRendered)
+                if (!s.IsRefreshing)
                 {
-                    transitionRendered = true;
                     SortAndUpdateFilterState();
                     await InvokeAsync(StateHasChanged);
                 }
@@ -166,34 +164,34 @@
         {
             await TopicService.DeleteSubscriptionAsync(sub.TopicName, sub.Name);
             _all.RemoveAll(s => s.TopicName == sub.TopicName && s.Name == sub.Name);
-            SortAndFilter();
+            _focusedItem = null;
+            _selectedIndex = 0;
+            SortAndUpdateFilterState();
         }
         catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
     }
 
     private void SortAndUpdateFilterState()
     {
+        var focused = _focusedItem;
         _all = [.. _all.OrderByDescending(s => s.TotalMessageCount).ThenBy(s => s.TopicName).ThenBy(s => s.Name)];
-        UpdateFilterState(_filter);
-    }
-
-    private void UpdateFilterState(string? value)
-    {
-        _filter = value;
-        _filtered = string.IsNullOrWhiteSpace(value) ? _all
-            : _all.Where(s => s.TopicName.Contains(value, StringComparison.OrdinalIgnoreCase)
-                            || s.Name.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
-    }
-
-    private void SortAndFilter()
-    {
-        _all = [.. _all.OrderByDescending(s => s.TotalMessageCount).ThenBy(s => s.TopicName).ThenBy(s => s.Name)];
-        ApplyFilter(_filter);
+        _filtered = string.IsNullOrWhiteSpace(_filter) ? _all
+            : _all.Where(s => s.TopicName.Contains(_filter, StringComparison.OrdinalIgnoreCase)
+                            || s.Name.Contains(_filter, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (focused is not null)
+        {
+            var newIdx = _filtered.FindIndex(s => s.TopicName == focused.TopicName && s.Name == focused.Name);
+            if (newIdx >= 0) _selectedIndex = newIdx;
+        }
+        _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex);
     }
 
     private void ApplyFilter(string? value)
     {
-        UpdateFilterState(value);
+        _filter = value;
+        _selectedIndex = 0;
+        _focusedItem = null;
+        SortAndUpdateFilterState();
         StateHasChanged();
     }
 

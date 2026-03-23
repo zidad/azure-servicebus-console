@@ -45,28 +45,27 @@
                     <SpectreTH Align="Justify.Right">DLQ</SpectreTH>
                     <SpectreTH Align="Justify.Right">Scheduled</SpectreTH>
                     <SpectreTH Align="Justify.Right">Transfer</SpectreTH>
+                    <SpectreTH></SpectreTH>
                 </SpectreTR>
             </SpectreTHead>
-            <SpectreTBody>
+            <SpectreTBody Navigable="true"
+                          FocusOrder="6"
+                          RowCount="@context.Items.Count"
+                          SelectedIndex="@_selectedIndex"
+                          SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = context.Items.ElementAtOrDefault(i)?.Name; })"
+                          OnActivate="@(() => { if (context.Items.ElementAtOrDefault(_selectedIndex) is {} q) Nav.NavigateTo($"/queues/{Uri.EscapeDataString(q.Name)}"); })"
+                          OnKeyDown="@HandleKeyDown">
                 @{ var i = 0; }
                 @foreach (var q in context.Items)
                 {
-                    var captured = q;
-                    var fo = 6 + i++;
-                    <SpectreTR @key="captured.Name">
-                        <SpectreTD>
-                            <TextButton Content="@captured.Name"
-                                        OnClick="@(() => Nav.NavigateTo($"/queues/{Uri.EscapeDataString(captured.Name)}"))"
-                                        FocusedColor="@Color.DodgerBlue1"
-                                        FocusOrder="@fo"
-                                        OnFocus="@(_ => _focusedItem = captured.Name)"
-                                        OnBlur="@(_ => _focusedItem = null)"
-                                        OnKeyDown="@HandleKeyDown" />
-                        </SpectreTD>
-                        <SpectreTD Align="Justify.Right">@if (q.IsRefreshing) { <Spinner /> } else { @q.ActiveMessageCount }</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@if (q.IsRefreshing) { <Spinner /> } else { @(q.DeadLetterMessageCount > 0 ? $"! {q.DeadLetterMessageCount}" : "0") }</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@if (q.IsRefreshing) { <Spinner /> } else { @q.ScheduledMessageCount }</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@if (q.IsRefreshing) { <Spinner /> } else { @q.TransferMessageCount }</SpectreTD>
+                    var idx = i++;
+                    <SpectreTR @key="q.Name" RowIndex="@idx">
+                        <SpectreTD>@q.Name</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@q.ActiveMessageCount</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@(q.DeadLetterMessageCount > 0 ? $"! {q.DeadLetterMessageCount}" : "0")</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@q.ScheduledMessageCount</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@q.TransferMessageCount</SpectreTD>
+                        <SpectreTD>@if (q.IsRefreshing) { <Spinner /> }</SpectreTD>
                     </SpectreTR>
                 }
             </SpectreTBody>
@@ -97,6 +96,7 @@
     private List<QueueInfo> _filtered = [];
     private string? _filter;
     private bool _filterFocused;
+    private int _selectedIndex;
     private string? _focusedItem;
     private string? _pendingDelete;
     private string _error = string.Empty;
@@ -175,6 +175,7 @@
         _filter = value;
         _filtered = string.IsNullOrWhiteSpace(value) ? _all
             : _all.Where(q => q.Name.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
+        _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex)?.Name;
     }
 
     private void SortAndFilter()
@@ -185,9 +186,8 @@
 
     private void ApplyFilter(string? value)
     {
-        _filter = value;
-        _filtered = string.IsNullOrWhiteSpace(value) ? _all
-            : _all.Where(q => q.Name.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
+        _selectedIndex = 0;
+        UpdateFilterState(value);
         StateHasChanged();
     }
 

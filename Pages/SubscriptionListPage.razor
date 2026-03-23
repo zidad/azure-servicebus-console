@@ -39,27 +39,26 @@
                     <SpectreTH Align="Justify.Right">Active</SpectreTH>
                     <SpectreTH Align="Justify.Right">DLQ</SpectreTH>
                     <SpectreTH Align="Justify.Right">Transfer</SpectreTH>
+                    <SpectreTH></SpectreTH>
                 </SpectreTR>
             </SpectreTHead>
-            <SpectreTBody>
+            <SpectreTBody Navigable="true"
+                          FocusOrder="4"
+                          RowCount="@context.Items.Count"
+                          SelectedIndex="@_selectedIndex"
+                          SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = context.Items.ElementAtOrDefault(i)?.Name; })"
+                          OnActivate="@(() => { if (context.Items.ElementAtOrDefault(_selectedIndex) is {} s) { NavState.TopicName = TopicName; NavState.SubscriptionName = s.Name; NavState.ReturnPath = $"/topics/{Uri.EscapeDataString(TopicName)}"; Nav.NavigateTo("/subscription-browser"); } })"
+                          OnKeyDown="@HandleKeyDown">
                 @{ var i = 0; }
                 @foreach (var s in context.Items)
                 {
-                    var captured = s;
-                    var fo = 4 + i++;
-                    <SpectreTR @key="captured.Name">
-                        <SpectreTD>
-                            <TextButton Content="@captured.Name"
-                                        OnClick="@(() => { NavState.TopicName = TopicName; NavState.SubscriptionName = captured.Name; NavState.ReturnPath = $"/topics/{Uri.EscapeDataString(TopicName)}"; Nav.NavigateTo("/subscription-browser"); })"
-                                        FocusedColor="@Color.DodgerBlue1"
-                                        FocusOrder="@fo"
-                                        OnFocus="@(_ => _focusedItem = captured.Name)"
-                                        OnBlur="@(_ => _focusedItem = null)"
-                                        OnKeyDown="@HandleKeyDown" />
-                        </SpectreTD>
-                        <SpectreTD Align="Justify.Right">@if (s.IsRefreshing) { <Spinner /> } else { @s.ActiveMessageCount }</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@if (s.IsRefreshing) { <Spinner /> } else { @(s.DeadLetterMessageCount > 0 ? $"! {s.DeadLetterMessageCount}" : "0") }</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@if (s.IsRefreshing) { <Spinner /> } else { @s.TransferMessageCount }</SpectreTD>
+                    var idx = i++;
+                    <SpectreTR @key="s.Name" RowIndex="@idx">
+                        <SpectreTD>@s.Name</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@s.ActiveMessageCount</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@(s.DeadLetterMessageCount > 0 ? $"! {s.DeadLetterMessageCount}" : "0")</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@s.TransferMessageCount</SpectreTD>
+                        <SpectreTD>@if (s.IsRefreshing) { <Spinner /> }</SpectreTD>
                     </SpectreTR>
                 }
             </SpectreTBody>
@@ -89,6 +88,7 @@
     [Parameter] public string TopicName { get; set; } = "";
 
     private List<SubscriptionInfo> _subscriptions = [];
+    private int _selectedIndex;
     private string? _focusedItem;
     private string? _pendingDelete;
     private string _error = string.Empty;
@@ -112,7 +112,6 @@
         _error = string.Empty;
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var transitionRendered = false;
 
         try
         {
@@ -122,9 +121,9 @@
                 var idx = _subscriptions.FindIndex(x => x.Name == s.Name);
                 if (idx >= 0) _subscriptions[idx] = s; else _subscriptions.Add(s);
 
-                if (!s.IsRefreshing && !transitionRendered)
+                if (!s.IsRefreshing)
                 {
-                    transitionRendered = true;
+                    SortAndReanchor();
                     await InvokeAsync(StateHasChanged);
                 }
             }
@@ -132,10 +131,23 @@
             if (!_cts.IsCancellationRequested)
                 _subscriptions.RemoveAll(s => !seen.Contains(s.Name));
 
+            SortAndReanchor();
             await InvokeAsync(StateHasChanged);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { _error = ex.Message; await InvokeAsync(StateHasChanged); }
+    }
+
+    private void SortAndReanchor()
+    {
+        var focused = _focusedItem;
+        _subscriptions = [.. _subscriptions.OrderBy(s => s.Name)];
+        if (focused is not null)
+        {
+            var newIdx = _subscriptions.FindIndex(s => s.Name == focused);
+            if (newIdx >= 0) _selectedIndex = newIdx;
+        }
+        _focusedItem = _subscriptions.ElementAtOrDefault(_selectedIndex)?.Name;
     }
 
     private void TriggerDelete()

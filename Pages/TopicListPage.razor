@@ -43,26 +43,25 @@
                     <SpectreTH Align="Justify.Left">Topic</SpectreTH>
                     <SpectreTH Align="Justify.Right">Subscriptions</SpectreTH>
                     <SpectreTH Align="Justify.Right">Scheduled</SpectreTH>
+                    <SpectreTH></SpectreTH>
                 </SpectreTR>
             </SpectreTHead>
-            <SpectreTBody>
+            <SpectreTBody Navigable="true"
+                          FocusOrder="6"
+                          RowCount="@context.Items.Count"
+                          SelectedIndex="@_selectedIndex"
+                          SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = context.Items.ElementAtOrDefault(i)?.Name; })"
+                          OnActivate="@(() => { if (context.Items.ElementAtOrDefault(_selectedIndex) is {} t) Nav.NavigateTo($"/topics/{Uri.EscapeDataString(t.Name)}"); })"
+                          OnKeyDown="@HandleKeyDown">
                 @{ var i = 0; }
                 @foreach (var t in context.Items)
                 {
-                    var captured = t;
-                    var fo = 6 + i++;
-                    <SpectreTR @key="captured.Name">
-                        <SpectreTD>
-                            <TextButton Content="@captured.Name"
-                                        OnClick="@(() => Nav.NavigateTo($"/topics/{Uri.EscapeDataString(captured.Name)}"))"
-                                        FocusedColor="@Color.DodgerBlue1"
-                                        FocusOrder="@fo"
-                                        OnFocus="@(_ => _focusedItem = captured.Name)"
-                                        OnBlur="@(_ => _focusedItem = null)"
-                                        OnKeyDown="@HandleKeyDown" />
-                        </SpectreTD>
-                        <SpectreTD Align="Justify.Right">@if (t.IsRefreshing) { <Spinner /> } else { @t.SubscriptionCount }</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@if (t.IsRefreshing) { <Spinner /> } else { @t.ScheduledMessageCount }</SpectreTD>
+                    var idx = i++;
+                    <SpectreTR @key="t.Name" RowIndex="@idx">
+                        <SpectreTD>@t.Name</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@t.SubscriptionCount</SpectreTD>
+                        <SpectreTD Align="Justify.Right">@t.ScheduledMessageCount</SpectreTD>
+                        <SpectreTD>@if (t.IsRefreshing) { <Spinner /> }</SpectreTD>
                     </SpectreTR>
                 }
             </SpectreTBody>
@@ -93,6 +92,7 @@
     private List<TopicInfo> _filtered = [];
     private string? _filter;
     private bool _filterFocused;
+    private int _selectedIndex;
     private string? _focusedItem;
     private string? _pendingDelete;
     private string _error = string.Empty;
@@ -165,10 +165,12 @@
         _filter = value;
         _filtered = string.IsNullOrWhiteSpace(value) ? _all
             : _all.Where(t => t.Name.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
+        _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex)?.Name;
     }
 
     private void ApplyFilter(string? value)
     {
+        _selectedIndex = 0;
         UpdateFilterState(value);
         StateHasChanged();
     }
