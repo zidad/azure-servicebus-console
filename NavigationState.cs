@@ -11,4 +11,5 @@ public class NavigationState
     public string? TopicName { get; set; }
     public string? SubscriptionName { get; set; }
     public string? ReturnPath { get; set; }
+    public string? FocusedQueueName { get; set; }
 }

@@ -3,6 +3,7 @@
 @implements IDisposable
 
 @inject NavigationManager Nav
+@inject NavigationState NavState
 @inject ServiceBusConnection Connection
 @inject ITopicService TopicService
 
@@ -21,7 +22,13 @@
                    FocusOrder="1" />
     </Padder>
 
-    @if (_all.Count == 0)
+    @if (_all.Count == 0 && _loadFailed)
+    {
+        <Padder Padding="@(new(0, 1, 0, 0))">
+            <Markup Content="Failed to load. Press [F5] to retry." Foreground="@Color.Red" />
+        </Padder>
+    }
+    else if (_all.Count == 0)
     {
         <Padder Padding="@(new(0, 1, 0, 0))">
             <Columns>
@@ -51,7 +58,7 @@
                           RowCount="@context.Items.Count"
                           SelectedIndex="@_selectedIndex"
                           SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = context.Items.ElementAtOrDefault(i)?.Name; })"
-                          OnActivate="@(() => { if (context.Items.ElementAtOrDefault(_selectedIndex) is {} t) Nav.NavigateTo($"/topics/{Uri.EscapeDataString(t.Name)}"); })"
+                          OnActivate="@(() => { if (context.Items.ElementAtOrDefault(_selectedIndex) is {} t) { NavState.TopicName = t.Name; Nav.NavigateTo("/topic-detail"); } })"
                           OnKeyDown="@HandleKeyDown">
                 @{ var i = 0; }
                 @foreach (var t in context.Items)
@@ -96,6 +103,7 @@
     private string? _focusedItem;
     private string? _pendingDelete;
     private string _error = string.Empty;
+    private bool _loadFailed;
     private CancellationTokenSource _cts = new();
 
     public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
@@ -105,6 +113,7 @@
     {
         if (Connection.CurrentNamespace is null)
             Nav.NavigateTo("/");
+        _focusedItem = NavState.TopicName;
     }
 
     protected override async Task OnInitializedAsync() => await LoadTopics();
@@ -114,6 +123,7 @@
         _cts.Cancel();
         _cts = new CancellationTokenSource();
         _error = string.Empty;
+        _loadFailed = false;
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var transitionRendered = false;
@@ -142,7 +152,7 @@
             await InvokeAsync(StateHasChanged);
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { _error = ex.Message; await InvokeAsync(StateHasChanged); }
+        catch (Exception ex) { _loadFailed = true; _error = ex.Message; await InvokeAsync(StateHasChanged); }
     }
 
     private void TriggerDelete()
@@ -156,21 +166,36 @@
         _pendingDelete = null;
         _error = string.Empty;
         StateHasChanged();
-        try { await TopicService.DeleteTopicAsync(name); _all.RemoveAll(t => t.Name == name); ApplyFilter(_filter); }
+        try
+        {
+            await TopicService.DeleteTopicAsync(name);
+            _all.RemoveAll(t => t.Name == name);
+            UpdateFilterState(_filter);
+            _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1));
+            _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex)?.Name;
+            StateHasChanged();
+        }
         catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
     }
 
     private void UpdateFilterState(string? value)
     {
+        var currentFocus = _focusedItem;
         _filter = value;
         _filtered = string.IsNullOrWhiteSpace(value) ? _all
             : _all.Where(t => t.Name.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (currentFocus is not null)
+        {
+            var idx = _filtered.FindIndex(t => t.Name == currentFocus);
+            if (idx >= 0) _selectedIndex = idx;
+        }
         _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex)?.Name;
     }
 
     private void ApplyFilter(string? value)
     {
         _selectedIndex = 0;
+        _focusedItem = null;
         UpdateFilterState(value);
         StateHasChanged();
     }

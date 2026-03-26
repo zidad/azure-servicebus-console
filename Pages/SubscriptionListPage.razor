@@ -1,4 +1,4 @@
-@page "/topics/{TopicName}"
+@page "/topic-detail"
 @namespace ServiceBusConsole.Pages
 @implements IDisposable
 
@@ -16,7 +16,13 @@
         </Columns>
     </Panel>
 
-    @if (_subscriptions.Count == 0)
+    @if (_subscriptions.Count == 0 && _loadFailed)
+    {
+        <Padder Padding="@(new(0, 1, 0, 0))">
+            <Markup Content="Failed to load. Press [F5] to retry." Foreground="@Color.Red" />
+        </Padder>
+    }
+    else if (_subscriptions.Count == 0)
     {
         <Padder Padding="@(new(0, 1, 0, 0))">
             <Columns>
@@ -47,7 +53,7 @@
                           RowCount="@context.Items.Count"
                           SelectedIndex="@_selectedIndex"
                           SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = context.Items.ElementAtOrDefault(i)?.Name; })"
-                          OnActivate="@(() => { if (context.Items.ElementAtOrDefault(_selectedIndex) is {} s) { NavState.TopicName = TopicName; NavState.SubscriptionName = s.Name; NavState.ReturnPath = $"/topics/{Uri.EscapeDataString(TopicName)}"; Nav.NavigateTo("/subscription-browser"); } })"
+                          OnActivate="@(() => { if (context.Items.ElementAtOrDefault(_selectedIndex) is {} s) { NavState.TopicName = TopicName; NavState.SubscriptionName = s.Name; NavState.ReturnPath = "/topic-detail"; Nav.NavigateTo("/subscription-browser"); } })"
                           OnKeyDown="@HandleKeyDown">
                 @{ var i = 0; }
                 @foreach (var s in context.Items)
@@ -85,13 +91,14 @@
 <ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
 
 @code {
-    [Parameter] public string TopicName { get; set; } = "";
+    private string TopicName => NavState.TopicName ?? "";
 
     private List<SubscriptionInfo> _subscriptions = [];
     private int _selectedIndex;
     private string? _focusedItem;
     private string? _pendingDelete;
     private string _error = string.Empty;
+    private bool _loadFailed;
     private CancellationTokenSource _cts = new();
 
     public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
@@ -101,6 +108,7 @@
     {
         if (Connection.CurrentNamespace is null)
             Nav.NavigateTo("/");
+        _focusedItem = NavState.SubscriptionName;
     }
 
     protected override async Task OnInitializedAsync() => await LoadSubscriptions();
@@ -110,6 +118,7 @@
         _cts.Cancel();
         _cts = new CancellationTokenSource();
         _error = string.Empty;
+        _loadFailed = false;
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -135,7 +144,7 @@
             await InvokeAsync(StateHasChanged);
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { _error = ex.Message; await InvokeAsync(StateHasChanged); }
+        catch (Exception ex) { _loadFailed = true; _error = ex.Message; await InvokeAsync(StateHasChanged); }
     }
 
     private void SortAndReanchor()
@@ -161,7 +170,14 @@
         _pendingDelete = null;
         _error = string.Empty;
         StateHasChanged();
-        try { await TopicService.DeleteSubscriptionAsync(TopicName, name); _subscriptions.RemoveAll(s => s.Name == name); StateHasChanged(); }
+        try
+        {
+            await TopicService.DeleteSubscriptionAsync(TopicName, name);
+            _subscriptions.RemoveAll(s => s.Name == name);
+            _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _subscriptions.Count - 1));
+            _focusedItem = _subscriptions.ElementAtOrDefault(_selectedIndex)?.Name;
+            StateHasChanged();
+        }
         catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
     }
 

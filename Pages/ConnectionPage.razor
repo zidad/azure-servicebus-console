@@ -34,6 +34,15 @@
                 </Columns>
             </Padder>
         }
+        else if (_connectionFailed)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Columns>
+                    <Markup Content="Could not connect.  " Foreground="@Color.Red" />
+                    <TextButton Content="Retry" OnClick="RetryConnection" FocusedColor="@Color.Yellow" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+                </Columns>
+            </Padder>
+        }
         else if (_namespaceOptions.Length > 0)
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
@@ -87,6 +96,7 @@
 @code {
     private static readonly string[] SubscriptionOptions =
     [
+        "Local Emulator  (localhost:5672)",
         "dev  (47ec78b6-8202-44cd-b2ea-adce486f7ff2)",
         "tst  (f20969f7-2f17-4932-a7af-359e073160f2)",
         "act  (365d1707-ec13-4e11-ad0a-919e5240ef03)",
@@ -99,6 +109,7 @@
     private string[] _namespaceOptions = [];
     private string? _selectedNamespaceOption;
     private bool _namespacesLoading;
+    private bool _connectionFailed;
     private string _error = string.Empty;
     private CancellationTokenSource _cts = new();
 
@@ -116,6 +127,12 @@
         }
     }
 
+    private async Task RetryConnection()
+    {
+        if (_selectedSubscription is not null)
+            await OnSubscriptionSelected(_selectedSubscription);
+    }
+
     private void ClearCache()
     {
         FileCache.Clear();
@@ -127,10 +144,20 @@
         _selectedSubscription = value;
         _selectedNamespaceOption = null;
         _error = string.Empty;
+        _connectionFailed = false;
         _namespaces.Clear();
         _namespaceOptions = [];
         _cts.Cancel();
         _cts = new CancellationTokenSource();
+
+        if (value.StartsWith("Local Emulator"))
+        {
+            _namespaces = [new NamespaceInfo { Name = "localhost", FullyQualifiedNamespace = "localhost", ResourceGroup = "", Location = "Local Emulator" }];
+            _namespaceOptions = ["localhost"];
+            StateHasChanged();
+            return;
+        }
+
         _namespacesLoading = true;
         StateHasChanged();
 
@@ -147,7 +174,7 @@
             }
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { _error = ex.Message; }
+        catch (Exception ex) { _connectionFailed = true; _error = ex.Message; }
 
         _namespacesLoading = false;
         StateHasChanged();

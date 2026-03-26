@@ -1,0 +1,38 @@
+services:
+  sqledge:
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    container_name: azsb-sqledge
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Emulator_123!"
+    ports:
+      - "1433:1433"
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "Emulator_123!" -Q "SELECT 1"
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  servicebus-emulator:
+    image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest
+    container_name: azsb-emulator
+    depends_on:
+      sqledge:
+        condition: service_healthy
+    ports:
+      - "5672:5672"
+    environment:
+      ACCEPT_EULA: "Y"
+      SQL_SERVER: sqledge
+      MSSQL_SA_PASSWORD: "Emulator_123!"
+    volumes:
+      - ./emulator/Config.json:/ServiceBus_Emulator/ConfigFiles/Config.json
+
+  seeder:
+    build: ./emulator/seed
+    container_name: azsb-seeder
+    depends_on:
+      - servicebus-emulator
+    environment:
+      CONNECTION_STRING: "Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+    restart: on-failure

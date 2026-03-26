@@ -22,7 +22,13 @@
                    FocusOrder="1" />
     </Padder>
 
-    @if (_all.Count == 0)
+    @if (_all.Count == 0 && _loadFailed)
+    {
+        <Padder Padding="@(new(0, 1, 0, 0))">
+            <Markup Content="Failed to load. Press [F5] to retry." Foreground="@Color.Red" />
+        </Padder>
+    }
+    else if (_all.Count == 0)
     {
         <Padder Padding="@(new(0, 1, 0, 0))">
             <Columns>
@@ -101,7 +107,9 @@
     private SubscriptionInfo? _focusedItem;
     private SubscriptionInfo? _pendingDelete;
     private string _error = string.Empty;
+    private bool _loadFailed;
     private CancellationTokenSource _cts = new();
+    private string? _restoreFocusKey;
 
     public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 
@@ -110,6 +118,8 @@
     {
         if (Connection.CurrentNamespace is null)
             Nav.NavigateTo("/");
+        if (NavState.TopicName is not null && NavState.SubscriptionName is not null)
+            _restoreFocusKey = $"{NavState.TopicName}/{NavState.SubscriptionName}";
     }
 
     protected override async Task OnInitializedAsync() => await LoadSubscriptions();
@@ -119,6 +129,7 @@
         _cts.Cancel();
         _cts = new CancellationTokenSource();
         _error = string.Empty;
+        _loadFailed = false;
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -146,7 +157,7 @@
             await InvokeAsync(StateHasChanged);
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { _error = ex.Message; await InvokeAsync(StateHasChanged); }
+        catch (Exception ex) { _loadFailed = true; _error = ex.Message; await InvokeAsync(StateHasChanged); }
     }
 
     private void TriggerDelete()
@@ -165,8 +176,9 @@
             await TopicService.DeleteSubscriptionAsync(sub.TopicName, sub.Name);
             _all.RemoveAll(s => s.TopicName == sub.TopicName && s.Name == sub.Name);
             _focusedItem = null;
-            _selectedIndex = 0;
             SortAndUpdateFilterState();
+            _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1));
+            _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex);
         }
         catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
     }
@@ -178,6 +190,11 @@
         _filtered = string.IsNullOrWhiteSpace(_filter) ? _all
             : _all.Where(s => s.TopicName.Contains(_filter, StringComparison.OrdinalIgnoreCase)
                             || s.Name.Contains(_filter, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (focused is null && _restoreFocusKey is not null)
+        {
+            focused = _filtered.FirstOrDefault(s => $"{s.TopicName}/{s.Name}" == _restoreFocusKey);
+            if (focused is not null) _restoreFocusKey = null;
+        }
         if (focused is not null)
         {
             var newIdx = _filtered.FindIndex(s => s.TopicName == focused.TopicName && s.Name == focused.Name);

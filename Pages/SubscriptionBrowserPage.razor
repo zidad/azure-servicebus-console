@@ -173,12 +173,12 @@
     {
         var msg = _pendingDelete!;
         _pendingDelete = null; _error = string.Empty; StateHasChanged();
-        try { await MessageService.DeleteMessageAsync(Source, msg.SequenceNumber); _messages.Remove(msg); _focusedMessage = _messages.ElementAtOrDefault(_selectedIndex); }
+        try { await MessageService.DeleteMessageAsync(Source, msg.SequenceNumber); _messages.Remove(msg); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _messages.Count - 1)); _focusedMessage = _messages.ElementAtOrDefault(_selectedIndex); }
         catch (Exception ex) { _error = ex.Message.Split('\n')[0]; }
         StateHasChanged();
     }
 
-    private string BackPath => NavState.ReturnPath ?? (string.IsNullOrEmpty(TopicName) ? "/topics" : $"/topics/{Uri.EscapeDataString(TopicName)}");
+    private string BackPath => NavState.ReturnPath ?? (string.IsNullOrEmpty(TopicName) ? "/topics" : "/topic-detail");
 
     private async Task RequeueMessage()
     {
