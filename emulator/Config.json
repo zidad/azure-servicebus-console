@@ -1,0 +1,68 @@
+{
+  "UserConfig": {
+    "Namespaces": [
+      {
+        "Name": "sbemulatorns",
+        "Queues": [
+          {
+            "Name": "order-processing",
+            "Properties": {
+              "DeadLetteringOnMessageExpiration": true,
+              "DefaultMessageTimeToLive": "PT2H"
+            }
+          },
+          {
+            "Name": "payment-gateway",
+            "Properties": {
+              "DeadLetteringOnMessageExpiration": true,
+              "DefaultMessageTimeToLive": "PT1H"
+            }
+          },
+          {
+            "Name": "email-notifications",
+            "Properties": {
+              "DefaultMessageTimeToLive": "PT4H"
+            }
+          },
+          {
+            "Name": "inventory-sync",
+            "Properties": {
+              "DefaultMessageTimeToLive": "PT8H"
+            }
+          }
+        ],
+        "Topics": [
+          {
+            "Name": "order-events",
+            "Properties": {},
+            "Subscriptions": [
+              { "Name": "fulfillment", "Properties": { "DeadLetteringOnMessageExpiration": true } },
+              { "Name": "analytics",   "Properties": {} },
+              { "Name": "notifications", "Properties": { "DefaultMessageTimeToLive": "PT30M" } }
+            ]
+          },
+          {
+            "Name": "user-events",
+            "Properties": {},
+            "Subscriptions": [
+              { "Name": "audit",      "Properties": {} },
+              { "Name": "crm-sync",   "Properties": { "DeadLetteringOnMessageExpiration": true } },
+              { "Name": "email-svc",  "Properties": {} }
+            ]
+          },
+          {
+            "Name": "catalog-updates",
+            "Properties": {},
+            "Subscriptions": [
+              { "Name": "search-indexer", "Properties": {} },
+              { "Name": "cdn-purge",      "Properties": {} }
+            ]
+          }
+        ]
+      }
+    ],
+    "Logging": {
+      "Type": "File"
+    }
+  }
+}
