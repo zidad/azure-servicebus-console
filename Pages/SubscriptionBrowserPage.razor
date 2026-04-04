@@ -34,7 +34,10 @@
             <Markup Content="@($"{_messages.Count} message(s)")" Foreground="@Color.Grey" />
         </Padder>
 
-        <Scrollable Items="@_messages" PageSize="@(Math.Max(5, Console.WindowHeight - 12))" Scrollbar="new()">
+        <Scrollable Items="@_messages" PageSize="@(Math.Max(5, Console.WindowHeight - 12))" Scrollbar="new()"
+                    SelectedIndex="@_selectedIndex"
+                    SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedMessage = _messages.ElementAtOrDefault(i); })"
+                    OnActivate="@(() => { if (_messages.ElementAtOrDefault(_selectedIndex) is {} m) ViewMessage(m); })">
         <SpectreTable Expand="true" Border="TableBorder.Simple">
             <SpectreTHead>
                 <SpectreTR>
@@ -48,9 +51,6 @@
             <SpectreTBody Navigable="true"
                           FocusOrder="7"
                           RowCount="@context.Items.Count"
-                          SelectedIndex="@_selectedIndex"
-                          SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedMessage = context.Items.ElementAtOrDefault(i); })"
-                          OnActivate="@(() => { if (context.Items.ElementAtOrDefault(_selectedIndex) is {} m) ViewMessage(m); })"
                           OnKeyDown="@HandleKeyDown">
                 @{ var i = 0; }
                 @foreach (var m in context.Items)

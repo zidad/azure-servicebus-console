@@ -43,7 +43,10 @@
             <Markup Content="@($"{_filtered.Count} topic(s)")" Foreground="@Color.Grey" />
         </Padder>
 
-        <Scrollable Items="@_filtered" PageSize="@(Math.Max(5, Console.WindowHeight - 12))" Scrollbar="new()">
+        <Scrollable Items="@_filtered" PageSize="@(Math.Max(5, Console.WindowHeight - 12))" Scrollbar="new()"
+                    SelectedIndex="@_selectedIndex"
+                    SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _filtered.ElementAtOrDefault(i)?.Name; })"
+                    OnActivate="@(() => { if (_filtered.ElementAtOrDefault(_selectedIndex) is {} t) { NavState.TopicName = t.Name; Nav.NavigateTo("/topic-detail"); } })">
         <SpectreTable Expand="true" Border="TableBorder.Rounded">
             <SpectreTHead>
                 <SpectreTR>
@@ -56,9 +59,6 @@
             <SpectreTBody Navigable="true"
                           FocusOrder="6"
                           RowCount="@context.Items.Count"
-                          SelectedIndex="@_selectedIndex"
-                          SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = context.Items.ElementAtOrDefault(i)?.Name; })"
-                          OnActivate="@(() => { if (context.Items.ElementAtOrDefault(_selectedIndex) is {} t) { NavState.TopicName = t.Name; Nav.NavigateTo("/topic-detail"); } })"
                           OnKeyDown="@HandleKeyDown">
                 @{ var i = 0; }
                 @foreach (var t in context.Items)
@@ -125,14 +125,14 @@
         _error = string.Empty;
         _loadFailed = false;
 
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var live = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var transitionRendered = false;
 
         try
         {
             await foreach (var t in TopicService.GetTopicsAsync(_cts.Token))
             {
-                seen.Add(t.Name);
+                if (!t.IsRefreshing) live.Add(t.Name);
                 var idx = _all.FindIndex(x => x.Name == t.Name);
                 if (idx >= 0) _all[idx] = t; else _all.Add(t);
 
@@ -142,11 +142,15 @@
                     UpdateFilterState(_filter);
                     await InvokeAsync(StateHasChanged);
                 }
+                else if (!t.IsRefreshing)
+                {
+                    UpdateFilterState(_filter);
+                }
             }
 
             if (!_cts.IsCancellationRequested)
             {
-                _all.RemoveAll(t => !seen.Contains(t.Name));
+                _all.RemoveAll(t => !live.Contains(t.Name));
                 UpdateFilterState(_filter);
             }
             await InvokeAsync(StateHasChanged);
@@ -182,7 +186,7 @@
     {
         var currentFocus = _focusedItem;
         _filter = value;
-        _filtered = string.IsNullOrWhiteSpace(value) ? _all
+        _filtered = string.IsNullOrWhiteSpace(value) ? [.. _all]
             : _all.Where(t => t.Name.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
         if (currentFocus is not null)
         {

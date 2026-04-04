@@ -43,7 +43,10 @@
             <Markup Content="@($"{_filtered.Count} subscription(s)")" Foreground="@Color.Grey" />
         </Padder>
 
-        <Scrollable Items="@_filtered" PageSize="@(Math.Max(5, Console.WindowHeight - 12))" Scrollbar="new()">
+        <Scrollable Items="@_filtered" PageSize="@(Math.Max(5, Console.WindowHeight - 12))" Scrollbar="new()"
+                    SelectedIndex="@_selectedIndex"
+                    SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _filtered.ElementAtOrDefault(i); })"
+                    OnActivate="@(() => { if (_filtered.ElementAtOrDefault(_selectedIndex) is {} s) { NavState.TopicName = s.TopicName; NavState.SubscriptionName = s.Name; NavState.ReturnPath = "/subscriptions"; Nav.NavigateTo("/subscription-browser"); } })">
         <SpectreTable Expand="true" Border="TableBorder.Rounded">
             <SpectreTHead>
                 <SpectreTR>
@@ -58,9 +61,6 @@
             <SpectreTBody Navigable="true"
                           FocusOrder="6"
                           RowCount="@context.Items.Count"
-                          SelectedIndex="@_selectedIndex"
-                          SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = context.Items.ElementAtOrDefault(i); })"
-                          OnActivate="@(() => { if (context.Items.ElementAtOrDefault(_selectedIndex) is {} s) { NavState.TopicName = s.TopicName; NavState.SubscriptionName = s.Name; NavState.ReturnPath = "/subscriptions"; Nav.NavigateTo("/subscription-browser"); } })"
                           OnKeyDown="@HandleKeyDown">
                 @{ var i = 0; }
                 @foreach (var s in context.Items)
@@ -131,27 +131,33 @@
         _error = string.Empty;
         _loadFailed = false;
 
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var live = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var transitionRendered = false;
 
         try
         {
             await foreach (var s in TopicService.GetAllSubscriptionsAsync(_cts.Token))
             {
                 var key = $"{s.TopicName}/{s.Name}";
-                seen.Add(key);
+                if (!s.IsRefreshing) live.Add(key);
                 var idx = _all.FindIndex(x => x.TopicName == s.TopicName && x.Name == s.Name);
                 if (idx >= 0) _all[idx] = s; else _all.Add(s);
 
-                if (!s.IsRefreshing)
+                if (!s.IsRefreshing && !transitionRendered)
                 {
+                    transitionRendered = true;
                     SortAndUpdateFilterState();
                     await InvokeAsync(StateHasChanged);
+                }
+                else if (!s.IsRefreshing)
+                {
+                    SortAndUpdateFilterState();
                 }
             }
 
             if (!_cts.IsCancellationRequested)
             {
-                _all.RemoveAll(s => !seen.Contains($"{s.TopicName}/{s.Name}"));
+                _all.RemoveAll(s => !live.Contains($"{s.TopicName}/{s.Name}"));
                 SortAndUpdateFilterState();
             }
             await InvokeAsync(StateHasChanged);
@@ -187,7 +193,7 @@
     {
         var focused = _focusedItem;
         _all = [.. _all.OrderByDescending(s => s.TotalMessageCount).ThenBy(s => s.TopicName).ThenBy(s => s.Name)];
-        _filtered = string.IsNullOrWhiteSpace(_filter) ? _all
+        _filtered = string.IsNullOrWhiteSpace(_filter) ? [.. _all]
             : _all.Where(s => s.TopicName.Contains(_filter, StringComparison.OrdinalIgnoreCase)
                             || s.Name.Contains(_filter, StringComparison.OrdinalIgnoreCase)).ToList();
         if (focused is null && _restoreFocusKey is not null)
@@ -201,6 +207,7 @@
             if (newIdx >= 0) _selectedIndex = newIdx;
         }
         _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex);
+
     }
 
     private void ApplyFilter(string? value)

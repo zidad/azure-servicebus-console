@@ -43,7 +43,10 @@
             <Markup Content="@($"{_filtered.Count} queue(s)")" Foreground="@Color.Grey" />
         </Padder>
 
-        <Scrollable Items="@_filtered" PageSize="@(Math.Max(5, Console.WindowHeight - 12))" Scrollbar="new()">
+        <Scrollable Items="@_filtered" PageSize="@(Math.Max(5, Console.WindowHeight - 12))" Scrollbar="new()"
+                    SelectedIndex="@_selectedIndex"
+                    SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _filtered.ElementAtOrDefault(i)?.Name; })"
+                    OnActivate="@(() => { if (_filtered.ElementAtOrDefault(_selectedIndex) is {} q) { NavState.FocusedQueueName = q.Name; Nav.NavigateTo($"/queues/{Uri.EscapeDataString(q.Name)}"); } })">
         <SpectreTable Expand="true" Border="TableBorder.Rounded">
             <SpectreTHead>
                 <SpectreTR>
@@ -58,9 +61,6 @@
             <SpectreTBody Navigable="true"
                           FocusOrder="6"
                           RowCount="@context.Items.Count"
-                          SelectedIndex="@_selectedIndex"
-                          SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = context.Items.ElementAtOrDefault(i)?.Name; })"
-                          OnActivate="@(() => { if (context.Items.ElementAtOrDefault(_selectedIndex) is {} q) { NavState.FocusedQueueName = q.Name; Nav.NavigateTo($"/queues/{Uri.EscapeDataString(q.Name)}"); } })"
                           OnKeyDown="@HandleKeyDown">
                 @{ var i = 0; }
                 @foreach (var q in context.Items)
@@ -129,14 +129,14 @@
         _error = string.Empty;
         _loadFailed = false;
 
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var live = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var transitionRendered = false;
 
         try
         {
             await foreach (var q in QueueService.GetQueuesAsync(_cts.Token))
             {
-                seen.Add(q.Name);
+                if (!q.IsRefreshing) live.Add(q.Name);
                 var idx = _all.FindIndex(x => x.Name == q.Name);
                 if (idx >= 0) _all[idx] = q; else _all.Add(q);
 
@@ -146,11 +146,15 @@
                     SortAndUpdateFilterState();
                     await InvokeAsync(StateHasChanged);
                 }
+                else if (!q.IsRefreshing)
+                {
+                    SortAndUpdateFilterState();
+                }
             }
 
             if (!_cts.IsCancellationRequested)
             {
-                _all.RemoveAll(q => !seen.Contains(q.Name));
+                _all.RemoveAll(q => !live.Contains(q.Name));
                 SortAndUpdateFilterState();
             }
             await InvokeAsync(StateHasChanged);
@@ -192,7 +196,7 @@
     {
         var currentFocus = _focusedItem;
         _filter = value;
-        _filtered = string.IsNullOrWhiteSpace(value) ? _all
+        _filtered = string.IsNullOrWhiteSpace(value) ? [.. _all]
             : _all.Where(q => q.Name.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
         if (currentFocus is not null)
         {

@@ -37,7 +37,10 @@
             <Markup Content="@($"{_subscriptions.Count} subscription(s)  |  Enter to browse · Backspace to delete")" Foreground="@Color.Grey" />
         </Padder>
 
-        <Scrollable Items="@_subscriptions" PageSize="@(Math.Max(5, Console.WindowHeight - 12))" Scrollbar="new()">
+        <Scrollable Items="@_subscriptions" PageSize="@(Math.Max(5, Console.WindowHeight - 12))" Scrollbar="new()"
+                    SelectedIndex="@_selectedIndex"
+                    SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _subscriptions.ElementAtOrDefault(i)?.Name; })"
+                    OnActivate="@(() => { if (_subscriptions.ElementAtOrDefault(_selectedIndex) is {} s) { NavState.TopicName = TopicName; NavState.SubscriptionName = s.Name; NavState.ReturnPath = "/topic-detail"; Nav.NavigateTo("/subscription-browser"); } })">
         <SpectreTable Expand="true" Border="TableBorder.Rounded">
             <SpectreTHead>
                 <SpectreTR>
@@ -51,9 +54,6 @@
             <SpectreTBody Navigable="true"
                           FocusOrder="4"
                           RowCount="@context.Items.Count"
-                          SelectedIndex="@_selectedIndex"
-                          SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = context.Items.ElementAtOrDefault(i)?.Name; })"
-                          OnActivate="@(() => { if (context.Items.ElementAtOrDefault(_selectedIndex) is {} s) { NavState.TopicName = TopicName; NavState.SubscriptionName = s.Name; NavState.ReturnPath = "/topic-detail"; Nav.NavigateTo("/subscription-browser"); } })"
                           OnKeyDown="@HandleKeyDown">
                 @{ var i = 0; }
                 @foreach (var s in context.Items)
@@ -120,25 +120,31 @@
         _error = string.Empty;
         _loadFailed = false;
 
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var live = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var transitionRendered = false;
 
         try
         {
             await foreach (var s in TopicService.GetSubscriptionsAsync(TopicName, _cts.Token))
             {
-                seen.Add(s.Name);
+                if (!s.IsRefreshing) live.Add(s.Name);
                 var idx = _subscriptions.FindIndex(x => x.Name == s.Name);
                 if (idx >= 0) _subscriptions[idx] = s; else _subscriptions.Add(s);
 
-                if (!s.IsRefreshing)
+                if (!s.IsRefreshing && !transitionRendered)
                 {
+                    transitionRendered = true;
                     SortAndReanchor();
                     await InvokeAsync(StateHasChanged);
+                }
+                else if (!s.IsRefreshing)
+                {
+                    SortAndReanchor();
                 }
             }
 
             if (!_cts.IsCancellationRequested)
-                _subscriptions.RemoveAll(s => !seen.Contains(s.Name));
+                _subscriptions.RemoveAll(s => !live.Contains(s.Name));
 
             SortAndReanchor();
             await InvokeAsync(StateHasChanged);
