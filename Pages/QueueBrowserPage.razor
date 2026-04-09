@@ -6,99 +6,106 @@
 @inject IMessageService MessageService
 @inject IQueueService QueueService
 @inject NavigationState NavState
+@inject RazorConsole.Core.Focus.FocusManager FocusManager
 
-<Rows @onkeydown="HandleKeyDown">
-    <Panel BorderColor="@Color.Grey37" Expand="true" Padding="@(new(0, 0, 0, 0))">
-        <Columns>
-            <Markup Content="Queues" Foreground="@Color.Grey" />
-            <Markup Content=" › " Foreground="@Color.Grey" />
-            <Markup Content="@QueueName" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
-            @if (_isDlq) { <Markup Content=" (DLQ)" Foreground="@Color.Yellow" /> }
-        </Columns>
-    </Panel>
-
-    @if (_loading)
-    {
-        <Padder Padding="@(new(0, 1, 0, 0))">
+<FullscreenPage OnKeyDown="HandleKeyDown">
+    <Content>
+        <Panel BorderColor="@Color.Grey37" Expand="true" Padding="@(new(0, 0, 0, 0))">
             <Columns>
-                <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
-                <Markup Content="Loading messages..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+                <Markup Content="Queues" Foreground="@Color.Grey" />
+                <Markup Content=" › " Foreground="@Color.Grey" />
+                <Markup Content="@QueueName" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+                @if (_isDlq) { <Markup Content=" (DLQ)" Foreground="@Color.Yellow" /> }
+            </Columns>
+        </Panel>
+
+        @if (_loading)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Columns>
+                    <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                    <Markup Content="Loading messages..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+                </Columns>
+            </Padder>
+        }
+        else if (_messages.Count > 0)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Markup Content="@($"{_messages.Count} message(s)")" Foreground="@Color.Grey" />
+            </Padder>
+
+            <Scrollable Items="@_messages"
+                        PageSize="@FullscreenLayout.PageSizeSimpleTable()"
+                        Scrollbar="new()"
+                        SelectedIndex="@_selectedIndex"
+                        SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedMessage = _messages.ElementAtOrDefault(i); })"
+                        OnActivate="@(() => { if (_messages.ElementAtOrDefault(_selectedIndex) is {} m) ViewMessage(m); })">
+                <SpectreTable Expand="true" Border="TableBorder.Simple">
+                    <SpectreTHead>
+                        <SpectreTR>
+                            <SpectreTH Align="Justify.Right">#</SpectreTH>
+                            <SpectreTH Align="Justify.Left">Message ID</SpectreTH>
+                            <SpectreTH Align="Justify.Left">Subject</SpectreTH>
+                            <SpectreTH Align="Justify.Left">Enqueued</SpectreTH>
+                            <SpectreTH Align="Justify.Right">Delivery</SpectreTH>
+                        </SpectreTR>
+                    </SpectreTHead>
+                    <SpectreTBody @ref="_tbody"
+                                  Navigable="true"
+                                  FocusOrder="1"
+                                  RowCount="@context.Items.Count"
+                                  OnKeyDown="@HandleKeyDown">
+                        @{ var i = 0; }
+                        @foreach (var m in context.Items)
+                        {
+                            var idx = i++;
+                            <SpectreTR @key="m.SequenceNumber" RowIndex="@idx">
+                                <SpectreTD Align="Justify.Right">@m.SequenceNumber</SpectreTD>
+                                <SpectreTD>@Truncate(m.MessageId, 30)</SpectreTD>
+                                <SpectreTD>@Truncate(m.Subject, 25)</SpectreTD>
+                                <SpectreTD>@m.EnqueuedTime.LocalDateTime.ToString("HH:mm:ss")</SpectreTD>
+                                <SpectreTD Align="Justify.Right">@m.DeliveryCount</SpectreTD>
+                            </SpectreTR>
+                        }
+                    </SpectreTBody>
+                </SpectreTable>
+            </Scrollable>
+        }
+        else
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Markup Content="No messages. Use F7 Peek or F8 Receive to load." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+            </Padder>
+        }
+    </Content>
+    <Footer>
+        <Padder Padding="@(new(1, 0, 0, 0))">
+            <Columns>
+                <TextButton Content="[F7] Peek" OnClick="PeekMessages" FocusedColor="@Color.Green" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+                <Markup Content="   " />
+                <TextButton Content="[F8] Receive" OnClick="ReceiveMessages" FocusedColor="@Color.Red" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                <Markup Content="   " />
+                @if (!_isDlq)
+                {
+                    <TextButton Content="[F6] View DLQ" OnClick="@(() => SwitchDlq(true))" FocusedColor="@Color.Yellow" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                }
+                else
+                {
+                    <TextButton Content="[F6] View Active" OnClick="@(() => SwitchDlq(false))" FocusedColor="@Color.Green" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                }
+                <Markup Content="   " />
+                @if (_isDlq)
+                {
+                    <TextButton Content="[F10] Requeue" OnClick="RequeueMessage" FocusedColor="@Color.Green" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
+                    <Markup Content="   " />
+                }
+                <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
+                <Markup Content="   " />
+                <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/queues"))" FocusedColor="@Color.Yellow" FocusOrder="7" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
-    }
-    else if (_messages.Count > 0)
-    {
-        <Padder Padding="@(new(0, 1, 0, 0))">
-            <Markup Content="@($"{_messages.Count} message(s)")" Foreground="@Color.Grey" />
-        </Padder>
-
-        <Scrollable Items="@_messages" PageSize="@(Math.Max(5, Console.WindowHeight - 12))" Scrollbar="new()"
-                    SelectedIndex="@_selectedIndex"
-                    SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedMessage = _messages.ElementAtOrDefault(i); })"
-                    OnActivate="@(() => { if (_messages.ElementAtOrDefault(_selectedIndex) is {} m) ViewMessage(m); })">
-        <SpectreTable Expand="true" Border="TableBorder.Simple">
-            <SpectreTHead>
-                <SpectreTR>
-                    <SpectreTH Align="Justify.Right">#</SpectreTH>
-                    <SpectreTH Align="Justify.Left">Message ID</SpectreTH>
-                    <SpectreTH Align="Justify.Left">Subject</SpectreTH>
-                    <SpectreTH Align="Justify.Left">Enqueued</SpectreTH>
-                    <SpectreTH Align="Justify.Right">Delivery</SpectreTH>
-                </SpectreTR>
-            </SpectreTHead>
-            <SpectreTBody Navigable="true"
-                          FocusOrder="7"
-                          RowCount="@context.Items.Count"
-                          OnKeyDown="@HandleKeyDown">
-                @{ var i = 0; }
-                @foreach (var m in context.Items)
-                {
-                    var idx = i++;
-                    <SpectreTR @key="m.SequenceNumber" RowIndex="@idx">
-                        <SpectreTD Align="Justify.Right">@m.SequenceNumber</SpectreTD>
-                        <SpectreTD>@Truncate(m.MessageId, 30)</SpectreTD>
-                        <SpectreTD>@Truncate(m.Subject, 25)</SpectreTD>
-                        <SpectreTD>@m.EnqueuedTime.LocalDateTime.ToString("HH:mm:ss")</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@m.DeliveryCount</SpectreTD>
-                    </SpectreTR>
-                }
-            </SpectreTBody>
-        </SpectreTable>
-        </Scrollable>
-    }
-    else
-    {
-        <Padder Padding="@(new(0, 1, 0, 0))">
-            <Markup Content="No messages. Use F7 Peek or F8 Receive to load." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
-        </Padder>
-    }
-
-    <Padder Padding="@(new(1, 0, 0, 0))">
-        <Columns>
-            <TextButton Content="[F7] Peek" OnClick="PeekMessages" FocusedColor="@Color.Green" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
-            <Markup Content="   " />
-            <TextButton Content="[F8] Receive" OnClick="ReceiveMessages" FocusedColor="@Color.Red" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
-            <Markup Content="   " />
-            @if (!_isDlq)
-            {
-                <TextButton Content="[F6] View DLQ" OnClick="@(() => SwitchDlq(true))" FocusedColor="@Color.Yellow" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
-            }
-            else
-            {
-                <TextButton Content="[F6] View Active" OnClick="@(() => SwitchDlq(false))" FocusedColor="@Color.Green" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
-            }
-            <Markup Content="   " />
-            @if (_isDlq)
-            {
-                <TextButton Content="[F10] Requeue" OnClick="RequeueMessage" FocusedColor="@Color.Green" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
-                <Markup Content="   " />
-            }
-            <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
-            <Markup Content="   " />
-            <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/queues"))" FocusedColor="@Color.Yellow" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
-        </Columns>
-    </Padder>
-</Rows>
+    </Footer>
+</FullscreenPage>
 
 <ConfirmModal IsOpened="@(_pendingDelete is not null)"
               Message="@($"Delete message #{_pendingDelete?.SequenceNumber}?")"
@@ -117,6 +124,8 @@
     private int _selectedIndex;
     private MessageInfo? _focusedMessage;
     private MessageInfo? _pendingDelete;
+    private SpectreTBody? _tbody;
+    private bool _tableAutoFocused;
 
     private const int FetchLimit = 100;
     private MessageSource Source => new(QueueName, _isDlq);
@@ -129,6 +138,15 @@
     }
 
     protected override async Task OnInitializedAsync() => await PeekMessages();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_tableAutoFocused && _tbody is not null && _messages.Count > 0)
+        {
+            _tableAutoFocused = true;
+            await FocusManager.FocusAsync(_tbody.FocusKey);
+        }
+    }
 
     private async Task SwitchDlq(bool dlq) { _isDlq = dlq; _messages = []; _selectedIndex = 0; _focusedMessage = null; await PeekMessages(); }
 

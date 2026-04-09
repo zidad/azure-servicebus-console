@@ -6,90 +6,95 @@
 @inject NavigationState NavState
 @inject ServiceBusConnection Connection
 @inject IQueueService QueueService
+@inject RazorConsole.Core.Focus.FocusManager FocusManager
 
-<Rows @onkeydown="HandleKeyDown">
-    <Panel BorderColor="@Color.Grey37" Expand="true" Padding="@(new(0, 0, 0, 0))">
-        <Markup Content="Queues" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
-    </Panel>
+<FullscreenPage OnKeyDown="HandleKeyDown">
+    <Content>
+        <Panel BorderColor="@Color.Grey37" Expand="true" Padding="@(new(0, 0, 0, 0))">
+            <Markup Content="Queues" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+        </Panel>
 
-    <Padder Padding="@(new(0, 1, 0, 0))">
+        @if (_all.Count == 0 && _loadFailed)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Markup Content="Failed to load. Press [F5] to retry." Foreground="@Color.Red" />
+            </Padder>
+        }
+        else if (_all.Count == 0)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Columns>
+                    <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                    <Markup Content="Loading queues..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+                </Columns>
+            </Padder>
+        }
+        else
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Markup Content="@($"{_filtered.Count} queue(s)")" Foreground="@Color.Grey" />
+            </Padder>
+
+            <Scrollable Items="@_filtered"
+                        PageSize="@FullscreenLayout.PageSizeRoundedTableWithFilter()"
+                        Scrollbar="new()"
+                        SelectedIndex="@_selectedIndex"
+                        SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _filtered.ElementAtOrDefault(i)?.Name; })"
+                        OnActivate="@(() => { if (_filtered.ElementAtOrDefault(_selectedIndex) is {} q) { NavState.FocusedQueueName = q.Name; Nav.NavigateTo($"/queues/{Uri.EscapeDataString(q.Name)}"); } })">
+                <SpectreTable Expand="true" Border="TableBorder.Rounded">
+                    <SpectreTHead>
+                        <SpectreTR>
+                            <SpectreTH Align="Justify.Left">Queue</SpectreTH>
+                            <SpectreTH Align="Justify.Right">Active</SpectreTH>
+                            <SpectreTH Align="Justify.Right">DLQ</SpectreTH>
+                            <SpectreTH Align="Justify.Right">Scheduled</SpectreTH>
+                            <SpectreTH Align="Justify.Right">Transfer</SpectreTH>
+                            <SpectreTH></SpectreTH>
+                        </SpectreTR>
+                    </SpectreTHead>
+                    <SpectreTBody @ref="_tbody"
+                                  Navigable="true"
+                                  FocusOrder="1"
+                                  RowCount="@context.Items.Count"
+                                  OnKeyDown="@HandleKeyDown">
+                        @{ var i = 0; }
+                        @foreach (var q in context.Items)
+                        {
+                            var idx = i++;
+                            <SpectreTR @key="q.Name" RowIndex="@idx">
+                                <SpectreTD>@q.Name</SpectreTD>
+                                <SpectreTD Align="Justify.Right">@q.ActiveMessageCount</SpectreTD>
+                                <SpectreTD Align="Justify.Right">@(q.DeadLetterMessageCount > 0 ? $"! {q.DeadLetterMessageCount}" : "0")</SpectreTD>
+                                <SpectreTD Align="Justify.Right">@q.ScheduledMessageCount</SpectreTD>
+                                <SpectreTD Align="Justify.Right">@q.TransferMessageCount</SpectreTD>
+                                <SpectreTD>@if (q.IsRefreshing) { <Spinner /> }</SpectreTD>
+                            </SpectreTR>
+                        }
+                    </SpectreTBody>
+                </SpectreTable>
+            </Scrollable>
+        }
+    </Content>
+    <Footer>
         <TextInput Value="@_filter"
                    ValueChanged="ApplyFilter"
                    OnFocus="@(_ => _filterFocused = true)"
                    OnBlur="@(_ => _filterFocused = false)"
                    Placeholder="Type to filter..."
                    Expand="true"
-                   FocusOrder="1" />
-    </Padder>
+                   FocusOrder="2" />
 
-    @if (_all.Count == 0 && _loadFailed)
-    {
-        <Padder Padding="@(new(0, 1, 0, 0))">
-            <Markup Content="Failed to load. Press [F5] to retry." Foreground="@Color.Red" />
-        </Padder>
-    }
-    else if (_all.Count == 0)
-    {
-        <Padder Padding="@(new(0, 1, 0, 0))">
+        <Padder Padding="@(new(1, 0, 0, 0))">
             <Columns>
-                <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
-                <Markup Content="Loading queues..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+                <TextButton Content="[F5] Refresh" OnClick="LoadQueues" FocusedColor="@Color.Green" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                <Markup Content="   " />
+                <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <Markup Content="   " />
+                <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Color.Yellow" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
-    }
-    else
-    {
-        <Padder Padding="@(new(0, 1, 0, 0))">
-            <Markup Content="@($"{_filtered.Count} queue(s)")" Foreground="@Color.Grey" />
-        </Padder>
-
-        <Scrollable Items="@_filtered" PageSize="@(Math.Max(5, Console.WindowHeight - 12))" Scrollbar="new()"
-                    SelectedIndex="@_selectedIndex"
-                    SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _filtered.ElementAtOrDefault(i)?.Name; })"
-                    OnActivate="@(() => { if (_filtered.ElementAtOrDefault(_selectedIndex) is {} q) { NavState.FocusedQueueName = q.Name; Nav.NavigateTo($"/queues/{Uri.EscapeDataString(q.Name)}"); } })">
-        <SpectreTable Expand="true" Border="TableBorder.Rounded">
-            <SpectreTHead>
-                <SpectreTR>
-                    <SpectreTH Align="Justify.Left">Queue</SpectreTH>
-                    <SpectreTH Align="Justify.Right">Active</SpectreTH>
-                    <SpectreTH Align="Justify.Right">DLQ</SpectreTH>
-                    <SpectreTH Align="Justify.Right">Scheduled</SpectreTH>
-                    <SpectreTH Align="Justify.Right">Transfer</SpectreTH>
-                    <SpectreTH></SpectreTH>
-                </SpectreTR>
-            </SpectreTHead>
-            <SpectreTBody Navigable="true"
-                          FocusOrder="6"
-                          RowCount="@context.Items.Count"
-                          OnKeyDown="@HandleKeyDown">
-                @{ var i = 0; }
-                @foreach (var q in context.Items)
-                {
-                    var idx = i++;
-                    <SpectreTR @key="q.Name" RowIndex="@idx">
-                        <SpectreTD>@q.Name</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@q.ActiveMessageCount</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@(q.DeadLetterMessageCount > 0 ? $"! {q.DeadLetterMessageCount}" : "0")</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@q.ScheduledMessageCount</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@q.TransferMessageCount</SpectreTD>
-                        <SpectreTD>@if (q.IsRefreshing) { <Spinner /> }</SpectreTD>
-                    </SpectreTR>
-                }
-            </SpectreTBody>
-        </SpectreTable>
-        </Scrollable>
-    }
-
-    <Padder Padding="@(new(1, 0, 0, 0))">
-        <Columns>
-            <TextButton Content="[F5] Refresh" OnClick="LoadQueues" FocusedColor="@Color.Green" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
-            <Markup Content="   " />
-            <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
-            <Markup Content="   " />
-            <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Color.Yellow" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
-        </Columns>
-    </Padder>
-</Rows>
+    </Footer>
+</FullscreenPage>
 
 <ConfirmModal IsOpened="@(_pendingDelete is not null)"
               Message="@($"Delete queue '{_pendingDelete}'? This cannot be undone.")"
@@ -109,6 +114,8 @@
     private string _error = string.Empty;
     private bool _loadFailed;
     private CancellationTokenSource _cts = new();
+    private SpectreTBody? _tbody;
+    private bool _tableAutoFocused;
 
     public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 
@@ -121,6 +128,15 @@
     }
 
     protected override async Task OnInitializedAsync() => await LoadQueues();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_tableAutoFocused && _tbody is not null && _filtered.Count > 0)
+        {
+            _tableAutoFocused = true;
+            await FocusManager.FocusAsync(_tbody.FocusKey);
+        }
+    }
 
     private async Task LoadQueues()
     {

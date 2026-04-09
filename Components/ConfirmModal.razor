@@ -7,15 +7,15 @@
             <Markup Content="@Message.Replace("[", "[[").Replace("]", "]]")" />
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
-                    <TextButton @ref="_cancelButton"
-                                Content="Cancel"
-                                OnClick="@(() => OnCancel.InvokeAsync())"
-                                FocusedColor="@Color.Grey"
-                                FocusOrder="1" />
-                    <Markup Content="   " />
-                    <TextButton Content="Yes, delete"
+                    <TextButton @ref="_confirmButton"
+                                Content="Yes, delete"
                                 OnClick="@(() => OnConfirm.InvokeAsync())"
                                 FocusedColor="@Color.Red"
+                                FocusOrder="1" />
+                    <Markup Content="   " />
+                    <TextButton Content="Cancel"
+                                OnClick="@(() => OnCancel.InvokeAsync())"
+                                FocusedColor="@Color.Grey"
                                 FocusOrder="2" />
                 </Columns>
             </Padder>
@@ -29,13 +29,13 @@
     [Parameter] public EventCallback OnConfirm { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
 
-    private TextButton? _cancelButton;
+    private TextButton? _confirmButton;
     private bool _wasOpened;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (IsOpened && !_wasOpened && _cancelButton is not null)
-            await FocusManager.FocusAsync(_cancelButton.FocusKey);
+        if (IsOpened && !_wasOpened && _confirmButton is not null)
+            await FocusManager.FocusAsync(_confirmButton.FocusKey);
         _wasOpened = IsOpened;
     }
 }
