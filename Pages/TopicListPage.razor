@@ -7,12 +7,69 @@
 @inject ServiceBusConnection Connection
 @inject ITopicService TopicService
 
-<Rows @onkeydown="HandleKeyDown">
-    <Panel BorderColor="@Color.Grey37" Expand="true" Padding="@(new(0, 0, 0, 0))">
-        <Markup Content="Topics" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
-    </Panel>
+<FullscreenPage OnKeyDown="HandleKeyDown">
+    <Content>
+        <Panel BorderColor="@Color.Grey37" Expand="true" Padding="@(new(0, 0, 0, 0))">
+            <Markup Content="Topics" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+        </Panel>
 
-    <Padder Padding="@(new(0, 1, 0, 0))">
+        @if (_all.Count == 0 && _loadFailed)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Markup Content="Failed to load. Press [F5] to retry." Foreground="@Color.Red" />
+            </Padder>
+        }
+        else if (_all.Count == 0)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Columns>
+                    <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                    <Markup Content="Loading topics..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+                </Columns>
+            </Padder>
+        }
+        else
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Markup Content="@($"{_filtered.Count} topic(s)")" Foreground="@Color.Grey" />
+            </Padder>
+
+            <Scrollable Items="@_filtered"
+                        PageSize="@FullscreenLayout.PageSizeRoundedTableWithFilter()"
+                        Scrollbar="new()"
+                        SelectedIndex="@_selectedIndex"
+                        SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _filtered.ElementAtOrDefault(i)?.Name; })"
+                        OnActivate="@(() => { if (_filtered.ElementAtOrDefault(_selectedIndex) is {} t) { NavState.TopicName = t.Name; Nav.NavigateTo("/topic-detail"); } })">
+                <SpectreTable Expand="true" Border="TableBorder.Rounded">
+                    <SpectreTHead>
+                        <SpectreTR>
+                            <SpectreTH Align="Justify.Left">Topic</SpectreTH>
+                            <SpectreTH Align="Justify.Right">Subscriptions</SpectreTH>
+                            <SpectreTH Align="Justify.Right">Scheduled</SpectreTH>
+                            <SpectreTH></SpectreTH>
+                        </SpectreTR>
+                    </SpectreTHead>
+                    <SpectreTBody Navigable="true"
+                                  FocusOrder="6"
+                                  RowCount="@context.Items.Count"
+                                  OnKeyDown="@HandleKeyDown">
+                        @{ var i = 0; }
+                        @foreach (var t in context.Items)
+                        {
+                            var idx = i++;
+                            <SpectreTR @key="t.Name" RowIndex="@idx">
+                                <SpectreTD>@t.Name</SpectreTD>
+                                <SpectreTD Align="Justify.Right">@t.SubscriptionCount</SpectreTD>
+                                <SpectreTD Align="Justify.Right">@t.ScheduledMessageCount</SpectreTD>
+                                <SpectreTD>@if (t.IsRefreshing) { <Spinner /> }</SpectreTD>
+                            </SpectreTR>
+                        }
+                    </SpectreTBody>
+                </SpectreTable>
+            </Scrollable>
+        }
+    </Content>
+    <Footer>
         <TextInput Value="@_filter"
                    ValueChanged="ApplyFilter"
                    OnFocus="@(_ => _filterFocused = true)"
@@ -20,72 +77,18 @@
                    Placeholder="Type to filter..."
                    Expand="true"
                    FocusOrder="1" />
-    </Padder>
 
-    @if (_all.Count == 0 && _loadFailed)
-    {
-        <Padder Padding="@(new(0, 1, 0, 0))">
-            <Markup Content="Failed to load. Press [F5] to retry." Foreground="@Color.Red" />
-        </Padder>
-    }
-    else if (_all.Count == 0)
-    {
-        <Padder Padding="@(new(0, 1, 0, 0))">
+        <Padder Padding="@(new(1, 0, 0, 0))">
             <Columns>
-                <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
-                <Markup Content="Loading topics..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+                <TextButton Content="[F5] Refresh" OnClick="LoadTopics" FocusedColor="@Color.Green" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+                <Markup Content="   " />
+                <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                <Markup Content="   " />
+                <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Color.Yellow" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
-    }
-    else
-    {
-        <Padder Padding="@(new(0, 1, 0, 0))">
-            <Markup Content="@($"{_filtered.Count} topic(s)")" Foreground="@Color.Grey" />
-        </Padder>
-
-        <Scrollable Items="@_filtered" PageSize="@(Math.Max(5, Console.WindowHeight - 12))" Scrollbar="new()"
-                    SelectedIndex="@_selectedIndex"
-                    SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _filtered.ElementAtOrDefault(i)?.Name; })"
-                    OnActivate="@(() => { if (_filtered.ElementAtOrDefault(_selectedIndex) is {} t) { NavState.TopicName = t.Name; Nav.NavigateTo("/topic-detail"); } })">
-        <SpectreTable Expand="true" Border="TableBorder.Rounded">
-            <SpectreTHead>
-                <SpectreTR>
-                    <SpectreTH Align="Justify.Left">Topic</SpectreTH>
-                    <SpectreTH Align="Justify.Right">Subscriptions</SpectreTH>
-                    <SpectreTH Align="Justify.Right">Scheduled</SpectreTH>
-                    <SpectreTH></SpectreTH>
-                </SpectreTR>
-            </SpectreTHead>
-            <SpectreTBody Navigable="true"
-                          FocusOrder="6"
-                          RowCount="@context.Items.Count"
-                          OnKeyDown="@HandleKeyDown">
-                @{ var i = 0; }
-                @foreach (var t in context.Items)
-                {
-                    var idx = i++;
-                    <SpectreTR @key="t.Name" RowIndex="@idx">
-                        <SpectreTD>@t.Name</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@t.SubscriptionCount</SpectreTD>
-                        <SpectreTD Align="Justify.Right">@t.ScheduledMessageCount</SpectreTD>
-                        <SpectreTD>@if (t.IsRefreshing) { <Spinner /> }</SpectreTD>
-                    </SpectreTR>
-                }
-            </SpectreTBody>
-        </SpectreTable>
-        </Scrollable>
-    }
-
-    <Padder Padding="@(new(1, 0, 0, 0))">
-        <Columns>
-            <TextButton Content="[F5] Refresh" OnClick="LoadTopics" FocusedColor="@Color.Green" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
-            <Markup Content="   " />
-            <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
-            <Markup Content="   " />
-            <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Color.Yellow" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
-        </Columns>
-    </Padder>
-</Rows>
+    </Footer>
+</FullscreenPage>
 
 <ConfirmModal IsOpened="@(_pendingDelete is not null)"
               Message="@($"Delete topic '{_pendingDelete}' and all its subscriptions? This cannot be undone.")"

@@ -21,7 +21,9 @@ RazorConsole renders Blazor Razor components to the terminal via Spectre.Console
 |---|---|---|
 | `<Rows>` | `Expand`, `@onkeydown`, `@attributes` | Vertical stack. Use as the root element of every page with `@onkeydown="HandleKeyDown"`. |
 | `<Columns>` | `Expand` | Horizontal layout. Use for button bars and side-by-side content. |
-| `<Panel>` | `Title`, `BorderColor`, `Border` (BoxBorder), `Padding` (Padding struct), `Expand`, `Height`, `Width` | Titled bordered box. `Padding="@(new(left, top, right, bottom))"`. |
+| `<FlexBox>` | `Direction` (FlexDirection), `Justify` (FlexJustify), `Align` (FlexAlign), `Wrap`, `Gap`, `Width`, `Height` | CSS-flexbox-style layout. Used internally by `<FullscreenPage>` (Column + Height + SpaceBetween) to pin the footer to the bottom. Prefer `<FullscreenPage>` at the page level rather than reaching for `<FlexBox>` directly. Import: `@using RazorConsole.Core.Renderables`. |
+| `<FullscreenPage>` (project) | `Content` (RenderFragment), `Footer` (RenderFragment), `OnKeyDown` | Project-local wrapper in `Components/FullscreenPage.razor`. Every table page should use it — it gives a fullscreen layout with the footer (button bar, optional filter `TextInput`) pinned to the bottom. Pair with `FullscreenLayout.PageSizeRoundedTableWithFilter()` etc. to size the `Scrollable`. |
+| `<Panel>` | `Title`, `BorderColor`, `Border` (BoxBorder), `Padding` (Padding struct), `Expand`, `Height`, `Width` | Titled bordered box. `Padding="@(new(left, top, right, bottom))"`. **⚠ Do not set `Height` on a Panel that wraps a `<Rows>` containing expanding children** — Spectre.Console's Panel passes its `Height - 2` down to children via `RenderOptions.Height`, and any `Expand="true"` child Panel inherits that and balloons to fill it, pushing the rest of the page off the visible area. Use `<FullscreenPage>` for fullscreen layouts instead. |
 | `<Padder>` | `Padding` (Padding struct) | Adds whitespace around content. `Padding="@(new(0, 1, 0, 0))"` adds one blank line above. |
 | `<Newline>` | — | Inserts a blank line. |
 
@@ -144,7 +146,7 @@ The modal is rendered outside the normal flow; all page elements remain in the f
 
 ## Page template
 
-Every page follows this pattern:
+Every page uses the project's `<FullscreenPage>` wrapper (`Components/FullscreenPage.razor`). It encapsulates the `Rows > FlexBox(Column, Height, SpaceBetween) > [Content, Footer]` pattern, so pages only specify the two slots and the key handler. `SpaceBetween` pins the footer to the bottom of the screen even when the content is short (loading, empty, few rows).
 
 ```razor
 @page "/my-route/{Param}"
@@ -156,20 +158,41 @@ Every page follows this pattern:
 @inject ISomeService SomeService
 @inject NavigationState NavState   // when navigating to/from subscription-browser
 
-<Rows @onkeydown="HandleKeyDown">
-    {{header panel}}
-    {{loading spinner or table}}
-    <Padder Padding="@(new(1, 0, 0, 0))">
-        <Columns>
-            <TextButton Content="[F5] Refresh" OnClick="Load" FocusedColor="@Color.Green" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
-            <Markup Content="   " />
-            <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/prev"))" FocusedColor="@Color.Yellow" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
-        </Columns>
-    </Padder>
-</Rows>
+<FullscreenPage OnKeyDown="HandleKeyDown">
+    <Content>
+        {{header panel}}
+        {{loading spinner or table}}
+    </Content>
+    <Footer>
+        {{filter TextInput (optional, above the button row)}}
+        <Padder Padding="@(new(1, 0, 0, 0))">
+            <Columns>
+                <TextButton Content="[F5] Refresh" OnClick="Load" FocusedColor="@Color.Green" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+                <Markup Content="   " />
+                <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/prev"))" FocusedColor="@Color.Yellow" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
+            </Columns>
+        </Padder>
+    </Footer>
+</FullscreenPage>
 
 <ConfirmModal ... />
 <ErrorModal ... />
+```
+
+### Sizing the `Scrollable.PageSize`
+
+Use `FullscreenLayout.PageSizeRoundedTableWithFilter()` / `PageSizeRoundedTable()` / `PageSizeSimpleTable()` (in `Components/FullscreenLayout.cs`) to compute a `PageSize` that makes the table fill the remaining vertical space exactly. For layouts that don't match one of those shapes, call `FullscreenLayout.PageSize(chromeLines)` with the sum of these constants:
+
+| Constant | Lines | When to include |
+|---|---|---|
+| `FullscreenLayout.Header` | 3 | Always — header `Panel` |
+| `FullscreenLayout.CountRow` | 2 | `Padder(0,1,0,0)` + count/status markup above the table |
+| `FullscreenLayout.RoundedTableChrome` | 4 | `SpectreTable Border="TableBorder.Rounded"` (top + header + separator + bottom) |
+| `FullscreenLayout.SimpleTableChrome` | 2 | `SpectreTable Border="TableBorder.Simple"` (header + separator only) |
+| `FullscreenLayout.FooterTextInput` | 3 | `TextInput` placed in the `<Footer>` slot (includes its Rounded border) |
+| `FullscreenLayout.FooterButtons` | 1 | Always — the button row wrapped in `Padder(1,0,0,0)` + `Columns` |
+
+`FullscreenLayout.PageSize` subtracts the total from `Console.WindowHeight - 1` and floors at 5. If a page's shape changes (e.g. you add a subtitle row), extend the constants in one place rather than recomputing in the razor.
 
 @code {
     [Parameter] public string Param { get; set; } = "";

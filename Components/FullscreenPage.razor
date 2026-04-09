@@ -1,0 +1,27 @@
+@namespace LLMAgentTUI.Components
+@using Microsoft.AspNetCore.Components.Web
+@using RazorConsole.Core.Renderables
+
+<Rows @onkeydown="OnKeyDown">
+    <FlexBox Direction="FlexDirection.Column" Height="@(Console.WindowHeight - 1)" Justify="FlexJustify.SpaceBetween">
+        <Rows>
+            @Content
+        </Rows>
+        <Rows>
+            @Footer
+        </Rows>
+    </FlexBox>
+</Rows>
+
+@code {
+    /// <summary>
+    /// Fullscreen page layout: an outer <c>Rows</c> captures keyboard events, wrapping a
+    /// <c>FlexBox</c> (Column, <see cref="FlexJustify.SpaceBetween"/>) whose two children are
+    /// the main content and the footer. <c>SpaceBetween</c> pins the footer to the bottom of
+    /// the terminal even when the content is short. Use
+    /// <see cref="FullscreenLayout.PageSize(int)"/> to compute <c>Scrollable.PageSize</c>.
+    /// </summary>
+    [Parameter, EditorRequired] public RenderFragment Content { get; set; } = default!;
+    [Parameter, EditorRequired] public RenderFragment Footer { get; set; } = default!;
+    [Parameter] public EventCallback<KeyboardEventArgs> OnKeyDown { get; set; }
+}
