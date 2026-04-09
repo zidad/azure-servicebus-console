@@ -1,11 +1,13 @@
 @namespace LLMAgentTUI.Components
+@inject RazorConsole.Core.Focus.FocusManager FocusManager
 
-<ModalWindow IsOpened="@(!string.IsNullOrEmpty(Message))">
+<ModalWindow IsOpened="@IsOpened">
     <Panel Title="Error" BorderColor="@Color.Red" Padding="@(new(2, 1, 2, 1))">
         <Rows>
             <Markup Content="@Message.Replace("[", "[[").Replace("]", "]]")" Foreground="@Color.Red" />
             <Padder Padding="@(new(0, 1, 0, 0))">
-                <TextButton Content="Dismiss"
+                <TextButton @ref="_dismissButton"
+                            Content="Dismiss"
                             OnClick="@(() => OnDismiss.InvokeAsync())"
                             FocusedColor="@Color.Grey"
                             FocusOrder="1" />
@@ -17,4 +19,16 @@
 @code {
     [Parameter] public string Message { get; set; } = "";
     [Parameter] public EventCallback OnDismiss { get; set; }
+
+    private TextButton? _dismissButton;
+    private bool _wasOpened;
+
+    private bool IsOpened => !string.IsNullOrEmpty(Message);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (IsOpened && !_wasOpened && _dismissButton is not null)
+            await FocusManager.FocusAsync(_dismissButton.FocusKey);
+        _wasOpened = IsOpened;
+    }
 }

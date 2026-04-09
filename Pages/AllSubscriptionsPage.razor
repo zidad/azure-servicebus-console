@@ -6,6 +6,7 @@
 @inject NavigationState NavState
 @inject ServiceBusConnection Connection
 @inject ITopicService TopicService
+@inject RazorConsole.Core.Focus.FocusManager FocusManager
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
     <Content>
@@ -51,8 +52,9 @@
                             <SpectreTH></SpectreTH>
                         </SpectreTR>
                     </SpectreTHead>
-                    <SpectreTBody Navigable="true"
-                                  FocusOrder="6"
+                    <SpectreTBody @ref="_tbody"
+                                  Navigable="true"
+                                  FocusOrder="1"
                                   RowCount="@context.Items.Count"
                                   OnKeyDown="@HandleKeyDown">
                         @{ var i = 0; }
@@ -80,15 +82,15 @@
                    OnBlur="@(_ => _filterFocused = false)"
                    Placeholder="Type to filter by topic or subscription..."
                    Expand="true"
-                   FocusOrder="1" />
+                   FocusOrder="2" />
 
         <Padder Padding="@(new(1, 0, 0, 0))">
             <Columns>
-                <TextButton Content="[F5] Refresh" OnClick="LoadSubscriptions" FocusedColor="@Color.Green" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F5] Refresh" OnClick="LoadSubscriptions" FocusedColor="@Color.Green" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Color.Yellow" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Color.Yellow" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
     </Footer>
@@ -113,6 +115,8 @@
     private bool _loadFailed;
     private CancellationTokenSource _cts = new();
     private string? _restoreFocusKey;
+    private SpectreTBody? _tbody;
+    private bool _tableAutoFocused;
 
     public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 
@@ -126,6 +130,15 @@
     }
 
     protected override async Task OnInitializedAsync() => await LoadSubscriptions();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_tableAutoFocused && _tbody is not null && _filtered.Count > 0)
+        {
+            _tableAutoFocused = true;
+            await FocusManager.FocusAsync(_tbody.FocusKey);
+        }
+    }
 
     private async Task LoadSubscriptions()
     {
