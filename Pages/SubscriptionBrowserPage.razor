@@ -99,23 +99,34 @@
                 <Markup Content="   " />
                 @if (_isDlq)
                 {
-                    <TextButton Content="[F10] Requeue" OnClick="RequeueMessage" FocusedColor="@Color.Green" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
+                    <TextButton Content="[F10] Requeue" OnClick="@(() => _requeue!.Invoke(_focusedMessage))" FocusedColor="@Color.Green" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="   " />
                 }
-                <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F9] Delete" OnClick="@(() => _delete!.Invoke(_focusedMessage))" FocusedColor="@Color.Red" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo(BackPath))" FocusedColor="@Color.Yellow" FocusOrder="7" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F11] Purge" OnClick="@(() => _purge!.Invoke())" FocusedColor="@Color.Red" FocusOrder="7" OnKeyDown="@HandleKeyDown" />
+                <Markup Content="   " />
+                <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo(BackPath))" FocusedColor="@Color.Yellow" FocusOrder="8" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
     </Footer>
 </FullscreenPage>
 
-<ConfirmModal IsOpened="@(_pendingDelete is not null)"
-              Message="@($"Delete message #{_pendingDelete?.SequenceNumber}?")"
-              OnConfirm="ConfirmDelete"
-              OnCancel="@(() => _pendingDelete = null)" />
-
 <ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
+
+<AsyncCommand @ref="_delete" TItem="MessageInfo"
+              ConfirmMessage="@(m => $"Delete message #{m!.SequenceNumber}?")"
+              Execute="@(m => MessageService.DeleteMessageAsync(Source, m!.SequenceNumber))"
+              OnCompleted="@(m => { _messages.Remove(m!); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _messages.Count - 1)); _focusedMessage = _messages.ElementAtOrDefault(_selectedIndex); StateHasChanged(); return Task.CompletedTask; })" />
+
+<AsyncCommand @ref="_requeue" TItem="MessageInfo"
+              Execute="@(m => MessageService.RequeueMessageAsync(Source, m!.SequenceNumber))"
+              OnCompleted="@(m => { _messages.Remove(m!); _focusedMessage = _messages.ElementAtOrDefault(_selectedIndex); StateHasChanged(); return Task.CompletedTask; })" />
+
+<AsyncCommand @ref="_purge" TItem="object"
+              ConfirmMessage="@(_ => $"Purge ALL messages from {SubscriptionName}{(_isDlq ? " DLQ" : "")}? This cannot be undone.")"
+              Execute="@(_ => MessageService.PurgeMessagesAsync(Source))"
+              OnCompleted="@(_ => { _messages = []; _selectedIndex = 0; _focusedMessage = null; StateHasChanged(); return Task.CompletedTask; })" />
 
 @code {
     private string TopicName => NavState.TopicName ?? "";
@@ -128,13 +139,15 @@
     private string _error = string.Empty;
     private int _selectedIndex;
     private MessageInfo? _focusedMessage;
-    private MessageInfo? _pendingDelete;
     private SpectreTBody? _tbody;
     private bool _tableAutoFocused;
 
+    private AsyncCommand<MessageInfo>? _delete;
+    private AsyncCommand<MessageInfo>? _requeue;
+    private AsyncCommand<object>? _purge;
+
     private const int FetchLimit = 100;
     private MessageSource Source => new(SubscriptionName, _isDlq, TopicName, SubscriptionName);
-
 
     protected override void OnInitialized()
     {
@@ -182,50 +195,27 @@
         Nav.NavigateTo("/message");
     }
 
-    private void TriggerDelete()
-    {
-        if (_focusedMessage is not null) { _pendingDelete = _focusedMessage; StateHasChanged(); }
-    }
-
-    private async Task ConfirmDelete()
-    {
-        var msg = _pendingDelete!;
-        _pendingDelete = null; _error = string.Empty; StateHasChanged();
-        try { await MessageService.DeleteMessageAsync(Source, msg.SequenceNumber); _messages.Remove(msg); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _messages.Count - 1)); _focusedMessage = _messages.ElementAtOrDefault(_selectedIndex); }
-        catch (Exception ex) { _error = ex.Message.Split('\n')[0]; }
-        StateHasChanged();
-    }
-
     private string BackPath => NavState.ReturnPath ?? (string.IsNullOrEmpty(TopicName) ? "/topics" : "/topic-detail");
-
-    private async Task RequeueMessage()
-    {
-        if (_focusedMessage is null) return;
-        var msg = _focusedMessage;
-        _error = string.Empty; StateHasChanged();
-        try
-        {
-            await MessageService.RequeueMessageAsync(Source, msg.SequenceNumber);
-            _messages.Remove(msg);
-            _focusedMessage = _messages.ElementAtOrDefault(_selectedIndex);
-        }
-        catch (Exception ex) { _error = ex.Message.Split('\n')[0]; }
-        StateHasChanged();
-    }
 
     private void HandleKeyDown(KeyboardEventArgs e)
     {
         if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        if (_delete?.HandleKey(e) == true) return;
+        if (_requeue?.HandleKey(e) == true) return;
+        if (_purge?.HandleKey(e) == true) return;
         switch (e.Key)
         {
-            case "Escape":
-                if (_pendingDelete is not null) { _pendingDelete = null; StateHasChanged(); return; }
-                Nav.NavigateTo(BackPath); return;
+            case "Escape": Nav.NavigateTo(BackPath); return;
             case "F6": _ = SwitchDlq(!_isDlq); return;
             case "F7": _ = PeekMessages(); return;
             case "F8": _ = ReceiveMessages(); return;
-            case "F9": case "Delete": case "\\": TriggerDelete(); return;
-            case "F10": if (_isDlq && _focusedMessage is not null) _ = RequeueMessage(); return;
+            case "F9": case "Delete": case "\\":
+                if (_focusedMessage is not null) _delete!.Invoke(_focusedMessage);
+                return;
+            case "F10":
+                if (_isDlq && _focusedMessage is not null) _requeue!.Invoke(_focusedMessage);
+                return;
+            case "F11": _purge!.Invoke(); return;
         }
     }
 

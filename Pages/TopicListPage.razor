@@ -84,7 +84,7 @@
             <Columns>
                 <TextButton Content="[F5] Refresh" OnClick="LoadTopics" FocusedColor="@Color.Green" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F9] Delete" OnClick="@(() => _deleteTopic!.Invoke(_focusedItem))" FocusedColor="@Color.Red" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
                 <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Color.Yellow" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
             </Columns>
@@ -92,12 +92,12 @@
     </Footer>
 </FullscreenPage>
 
-<ConfirmModal IsOpened="@(_pendingDelete is not null)"
-              Message="@($"Delete topic '{_pendingDelete}' and all its subscriptions? This cannot be undone.")"
-              OnConfirm="ConfirmDelete"
-              OnCancel="@(() => _pendingDelete = null)" />
-
 <ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
+
+<AsyncCommand @ref="_deleteTopic" TItem="string"
+              ConfirmMessage="@(n => $"Delete topic '{n}' and all its subscriptions? This cannot be undone.")"
+              Execute="@(n => TopicService.DeleteTopicAsync(n!))"
+              OnCompleted="@(n => { _all.RemoveAll(t => t.Name == n); UpdateFilterState(_filter); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1)); _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex)?.Name; StateHasChanged(); return Task.CompletedTask; })" />
 
 @code {
     private List<TopicInfo> _all = [];
@@ -106,8 +106,8 @@
     private bool _filterFocused;
     private int _selectedIndex;
     private string? _focusedItem;
-    private string? _pendingDelete;
     private string _error = string.Empty;
+    private AsyncCommand<string>? _deleteTopic;
     private bool _loadFailed;
     private CancellationTokenSource _cts = new();
     private SpectreTBody? _tbody;
@@ -175,29 +175,6 @@
         catch (Exception ex) { _loadFailed = true; _error = ex.Message; await InvokeAsync(StateHasChanged); }
     }
 
-    private void TriggerDelete()
-    {
-        if (_focusedItem is not null) { _pendingDelete = _focusedItem; StateHasChanged(); }
-    }
-
-    private async Task ConfirmDelete()
-    {
-        var name = _pendingDelete!;
-        _pendingDelete = null;
-        _error = string.Empty;
-        StateHasChanged();
-        try
-        {
-            await TopicService.DeleteTopicAsync(name);
-            _all.RemoveAll(t => t.Name == name);
-            UpdateFilterState(_filter);
-            _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1));
-            _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex)?.Name;
-            StateHasChanged();
-        }
-        catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
-    }
-
     private void UpdateFilterState(string? value)
     {
         var currentFocus = _focusedItem;
@@ -223,11 +200,14 @@
     private void HandleKeyDown(KeyboardEventArgs e)
     {
         if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        if (_deleteTopic?.HandleKey(e) == true) return;
         switch (e.Key)
         {
             case "Escape": Nav.NavigateTo("/"); return;
             case "F5": _ = LoadTopics(); return;
-            case "F9": case "Delete": case "\\": TriggerDelete(); return;
+            case "F9": case "Delete": case "\\":
+                if (_focusedItem is not null) _deleteTopic!.Invoke(_focusedItem);
+                return;
             case "Backspace":
                 if (!_filterFocused) ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]);
                 return;

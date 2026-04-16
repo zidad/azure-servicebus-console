@@ -2,21 +2,23 @@
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 
 <ModalWindow IsOpened="@IsOpened">
-    <Panel Title="Confirm deletion" BorderColor="@Color.Red" Padding="@(new(2, 1, 2, 1))">
+    <Panel Title="Confirm" BorderColor="@Color.Red" Padding="@(new(2, 1, 2, 1))">
         <Rows>
             <Markup Content="@Message.Replace("[", "[[").Replace("]", "]]")" />
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
                     <TextButton @ref="_confirmButton"
-                                Content="Yes, delete"
+                                Content="[Y] Yes"
                                 OnClick="@(() => OnConfirm.InvokeAsync())"
+                                OnKeyDown="HandleKey"
                                 FocusedColor="@Color.Red"
-                                FocusOrder="1" />
+                                FocusOrder="0" />
                     <Markup Content="   " />
-                    <TextButton Content="Cancel"
+                    <TextButton Content="[N] No"
                                 OnClick="@(() => OnCancel.InvokeAsync())"
+                                OnKeyDown="HandleKey"
                                 FocusedColor="@Color.Grey"
-                                FocusOrder="2" />
+                                FocusOrder="1" />
                 </Columns>
             </Padder>
         </Rows>
@@ -35,7 +37,31 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (IsOpened && !_wasOpened && _confirmButton is not null)
-            await FocusManager.FocusAsync(_confirmButton.FocusKey);
-        _wasOpened = IsOpened;
+        {
+            _wasOpened = true;
+            // Retry a couple of times in case the button hasn't been registered as a focus target yet.
+            for (var i = 0; i < 3; i++)
+            {
+                if (await FocusManager.FocusAsync(_confirmButton.FocusKey)) break;
+                await Task.Delay(16);
+            }
+        }
+        else if (!IsOpened)
+        {
+            _wasOpened = false;
+        }
+    }
+
+    private void HandleKey(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "Y": case "y": case "Enter": case "Return":
+                _ = OnConfirm.InvokeAsync();
+                break;
+            case "N": case "n": case "Escape":
+                _ = OnCancel.InvokeAsync();
+                break;
+        }
     }
 }

@@ -6,7 +6,9 @@
 @inject NavigationState NavState
 @inject ServiceBusConnection Connection
 @inject IQueueService QueueService
+@inject IMessageService MessageService
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
+@inject Microsoft.Extensions.Logging.ILogger<QueueListPage> Logger
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
     <Content>
@@ -88,20 +90,27 @@
             <Columns>
                 <TextButton Content="[F5] Refresh" OnClick="LoadQueues" FocusedColor="@Color.Green" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F9] Delete" OnClick="@(() => _deleteQueue!.Invoke(_focusedItem))" FocusedColor="@Color.Red" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Color.Yellow" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F11] Purge DLQ" OnClick="@(() => _purgeDlq!.Invoke(_focusedItem))" FocusedColor="@Color.Red" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
+                <Markup Content="   " />
+                <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Color.Yellow" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
     </Footer>
 </FullscreenPage>
 
-<ConfirmModal IsOpened="@(_pendingDelete is not null)"
-              Message="@($"Delete queue '{_pendingDelete}'? This cannot be undone.")"
-              OnConfirm="ConfirmDelete"
-              OnCancel="@(() => _pendingDelete = null)" />
-
 <ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
+
+<AsyncCommand @ref="_deleteQueue" TItem="string"
+              ConfirmMessage="@(n => $"Delete queue '{n}'? This cannot be undone.")"
+              Execute="@(n => QueueService.DeleteQueueAsync(n!))"
+              OnCompleted="@(n => { _all.RemoveAll(q => q.Name == n); UpdateFilterState(_filter); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1)); _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex)?.Name; StateHasChanged(); return Task.CompletedTask; })" />
+
+<AsyncCommand @ref="_purgeDlq" TItem="string"
+              ConfirmMessage="@(n => $"Purge ALL messages from DLQ of '{n}'? This cannot be undone.")"
+              Execute="@(n => MessageService.PurgeMessagesAsync(new MessageSource(n!, IsDlq: true)))"
+              OnCompleted="@(n => { if (_all.FirstOrDefault(q => q.Name == n) is {} q) q.DeadLetterMessageCount = 0; UpdateFilterState(_filter); StateHasChanged(); return Task.CompletedTask; })" />
 
 @code {
     private List<QueueInfo> _all = [];
@@ -110,8 +119,9 @@
     private bool _filterFocused;
     private int _selectedIndex;
     private string? _focusedItem;
-    private string? _pendingDelete;
     private string _error = string.Empty;
+    private AsyncCommand<string>? _deleteQueue;
+    private AsyncCommand<string>? _purgeDlq;
     private bool _loadFailed;
     private CancellationTokenSource _cts = new();
     private SpectreTBody? _tbody;
@@ -140,6 +150,8 @@
 
     private async Task LoadQueues()
     {
+        var invocationId = Guid.NewGuid().ToString("N").AsSpan(0, 6).ToString();
+        Logger.LogInformation("LoadQueues[{Inv}] START _all.Count={Count}", invocationId, _all.Count);
         _cts.Cancel();
         _cts = new CancellationTokenSource();
         _error = string.Empty;
@@ -147,12 +159,14 @@
 
         var live = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var transitionRendered = false;
+        var cached = 0;
+        var liveCount = 0;
 
         try
         {
             await foreach (var q in QueueService.GetQueuesAsync(_cts.Token))
             {
-                if (!q.IsRefreshing) live.Add(q.Name);
+                if (q.IsRefreshing) cached++; else { liveCount++; live.Add(q.Name); }
                 var idx = _all.FindIndex(x => x.Name == q.Name);
                 if (idx >= 0) _all[idx] = q; else _all.Add(q);
 
@@ -174,32 +188,11 @@
                 SortAndUpdateFilterState();
             }
             await InvokeAsync(StateHasChanged);
+            Logger.LogInformation("LoadQueues[{Inv}] END cached={Cached} live={Live} _all.Count={All} _filtered.Count={Filtered}",
+                invocationId, cached, liveCount, _all.Count, _filtered.Count);
         }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { _loadFailed = true; _error = ex.Message; await InvokeAsync(StateHasChanged); }
-    }
-
-    private void TriggerDelete()
-    {
-        if (_focusedItem is not null) { _pendingDelete = _focusedItem; StateHasChanged(); }
-    }
-
-    private async Task ConfirmDelete()
-    {
-        var name = _pendingDelete!;
-        _pendingDelete = null;
-        _error = string.Empty;
-        StateHasChanged();
-        try
-        {
-            await QueueService.DeleteQueueAsync(name);
-            _all.RemoveAll(q => q.Name == name);
-            UpdateFilterState(_filter);
-            _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1));
-            _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex)?.Name;
-            StateHasChanged();
-        }
-        catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
+        catch (OperationCanceledException) { Logger.LogInformation("LoadQueues[{Inv}] CANCELLED", invocationId); }
+        catch (Exception ex) { _loadFailed = true; _error = ex.Message; await InvokeAsync(StateHasChanged); Logger.LogWarning(ex, "LoadQueues[{Inv}] FAILED", invocationId); }
     }
 
     private void SortAndUpdateFilterState()
@@ -233,11 +226,18 @@
     private void HandleKeyDown(KeyboardEventArgs e)
     {
         if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        if (_deleteQueue?.HandleKey(e) == true) return;
+        if (_purgeDlq?.HandleKey(e) == true) return;
         switch (e.Key)
         {
             case "Escape": Nav.NavigateTo("/"); return;
             case "F5": _ = LoadQueues(); return;
-            case "F9": case "Delete": case "\\": TriggerDelete(); return;
+            case "F9": case "Delete": case "\\":
+                if (_focusedItem is not null) _deleteQueue!.Invoke(_focusedItem);
+                return;
+            case "F11":
+                if (_focusedItem is not null) _purgeDlq!.Invoke(_focusedItem);
+                return;
             case "Backspace":
                 if (!_filterFocused) ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]);
                 return;

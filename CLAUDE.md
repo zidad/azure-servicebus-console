@@ -48,6 +48,22 @@ This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, que
 
 **Azure subscription IDs** are hardcoded in `Pages/ConnectionPage.razor` in the `SubscriptionOptions` array — update these to match the target environment.
 
+**Async commands:** Confirm-then-execute flows (delete, purge, requeue, etc.) use the `<AsyncCommand<TItem>>` component (`Components/AsyncCommand.razor`). It owns the pending-item, busy, and error state — pages should NOT reintroduce `_pending*` bool/field patterns or inline `ConfirmModal` + `ErrorModal` pairs per action.
+
+Declare once per action and trigger via `@ref`:
+
+```razor
+<AsyncCommand @ref="_delete" TItem="MessageInfo"
+              ConfirmMessage="@(m => $"Delete #{m!.SequenceNumber}?")"
+              Execute="@(m => MessageService.DeleteMessageAsync(Source, m!.SequenceNumber))"
+              OnCompleted="@(m => { _messages.Remove(m!); StateHasChanged(); return Task.CompletedTask; })" />
+```
+
+- Omit `ConfirmMessage` to run without a confirm prompt.
+- Use `TItem="object"` and call `_cmd!.Invoke()` (no arg) for page-scoped commands like Purge.
+- `Execute` may return any `Task`/`Task<T>` (covariant via `Func<TItem?, Task>`); exceptions are caught and shown in the component's own `ErrorModal`.
+- A page may still keep its own `_error`/`_loading` + `ErrorModal` for non-command paths like initial load (`PeekMessages`, streaming list loads) — those aren't async commands.
+
 **Message operations:**
 - *Peek* uses `PeekLock` mode (non-destructive)
 - *Receive* uses `ReceiveAndDelete` mode (destructive — permanently removes messages)
