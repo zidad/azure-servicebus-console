@@ -64,11 +64,11 @@ else
             <Columns>
                 @if (IsDlq)
                 {
-                    <TextButton Content="[F10] Requeue" OnClick="RequeueMessage"
+                    <TextButton Content="[F10] Requeue" OnClick="@(() => _requeue!.Invoke())"
                                 FocusedColor="@Color.Green" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="   " />
                 }
-                <TextButton Content="[F9] Delete" OnClick="@(() => _confirmDelete = true)"
+                <TextButton Content="[F9] Delete" OnClick="@(() => _delete!.Invoke())"
                             FocusedColor="@Color.Red" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
                 <TextButton Content="[Esc] Back" OnClick="GoBack"
@@ -76,18 +76,20 @@ else
             </Columns>
         </Padder>
     </Rows>
-
-    <ConfirmModal IsOpened="@_confirmDelete"
-                  Message="@($"Delete message #{msg.SequenceNumber} from {src.EntityName}?")"
-                  OnConfirm="ConfirmDelete"
-                  OnCancel="@(() => _confirmDelete = false)" />
 }
 
-<ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
+<AsyncCommand @ref="_delete" TItem="object"
+              ConfirmMessage="@(_ => $"Delete message #{NavState.Message?.SequenceNumber} from {NavState.MessageSource?.EntityName}?")"
+              Execute="@(_ => MessageService.DeleteMessageAsync(NavState.MessageSource!, NavState.Message!.SequenceNumber))"
+              OnCompleted="@(_ => { GoBack(); return Task.CompletedTask; })" />
+
+<AsyncCommand @ref="_requeue" TItem="object"
+              Execute="@(_ => MessageService.RequeueMessageAsync(NavState.MessageSource!, NavState.Message!.SequenceNumber))"
+              OnCompleted="@(_ => { GoBack(); return Task.CompletedTask; })" />
 
 @code {
-    private bool _confirmDelete;
-    private string _error = string.Empty;
+    private AsyncCommand<object>? _delete;
+    private AsyncCommand<object>? _requeue;
 
     private bool IsDlq => NavState.MessageSource?.IsDlq == true;
 
@@ -101,39 +103,16 @@ else
             Nav.NavigateTo($"/queues/{Uri.EscapeDataString(src.EntityName)}");
     }
 
-    private async Task ConfirmDelete()
-    {
-        _confirmDelete = false;
-        _error = string.Empty;
-        StateHasChanged();
-        try
-        {
-            await MessageService.DeleteMessageAsync(NavState.MessageSource!, NavState.Message!.SequenceNumber);
-            GoBack();
-        }
-        catch (Exception ex) { _error = ex.Message.Split('\n')[0]; StateHasChanged(); }
-    }
-
-    private async Task RequeueMessage()
-    {
-        _error = string.Empty;
-        StateHasChanged();
-        try
-        {
-            await MessageService.RequeueMessageAsync(NavState.MessageSource!, NavState.Message!.SequenceNumber);
-            GoBack();
-        }
-        catch (Exception ex) { _error = ex.Message.Split('\n')[0]; StateHasChanged(); }
-    }
-
     private void HandleKeyDown(KeyboardEventArgs e)
     {
         if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        if (_delete?.HandleKey(e) == true) return;
+        if (_requeue?.HandleKey(e) == true) return;
         switch (e.Key)
         {
             case "Escape": GoBack(); return;
-            case "F9": case "Delete": _confirmDelete = true; StateHasChanged(); return;
-            case "F10": if (IsDlq) _ = RequeueMessage(); return;
+            case "F9": case "Delete": _delete!.Invoke(); return;
+            case "F10": if (IsDlq) _requeue!.Invoke(); return;
         }
     }
 

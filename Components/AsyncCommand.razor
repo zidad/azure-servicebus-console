@@ -1,0 +1,93 @@
+@namespace LLMAgentTUI.Components
+@typeparam TItem
+
+<ConfirmModal IsOpened="@(_state == State.Confirming)"
+              Message="@_confirmText"
+              OnConfirm="ExecuteConfirmed"
+              OnCancel="Cancel" />
+
+<ErrorModal Message="@_error" OnDismiss="ClearError" />
+
+@code {
+    [Parameter] public Func<TItem?, string>? ConfirmMessage { get; set; }
+    [Parameter, EditorRequired] public Func<TItem?, Task> Execute { get; set; } = null!;
+    [Parameter] public Func<TItem?, Task>? OnCompleted { get; set; }
+    [Parameter] public Func<Exception, string>? FormatError { get; set; }
+
+    private enum State { Idle, Confirming, Running }
+    private State _state = State.Idle;
+    private TItem? _pending;
+    private string _confirmText = "";
+    private string _error = "";
+
+    public bool IsBusy => _state == State.Running;
+    public bool IsPending => _state == State.Confirming;
+
+    public void Invoke(TItem? item = default)
+    {
+        if (_state != State.Idle) return;
+        if (ConfirmMessage is null)
+        {
+            _ = RunAsync(item);
+            return;
+        }
+        _pending = item;
+        _confirmText = ConfirmMessage(item);
+        _state = State.Confirming;
+        StateHasChanged();
+    }
+
+    public void Cancel()
+    {
+        if (_state != State.Confirming) return;
+        _pending = default;
+        _state = State.Idle;
+        StateHasChanged();
+    }
+
+    public bool HandleKey(KeyboardEventArgs e)
+    {
+        if (_state != State.Confirming) return false;
+        switch (e.Key)
+        {
+            case "Y": case "y": case "Enter": case "Return":
+                _ = ExecuteConfirmed();
+                return true;
+            case "N": case "n": case "Escape":
+                Cancel();
+                return true;
+        }
+        return false;
+    }
+
+    private Task ExecuteConfirmed()
+    {
+        var item = _pending;
+        _pending = default;
+        return RunAsync(item);
+    }
+
+    private async Task RunAsync(TItem? item)
+    {
+        _state = State.Running;
+        _error = "";
+        StateHasChanged();
+        try
+        {
+            await Execute(item);
+            if (OnCompleted is not null) await OnCompleted(item);
+        }
+        catch (Exception ex)
+        {
+            _error = FormatError?.Invoke(ex) ?? ex.Message.Split('\n')[0];
+        }
+        _state = State.Idle;
+        StateHasChanged();
+    }
+
+    private void ClearError()
+    {
+        _error = "";
+        StateHasChanged();
+    }
+}

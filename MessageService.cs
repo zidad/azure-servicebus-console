@@ -115,6 +115,27 @@ public class MessageService(ServiceBusConnection connection, ILogger<MessageServ
         throw new InvalidOperationException($"Message #{sequenceNumber} not found in DLQ of {source.EntityName}");
     }
 
+    public async Task<int> PurgeMessagesAsync(MessageSource source)
+    {
+        logger.LogWarning("Purging all messages from {Entity} (DLQ={Dlq})", source.EntityName, source.IsDlq);
+
+        await using var receiver = source.IsSubscription
+            ? CreateSubscriptionReceiver(source.TopicName!, source.SubscriptionName!, ServiceBusReceiveMode.ReceiveAndDelete, source.IsDlq)
+            : CreateQueueReceiver(source.EntityName, ServiceBusReceiveMode.ReceiveAndDelete, source.IsDlq);
+
+        const int batchSize = 500;
+        var total = 0;
+        while (true)
+        {
+            var batch = await receiver.ReceiveMessagesAsync(batchSize, TimeSpan.FromSeconds(5));
+            if (batch.Count == 0) break;
+            total += batch.Count;
+        }
+
+        logger.LogInformation("Purged {Count} messages from {Entity} (DLQ={Dlq})", total, source.EntityName, source.IsDlq);
+        return total;
+    }
+
     private ServiceBusReceiver CreateQueueReceiver(string queueName, ServiceBusReceiveMode mode, bool fromDlq) =>
         connection.BusClient.CreateReceiver(queueName, new ServiceBusReceiverOptions
         {

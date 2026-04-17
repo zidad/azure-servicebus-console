@@ -6,6 +6,7 @@
 @inject NavigationState NavState
 @inject ServiceBusConnection Connection
 @inject ITopicService TopicService
+@inject IMessageService MessageService
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
@@ -82,20 +83,27 @@
             <Columns>
                 <TextButton Content="[F5] Refresh" OnClick="LoadSubscriptions" FocusedColor="@Color.Green" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[F9] Delete" OnClick="TriggerDelete" FocusedColor="@Color.Red" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F9] Delete" OnClick="@(() => _deleteSub!.Invoke(_focusedItem))" FocusedColor="@Color.Red" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/topics"))" FocusedColor="@Color.Yellow" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F11] Purge DLQ" OnClick="@(() => _purgeDlq!.Invoke(_focusedItem))" FocusedColor="@Color.Red" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <Markup Content="   " />
+                <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/topics"))" FocusedColor="@Color.Yellow" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
     </Footer>
 </FullscreenPage>
 
-<ConfirmModal IsOpened="@(_pendingDelete is not null)"
-              Message="@($"Delete subscription '{_pendingDelete}' from topic '{TopicName}'? This cannot be undone.")"
-              OnConfirm="ConfirmDelete"
-              OnCancel="@(() => _pendingDelete = null)" />
-
 <ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
+
+<AsyncCommand @ref="_deleteSub" TItem="string"
+              ConfirmMessage="@(n => $"Delete subscription '{n}' from topic '{TopicName}'? This cannot be undone.")"
+              Execute="@(n => TopicService.DeleteSubscriptionAsync(TopicName, n!))"
+              OnCompleted="@(n => { _subscriptions.RemoveAll(s => s.Name == n); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _subscriptions.Count - 1)); _focusedItem = _subscriptions.ElementAtOrDefault(_selectedIndex)?.Name; StateHasChanged(); return Task.CompletedTask; })" />
+
+<AsyncCommand @ref="_purgeDlq" TItem="string"
+              ConfirmMessage="@(n => $"Purge ALL messages from DLQ of '{TopicName}/{n}'? This cannot be undone.")"
+              Execute="@(n => MessageService.PurgeMessagesAsync(new MessageSource(n!, IsDlq: true, TopicName, n!)))"
+              OnCompleted="@(n => { if (_subscriptions.FirstOrDefault(s => s.Name == n) is {} s) s.DeadLetterMessageCount = 0; SortAndReanchor(); StateHasChanged(); return Task.CompletedTask; })" />
 
 @code {
     private string TopicName => NavState.TopicName ?? "";
@@ -103,8 +111,9 @@
     private List<SubscriptionInfo> _subscriptions = [];
     private int _selectedIndex;
     private string? _focusedItem;
-    private string? _pendingDelete;
     private string _error = string.Empty;
+    private AsyncCommand<string>? _deleteSub;
+    private AsyncCommand<string>? _purgeDlq;
     private bool _loadFailed;
     private CancellationTokenSource _cts = new();
     private SpectreTBody? _tbody;
@@ -183,36 +192,21 @@
         _focusedItem = _subscriptions.ElementAtOrDefault(_selectedIndex)?.Name;
     }
 
-    private void TriggerDelete()
-    {
-        if (_focusedItem is not null) { _pendingDelete = _focusedItem; StateHasChanged(); }
-    }
-
-    private async Task ConfirmDelete()
-    {
-        var name = _pendingDelete!;
-        _pendingDelete = null;
-        _error = string.Empty;
-        StateHasChanged();
-        try
-        {
-            await TopicService.DeleteSubscriptionAsync(TopicName, name);
-            _subscriptions.RemoveAll(s => s.Name == name);
-            _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _subscriptions.Count - 1));
-            _focusedItem = _subscriptions.ElementAtOrDefault(_selectedIndex)?.Name;
-            StateHasChanged();
-        }
-        catch (Exception ex) { _error = ex.Message; StateHasChanged(); }
-    }
-
     private void HandleKeyDown(KeyboardEventArgs e)
     {
         if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        if (_deleteSub?.HandleKey(e) == true) return;
+        if (_purgeDlq?.HandleKey(e) == true) return;
         switch (e.Key)
         {
             case "Escape": Nav.NavigateTo("/topics"); return;
             case "F5": _ = LoadSubscriptions(); return;
-            case "F9": case "Delete": case "\\": TriggerDelete(); return;
+            case "F9": case "Delete": case "\\":
+                if (_focusedItem is not null) _deleteSub!.Invoke(_focusedItem);
+                return;
+            case "F11":
+                if (_focusedItem is not null) _purgeDlq!.Invoke(_focusedItem);
+                return;
         }
     }
 }
