@@ -124,6 +124,7 @@
     private AsyncCommand<string>? _purgeDlq;
     private bool _loadFailed;
     private CancellationTokenSource _cts = new();
+    private readonly RenderThrottle _renderThrottle = new();
     private SpectreTBody? _tbody;
     private bool _tableAutoFocused;
 
@@ -152,37 +153,41 @@
     {
         var invocationId = Guid.NewGuid().ToString("N").AsSpan(0, 6).ToString();
         Logger.LogInformation("LoadQueues[{Inv}] START _all.Count={Count}", invocationId, _all.Count);
+        // Take the token for *this* run: F5 replaces the field, and a superseded run
+        // must not read the new run's token and conclude it was never cancelled.
         _cts.Cancel();
-        _cts = new CancellationTokenSource();
+        var token = (_cts = new CancellationTokenSource()).Token;
         _error = string.Empty;
         _loadFailed = false;
 
         var live = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        _renderThrottle.Reset();
         var transitionRendered = false;
         var cached = 0;
         var liveCount = 0;
 
         try
         {
-            await foreach (var q in QueueService.GetQueuesAsync(_cts.Token))
+            await foreach (var q in QueueService.GetQueuesAsync(token))
             {
+                if (token.IsCancellationRequested) break;
                 if (q.IsRefreshing) cached++; else { liveCount++; live.Add(q.Name); }
                 var idx = _all.FindIndex(x => x.Name == q.Name);
                 if (idx >= 0) _all[idx] = q; else _all.Add(q);
 
-                if (!q.IsRefreshing && !transitionRendered)
+                // Cached rows arrive in one burst, so force a render when the first live
+                // row lands; after that the throttle paces the (network-bound) stream.
+                var firstLive = !q.IsRefreshing && !transitionRendered;
+                if (firstLive) transitionRendered = true;
+
+                if (firstLive || _renderThrottle.ShouldRender())
                 {
-                    transitionRendered = true;
                     SortAndUpdateFilterState();
                     await InvokeAsync(StateHasChanged);
                 }
-                else if (!q.IsRefreshing)
-                {
-                    SortAndUpdateFilterState();
-                }
             }
 
-            if (!_cts.IsCancellationRequested)
+            if (!token.IsCancellationRequested)
             {
                 _all.RemoveAll(q => !live.Contains(q.Name));
                 SortAndUpdateFilterState();
