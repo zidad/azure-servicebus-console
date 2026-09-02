@@ -7,7 +7,7 @@
         <PackAsTool>true</PackAsTool>
         <ToolCommandName>azsb</ToolCommandName>
         <PackageId>Net.Azure.ServiceBusConsole</PackageId>
-        <Version>0.5.0</Version>
+        <Version>0.5.1</Version>
         <Authors>zidad</Authors>
         <Description>Terminal UI for browsing Azure Service Bus namespaces, queues, topics, and messages.</Description>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -24,10 +24,10 @@
       <None Include="README.md" Pack="true" PackagePath="\" />
     </ItemGroup>
     <ItemGroup>
-      <PackageReference Include="Azure.Identity" Version="1.13.1" />
-      <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.18.1" />
-      <PackageReference Include="Azure.ResourceManager" Version="1.13.2" />
-      <PackageReference Include="Azure.ResourceManager.ServiceBus" Version="1.1.0" />
+      <PackageReference Include="Azure.Identity" Version="1.21.0" />
+      <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.20.2" />
+      <PackageReference Include="Azure.ResourceManager" Version="1.14.0" />
+      <PackageReference Include="Azure.ResourceManager.ServiceBus" Version="1.2.0" />
       <PackageReference Include="Scrutor" Version="7.0.0" />
       <ProjectReference Include="lib/RazorConsole/src/RazorConsole.Core/RazorConsole.Core.csproj" />
       <PackageReference Include="Spectre.Console" Version="0.54.0" />

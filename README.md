@@ -130,7 +130,16 @@ To release a new version, bump the version in `ServiceBusConsole.csproj` and mer
 <Version>0.2.0</Version>
 ```
 
-Requires a `NUGET_API_KEY` secret in the repository settings.
+Publishing uses [NuGet trusted publishing](https://learn.microsoft.com/nuget/nuget-org/trusted-publishing) — no API key secret is stored. The workflow exchanges a GitHub OIDC token for a short-lived nuget.org API key via `NuGet/login`.
+
+This requires a trusted publishing policy on nuget.org (Account → Trusted Publishing) with:
+
+| Field | Value |
+| --- | --- |
+| Repository Owner | `zidad` |
+| Repository | `azure-servicebus-console` |
+| Workflow File | `publish.yml` |
+| Environment | *(leave empty)* |
 
 ## Built with
 

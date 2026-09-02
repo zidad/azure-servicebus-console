@@ -110,6 +110,7 @@
     private AsyncCommand<string>? _deleteTopic;
     private bool _loadFailed;
     private CancellationTokenSource _cts = new();
+    private readonly RenderThrottle _renderThrottle = new();
     private SpectreTBody? _tbody;
     private bool _tableAutoFocused;
 
@@ -136,35 +137,39 @@
 
     private async Task LoadTopics()
     {
+        // Take the token for *this* run: F5 replaces the field, and a superseded run
+        // must not read the new run's token and conclude it was never cancelled.
         _cts.Cancel();
-        _cts = new CancellationTokenSource();
+        var token = (_cts = new CancellationTokenSource()).Token;
         _error = string.Empty;
         _loadFailed = false;
 
         var live = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        _renderThrottle.Reset();
         var transitionRendered = false;
 
         try
         {
-            await foreach (var t in TopicService.GetTopicsAsync(_cts.Token))
+            await foreach (var t in TopicService.GetTopicsAsync(token))
             {
+                if (token.IsCancellationRequested) break;
                 if (!t.IsRefreshing) live.Add(t.Name);
                 var idx = _all.FindIndex(x => x.Name == t.Name);
                 if (idx >= 0) _all[idx] = t; else _all.Add(t);
 
-                if (!t.IsRefreshing && !transitionRendered)
+                // Cached rows arrive in one burst, so force a render when the first live
+                // row lands; after that the throttle paces the (network-bound) stream.
+                var firstLive = !t.IsRefreshing && !transitionRendered;
+                if (firstLive) transitionRendered = true;
+
+                if (firstLive || _renderThrottle.ShouldRender())
                 {
-                    transitionRendered = true;
                     UpdateFilterState(_filter);
                     await InvokeAsync(StateHasChanged);
                 }
-                else if (!t.IsRefreshing)
-                {
-                    UpdateFilterState(_filter);
-                }
             }
 
-            if (!_cts.IsCancellationRequested)
+            if (!token.IsCancellationRequested)
             {
                 _all.RemoveAll(t => !live.Contains(t.Name));
                 UpdateFilterState(_filter);

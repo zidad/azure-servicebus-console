@@ -116,6 +116,7 @@
     private AsyncCommand<string>? _purgeDlq;
     private bool _loadFailed;
     private CancellationTokenSource _cts = new();
+    private readonly RenderThrottle _renderThrottle = new();
     private SpectreTBody? _tbody;
     private bool _tableAutoFocused;
 
@@ -142,35 +143,39 @@
 
     private async Task LoadSubscriptions()
     {
+        // Take the token for *this* run: F5 replaces the field, and a superseded run
+        // must not read the new run's token and conclude it was never cancelled.
         _cts.Cancel();
-        _cts = new CancellationTokenSource();
+        var token = (_cts = new CancellationTokenSource()).Token;
         _error = string.Empty;
         _loadFailed = false;
 
         var live = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        _renderThrottle.Reset();
         var transitionRendered = false;
 
         try
         {
-            await foreach (var s in TopicService.GetSubscriptionsAsync(TopicName, _cts.Token))
+            await foreach (var s in TopicService.GetSubscriptionsAsync(TopicName, token))
             {
+                if (token.IsCancellationRequested) break;
                 if (!s.IsRefreshing) live.Add(s.Name);
                 var idx = _subscriptions.FindIndex(x => x.Name == s.Name);
                 if (idx >= 0) _subscriptions[idx] = s; else _subscriptions.Add(s);
 
-                if (!s.IsRefreshing && !transitionRendered)
+                // Cached rows arrive in one burst, so force a render when the first live
+                // row lands; after that the throttle paces the (network-bound) stream.
+                var firstLive = !s.IsRefreshing && !transitionRendered;
+                if (firstLive) transitionRendered = true;
+
+                if (firstLive || _renderThrottle.ShouldRender())
                 {
-                    transitionRendered = true;
                     SortAndReanchor();
                     await InvokeAsync(StateHasChanged);
                 }
-                else if (!s.IsRefreshing)
-                {
-                    SortAndReanchor();
-                }
             }
 
-            if (!_cts.IsCancellationRequested)
+            if (!token.IsCancellationRequested)
                 _subscriptions.RemoveAll(s => !live.Contains(s.Name));
 
             SortAndReanchor();
