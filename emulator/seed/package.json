@@ -2,6 +2,6 @@
   "name": "servicebus-seeder",
   "version": "1.0.0",
   "dependencies": {
-    "@azure/service-bus": "^7.9.0"
+    "@azure/service-bus": "^7.9.5"
   }
 }
