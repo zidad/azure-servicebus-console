@@ -4,7 +4,7 @@
 <ModalWindow IsOpened="@IsOpened">
     <Panel Title="Error" BorderColor="@Color.Red" Padding="@(new(2, 1, 2, 1))">
         <Rows>
-            <Markup Content="@Message.Replace("[", "[[").Replace("]", "]]")" Foreground="@Color.Red" />
+            <Markup Content="@Message" Foreground="@Color.Red" />
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <TextButton @ref="_dismissButton"
                             Content="Dismiss"

@@ -42,10 +42,14 @@ public class FileCache(ILogger<FileCache> logger)
 
     public static string CacheDirectory => BaseDir;
 
-    public void Clear()
+    /// <returns>Number of cache files removed.</returns>
+    public int Clear()
     {
-        try { if (System.IO.Directory.Exists(BaseDir)) System.IO.Directory.Delete(BaseDir, true); }
-        catch (Exception ex) { logger.LogWarning(ex, "Cache clear failed"); }
+        if (!Directory.Exists(BaseDir)) return 0;
+        var count = Directory.EnumerateFiles(BaseDir, "*", SearchOption.AllDirectories).Count();
+        Directory.Delete(BaseDir, true);
+        logger.LogInformation("Cache cleared: {Count} file(s)", count);
+        return count;
     }
 
     private static string GetPath(string key) => Path.Combine(BaseDir, key);

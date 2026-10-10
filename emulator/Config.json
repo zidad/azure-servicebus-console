@@ -8,7 +8,7 @@
             "Name": "order-processing",
             "Properties": {
               "DeadLetteringOnMessageExpiration": true,
-              "DefaultMessageTimeToLive": "PT2H"
+              "DefaultMessageTimeToLive": "PT1H"
             }
           },
           {
@@ -21,13 +21,13 @@
           {
             "Name": "email-notifications",
             "Properties": {
-              "DefaultMessageTimeToLive": "PT4H"
+              "DefaultMessageTimeToLive": "PT1H"
             }
           },
           {
             "Name": "inventory-sync",
             "Properties": {
-              "DefaultMessageTimeToLive": "PT8H"
+              "DefaultMessageTimeToLive": "PT1H"
             }
           }
         ],

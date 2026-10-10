@@ -31,10 +31,27 @@ dotnet tool update -g Net.Azure.ServiceBusConsole
 - Dead-letter queue browsing per queue and per subscription
 - **Requeue DLQ messages** — fetch-lock a dead-lettered message, republish it to the origin queue/topic, and complete it in one step
 - Delete individual queues, topics, subscriptions, or messages
+- Mouse support: click buttons and rows, click a selected row to open it, scroll lists with the wheel
 
 ## Screenshots
 
-<!-- screenshots go here -->
+*Data blurred; captured against the local Service Bus emulator.*
+
+**Connection**: pick a subscription and namespace
+
+![Connection screen](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/connection.png)
+
+**Queues**: live counts, DLQ warnings, type to filter
+
+![Queue list](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/queues.png)
+
+**Message detail**: properties, dead-letter reason, pretty-printed JSON body
+
+![Message detail](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/message-detail.png)
+
+**All subscriptions** across every topic
+
+![All subscriptions](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/all-subscriptions.png)
 
 ## Keyboard shortcuts
 
@@ -44,6 +61,8 @@ dotnet tool update -g Net.Azure.ServiceBusConsole
 |-----|--------|
 | `Tab` / `Shift+Tab` | Move focus between controls |
 | `Esc` | Go back to previous screen |
+| Click | Activate a button, or select a row; click the selected row to open it |
+| Mouse wheel | Scroll the list under the pointer |
 
 ### Connection screen
 
