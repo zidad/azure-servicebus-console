@@ -16,7 +16,7 @@ else
     var src = NavState.MessageSource!;
 
     <Rows @onkeydown="HandleKeyDown">
-        <Panel BorderColor="@Color.Grey37" Expand="true" Padding="@(new(0, 0, 0, 0))">
+        <Panel BorderColor="@Color.Grey37" FillWidth="true" Padding="@(new(0, 0, 0, 0))">
             <Columns>
                 <Markup Content="@src.EntityName" Foreground="@Color.Grey" />
                 <Markup Content=" › " Foreground="@Color.Grey" />
@@ -25,7 +25,7 @@ else
         </Panel>
 
         <Padder Padding="@(new(0, 1, 0, 0))">
-            <Panel Title="Properties" BorderColor="@Color.Grey" Expand="true" Padding="@(new(1, 0, 1, 0))">
+            <Panel Title="Properties" BorderColor="@Color.Grey" FillWidth="true" Padding="@(new(1, 0, 1, 0))">
                 <SpectreTable Expand="true" Border="TableBorder.Simple">
                     <SpectreTHead>
                         <SpectreTR>
@@ -53,7 +53,7 @@ else
         </Padder>
 
         <Padder Padding="@(new(0, 1, 0, 0))">
-            <Panel Title="Body" BorderColor="@Color.Grey" Expand="true" Padding="@(new(1, 0, 1, 0))">
+            <Panel Title="Body" BorderColor="@Color.Grey" FillWidth="true" Padding="@(new(1, 0, 1, 0))">
                 <ViewHeightScrollable LinesToRender="@(Math.Max(5, Console.WindowHeight / 2))" Scrollbar="new()">
                     <Markup Content="@EscapeMarkup(FormatBody(msg.Body))" />
                 </ViewHeightScrollable>

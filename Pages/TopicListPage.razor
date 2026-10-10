@@ -10,7 +10,7 @@
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
     <Content>
-        <Panel BorderColor="@Color.Grey37" Expand="true" Padding="@(new(0, 0, 0, 0))">
+        <Panel BorderColor="@Color.Grey37" FillWidth="true" Padding="@(new(0, 0, 0, 0))">
             <Markup Content="Topics" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
         </Panel>
 
@@ -77,7 +77,7 @@
                    OnFocus="@(_ => _filterFocused = true)"
                    OnBlur="@(_ => _filterFocused = false)"
                    Placeholder="Type to filter..."
-                   Expand="true"
+                   FillWidth="true"
                    FocusOrder="2" />
 
         <Padder Padding="@(new(1, 0, 0, 0))">
