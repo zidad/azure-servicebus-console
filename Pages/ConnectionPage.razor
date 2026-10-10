@@ -85,7 +85,14 @@
     <Columns>
         <Markup Content="@($"Cache: {FileCache.CacheDirectory}")" Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
         <Markup Content="   " />
-        <TextButton Content="Clear cache" OnClick="ClearCache" FocusedColor="@Color.Red" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
+        @if (_cacheStatus is null)
+        {
+            <TextButton Content="Clear cache" OnClick="ClearCache" FocusedColor="@Color.Red" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
+        }
+        else
+        {
+            <Markup Content="@_cacheStatus" Foreground="@(_cacheClearFailed ? Color.Red : Color.Green)" />
+        }
     </Columns>
 </Padder>
 
@@ -131,9 +138,21 @@
             await OnSubscriptionSelected(_selectedSubscription);
     }
 
+    private string? _cacheStatus;
+    private bool _cacheClearFailed;
+
     private void ClearCache()
     {
-        FileCache.Clear();
+        try
+        {
+            var count = FileCache.Clear();
+            _cacheStatus = count == 0 ? "✓ Cache already empty" : $"✓ Cache cleared ({count} file{(count == 1 ? "" : "s")})";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _cacheClearFailed = true;
+            _cacheStatus = $"Clear failed: {ex.Message}";
+        }
         StateHasChanged();
     }
 
