@@ -5,6 +5,7 @@
 @inject INamespaceService NamespaceService
 @inject ServiceBusConnection Connection
 @inject FileCache FileCache
+@inject RazorConsole.Core.Focus.FocusManager FocusManager
 
 <Figlet Content="SB Console" Color="@Color.DodgerBlue1" Justify="Justify.Left" />
 
@@ -45,7 +46,7 @@
         else if (_namespaceOptions.Length > 0)
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
-                <Select TItem="string" Options="@_namespaceOptions"
+                <Select @ref="_namespaceSelect" TItem="string" Options="@_namespaceOptions"
                         Value="@_selectedNamespaceOption"
                         ValueChanged="@((string v) => OnNamespaceSelected(v))"
                         Placeholder="Service Bus Namespace..."
@@ -117,6 +118,15 @@
     private bool _connectionFailed;
     private string _error = string.Empty;
     private CancellationTokenSource _cts = new();
+    private Select<string>? _namespaceSelect;
+    private bool _focusNamespaces;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusNamespaces || _namespaceSelect is null || _namespaceOptions.Length == 0) return;
+        _focusNamespaces = false;
+        await FocusManager.FocusAsync(_namespaceSelect.FocusKey);
+    }
 
     private void HandleKeyDown(KeyboardEventArgs e)
     {
@@ -160,6 +170,7 @@
     {
         _selectedSubscription = value;
         _selectedNamespaceOption = null;
+        _focusNamespaces = true;
         _error = string.Empty;
         _connectionFailed = false;
         _namespaces.Clear();

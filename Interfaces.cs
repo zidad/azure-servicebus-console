@@ -22,11 +22,10 @@ public interface ITopicService
 
 public interface IMessageService
 {
-    Task<List<MessageInfo>> PeekMessagesAsync(string queueName, int count, bool fromDlq = false);
-    Task<List<MessageInfo>> ReceiveMessagesAsync(string queueName, int count, bool fromDlq = false);
-    Task<List<MessageInfo>> PeekSubscriptionMessagesAsync(string topicName, string subscriptionName, int count, bool fromDlq = false);
-    Task<List<MessageInfo>> ReceiveSubscriptionMessagesAsync(string topicName, string subscriptionName, int count, bool fromDlq = false);
-    Task DeleteMessageAsync(MessageSource source, long sequenceNumber);
-    Task RequeueMessageAsync(MessageSource source, long sequenceNumber);
+    Task<List<MessageInfo>> PeekAsync(MessageSource source, int count, long? fromSequenceNumber = null, CancellationToken ct = default);
+    Task<List<MessageInfo>> ReceiveAndDeleteAsync(MessageSource source, int count, CancellationToken ct = default);
+    Task<LockedMessages> ReceiveLockedAsync(MessageSource source, int count, CancellationToken ct = default);
+    /// <summary>Sends copies in order, in as few batches as fit; <paramref name="onSent"/> gets the running total after each batch.</summary>
+    Task SendCopiesAsync(MessageSource source, IReadOnlyList<MessageInfo> messages, Action<int> onSent, CancellationToken ct = default);
     Task<int> PurgeMessagesAsync(MessageSource source);
 }

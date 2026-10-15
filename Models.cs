@@ -1,8 +1,15 @@
+using Azure.Messaging.ServiceBus;
+
 namespace ServiceBusConsole;
 
 public record MessageSource(string EntityName, bool IsDlq, string? TopicName = null, string? SubscriptionName = null)
 {
     public bool IsSubscription => TopicName is not null && SubscriptionName is not null;
+
+    /// <summary>Where resent messages go: the queue itself, or the topic for a subscription.</summary>
+    public string SendTarget => TopicName ?? EntityName;
+
+    public string DisplayName => (IsSubscription ? $"{TopicName}/{SubscriptionName}" : EntityName) + (IsDlq ? " DLQ" : "");
 }
 
 public class NamespaceInfo
@@ -43,14 +50,21 @@ public class SubscriptionInfo
     public long TotalMessageCount => ActiveMessageCount + DeadLetterMessageCount + TransferMessageCount;
 }
 
-public class MessageInfo
+public enum MessageState { Peeked, Locked, Received }
+
+public class MessageInfo(ServiceBusReceivedMessage raw, MessageState state)
 {
-    public required string MessageId { get; set; }
-    public long SequenceNumber { get; set; }
-    public DateTimeOffset EnqueuedTime { get; set; }
-    public string ContentType { get; set; } = "";
-    public string Subject { get; set; } = "";
-    public string Body { get; set; } = "";
-    public int DeliveryCount { get; set; }
-    public Dictionary<string, string> Properties { get; set; } = new();
+    public ServiceBusReceivedMessage Raw { get; } = raw;
+    public MessageState State { get; } = state;
+
+    public string MessageId => Raw.MessageId;
+    public long SequenceNumber => Raw.SequenceNumber;
+    public DateTimeOffset EnqueuedTime => Raw.EnqueuedTime;
+    public string ContentType => Raw.ContentType ?? "";
+    public string Subject => Raw.Subject ?? "";
+    public string Body => Raw.Body?.ToString() ?? "";
+    public int DeliveryCount => Raw.DeliveryCount;
+    public string? DeadLetterReason => Raw.DeadLetterReason;
+    public IEnumerable<KeyValuePair<string, string>> Properties =>
+        Raw.ApplicationProperties.Select(kvp => KeyValuePair.Create(kvp.Key, kvp.Value?.ToString() ?? ""));
 }
