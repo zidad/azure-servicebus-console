@@ -33,6 +33,7 @@ hostBuilder.ConfigureServices(services =>
     services.AddSingleton<ITopicService, TopicService>();
     services.AddSingleton<IMessageService, MessageService>();
     services.AddSingleton<NavigationState>();
+    services.AddSingleton<MessageBrowserStore>();
 
     services.Decorate<INamespaceService, CachingNamespaceService>();
     services.Decorate<IQueueService, CachingQueueService>();

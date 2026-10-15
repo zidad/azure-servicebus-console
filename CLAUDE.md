@@ -64,7 +64,8 @@ Declare once per action and trigger via `@ref`:
 - `Execute` may return any `Task`/`Task<T>` (covariant via `Func<TItem?, Task>`); exceptions are caught and shown in the component's own `ErrorModal`.
 - A page may still keep its own `_error`/`_loading` + `ErrorModal` for non-command paths like initial load (`PeekMessages`, streaming list loads) — those aren't async commands.
 
-**Message operations:**
-- *Peek* uses `PeekLock` mode (non-destructive)
-- *Receive* uses `ReceiveAndDelete` mode (destructive — permanently removes messages)
-- *Requeue* receives from DLQ with PeekLock, resends to origin queue/topic, completes from DLQ
+**Message operations:** `Components/MessageBrowserView.razor` is the shared queue/subscription browser. State lives in `MessageBrowser` (list, selection, locked receiver), kept by the singleton `MessageBrowserStore` so the detail page acts on the same locks.
+- *Peek* is read-only; *Resend* sends copies.
+- *Receive (PeekLock)* returns `LockedMessages`: the receiver stays open, locks auto-renew, leftovers are abandoned on dispose. Complete/abandon/dead-letter/requeue only work on these.
+- *Receive (ReceiveAndDelete)* removes messages at once; *Requeue* resends them.
+- Never settle a peeked message by scanning with receive+abandon: abandon bumps the delivery count and dead-letters unrelated messages.

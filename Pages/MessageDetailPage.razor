@@ -3,8 +3,8 @@
 
 @inject NavigationManager Nav
 @inject ServiceBusConnection Connection
-@inject IMessageService MessageService
 @inject NavigationState NavState
+@inject MessageBrowserStore Store
 
 @if (NavState.Message is null)
 {
@@ -13,12 +13,11 @@
 else
 {
     var msg = NavState.Message;
-    var src = NavState.MessageSource!;
 
     <Rows @onkeydown="HandleKeyDown">
         <Panel BorderColor="@Color.Grey37" FillWidth="true" Padding="@(new(0, 0, 0, 0))">
             <Columns>
-                <Markup Content="@src.EntityName" Foreground="@Color.Grey" />
+                <Markup Content="@(NavState.MessageSource?.DisplayName ?? "")" Foreground="@Color.Grey" />
                 <Markup Content=" › " Foreground="@Color.Grey" />
                 <Markup Content="@($"Message #{msg.SequenceNumber}")" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
             </Columns>
@@ -40,6 +39,7 @@ else
                         <SpectreTR><SpectreTD>Content Type</SpectreTD><SpectreTD>@msg.ContentType</SpectreTD></SpectreTR>
                         <SpectreTR><SpectreTD>Enqueued</SpectreTD><SpectreTD>@msg.EnqueuedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss")</SpectreTD></SpectreTR>
                         <SpectreTR><SpectreTD>Delivery Count</SpectreTD><SpectreTD>@msg.DeliveryCount</SpectreTD></SpectreTR>
+                        <SpectreTR><SpectreTD>State</SpectreTD><SpectreTD>@StateText(msg)</SpectreTD></SpectreTR>
                         @foreach (var prop in msg.Properties)
                         {
                             <SpectreTR>
@@ -62,36 +62,94 @@ else
 
         <Padder Padding="@(new(1, 0, 0, 0))">
             <Columns>
-                @if (IsDlq)
+                @if (Mode == BrowseMode.Locked)
                 {
-                    <TextButton Content="[F10] Requeue" OnClick="@(() => _requeue!.Invoke())"
-                                FocusedColor="@Color.Green" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
-                    <Markup Content="   " />
+                    <TextButton Content="[F9] Complete" OnClick="@(() => _complete?.Invoke())"
+                                FocusedColor="@Color.Red" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
+                    <Markup Content="  " />
+                    <TextButton Content="[F4] Abandon" OnClick="@(() => _abandon?.Invoke())"
+                                FocusedColor="@Color.Yellow" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+                    <Markup Content="  " />
+                    @if (!IsDlq)
+                    {
+                        <TextButton Content="[F3] Dead-letter" OnClick="@(() => _deadLetter?.Invoke())"
+                                    FocusedColor="@Color.Red" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                        <Markup Content="  " />
+                    }
                 }
-                <TextButton Content="[F9] Delete" OnClick="@(() => _delete!.Invoke())"
-                            FocusedColor="@Color.Red" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
-                <Markup Content="   " />
+                @if (CanRequeue)
+                {
+                    <TextButton Content="[F10] Requeue" OnClick="@(() => _requeue?.Invoke())"
+                                FocusedColor="@Color.Green" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                    <Markup Content="  " />
+                }
+                else if (Mode == BrowseMode.Peek && _browser is not null)
+                {
+                    <TextButton Content="[F10] Resend" OnClick="@(() => _resend?.Invoke())"
+                                FocusedColor="@Color.Green" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                    <Markup Content="  " />
+                }
                 <TextButton Content="[Esc] Back" OnClick="GoBack"
-                            FocusedColor="@Color.Yellow" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                            FocusedColor="@Color.Yellow" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
     </Rows>
 }
 
-<AsyncCommand @ref="_delete" TItem="object"
-              ConfirmMessage="@(_ => $"Delete message #{NavState.Message?.SequenceNumber} from {NavState.MessageSource?.EntityName}?")"
-              Execute="@(_ => MessageService.DeleteMessageAsync(NavState.MessageSource!, NavState.Message!.SequenceNumber))"
+<AsyncCommand @ref="_complete" TItem="object"
+              ConfirmMessage="@(_ => $"Complete message #{NavState.Message?.SequenceNumber}? It is removed from {NavState.MessageSource?.DisplayName}.")"
+              Execute="@(_ => Act((b, m) => b.CompleteAsync(m)))"
+              OnCompleted="@(_ => { GoBack(); return Task.CompletedTask; })" />
+
+<AsyncCommand @ref="_abandon" TItem="object"
+              Execute="@(_ => Act((b, m) => b.AbandonAsync(m)))"
+              OnCompleted="@(_ => { GoBack(); return Task.CompletedTask; })" />
+
+<AsyncCommand @ref="_deadLetter" TItem="object"
+              ConfirmMessage="@(_ => $"Move message #{NavState.Message?.SequenceNumber} to the dead-letter queue?")"
+              Execute="@(_ => Act((b, m) => b.DeadLetterAsync(m)))"
               OnCompleted="@(_ => { GoBack(); return Task.CompletedTask; })" />
 
 <AsyncCommand @ref="_requeue" TItem="object"
-              Execute="@(_ => MessageService.RequeueMessageAsync(NavState.MessageSource!, NavState.Message!.SequenceNumber))"
+              ConfirmMessage="@(_ => $"Requeue message #{NavState.Message?.SequenceNumber} to {NavState.MessageSource?.SendTarget}?")"
+              Execute="@(_ => Act((b, m) => b.RequeueAsync(m)))"
+              OnCompleted="@(_ => { GoBack(); return Task.CompletedTask; })" />
+
+<AsyncCommand @ref="_resend" TItem="object"
+              ConfirmMessage="@(_ => $"Send a copy of message #{NavState.Message?.SequenceNumber} to {NavState.MessageSource?.SendTarget}? The original stays.")"
+              Execute="@(_ => Act((b, m) => b.ResendAsync(m)))"
               OnCompleted="@(_ => { GoBack(); return Task.CompletedTask; })" />
 
 @code {
-    private AsyncCommand<object>? _delete;
+    private AsyncCommand<object>? _complete;
+    private AsyncCommand<object>? _abandon;
+    private AsyncCommand<object>? _deadLetter;
     private AsyncCommand<object>? _requeue;
+    private AsyncCommand<object>? _resend;
+    private MessageBrowser? _browser;
 
     private bool IsDlq => NavState.MessageSource?.IsDlq == true;
+    private BrowseMode? Mode => NavState.Message is null ? null : _browser?.Mode;
+    private bool CanRequeue => Mode == BrowseMode.Received || (Mode == BrowseMode.Locked && IsDlq);
+
+    protected override void OnInitialized()
+    {
+        if (Store.Current is { } current && current.Source == NavState.MessageSource) _browser = current;
+    }
+
+    private string StateText(MessageInfo m) => m.State switch
+    {
+        MessageState.Locked => _browser?.IsLockHeld(m) == true ? "Locked by this console" : "Lock lost (back on the queue)",
+        MessageState.Received => "Received and deleted; requeue it or it is gone",
+        _ => "Peeked (read-only)",
+    };
+
+    private AsyncCommand<object>?[] Commands => [_complete, _abandon, _deadLetter, _requeue, _resend];
+
+    private Task Act(Func<MessageBrowser, IReadOnlyList<MessageInfo>, Task> action) =>
+        _browser is { } b && NavState.Message is { } m
+            ? action(b, [m])
+            : throw new InvalidOperationException("This message is no longer loaded.");
 
     private void GoBack()
     {
@@ -106,13 +164,18 @@ else
     private void HandleKeyDown(KeyboardEventArgs e)
     {
         if (e.CtrlKey || e.AltKey || e.MetaKey) return;
-        if (_delete?.HandleKey(e) == true) return;
-        if (_requeue?.HandleKey(e) == true) return;
+        if (Commands.Any(c => c?.HandleKey(e) == true)) return;
+        if (Commands.Any(c => c?.IsBusy == true)) return;
         switch (e.Key)
         {
             case "Escape": GoBack(); return;
-            case "F9": case "Delete": _delete!.Invoke(); return;
-            case "F10": if (IsDlq) _requeue!.Invoke(); return;
+            case "F9": case "Delete": if (Mode == BrowseMode.Locked) _complete?.Invoke(); return;
+            case "F4": if (Mode == BrowseMode.Locked) _abandon?.Invoke(); return;
+            case "F3": if (Mode == BrowseMode.Locked && !IsDlq) _deadLetter?.Invoke(); return;
+            case "F10":
+                if (CanRequeue) _requeue?.Invoke();
+                else if (Mode == BrowseMode.Peek) _resend?.Invoke();
+                return;
         }
     }
 

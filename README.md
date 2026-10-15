@@ -26,11 +26,13 @@ dotnet tool update -g Net.Azure.ServiceBusConsole
 - Queues and topics with live message counts (active, DLQ, scheduled, transfer) — animated spinner while refreshing from cache
 - Filter queues, topics, and subscriptions by typing in the filter box
 - Scrollable tables — arrow keys or scrollbar to navigate long lists
-- Peek messages non-destructively (PeekLock) or receive/delete them (ReceiveAndDelete)
+- Peek, receive (PeekLock) or receive-and-delete a chosen number of messages, like the Azure portal's Service Bus Explorer
+- Multi-select messages (`Space`, click the checkbox, `A` all, `I` invert) and act on all of them at once
+- Locked messages: complete, abandon, dead-letter or requeue; locks renew automatically and are released when you leave
 - Inspect message properties and body (auto pretty-printed if JSON) with a scrollable body panel
 - Dead-letter queue browsing per queue and per subscription
-- **Requeue DLQ messages** — fetch-lock a dead-lettered message, republish it to the origin queue/topic, and complete it in one step
-- Delete individual queues, topics, subscriptions, or messages
+- **Requeue DLQ messages**: republish locked dead-lettered messages to the origin queue/topic and complete them
+- Delete individual queues, topics or subscriptions
 - Mouse support: click buttons and rows, click a selected row to open it, scroll lists with the wheel
 
 ## Screenshots
@@ -88,20 +90,27 @@ dotnet tool update -g Net.Azure.ServiceBusConsole
 | Key | Action |
 |-----|--------|
 | `F6` | Toggle between active queue and DLQ |
-| `F7` | Peek messages (non-destructive) |
-| `F8` | Receive messages (destructive — deletes from queue) |
-| `F9` / `Del` | Delete focused message |
-| `F10` | Requeue focused DLQ message *(DLQ mode only)* |
-| `↑` / `↓` | Scroll message list |
+| `F7` | Peek… (count, optional start sequence number) |
+| `F8` | Receive… (count, PeekLock or ReceiveAndDelete) |
+| `Space` | Select / deselect message (or click its checkbox) |
+| `A` / `I` | Select all / invert selection |
+| `Esc` | Clear selection, then back |
+| `F9` / `Del` | Complete *(locked)* |
+| `F4` | Abandon *(locked)* |
+| `F3` | Dead-letter *(locked, active queue)* |
+| `F10` | Requeue *(locked DLQ, or received-and-deleted)* / Resend copy *(peeked)* |
+| `F11` | Purge |
+| `↑` / `↓` | Move through message list |
 | `Enter` | View message detail |
+
+Actions apply to the selected messages, or to the focused one when nothing is selected.
 
 ### Message detail
 
 | Key | Action |
 |-----|--------|
 | `↑` / `↓` | Scroll message body |
-| `F9` / `Del` | Delete message |
-| `F10` | Requeue message *(DLQ messages only)* |
+| `F9` `F4` `F3` `F10` | Same actions as the browser, for this message |
 
 ## Prerequisites
 
@@ -129,15 +138,16 @@ Logs are written to `./logs/session-<timestamp>.log` on each run.
 
 Azure subscription IDs are hardcoded in `Pages/ConnectionPage.razor` in the `SubscriptionOptions` array. Update these to match your environment before running from source.
 
-## How requeue works
+## How message operations work
 
-When a message ends up in a dead-letter queue, `F10` on the message list or message detail will:
+The browser follows the Service Bus Explorer in the Azure portal:
 
-1. Receive the message from the DLQ with PeekLock
-2. Send an identical copy to the origin entity (queue or topic)
-3. Complete (permanently remove) the original from the DLQ
+- **Peek** is read-only. `F10` sends copies; the originals stay.
+- **Receive (PeekLock)** locks the messages on a receiver that stays open. Locks are renewed in the background and abandoned when you leave the page or load something else, so messages come back right away instead of after lock expiry.
+- **Requeue** sends copies to the origin queue (or the topic, for subscriptions: every subscription gets a copy) in order, then completes the locked originals.
+- **Receive (ReceiveAndDelete)** removes messages immediately; requeue them before leaving or they are gone.
 
-The message is immediately removed from the list on success.
+Bulk actions report partial failures; failed messages stay selected so you can retry.
 
 ## Releasing
 

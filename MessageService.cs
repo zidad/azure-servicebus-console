@@ -3,164 +3,112 @@ using Microsoft.Extensions.Logging;
 
 namespace ServiceBusConsole;
 
-public class MessageService(ServiceBusConnection connection, ILogger<MessageService> logger) : IMessageService
+public class MessageService(ServiceBusConnection connection, ILoggerFactory loggerFactory) : IMessageService
 {
-    public async Task<List<MessageInfo>> PeekMessagesAsync(string queueName, int count, bool fromDlq = false)
+    private const int MaxBatch = 250;
+    private readonly ILogger _logger = loggerFactory.CreateLogger<MessageService>();
+
+    public async Task<List<MessageInfo>> PeekAsync(MessageSource source, int count, long? fromSequenceNumber = null, CancellationToken ct = default)
     {
-        logger.LogInformation("Peeking {Count} messages from {Queue} (DLQ={Dlq})", count, queueName, fromDlq);
-        await using var receiver = CreateQueueReceiver(queueName, ServiceBusReceiveMode.PeekLock, fromDlq);
-        var messages = await receiver.PeekMessagesAsync(count);
-        logger.LogInformation("Peeked {Count} messages", messages.Count);
-        return messages.Select(MapMessage).ToList();
-    }
-
-    public async Task<List<MessageInfo>> ReceiveMessagesAsync(string queueName, int count, bool fromDlq = false)
-    {
-        logger.LogWarning("Receiving (destructive) {Count} messages from {Queue} (DLQ={Dlq})", count, queueName, fromDlq);
-        await using var receiver = CreateQueueReceiver(queueName, ServiceBusReceiveMode.ReceiveAndDelete, fromDlq);
-        var messages = await receiver.ReceiveMessagesAsync(count, TimeSpan.FromSeconds(5));
-        logger.LogInformation("Received {Count} messages", messages.Count);
-        return messages.Select(MapMessage).ToList();
-    }
-
-    public async Task<List<MessageInfo>> PeekSubscriptionMessagesAsync(string topicName, string subscriptionName, int count, bool fromDlq = false)
-    {
-        logger.LogInformation("Peeking {Count} messages from {Topic}/{Sub} (DLQ={Dlq})", count, topicName, subscriptionName, fromDlq);
-        await using var receiver = CreateSubscriptionReceiver(topicName, subscriptionName, ServiceBusReceiveMode.PeekLock, fromDlq);
-        var messages = await receiver.PeekMessagesAsync(count);
-        logger.LogInformation("Peeked {Count} messages", messages.Count);
-        return messages.Select(MapMessage).ToList();
-    }
-
-    public async Task<List<MessageInfo>> ReceiveSubscriptionMessagesAsync(string topicName, string subscriptionName, int count, bool fromDlq = false)
-    {
-        logger.LogWarning("Receiving (destructive) {Count} from {Topic}/{Sub} (DLQ={Dlq})", count, topicName, subscriptionName, fromDlq);
-        await using var receiver = CreateSubscriptionReceiver(topicName, subscriptionName, ServiceBusReceiveMode.ReceiveAndDelete, fromDlq);
-        var messages = await receiver.ReceiveMessagesAsync(count, TimeSpan.FromSeconds(5));
-        logger.LogInformation("Received {Count} messages", messages.Count);
-        return messages.Select(MapMessage).ToList();
-    }
-
-    public async Task DeleteMessageAsync(MessageSource source, long sequenceNumber)
-    {
-        logger.LogWarning("Deleting message #{SeqNum} from {Entity} (DLQ={Dlq})", sequenceNumber, source.EntityName, source.IsDlq);
-
-        await using var receiver = source.IsSubscription
-            ? CreateSubscriptionReceiver(source.TopicName!, source.SubscriptionName!, ServiceBusReceiveMode.PeekLock, source.IsDlq)
-            : CreateQueueReceiver(source.EntityName, ServiceBusReceiveMode.PeekLock, source.IsDlq);
-
-        const int batchSize = 50;
-        const int maxMessages = 1000;
-        var scanned = 0;
-
-        while (scanned < maxMessages)
+        _logger.LogInformation("Peeking {Count} from {Source} starting at {From}", count, source.DisplayName, fromSequenceNumber);
+        await using var receiver = CreateReceiver(source, ServiceBusReceiveMode.PeekLock);
+        var result = new List<MessageInfo>(Math.Min(count, MaxBatch));
+        var from = fromSequenceNumber;
+        while (result.Count < count)
         {
-            var batch = await receiver.ReceiveMessagesAsync(batchSize, TimeSpan.FromSeconds(3));
+            var batch = await receiver.PeekMessagesAsync(Math.Min(count - result.Count, MaxBatch), from, ct);
             if (batch.Count == 0) break;
-
-            foreach (var msg in batch)
-            {
-                if (msg.SequenceNumber == sequenceNumber)
-                {
-                    await receiver.CompleteMessageAsync(msg);
-                    logger.LogInformation("Deleted message #{SeqNum}", sequenceNumber);
-                    return;
-                }
-
-                await receiver.AbandonMessageAsync(msg);
-            }
-
-            scanned += batch.Count;
+            result.AddRange(batch.Select(m => new MessageInfo(m, MessageState.Peeked)));
+            from = batch[^1].SequenceNumber + 1;
         }
-
-        throw new InvalidOperationException($"Message #{sequenceNumber} not found in {source.EntityName}");
+        _logger.LogInformation("Peeked {Count} messages", result.Count);
+        return result;
     }
 
-    public async Task RequeueMessageAsync(MessageSource source, long sequenceNumber)
+    public async Task<List<MessageInfo>> ReceiveAndDeleteAsync(MessageSource source, int count, CancellationToken ct = default)
     {
-        logger.LogWarning("Requeuing message #{SeqNum} from DLQ {Entity}", sequenceNumber, source.EntityName);
+        _logger.LogWarning("Receiving and deleting {Count} from {Source}", count, source.DisplayName);
+        await using var receiver = CreateReceiver(source, ServiceBusReceiveMode.ReceiveAndDelete);
+        var messages = await ReceiveUpToAsync(receiver, count, ct);
+        _logger.LogInformation("Received and deleted {Count} messages", messages.Count);
+        return messages.Select(m => new MessageInfo(m, MessageState.Received)).ToList();
+    }
 
-        await using var receiver = source.IsSubscription
-            ? CreateSubscriptionReceiver(source.TopicName!, source.SubscriptionName!, ServiceBusReceiveMode.PeekLock, true)
-            : CreateQueueReceiver(source.EntityName, ServiceBusReceiveMode.PeekLock, true);
-
-        var destination = source.IsSubscription ? source.TopicName! : source.EntityName;
-        await using var sender = connection.BusClient.CreateSender(destination);
-
-        const int batchSize = 50;
-        const int maxMessages = 1000;
-        var scanned = 0;
-
-        while (scanned < maxMessages)
+    public async Task<LockedMessages> ReceiveLockedAsync(MessageSource source, int count, CancellationToken ct = default)
+    {
+        _logger.LogInformation("Receiving {Count} with PeekLock from {Source}", count, source.DisplayName);
+        var receiver = CreateReceiver(source, ServiceBusReceiveMode.PeekLock);
+        try
         {
-            var batch = await receiver.ReceiveMessagesAsync(batchSize, TimeSpan.FromSeconds(3));
-            if (batch.Count == 0) break;
-
-            foreach (var msg in batch)
-            {
-                if (msg.SequenceNumber == sequenceNumber)
-                {
-                    await sender.SendMessageAsync(new ServiceBusMessage(msg));
-                    await receiver.CompleteMessageAsync(msg);
-                    logger.LogInformation("Requeued message #{SeqNum} to {Destination}", sequenceNumber, destination);
-                    return;
-                }
-
-                await receiver.AbandonMessageAsync(msg);
-            }
-
-            scanned += batch.Count;
+            var messages = await ReceiveUpToAsync(receiver, count, ct);
+            _logger.LogInformation("Locked {Count} messages", messages.Count);
+            return new LockedMessages(receiver, messages, loggerFactory.CreateLogger<LockedMessages>());
         }
+        catch
+        {
+            await receiver.DisposeAsync();
+            throw;
+        }
+    }
 
-        throw new InvalidOperationException($"Message #{sequenceNumber} not found in DLQ of {source.EntityName}");
+    public async Task SendCopiesAsync(MessageSource source, IReadOnlyList<MessageInfo> messages, Action<int> onSent, CancellationToken ct = default)
+    {
+        await using var sender = connection.BusClient.CreateSender(source.SendTarget);
+        var sent = 0;
+        while (sent < messages.Count)
+        {
+            using var batch = await sender.CreateMessageBatchAsync(ct);
+            var added = 0;
+            while (sent + added < messages.Count && batch.TryAddMessage(new ServiceBusMessage(messages[sent + added].Raw)))
+                added++;
+            if (added == 0)
+                throw new InvalidOperationException($"Message #{messages[sent].SequenceNumber} is too large to send");
+            await sender.SendMessagesAsync(batch, ct);
+            sent += added;
+            _logger.LogInformation("Sent {Sent}/{Total} copies to {Target}", sent, messages.Count, source.SendTarget);
+            onSent(sent);
+        }
     }
 
     public async Task<int> PurgeMessagesAsync(MessageSource source)
     {
-        logger.LogWarning("Purging all messages from {Entity} (DLQ={Dlq})", source.EntityName, source.IsDlq);
-
-        await using var receiver = source.IsSubscription
-            ? CreateSubscriptionReceiver(source.TopicName!, source.SubscriptionName!, ServiceBusReceiveMode.ReceiveAndDelete, source.IsDlq)
-            : CreateQueueReceiver(source.EntityName, ServiceBusReceiveMode.ReceiveAndDelete, source.IsDlq);
-
-        const int batchSize = 500;
+        _logger.LogWarning("Purging all messages from {Source}", source.DisplayName);
+        await using var receiver = CreateReceiver(source, ServiceBusReceiveMode.ReceiveAndDelete);
         var total = 0;
         while (true)
         {
-            var batch = await receiver.ReceiveMessagesAsync(batchSize, TimeSpan.FromSeconds(5));
+            var batch = await receiver.ReceiveMessagesAsync(500, TimeSpan.FromSeconds(5));
             if (batch.Count == 0) break;
             total += batch.Count;
         }
-
-        logger.LogInformation("Purged {Count} messages from {Entity} (DLQ={Dlq})", total, source.EntityName, source.IsDlq);
+        _logger.LogInformation("Purged {Count} messages from {Source}", total, source.DisplayName);
         return total;
     }
 
-    private ServiceBusReceiver CreateQueueReceiver(string queueName, ServiceBusReceiveMode mode, bool fromDlq) =>
-        connection.BusClient.CreateReceiver(queueName, new ServiceBusReceiverOptions
-        {
-            ReceiveMode = mode,
-            SubQueue = fromDlq ? SubQueue.DeadLetter : SubQueue.None
-        });
-
-    private ServiceBusReceiver CreateSubscriptionReceiver(string topicName, string subscriptionName, ServiceBusReceiveMode mode, bool fromDlq) =>
-        connection.BusClient.CreateReceiver(topicName, subscriptionName, new ServiceBusReceiverOptions
-        {
-            ReceiveMode = mode,
-            SubQueue = fromDlq ? SubQueue.DeadLetter : SubQueue.None
-        });
-
-    private static MessageInfo MapMessage(ServiceBusReceivedMessage m) => new()
+    // A single receive call may return fewer messages than are available, so keep asking
+    // until the count is reached or a short wait comes back empty.
+    private static async Task<List<ServiceBusReceivedMessage>> ReceiveUpToAsync(ServiceBusReceiver receiver, int count, CancellationToken ct)
     {
-        MessageId = m.MessageId,
-        SequenceNumber = m.SequenceNumber,
-        EnqueuedTime = m.EnqueuedTime,
-        ContentType = m.ContentType ?? "",
-        Subject = m.Subject ?? "",
-        Body = m.Body?.ToString() ?? "",
-        DeliveryCount = m.DeliveryCount,
-        Properties = m.ApplicationProperties.ToDictionary(
-            kvp => kvp.Key,
-            kvp => kvp.Value?.ToString() ?? "")
-    };
+        var result = new List<ServiceBusReceivedMessage>(Math.Min(count, MaxBatch));
+        while (result.Count < count)
+        {
+            var wait = TimeSpan.FromSeconds(result.Count == 0 ? 5 : 1);
+            var batch = await receiver.ReceiveMessagesAsync(Math.Min(count - result.Count, MaxBatch), wait, ct);
+            if (batch.Count == 0) break;
+            result.AddRange(batch);
+        }
+        return result;
+    }
+
+    private ServiceBusReceiver CreateReceiver(MessageSource source, ServiceBusReceiveMode mode)
+    {
+        var options = new ServiceBusReceiverOptions
+        {
+            ReceiveMode = mode,
+            SubQueue = source.IsDlq ? SubQueue.DeadLetter : SubQueue.None,
+        };
+        return source is { TopicName: { } topic, SubscriptionName: { } subscription }
+            ? connection.BusClient.CreateReceiver(topic, subscription, options)
+            : connection.BusClient.CreateReceiver(source.EntityName, options);
+    }
 }
