@@ -8,10 +8,11 @@ services:
     ports:
       - "1433:1433"
     healthcheck:
-      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "Emulator_123!" -Q "SELECT 1"
+      # The image ships no sqlcmd; wait for the SQL port to accept connections instead.
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/1433'"]
       interval: 5s
       timeout: 3s
-      retries: 20
+      retries: 40
 
   servicebus-emulator:
     image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest
