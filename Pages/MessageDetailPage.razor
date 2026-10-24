@@ -5,6 +5,7 @@
 @inject ServiceBusConnection Connection
 @inject NavigationState NavState
 @inject MessageBrowserStore Store
+@inject ITerminalViewport Viewport
 
 @if (NavState.Message is null)
 {
@@ -54,7 +55,7 @@ else
 
         <Padder Padding="@(new(0, 1, 0, 0))">
             <Panel Title="Body" BorderColor="@Color.Grey" FillWidth="true" Padding="@(new(1, 0, 1, 0))">
-                <ViewHeightScrollable LinesToRender="@(Math.Max(5, Console.WindowHeight / 2))" Scrollbar="new()">
+                <ViewHeightScrollable LinesToRender="@(Math.Max(5, Viewport.Height / 2))" Scrollbar="new()">
                     <Markup Content="@FormatBody(msg.Body)" />
                 </ViewHeightScrollable>
             </Panel>

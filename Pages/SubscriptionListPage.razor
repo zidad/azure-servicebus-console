@@ -8,6 +8,7 @@
 @inject ITopicService TopicService
 @inject IMessageService MessageService
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
+@inject ITerminalViewport Viewport
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
     <Content>
@@ -41,7 +42,7 @@
             </Padder>
 
             <Scrollable Items="@_subscriptions"
-                        PageSize="@FullscreenLayout.PageSizeRoundedTable()"
+                        PageSize="@FullscreenLayout.PageSizeRoundedTable(Viewport.Height)"
                         Scrollbar="new()"
                         SelectedIndex="@_selectedIndex"
                         SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _subscriptions.ElementAtOrDefault(i)?.Name; })"

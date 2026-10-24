@@ -27,32 +27,32 @@ public static class FullscreenLayout
     /// <summary>
     /// Calculates <c>Scrollable.PageSize</c> so the table fills the remaining space inside
     /// a <see cref="FullscreenPage"/>. Pass the total non-table chrome in lines; the method
-    /// subtracts it from the FlexBox height (<c>Console.WindowHeight - 1</c>) and floors at 5.
+    /// subtracts it from the FlexBox height (<c>terminalHeight - 1</c>) and floors at 5.
     /// </summary>
     /// <param name="chromeLines">Sum of every non-table element's height — e.g.
     /// <c>Header + CountRow + RoundedTableChrome + FooterTextInput + FooterButtons</c>.
     /// Include the table's border chrome; the result is the number of data rows.</param>
-    public static int PageSize(int chromeLines)
-        => Math.Max(5, Console.WindowHeight - 1 - chromeLines);
+    public static int PageSize(int terminalHeight, int chromeLines)
+        => Math.Max(5, terminalHeight - 1 - chromeLines);
 
     /// <summary>
     /// PageSize for a page with a <c>TableBorder.Rounded</c> table and a filter <c>TextInput</c>
     /// in the footer. Chrome: Header + CountRow + RoundedTableChrome + FooterTextInput + FooterButtons = 13.
     /// </summary>
-    public static int PageSizeRoundedTableWithFilter()
-        => PageSize(Header + CountRow + RoundedTableChrome + FooterTextInput + FooterButtons);
+    public static int PageSizeRoundedTableWithFilter(int terminalHeight)
+        => PageSize(terminalHeight, Header + CountRow + RoundedTableChrome + FooterTextInput + FooterButtons);
 
     /// <summary>
     /// PageSize for a page with a <c>TableBorder.Rounded</c> table and only a button bar footer.
     /// Chrome: Header + CountRow + RoundedTableChrome + FooterButtons = 10.
     /// </summary>
-    public static int PageSizeRoundedTable()
-        => PageSize(Header + CountRow + RoundedTableChrome + FooterButtons);
+    public static int PageSizeRoundedTable(int terminalHeight)
+        => PageSize(terminalHeight, Header + CountRow + RoundedTableChrome + FooterButtons);
 
     /// <summary>
     /// PageSize for a page with a <c>TableBorder.Simple</c> table and only a button bar footer.
     /// Chrome: Header + CountRow + SimpleTableChrome + FooterButtons = 8.
     /// </summary>
-    public static int PageSizeSimpleTable()
-        => PageSize(Header + CountRow + SimpleTableChrome + FooterButtons);
+    public static int PageSizeSimpleTable(int terminalHeight)
+        => PageSize(terminalHeight, Header + CountRow + SimpleTableChrome + FooterButtons);
 }
