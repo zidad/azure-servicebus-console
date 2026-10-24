@@ -4,6 +4,7 @@
 @inject MessageBrowserStore Store
 @inject NavigationState NavState
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
+@inject ITerminalViewport Viewport
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
     <Content>
@@ -42,7 +43,7 @@
             </Padder>
 
             <Scrollable Items="@browser.Messages"
-                        PageSize="@FullscreenLayout.PageSizeSimpleTable()"
+                        PageSize="@FullscreenLayout.PageSizeSimpleTable(Viewport.Height)"
                         Scrollbar="new()"
                         SelectedIndex="@browser.Cursor"
                         SelectedIndexChanged="@(i => browser.Cursor = i)"

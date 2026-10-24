@@ -22,11 +22,19 @@ When the PR moves the `lib/RazorConsole` pointer, tag that fork commit `azsb-v<V
 ## Commands
 
 ```bash
-dotnet build          # Build the project
-dotnet run            # Run the console app
+dotnet build                               # Build the project
+dotnet run                                 # Run the console app
+dotnet test tests/ServiceBusConsole.Tests  # Headless UI tests
 ```
 
-No tests exist in this project.
+## Tests
+
+`tests/ServiceBusConsole.Tests` mounts the real `App` in RazorConsole.Testing's `HeadlessTerminal` with fake services (`Fakes.cs`); no Azure or emulator needed.
+- Start through `AppHarness.OpenQueuesAsync()` (clicks through the connection page). Navigating `NavigationManager` from the test thread does not render.
+- Pages focus their table after rendering; call `AppHarness.WaitForTableFocusAsync` before sending keys to a new page.
+- RazorConsole bugs found by tests are fixed in the fork (`azsb`), not worked around in the app.
+- Keys go only to the focused element; they do not bubble. Page `HandleKeyDown` runs only via components that forward `OnKeyDown`.
+- Never click "Clear cache" in tests: `FileCache` uses the real user cache directory.
 
 ## Prerequisites
 

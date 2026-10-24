@@ -7,7 +7,7 @@
         <PackAsTool>true</PackAsTool>
         <ToolCommandName>azsb</ToolCommandName>
         <PackageId>Net.Azure.ServiceBusConsole</PackageId>
-        <Version>0.7.2</Version>
+        <Version>0.7.3</Version>
         <Authors>zidad</Authors>
         <Description>Terminal UI for browsing Azure Service Bus namespaces, queues, topics, and messages.</Description>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -15,10 +15,10 @@
         <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
     <ItemGroup>
-      <Compile Remove="lib/**" />
-      <Content Remove="lib/**" />
-      <EmbeddedResource Remove="lib/**" />
-      <None Remove="lib/**" />
+      <Compile Remove="lib/**;tests/**" />
+      <Content Remove="lib/**;tests/**" />
+      <EmbeddedResource Remove="lib/**;tests/**" />
+      <None Remove="lib/**;tests/**" />
     </ItemGroup>
     <ItemGroup>
       <None Include="README.md" Pack="true" PackagePath="\" />

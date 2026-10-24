@@ -7,6 +7,7 @@
 @inject ServiceBusConnection Connection
 @inject ITopicService TopicService
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
+@inject ITerminalViewport Viewport
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
     <Content>
@@ -36,7 +37,7 @@
             </Padder>
 
             <Scrollable Items="@_filtered"
-                        PageSize="@FullscreenLayout.PageSizeRoundedTableWithFilter()"
+                        PageSize="@FullscreenLayout.PageSizeRoundedTableWithFilter(Viewport.Height)"
                         Scrollbar="new()"
                         SelectedIndex="@_selectedIndex"
                         SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _filtered.ElementAtOrDefault(i)?.Name; })"
@@ -74,8 +75,6 @@
     <Footer>
         <TextInput Value="@_filter"
                    ValueChanged="ApplyFilter"
-                   OnFocus="@(_ => _filterFocused = true)"
-                   OnBlur="@(_ => _filterFocused = false)"
                    Placeholder="Type to filter..."
                    FillWidth="true"
                    FocusOrder="2" />
@@ -103,7 +102,6 @@
     private List<TopicInfo> _all = [];
     private List<TopicInfo> _filtered = [];
     private string? _filter;
-    private bool _filterFocused;
     private int _selectedIndex;
     private string? _focusedItem;
     private string _error = string.Empty;
@@ -214,10 +212,10 @@
                 if (_focusedItem is not null) _deleteTopic!.Invoke(_focusedItem);
                 return;
             case "Backspace":
-                if (!_filterFocused) ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]);
+                ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]);
                 return;
             default:
-                if (!_filterFocused && e.Key.Length == 1 && !char.IsControl(e.Key[0]))
+                if (e.Key.Length == 1 && !char.IsControl(e.Key[0]))
                     ApplyFilter((_filter ?? "") + e.Key);
                 break;
         }
