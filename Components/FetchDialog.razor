@@ -3,7 +3,7 @@
 
 <ModalWindow IsOpened="@IsOpened">
     <Panel Title="@(IsReceive ? "Receive messages" : "Peek messages")" BorderColor="@(IsReceive && _deleteOnReceive ? Color.Red : Color.DodgerBlue1)" Padding="@(new(2, 1, 2, 1))">
-        <Rows @onkeydown="HandleKey">
+        <Flex Class="rows" Direction="FlexDirection.Column" @onkeydown="HandleKey">
             <TextInput @ref="_countInput" FillWidth="true" Label="Number of messages" Value="@_count" ValueChanged="@(v => _count = v ?? "")"
                        OnSubmit="@(_ => Submit())" FocusOrder="100" />
             @if (IsReceive)
@@ -42,7 +42,7 @@
                     <TextButton Content="[Esc] Cancel" OnClick="Cancel" FocusedColor="@Color.Grey" FocusOrder="103" />
                 </Columns>
             </Padder>
-        </Rows>
+        </Flex>
     </Panel>
 </ModalWindow>
 

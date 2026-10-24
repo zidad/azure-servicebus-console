@@ -14,7 +14,7 @@ else
 {
     var msg = NavState.Message;
 
-    <Rows @onkeydown="HandleKeyDown">
+    <Flex Class="rows" Direction="FlexDirection.Column" @onkeydown="HandleKeyDown">
         <Panel BorderColor="@Color.Grey37" FillWidth="true" Padding="@(new(0, 0, 0, 0))">
             <Columns>
                 <Markup Content="@(NavState.MessageSource?.DisplayName ?? "")" Foreground="@Color.Grey" />
@@ -93,7 +93,7 @@ else
                             FocusedColor="@Color.Yellow" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
-    </Rows>
+    </Flex>
 }
 
 <AsyncCommand @ref="_complete" TItem="object"
