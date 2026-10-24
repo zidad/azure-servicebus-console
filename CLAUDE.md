@@ -13,6 +13,12 @@ git rebase origin/main
 
 Resolve any conflicts, then push with `--force-with-lease`.
 
+## Releases
+
+`publish.yml` publishes to NuGet on push to main only when `<Version>` in `ServiceBusConsole.csproj` has no `v<Version>` tag yet. Any PR that should ship (including submodule bumps) must bump `<Version>`, and put it in the PR title, e.g. `(v0.7.1)`.
+
+When the PR moves the `lib/RazorConsole` pointer, tag that fork commit `azsb-v<Version>` and push the tag to the fork, so later `azsb` rebases don't orphan it.
+
 ## Commands
 
 ```bash
