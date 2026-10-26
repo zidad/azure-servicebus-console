@@ -1,6 +1,12 @@
 <Solution>
-  <Project Path="ServiceBusConsole.csproj" />
-  <Project Path="tests/ServiceBusConsole.Tests/ServiceBusConsole.Tests.csproj" />
-  <Project Path="lib/RazorConsole/src/RazorConsole.Testing/RazorConsole.Testing.csproj" />
-  <Project Path="lib/RazorConsole/src/RazorConsole.Core/RazorConsole.Core.csproj" />
+  <Folder Name="/src/">
+    <Project Path="src/ServiceBusConsole/ServiceBusConsole.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ServiceBusConsole.Tests/ServiceBusConsole.Tests.csproj" />
+  </Folder>
+  <Folder Name="/lib/">
+    <Project Path="lib/RazorConsole/src/RazorConsole.Core/RazorConsole.Core.csproj" />
+    <Project Path="lib/RazorConsole/src/RazorConsole.Testing/RazorConsole.Testing.csproj" />
+  </Folder>
 </Solution>

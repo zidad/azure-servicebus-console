@@ -1,0 +1,14 @@
+
+<Markup Content="@Text" Foreground="@(Value > 0 ? Color : Theme.Muted)" Background="@(Highlight ?? Style.Plain.Background)" Decoration="@(Value > 0 && Bold ? Decoration.Bold : Decoration.None)" />
+
+@code {
+    /// <summary>A message count: muted when zero, in <see cref="Color"/> otherwise.</summary>
+    [Parameter] public long Value { get; set; }
+    [Parameter] public Color Color { get; set; } = Color.Default;
+    [Parameter] public bool Bold { get; set; }
+
+    /// <summary>Background while the count was just changed by a poll.</summary>
+    [Parameter] public Color? Highlight { get; set; }
+
+    private string Text => Value.ToString("N0");
+}

@@ -1,6 +1,6 @@
 # RazorConsole reference for this project
 
-RazorConsole renders Blazor Razor components to the terminal via Spectre.Console. There is no CSS, no browser DOM, and no HTML rendering — every component maps to a Spectre.Console `IRenderable`. All components live in the `RazorConsole.Components` namespace, which is globally imported in `Pages/_Imports.razor`.
+RazorConsole renders Blazor Razor components to the terminal via Spectre.Console. There is no CSS, no browser DOM, and no HTML rendering — every component maps to a Spectre.Console `IRenderable`. All components live in the `RazorConsole.Components` namespace, which is globally imported in `src/ServiceBusConsole/_Imports.razor`.
 
 ---
 
@@ -22,7 +22,7 @@ RazorConsole renders Blazor Razor components to the terminal via Spectre.Console
 | `<Rows>` | `Expand`, `@onkeydown`, `@attributes` | Vertical stack. Use as the root element of every page with `@onkeydown="HandleKeyDown"`. |
 | `<Columns>` | `Expand` | Horizontal layout. Use for button bars and side-by-side content. |
 | `<FlexBox>` | `Direction` (FlexDirection), `Justify` (FlexJustify), `Align` (FlexAlign), `Wrap`, `Gap`, `Width`, `Height` | CSS-flexbox-style layout. Used internally by `<FullscreenPage>` (Column + Height + SpaceBetween) to pin the footer to the bottom. Prefer `<FullscreenPage>` at the page level rather than reaching for `<FlexBox>` directly. Import: `@using RazorConsole.Core.Renderables`. |
-| `<FullscreenPage>` (project) | `Content` (RenderFragment), `Footer` (RenderFragment), `OnKeyDown` | Project-local wrapper in `Components/FullscreenPage.razor`. Every table page should use it — it gives a fullscreen layout with the footer (button bar, optional filter `TextInput`) pinned to the bottom. Pair with `FullscreenLayout.PageSizeRoundedTableWithFilter()` etc. to size the `Scrollable`. |
+| `<FullscreenPage>` (project) | `Content` (RenderFragment), `Footer` (RenderFragment), `OnKeyDown` | Project-local wrapper in `src/ServiceBusConsole/Components/FullscreenPage.razor`. Every table page should use it — it gives a fullscreen layout with the footer (button bar, optional filter `TextInput`) pinned to the bottom. Pair with `FullscreenLayout.PageSizeRoundedTableWithFilter()` etc. to size the `Scrollable`. |
 | `<Panel>` | `Title`, `BorderColor`, `Border` (BoxBorder), `Padding` (Padding struct), `Expand`, `Height`, `Width` | Titled bordered box. `Padding="@(new(left, top, right, bottom))"`. **⚠ Do not set `Height` on a Panel that wraps a `<Rows>` containing expanding children** — Spectre.Console's Panel passes its `Height - 2` down to children via `RenderOptions.Height`, and any `Expand="true"` child Panel inherits that and balloons to fill it, pushing the rest of the page off the visible area. Use `<FullscreenPage>` for fullscreen layouts instead. |
 | `<Padder>` | `Padding` (Padding struct) | Adds whitespace around content. `Padding="@(new(0, 1, 0, 0))"` adds one blank line above. |
 | `<Newline>` | — | Inserts a blank line. |
@@ -114,7 +114,7 @@ Parameters: `LinesToRender`, `ScrollOffset` / `ScrollOffsetChanged`, `Scrollbar`
 </ModalWindow>
 ```
 
-The modal is rendered outside the normal flow; all page elements remain in the focus list while the modal is open. Use `FocusManager.FocusAsync(button.FocusKey)` in `OnAfterRenderAsync` to steal focus to a specific button when the modal opens (see `Components/ConfirmModal.razor`).
+The modal is rendered outside the normal flow; all page elements remain in the focus list while the modal is open. Use `FocusManager.FocusAsync(button.FocusKey)` in `OnAfterRenderAsync` to steal focus to a specific button when the modal opens (see `src/ServiceBusConsole/Components/ConfirmModal.razor`).
 
 ### Visual feedback
 
@@ -146,7 +146,7 @@ The modal is rendered outside the normal flow; all page elements remain in the f
 
 ## Page template
 
-Every page uses the project's `<FullscreenPage>` wrapper (`Components/FullscreenPage.razor`). It encapsulates the `Rows > FlexBox(Column, Height, SpaceBetween) > [Content, Footer]` pattern, so pages only specify the two slots and the key handler. `SpaceBetween` pins the footer to the bottom of the screen even when the content is short (loading, empty, few rows).
+Every page uses the project's `<FullscreenPage>` wrapper (`src/ServiceBusConsole/Components/FullscreenPage.razor`). It encapsulates the `Rows > FlexBox(Column, Height, SpaceBetween) > [Content, Footer]` pattern, so pages only specify the two slots and the key handler. `SpaceBetween` pins the footer to the bottom of the screen even when the content is short (loading, empty, few rows).
 
 ```razor
 @page "/my-route/{Param}"
@@ -181,7 +181,7 @@ Every page uses the project's `<FullscreenPage>` wrapper (`Components/Fullscreen
 
 ### Sizing the `Scrollable.PageSize`
 
-Use `FullscreenLayout.PageSizeRoundedTableWithFilter()` / `PageSizeRoundedTable()` / `PageSizeSimpleTable()` (in `Components/FullscreenLayout.cs`) to compute a `PageSize` that makes the table fill the remaining vertical space exactly. For layouts that don't match one of those shapes, call `FullscreenLayout.PageSize(chromeLines)` with the sum of these constants:
+Use `FullscreenLayout.PageSizeRoundedTableWithFilter()` / `PageSizeRoundedTable()` / `PageSizeSimpleTable()` (in `src/ServiceBusConsole/UI/FullscreenLayout.cs`) to compute a `PageSize` that makes the table fill the remaining vertical space exactly. For layouts that don't match one of those shapes, call `FullscreenLayout.PageSize(chromeLines)` with the sum of these constants:
 
 | Constant | Lines | When to include |
 |---|---|---|

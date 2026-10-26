@@ -28,8 +28,8 @@ When a PR moves the `lib/RazorConsole` pointer, tag that fork commit `azsb-pr<PR
 ## Commands
 
 ```bash
-dotnet build                               # Build the project
-dotnet run                                 # Run the console app
+dotnet build ServiceBusConsole.slnx        # Build everything
+dotnet run --project src/ServiceBusConsole # Run the console app
 dotnet test tests/ServiceBusConsole.Tests  # Headless UI tests
 ```
 
@@ -56,22 +56,28 @@ Authentication uses `AzureCliCredential` — no connection strings or keys are u
 
 This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, queues, topics, and messages. The UI runs entirely in the terminal using **RazorConsole.Core** — a library that renders Blazor-style Razor components to the terminal via Spectre.Console.
 
-**Key files:**
-- `Program.cs` — Sets up the .NET Generic Host with `UseRazorConsole<App>()`, registers services, and configures file-based logging to `./logs/`.
-- `Pages/` — One Razor component per screen, each with a `@page` route. Navigation uses Blazor's `NavigationManager`.
-- `Components/App.razor` — Root router (`<Router AppAssembly="...">`).
-- `NavigationState.cs` — Singleton that carries parameters between pages that can't be expressed as URL segments (selected message, topic/subscription name, return path).
-- `Interfaces.cs` / `*Service.cs` — Service layer: `INamespaceService`, `IQueueService`, `ITopicService`, `IMessageService`.
-- `FileCache.cs` — Filesystem cache; services stream cached data first, then live data.
-- `FileLogger.cs` — Simple `ILoggerProvider` that writes structured logs to a timestamped file.
+**Layout:** `src/ServiceBusConsole` (the app, packed as the `azsb` tool), `tests/ServiceBusConsole.Tests`, `lib/RazorConsole` (fork submodule). Shared build settings in `Directory.Build.props`, package versions in `Directory.Packages.props` (central package management). One type per file; namespaces follow folders (`ServiceBusConsole.<Folder>`), imported globally via `<Using>` in the csproj and `_Imports.razor`.
+
+| Folder | Contents |
+|---|---|
+| `Program.cs` | Generic Host with `UseRazorConsole<App>()`, service registration, file logging to `logs/` |
+| `Pages/` | One Razor component per screen, each with a `@page` route |
+| `Components/` | Shared Razor components; `App.razor` is the root router |
+| `UI/` | Non-component UI code: `Theme`/`Icons`, `TableSort`, `LiveList`, `CountChanges`, `NavigationState` (parameters that aren't URL segments), `FullscreenLayout` |
+| `Models/` | DTOs: `QueueInfo`, `MessageInfo`, `MessageSource`, ... |
+| `Services/` | `I*Service` + Azure implementations, `ServiceBusConnection`, `SubscriptionCatalog` |
+| `Services/Caching/` | `FileCache` and the caching decorators: cached data first, then live |
+| `Messaging/` | `MessageBrowser` (+ store), `LockedMessages`, `OperationProgress`, `RetryText` |
+| `Emulator/` | Emulator `Config.json` model and reader |
+| `Logging/`, `Threading/`, `Syntax/` | File logger, `AsyncParallel`, JSON highlighting grammar |
 
 **UI pattern:** Use `/razorconsole` for a full component and pattern reference. Namespace pages use `<FullscreenPage>`: `<Header>` (breadcrumb + count, rendered inside `ConnectionHeader`), `<Content>` (table wrapped in `<Scrollable>`), `<Footer>` (action buttons). `ConnectionHeader` shows subscription › namespace with click-to-switch pickers; switching calls `ServiceBusConnection.Switch`, which remounts the page (`App.razor` keys `RouteView` on `Connection.Version`). Navigation uses `Nav.NavigateTo("/route")`.
 
-**Theme:** colors and icons come from `Theme` and `Icons` (`Theme.cs`), chosen by meaning (danger, warning, muted, ...). Counts use `<CountCell>` (muted when zero). Only use emoji with default emoji presentation: ones that need U+FE0F (⚠️, 🗑️, ⬅️) are one cell wide in some terminals and break table alignment.
+**Theme:** colors and icons come from `Theme` and `Icons` (`UI/`), chosen by meaning (danger, warning, muted, ...). Counts use `<CountCell>` (muted when zero). Only use emoji with default emoji presentation: ones that need U+FE0F (⚠️, 🗑️, ⬅️) are one cell wide in some terminals and break table alignment.
 
-**List pages:** rows live in a `LiveList<T>` (`LiveList.cs`): first load shows cached then live rows, then it polls every `LiveCountsOptions.Interval` (15 s; keep it slow for Service Bus throttling) and `CountChanges<T>` highlights changed counts (`<CountCell Highlight=...>`) for 2 s. Azure listings use the paged `Get*RuntimePropertiesAsync` calls, one request per 100 entities.
+**List pages:** rows live in a `LiveList<T>` (`UI/LiveList.cs`): first load shows cached then live rows, then it polls every `LiveCountsOptions.Interval` (15 s; keep it slow for Service Bus throttling) and `CountChanges<T>` highlights changed counts (`<CountCell Highlight=...>`) for 2 s. Azure listings use the paged `Get*RuntimePropertiesAsync` calls, one request per 100 entities.
 
-**Syntax highlighting:** `Syntax/JsonLanguage.cs` replaces ColorCode's JSON grammar, which hangs on arrays of long strings (`AddSyntaxLanguages`, also called by `AppHarness`). Remove it once a ColorCode.Core release includes CommunityToolkit/ColorCode-Universal PR #46.
+**Syntax highlighting:** `src/ServiceBusConsole/Syntax/JsonLanguage.cs` replaces ColorCode's JSON grammar, which hangs on arrays of long strings (`AddSyntaxLanguages`, also called by `AppHarness`). Remove it once a ColorCode.Core release includes CommunityToolkit/ColorCode-Universal PR #46.
 
 **Azure subscriptions** are listed from Azure with the signed-in `az` account (`INamespaceService.GetSubscriptionsAsync`, cached like namespaces) and shown by display name; the local emulator is always the first entry (`AzureSubscription.Emulator`).
 

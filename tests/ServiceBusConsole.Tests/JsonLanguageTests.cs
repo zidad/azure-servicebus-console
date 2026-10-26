@@ -1,6 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
 using RazorConsole.Core.Rendering.Syntax;
-using ServiceBusConsole.Syntax;
 
 namespace ServiceBusConsole.Tests;
 

@@ -1,0 +1,368 @@
+@page "/"
+@implements IDisposable
+
+@inject NavigationManager Nav
+@inject NavigationState NavState
+@inject INamespaceService NamespaceService
+@inject SubscriptionCatalog Catalog
+@inject ServiceBusConnection Connection
+@inject FileCache FileCache
+@inject RazorConsole.Core.Focus.FocusManager FocusManager
+@inject ITerminalViewport Viewport
+
+<Figlet Content="SB Console" Color="@Theme.Accent" Justify="Justify.Left" />
+
+<Panel Title="⚠ Work In Progress" BorderColor="@Theme.Warning" FillWidth="true" Padding="@(new(1, 0, 1, 0))">
+    <Rows>
+        <Markup Content="This application is still in early development. Many features are unstable or incomplete." Foreground="@Theme.Warning" Decoration="@Decoration.Bold" />
+        <Markup Content="Use with caution — especially destructive operations (delete, receive)." Foreground="@Theme.Muted" />
+    </Rows>
+</Panel>
+
+<Panel Title="@($"{Icons.Connection} Connection")" BorderColor="@Theme.Border" FillWidth="true" Padding="@(new(1, 0, 1, 0))">
+    <Rows>
+        <Scrollable Items="@_visible"
+                    PageSize="@SubscriptionPageSize"
+                    Scrollbar="new()"
+                    SelectedIndex="@_subscriptionIndex"
+                    SelectedIndexChanged="@(i => { _subscriptionIndex = i; _ = SelectSubscription(_visible[i]); })"
+                    OnActivate="FocusNamespaces">
+            <SpectreTable Expand="true" Border="TableBorder.Rounded">
+                <SpectreTHead>
+                    <SpectreTR>
+                        <SpectreTH Align="Justify.Left"><Columns><Markup Content="Azure subscription" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
+                        <SpectreTH Align="Justify.Left">ID</SpectreTH>
+                    </SpectreTR>
+                </SpectreTHead>
+                <SpectreTBody @ref="_subscriptionBody"
+                              Navigable="true"
+                              FocusOrder="1"
+                              RowCount="@context.Items.Count"
+                              OnKeyDown="@HandleSubscriptionKeyDown">
+                    @{ var i = 0; }
+                    @foreach (var sub in context.Items)
+                    {
+                        var idx = i++;
+                        <SpectreTR @key="@(sub.Id ?? "")" RowIndex="@idx">
+                            <SpectreTD>@($"{(sub.IsEmulator ? Icons.Emulator : Icons.AzureSubscription)} {sub.Name}")</SpectreTD>
+                            <SpectreTD><Markup Content="@(sub.Id ?? "localhost:5672")" Foreground="@Theme.Muted" /></SpectreTD>
+                        </SpectreTR>
+                    }
+                </SpectreTBody>
+            </SpectreTable>
+        </Scrollable>
+
+        @if (Catalog.Error is { } listError)
+        {
+            <Markup Content="@($"Could not list Azure subscriptions (az login?): {listError}")" Foreground="@Theme.Danger" />
+        }
+        else if (Catalog.Loading)
+        {
+            <Columns>
+                <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                <Markup Content="Listing Azure subscriptions..." Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+            </Columns>
+        }
+
+        @if (_namespacesLoading)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Columns>
+                    <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                    <Markup Content="Discovering namespaces..." Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+                </Columns>
+            </Padder>
+        }
+        else if (_connectionFailed)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Columns>
+                    <Markup Content="Could not connect.  " Foreground="@Theme.Danger" />
+                    <TextButton Content="@($"{Icons.Refresh} Retry")" OnClick="RetryConnection" FocusedColor="@Theme.Warning" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                </Columns>
+            </Padder>
+        }
+        else if (_namespaces.Count > 0)
+        {
+            <Scrollable Items="@_namespaces"
+                        PageSize="@NamespacePageSize"
+                        Scrollbar="new()"
+                        SelectedIndex="@_namespaceIndex"
+                        SelectedIndexChanged="@(i => SelectNamespace(i))"
+                        OnActivate="@(() => Nav.NavigateTo("/queues"))">
+                <SpectreTable Expand="true" Border="TableBorder.Rounded">
+                    <SpectreTHead>
+                        <SpectreTR>
+                            <SpectreTH Align="Justify.Left">Namespace</SpectreTH>
+                            <SpectreTH Align="Justify.Left">Resource group</SpectreTH>
+                            <SpectreTH Align="Justify.Left">Location</SpectreTH>
+                            <SpectreTH Align="Justify.Left">SKU</SpectreTH>
+                            <SpectreTH Align="Justify.Left">Status</SpectreTH>
+                        </SpectreTR>
+                    </SpectreTHead>
+                    <SpectreTBody @ref="_namespaceBody"
+                                  Navigable="true"
+                                  FocusOrder="3"
+                                  RowCount="@context.Items.Count"
+                                  OnKeyDown="@HandleKeyDown">
+                        @{ var i = 0; }
+                        @foreach (var ns in context.Items)
+                        {
+                            var idx = i++;
+                            <SpectreTR @key="ns.Name" RowIndex="@idx">
+                                <SpectreTD>@($"{Icons.Namespace} {ns.Name}")</SpectreTD>
+                                <SpectreTD><Markup Content="@ns.ResourceGroup" Foreground="@Theme.Muted" /></SpectreTD>
+                                <SpectreTD><Markup Content="@ns.Location" Foreground="@Theme.Muted" /></SpectreTD>
+                                <SpectreTD>@ns.Sku</SpectreTD>
+                                <SpectreTD>
+                                    @if (!string.IsNullOrEmpty(ns.Status))
+                                    {
+                                        <Markup Content="@($"{Icons.NamespaceStatus(ns.Status)} {ns.Status}")" Foreground="@Theme.NamespaceStatus(ns.Status)" />
+                                    }
+                                </SpectreTD>
+                            </SpectreTR>
+                        }
+                    </SpectreTBody>
+                </SpectreTable>
+            </Scrollable>
+        }
+
+        @if (ChosenNamespace is not null)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Columns>
+                    <TextButton Content="@($"[F1] {Icons.Queue} Queues")"
+                                OnClick="@(() => Nav.NavigateTo("/queues"))"
+                                FocusedColor="@Theme.Accent"
+                                FocusOrder="4"
+                                OnKeyDown="@HandleKeyDown" />
+                    <Markup Content="  " />
+                    <TextButton Content="@($"[F2] {Icons.Topic} Topics")"
+                                OnClick="@(() => Nav.NavigateTo("/topics"))"
+                                FocusedColor="@Theme.Accent"
+                                FocusOrder="5"
+                                OnKeyDown="@HandleKeyDown" />
+                    <Markup Content="  " />
+                    <TextButton Content="@($"[F3] {Icons.Subscription} All Subscriptions")"
+                                OnClick="@(() => Nav.NavigateTo("/subscriptions"))"
+                                FocusedColor="@Theme.Accent"
+                                FocusOrder="6"
+                                OnKeyDown="@HandleKeyDown" />
+                </Columns>
+            </Padder>
+        }
+    </Rows>
+</Panel>
+
+<Padder Padding="@(new(0, 1, 0, 0))">
+    <Columns>
+        <Markup Content="@($"Cache: {FileCache.CacheDirectory}")" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+        <Markup Content="   " />
+        @if (_cacheStatus is null)
+        {
+            <TextButton Content="@($"{Icons.Purge} Clear cache")" OnClick="ClearCache" FocusedColor="@Theme.Danger" FocusOrder="7" OnKeyDown="@HandleKeyDown" />
+        }
+        else
+        {
+            <Markup Content="@_cacheStatus" Foreground="@(_cacheClearFailed ? Theme.Danger : Theme.Success)" />
+        }
+    </Columns>
+</Padder>
+
+<ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
+
+@code {
+    // Figlet 6 + banner 4 + panel 2 + subscription table chrome 4 + namespace chrome 4 + buttons 2 + cache row 2.
+    private const int FixedLines = 24;
+    private int SubscriptionPageSize => Math.Clamp(_visible.Count, 1, 8);
+    private int NamespacePageSize => Math.Clamp(Viewport.Height - FixedLines - SubscriptionPageSize, 1, 10);
+    private static readonly TimeSpan SubscriptionDebounce = TimeSpan.FromMilliseconds(250);
+
+    private List<AzureSubscription> _subscriptions = [AzureSubscription.Emulator];
+    private List<AzureSubscription> _visible = [AzureSubscription.Emulator];
+    private string? _filter;
+    private AzureSubscription _chosen = AzureSubscription.Emulator;
+    private int _subscriptionIndex;
+    private int _namespaceIndex;
+    private List<NamespaceInfo> _namespaces = [];
+    private bool _namespacesLoading;
+    private bool _connectionFailed;
+    private string _error = string.Empty;
+    private CancellationTokenSource _cts = new();
+    private SpectreTBody? _subscriptionBody;
+    private SpectreTBody? _namespaceBody;
+    private bool _subscriptionsFocused;
+    private bool _focusNamespaces;
+    private string? _restoreNamespace;
+
+    private NamespaceInfo? ChosenNamespace => _namespacesLoading ? null : _namespaces.ElementAtOrDefault(_namespaceIndex);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Catalog.Changed += OnCatalogChanged;
+        _subscriptions = [.. Catalog.Subscriptions];
+        if (NavState.AzureSubscription is { IsEmulator: false } previous && !_subscriptions.Contains(previous)) _subscriptions.Add(previous);
+        UpdateVisible();
+        _ = Catalog.EnsureLoadedAsync();
+        await SelectSubscription(NavState.AzureSubscription ?? AzureSubscription.Emulator, debounce: false);
+    }
+
+    public void Dispose() => Catalog.Changed -= OnCatalogChanged;
+
+    private void OnCatalogChanged() => _ = InvokeAsync(() =>
+    {
+        _subscriptions = [.. Catalog.Subscriptions];
+        UpdateVisible();
+        StateHasChanged();
+    });
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_subscriptionsFocused && _subscriptionBody is not null)
+        {
+            _subscriptionsFocused = true;
+            await FocusManager.FocusAsync(_subscriptionBody.FocusKey);
+        }
+        if (_focusNamespaces && _namespaceBody is not null)
+        {
+            _focusNamespaces = false;
+            await FocusManager.FocusAsync(_namespaceBody.FocusKey);
+        }
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        if (ChosenNamespace is null) return;
+        switch (e.Key)
+        {
+            case "F1": Nav.NavigateTo("/queues"); return;
+            case "F2": Nav.NavigateTo("/topics"); return;
+            case "F3": Nav.NavigateTo("/subscriptions"); return;
+        }
+    }
+
+    // The emulator always stays visible. Others need a filter match, and must not be known to lack
+    // Service Bus namespaces (unknown ones show until checked; the current choice is never hidden for it).
+    private void UpdateVisible()
+    {
+        _visible = [.. _subscriptions.Where(s => s.IsEmulator
+            || (MatchesFilter(s) && (s == _chosen || Catalog.HasNamespaces(s) != false)))];
+        _subscriptionIndex = Math.Max(0, _visible.IndexOf(_chosen));
+    }
+
+    private bool MatchesFilter(AzureSubscription s) => string.IsNullOrWhiteSpace(_filter)
+        || s.Name.Contains(_filter, StringComparison.CurrentCultureIgnoreCase)
+        || (s.Id?.Contains(_filter, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    private void ApplyFilter(string? value)
+    {
+        _filter = value;
+        UpdateVisible();
+        // Filtering looks for an Azure subscription: move to the first match unless the choice still matches.
+        var keep = !_chosen.IsEmulator && _visible.Contains(_chosen);
+        if (!keep && !string.IsNullOrEmpty(_filter) && _visible.FirstOrDefault(s => !s.IsEmulator) is { } match)
+        {
+            _subscriptionIndex = _visible.IndexOf(match);
+            _ = SelectSubscription(match);
+        }
+        StateHasChanged();
+    }
+
+    private void HandleSubscriptionKeyDown(KeyboardEventArgs e)
+    {
+        if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        if (e.Key == "Backspace")
+        {
+            ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]);
+            return;
+        }
+        if (e.Key.Length == 1 && !char.IsControl(e.Key[0]))
+        {
+            ApplyFilter((_filter ?? "") + e.Key);
+            return;
+        }
+        HandleKeyDown(e);
+    }
+
+    private void FocusNamespaces()
+    {
+        _focusNamespaces = true;
+        StateHasChanged();
+    }
+
+    private Task RetryConnection() => SelectSubscription(_chosen);
+
+    private string? _cacheStatus;
+    private bool _cacheClearFailed;
+
+    private void ClearCache()
+    {
+        try
+        {
+            var count = FileCache.Clear();
+            _cacheStatus = count == 0 ? "✓ Cache already empty" : $"✓ Cache cleared ({count} file{(count == 1 ? "" : "s")})";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _cacheClearFailed = true;
+            _cacheStatus = $"Clear failed: {ex.Message}";
+        }
+        StateHasChanged();
+    }
+
+    private async Task SelectSubscription(AzureSubscription subscription, bool debounce = true)
+    {
+        // Take the token for *this* run: a newer selection replaces the field.
+        _cts.Cancel();
+        var token = (_cts = new CancellationTokenSource()).Token;
+        _error = string.Empty;
+        _connectionFailed = false;
+        _namespaces = [];
+        _namespaceIndex = 0;
+        _restoreNamespace = Connection.CurrentNamespace;
+        _chosen = subscription;
+        NavState.AzureSubscription = subscription;
+
+        if (subscription.IsEmulator)
+        {
+            _namespaces = [AzureSubscriptions.EmulatorNamespace];
+            SelectNamespace(0);
+            return;
+        }
+
+        _namespacesLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Arrowing through subscriptions should not query Azure for each one passed.
+            if (debounce) await Task.Delay(SubscriptionDebounce, token);
+            await foreach (var ns in NamespaceService.GetNamespacesAsync(subscription, token))
+            {
+                if (token.IsCancellationRequested) return;
+                _namespacesLoading = false;
+                var idx = _namespaces.FindIndex(x => x.Name == ns.Name);
+                if (idx >= 0) _namespaces[idx] = ns; else _namespaces.Add(ns);
+                if (ns.FullyQualifiedNamespace == _restoreNamespace)
+                {
+                    _restoreNamespace = null;
+                    _namespaceIndex = _namespaces.FindIndex(x => x.Name == ns.Name);
+                }
+                SelectNamespace(_namespaceIndex);
+            }
+        }
+        catch (OperationCanceledException) { return; }
+        catch (Exception ex) { _connectionFailed = true; _error = ex.Message; }
+
+        _namespacesLoading = false;
+        StateHasChanged();
+    }
+
+    private void SelectNamespace(int index)
+    {
+        _namespaceIndex = index;
+        if (_namespaces.ElementAtOrDefault(index) is { } ns) Connection.SetNamespace(ns);
+        StateHasChanged();
+    }
+}

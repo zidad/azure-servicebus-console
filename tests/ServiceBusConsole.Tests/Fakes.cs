@@ -1,5 +1,5 @@
-using Azure.Messaging.ServiceBus;
 using System.Runtime.CompilerServices;
+using Azure.Messaging.ServiceBus;
 
 namespace ServiceBusConsole.Tests;
 

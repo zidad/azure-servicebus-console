@@ -1,0 +1,190 @@
+@page "/topic-detail"
+@implements IDisposable
+
+@inject NavigationManager Nav
+@inject NavigationState NavState
+@inject ServiceBusConnection Connection
+@inject ITopicService TopicService
+@inject IMessageService MessageService
+@inject RazorConsole.Core.Focus.FocusManager FocusManager
+@inject ITerminalViewport Viewport
+@inject LiveCountsOptions LiveCounts
+@inject Microsoft.Extensions.Logging.ILogger<SubscriptionListPage> Logger
+
+<FullscreenPage OnKeyDown="HandleKeyDown">
+    <Header>
+        <SectionCrumb Section="@Section.Topics" />
+        <Markup Content=" › " Foreground="@Theme.Muted" />
+        <Markup Content="@($"{Icons.Subscription} {TopicName}")" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
+        @if (_subscriptions.Count > 0) { <Markup Content="@ConnectionHeader.Count(_subscriptions.Count, _subscriptions.Count)" Foreground="@Theme.Muted" /> }
+    </Header>
+    <Content>
+        @if (_subscriptions.Count == 0 && _loadFailed)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Markup Content="Failed to load. Press [F5] to retry." Foreground="@Theme.Danger" />
+            </Padder>
+        }
+        else if (_subscriptions.Count == 0)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Columns>
+                    <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                    <Markup Content="Loading subscriptions..." Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+                </Columns>
+            </Padder>
+        }
+        else
+        {
+            <Scrollable Items="@_subscriptions"
+                        PageSize="@FullscreenLayout.PageSizeRoundedTable(Viewport.Height)"
+                        Scrollbar="new()"
+                        SelectedIndex="@_selectedIndex"
+                        SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _subscriptions.ElementAtOrDefault(i)?.Name; })"
+                        OnActivate="@(() => { if (_subscriptions.ElementAtOrDefault(_selectedIndex) is {} s) { NavState.TopicName = TopicName; NavState.SubscriptionName = s.Name; NavState.ReturnPath = "/topic-detail"; Nav.NavigateTo("/subscription-browser"); } })">
+                <SpectreTable Expand="true" Border="TableBorder.Rounded">
+                    <SpectreTHead>
+                        <SpectreTR>
+                            <SpectreTH Align="Justify.Left"><SortHeader Label="Subscription" Sort="_sort" OnSorted="SortAndReanchor" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="Active" Sort="_sort" OnSorted="SortAndReanchor" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="DLQ" Icon="@Icons.DeadLetter" Sort="_sort" OnSorted="SortAndReanchor" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="Transfer" Icon="@Icons.Transfer" Sort="_sort" OnSorted="SortAndReanchor" /></SpectreTH>
+                            <SpectreTH></SpectreTH>
+                        </SpectreTR>
+                    </SpectreTHead>
+                    <SpectreTBody @ref="_tbody"
+                                  Navigable="true"
+                                  FocusOrder="1"
+                                  RowCount="@context.Items.Count"
+                                  OnKeyDown="@HandleKeyDown">
+                        @{ var i = 0; }
+                        @foreach (var s in context.Items)
+                        {
+                            var idx = i++;
+                            <SpectreTR @key="s.Name" RowIndex="@idx">
+                                <SpectreTD>@s.Name</SpectreTD>
+                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.ActiveMessageCount" Highlight="@List.Changes.Highlight(s, "Active")" /></SpectreTD>
+                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.DeadLetterMessageCount" Color="@Theme.Danger" Bold="true" Highlight="@List.Changes.Highlight(s, "DLQ")" /></SpectreTD>
+                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.TransferMessageCount" Color="@Theme.Transfer" Highlight="@List.Changes.Highlight(s, "Transfer")" /></SpectreTD>
+                                <SpectreTD>@if (s.IsRefreshing) { <Spinner /> }</SpectreTD>
+                            </SpectreTR>
+                        }
+                    </SpectreTBody>
+                </SpectreTable>
+            </Scrollable>
+        }
+    </Content>
+    <Footer>
+        <Padder Padding="@(new(1, 0, 0, 0))">
+            <Columns>
+                <TextButton Content="[F5] 🔄 Refresh" OnClick="LoadSubscriptions" FocusedColor="@Theme.Success" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+                <Markup Content="   " />
+                <TextButton Content="[F9] ❌ Delete" OnClick="@(() => _deleteSub!.Invoke(_focusedItem))" FocusedColor="@Theme.Danger" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                <Markup Content="   " />
+                <TextButton Content="[F11] 🧹 Purge DLQ" OnClick="@(() => _purgeDlq!.Invoke(_focusedItem))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <Markup Content="   " />
+                <TextButton Content="[Esc] 🔙 Back" OnClick="@(() => Nav.NavigateTo("/topics"))" FocusedColor="@Theme.Accent" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
+            </Columns>
+        </Padder>
+    </Footer>
+</FullscreenPage>
+
+<ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
+
+<AsyncCommand @ref="_deleteSub" TItem="string"
+              ConfirmMessage="@(n => $"Delete subscription '{n}' from topic '{TopicName}'? This cannot be undone.")"
+              Execute="@(n => TopicService.DeleteSubscriptionAsync(TopicName, n!))"
+              OnCompleted="@(n => { List.All.RemoveAll(s => s.Name == n); SortAndReanchor(); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _subscriptions.Count - 1)); _focusedItem = _subscriptions.ElementAtOrDefault(_selectedIndex)?.Name; StateHasChanged(); return Task.CompletedTask; })" />
+
+<AsyncCommand @ref="_purgeDlq" TItem="string"
+              ConfirmMessage="@(n => $"Purge ALL messages from DLQ of '{TopicName}/{n}'? This cannot be undone.")"
+              Execute="@(n => MessageService.PurgeMessagesAsync(new MessageSource(n!, IsDlq: true, TopicName, n!), _ => { }))"
+              OnCompleted="@(n => { if (_subscriptions.FirstOrDefault(s => s.Name == n) is {} s) s.DeadLetterMessageCount = 0; SortAndReanchor(); StateHasChanged(); return Task.CompletedTask; })" />
+
+@code {
+    private string TopicName => NavState.TopicName ?? "";
+
+    private LiveList<SubscriptionInfo>? _live;
+    private LiveList<SubscriptionInfo> List => _live ?? throw new InvalidOperationException("Subscription list not initialized");
+    private List<SubscriptionInfo> _subscriptions = [];
+    private int _selectedIndex;
+    private string? _focusedItem;
+    private string _error = string.Empty;
+    private AsyncCommand<string>? _deleteSub;
+    private AsyncCommand<string>? _purgeDlq;
+    private bool _loadFailed;
+    private SpectreTBody? _tbody;
+    private bool _tableAutoFocused;
+    private readonly TableSort<SubscriptionInfo> _sort = new TableSort<SubscriptionInfo>(ss => ss.OrderBy(s => s.Name))
+        .Add("Subscription", s => s.Name, StringComparer.OrdinalIgnoreCase)
+        .Add("Active", s => s.ActiveMessageCount)
+        .Add("DLQ", s => s.DeadLetterMessageCount)
+        .Add("Transfer", s => s.TransferMessageCount)
+        .SortBy("Subscription", SortDirection.Ascending);
+
+    public void Dispose() => _live?.Dispose();
+
+
+    protected override void OnInitialized()
+    {
+        _live = new LiveList<SubscriptionInfo>(ct => TopicService.GetSubscriptionsAsync(TopicName, ct), s => s.Name, x => x.IsRefreshing,
+            new(s => s.Name, ("Active", x => x.ActiveMessageCount), ("DLQ", x => x.DeadLetterMessageCount), ("Transfer", x => x.TransferMessageCount)),
+            LiveCounts, Logger)
+        {
+            Changed = () => { SortAndReanchor(); return InvokeAsync(StateHasChanged); },
+            Render = StateHasChanged,
+            LoadFailed = ex => { _loadFailed = true; _error = ex.Message; return InvokeAsync(StateHasChanged); },
+        };
+        if (Connection.CurrentNamespace is null)
+            Nav.NavigateTo("/");
+        _focusedItem = NavState.SubscriptionName;
+    }
+
+    protected override async Task OnInitializedAsync() => await LoadSubscriptions();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_tableAutoFocused && _tbody is not null && _subscriptions.Count > 0)
+        {
+            _tableAutoFocused = true;
+            await FocusManager.FocusAsync(_tbody.FocusKey);
+        }
+    }
+
+    private Task LoadSubscriptions()
+    {
+        _error = string.Empty;
+        _loadFailed = false;
+        return List.LoadAsync();
+    }
+
+    private void SortAndReanchor()
+    {
+        var focused = _focusedItem;
+        _subscriptions = _sort.Apply(List.All);
+        if (focused is not null)
+        {
+            var newIdx = _subscriptions.FindIndex(s => s.Name == focused);
+            if (newIdx >= 0) _selectedIndex = newIdx;
+        }
+        _focusedItem = _subscriptions.ElementAtOrDefault(_selectedIndex)?.Name;
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        if (_deleteSub?.HandleKey(e) == true) return;
+        if (_purgeDlq?.HandleKey(e) == true) return;
+        switch (e.Key)
+        {
+            case "Escape": Nav.NavigateTo("/topics"); return;
+            case "F5": _ = LoadSubscriptions(); return;
+            case "F9": case "Delete": case "\\":
+                if (_focusedItem is not null) _deleteSub!.Invoke(_focusedItem);
+                return;
+            case "F11":
+                if (_focusedItem is not null) _purgeDlq!.Invoke(_focusedItem);
+                return;
+        }
+    }
+}

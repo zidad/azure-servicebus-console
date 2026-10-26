@@ -1,0 +1,21 @@
+@using Microsoft.AspNetCore.Components.Routing
+@using RazorConsole.Components
+@implements IDisposable
+@inject ServiceBusConnection Connection
+
+<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView @key="Connection.Version" RouteData="routeData" />
+    </Found>
+    <NotFound>
+        <Markup Content="Page not found." Foreground="@Theme.Danger" />
+    </NotFound>
+</Router>
+
+@code {
+    protected override void OnInitialized() => Connection.Switched += OnSwitched;
+
+    public void Dispose() => Connection.Switched -= OnSwitched;
+
+    private void OnSwitched() => _ = InvokeAsync(StateHasChanged);
+}
