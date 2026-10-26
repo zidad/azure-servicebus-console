@@ -21,9 +21,9 @@ With every change, also rebase the fork's `azsb` branch (`lib/RazorConsole`) ont
 
 ## Releases
 
-`publish.yml` publishes to NuGet on push to main only when `<Version>` in `ServiceBusConsole.csproj` has no `v<Version>` tag yet. Any PR that should ship (including submodule bumps) must bump `<Version>`, and put it in the PR title, e.g. `(v0.7.1)`.
+Release by pushing a version tag on a `main` commit: `git tag v1.2.3 origin/main && git push origin v1.2.3`. `publish.yml` then tests, packs with the tag's version, pushes to NuGet and creates a GitHub release with generated notes. There is no version in the code or in PR titles.
 
-When the PR moves the `lib/RazorConsole` pointer, tag that fork commit `azsb-v<Version>` and push the tag to the fork, so later `azsb` rebases don't orphan it.
+When a PR moves the `lib/RazorConsole` pointer, tag that fork commit `azsb-pr<PR number>` and push the tag to the fork, so later `azsb` rebases don't orphan it. (Older tags are `azsb-v<Version>`.)
 
 ## Commands
 
@@ -40,7 +40,7 @@ dotnet test tests/ServiceBusConsole.Tests  # Headless UI tests
 - Pages focus their table after rendering; call `AppHarness.WaitForTableFocusAsync` before sending keys to a new page.
 - RazorConsole bugs found by tests are fixed in the fork (`azsb`), not worked around in the app.
 - Keys go only to the focused element; they do not bubble. Page `HandleKeyDown` runs only via components that forward `OnKeyDown`.
-- Never click "Clear cache" in tests: `FileCache` uses the real user cache directory.
+- `AppHarness` gives each test its own `FileCache` directory under the temp folder.
 - Screenshots for design review: `SCREENSHOT_DIR=<dir> dotnet test tests/ServiceBusConsole.Tests` dumps every page (`Screenshots.cs`), then `python tools/render-screenshots.py <dir>` renders PNGs (Pillow, macOS fonts).
 
 ## Prerequisites

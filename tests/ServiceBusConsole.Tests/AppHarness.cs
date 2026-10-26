@@ -22,6 +22,9 @@ public sealed class AppHarness
     public FakeTopicService Topics { get; } = new();
     public FakeMessageService Messages { get; } = new();
     public NavigationState NavState { get; } = new();
+
+    /// <summary>Per-test cache folder, so tests never touch the user's real cache.</summary>
+    public string CacheDirectory { get; set; } = Path.Combine(Path.GetTempPath(), "sb-console-tests", Guid.NewGuid().ToString("N"));
     public ConsoleNavigationManager Navigation { get; } = new();
     public ServiceBusConnection Connection { get; } = new(new AzureCliCredential(), NullLogger<ServiceBusConnection>.Instance);
 
@@ -43,7 +46,7 @@ public sealed class AppHarness
                     services.AddSingleton<IMessageService>(Messages);
                     services.AddSingleton(NavState);
                     services.AddSingleton<MessageBrowserStore>();
-                    services.AddSingleton<FileCache>();
+                    services.AddSingleton(new FileCache(NullLogger<FileCache>.Instance, CacheDirectory));
                     services.AddSingleton<SubscriptionCatalog>();
                 },
             },

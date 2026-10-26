@@ -3,9 +3,10 @@ using Microsoft.Extensions.Logging;
 
 namespace ServiceBusConsole;
 
-public class FileCache(ILogger<FileCache> logger)
+/// <param name="directory">Cache root; defaults to the user's local application data folder.</param>
+public class FileCache(ILogger<FileCache> logger, string? directory = null)
 {
-    private static readonly string BaseDir = Path.Combine(
+    private readonly string BaseDir = directory ?? Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "sb-console");
 
@@ -40,7 +41,7 @@ public class FileCache(ILogger<FileCache> logger)
         }
     }
 
-    public static string CacheDirectory => BaseDir;
+    public string CacheDirectory => BaseDir;
 
     /// <returns>Number of cache files removed.</returns>
     public int Clear()
@@ -52,5 +53,5 @@ public class FileCache(ILogger<FileCache> logger)
         return count;
     }
 
-    private static string GetPath(string key) => Path.Combine(BaseDir, key);
+    private string GetPath(string key) => Path.Combine(BaseDir, key);
 }
