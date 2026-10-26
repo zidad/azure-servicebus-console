@@ -10,16 +10,33 @@ public class ServiceBusConnection(AzureCliCredential credential, ILogger<Service
     private ServiceBusAdministrationClient? _adminClient;
     private ServiceBusClient? _busClient;
 
-    public string? CurrentNamespace { get; private set; }
+    public NamespaceInfo? Namespace { get; private set; }
+
+    /// <summary>Changes on <see cref="Switch"/>; the app keys the current page on it so the page reloads.</summary>
+    public int Version { get; private set; }
+
+    public event Action? Switched;
+    public string? CurrentNamespace => Namespace?.FullyQualifiedNamespace;
     public bool IsEmulator => CurrentNamespace == "localhost";
 
     private const string EmulatorConnectionString =
         "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;";
 
-    public void SetNamespace(string fullyQualifiedNamespace)
+    /// <summary>Sets the namespace and reloads the current page (see <see cref="Version"/>).</summary>
+    public void Switch(NamespaceInfo ns)
     {
+        SetNamespace(ns);
+        Version++;
+        Switched?.Invoke();
+    }
+
+    public void SetNamespace(NamespaceInfo ns)
+    {
+        var fullyQualifiedNamespace = ns.FullyQualifiedNamespace;
+        var sameEndpoint = fullyQualifiedNamespace == CurrentNamespace;
+        Namespace = ns;
+        if (sameEndpoint) return;
         logger.LogInformation("Connecting to namespace {Namespace}", fullyQualifiedNamespace);
-        CurrentNamespace = fullyQualifiedNamespace;
         if (fullyQualifiedNamespace == "localhost")
         {
             _adminClient = null; // management API not supported by emulator

@@ -11,11 +11,11 @@
 @inject ITerminalViewport Viewport
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
+    <Header>
+        <Markup Content="All Subscriptions" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+        @if (_all.Count > 0) { <Markup Content="@ConnectionHeader.Count(_filtered.Count, _all.Count)" Foreground="@Color.Grey" /> }
+    </Header>
     <Content>
-        <Panel BorderColor="@Color.Grey37" FillWidth="true" Padding="@(new(0, 0, 0, 0))">
-            <Markup Content="All Subscriptions" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
-        </Panel>
-
         @if (_all.Count == 0 && _loadFailed)
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
@@ -33,10 +33,6 @@
         }
         else
         {
-            <Padder Padding="@(new(0, 1, 0, 0))">
-                <Markup Content="@($"{_filtered.Count} subscription(s)")" Foreground="@Color.Grey" />
-            </Padder>
-
             <Scrollable Items="@_filtered"
                         PageSize="@FullscreenLayout.PageSizeRoundedTableWithFilter(Viewport.Height)"
                         Scrollbar="new()"
@@ -46,11 +42,11 @@
                 <SpectreTable Expand="true" Border="TableBorder.Rounded">
                     <SpectreTHead>
                         <SpectreTR>
-                            <SpectreTH Align="Justify.Left">Topic</SpectreTH>
-                            <SpectreTH Align="Justify.Left">Subscription</SpectreTH>
-                            <SpectreTH Align="Justify.Right">Active</SpectreTH>
-                            <SpectreTH Align="Justify.Right">DLQ</SpectreTH>
-                            <SpectreTH Align="Justify.Right">Transfer</SpectreTH>
+                            <SpectreTH Align="Justify.Left"><SortHeader Label="Topic" Sort="_sort" OnSorted="SortAndUpdateFilterState" /></SpectreTH>
+                            <SpectreTH Align="Justify.Left"><SortHeader Label="Subscription" Sort="_sort" OnSorted="SortAndUpdateFilterState" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="Active" Sort="_sort" OnSorted="SortAndUpdateFilterState" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="DLQ" Sort="_sort" OnSorted="SortAndUpdateFilterState" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="Transfer" Sort="_sort" OnSorted="SortAndUpdateFilterState" /></SpectreTH>
                             <SpectreTH></SpectreTH>
                         </SpectreTR>
                     </SpectreTHead>
@@ -125,6 +121,12 @@
     private string? _restoreFocusKey;
     private SpectreTBody? _tbody;
     private bool _tableAutoFocused;
+    private readonly TableSort<SubscriptionInfo> _sort = new TableSort<SubscriptionInfo>(ss => ss.OrderByDescending(s => s.TotalMessageCount).ThenBy(s => s.TopicName).ThenBy(s => s.Name))
+        .Add("Topic", s => s.TopicName, StringComparer.OrdinalIgnoreCase)
+        .Add("Subscription", s => s.Name, StringComparer.OrdinalIgnoreCase)
+        .Add("Active", s => s.ActiveMessageCount)
+        .Add("DLQ", s => s.DeadLetterMessageCount)
+        .Add("Transfer", s => s.TransferMessageCount);
 
     public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 
@@ -197,10 +199,9 @@
     private void SortAndUpdateFilterState()
     {
         var focused = _focusedItem;
-        _all = [.. _all.OrderByDescending(s => s.TotalMessageCount).ThenBy(s => s.TopicName).ThenBy(s => s.Name)];
-        _filtered = string.IsNullOrWhiteSpace(_filter) ? [.. _all]
+        _filtered = _sort.Apply(string.IsNullOrWhiteSpace(_filter) ? _all
             : _all.Where(s => s.TopicName.Contains(_filter, StringComparison.OrdinalIgnoreCase)
-                            || s.Name.Contains(_filter, StringComparison.OrdinalIgnoreCase)).ToList();
+                            || s.Name.Contains(_filter, StringComparison.OrdinalIgnoreCase)));
         if (focused is null && _restoreFocusKey is not null)
         {
             focused = _filtered.FirstOrDefault(s => $"{s.TopicName}/{s.Name}" == _restoreFocusKey);

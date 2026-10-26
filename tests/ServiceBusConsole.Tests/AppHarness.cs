@@ -49,14 +49,18 @@ public sealed class AppHarness
             TestContext.Current.CancellationToken);
     }
 
-    /// <summary>Starts on the connection page and opens the local emulator's queue list, the way a user does.</summary>
-    public async Task<HeadlessTerminal> OpenQueuesAsync()
+    /// <summary>Starts on the connection page (local emulator is preselected) and opens its queue list, the way a user does.</summary>
+    public Task<HeadlessTerminal> OpenQueuesAsync() => OpenAsync("[F1] Queues");
+
+    /// <summary>Same as <see cref="OpenQueuesAsync"/>, for the topic list.</summary>
+    public Task<HeadlessTerminal> OpenTopicsAsync() => OpenAsync("[F2] Topics");
+
+    private async Task<HeadlessTerminal> OpenAsync(string button)
     {
         var terminal = await StartAsync();
-        await ClickTextAsync(terminal, "Local Emulator");
-        await ClickTextAsync(terminal, "localhost", exactLine: true);
+        await WaitForTableFocusAsync(terminal);
         var connectionFocus = terminal.FocusKey;
-        await ClickTextAsync(terminal, "[F1] Queues");
+        await ClickTextAsync(terminal, button);
         await WaitForTableFocusAsync(terminal, connectionFocus);
         return terminal;
     }

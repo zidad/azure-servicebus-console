@@ -5,6 +5,7 @@
 <Flex Class="rows" Direction="FlexDirection.Column" @onkeydown="OnKeyDown" FillWidth="true">
     <Flex Direction="FlexDirection.Column" Height="@(Viewport.Height - 1)" Justify="FlexJustify.SpaceBetween" FillWidth="true">
         <Rows FillWidth="true">
+            <ConnectionHeader>@Header</ConnectionHeader>
             @Content
         </Rows>
         <Rows FillWidth="true">
@@ -21,6 +22,8 @@
     /// the terminal even when the content is short. Use
     /// <see cref="FullscreenLayout.PageSize(int, int)"/> to compute <c>Scrollable.PageSize</c>.
     /// </summary>
+    /// <summary>Breadcrumb pieces for the page, shown inside the <see cref="ConnectionHeader"/>.</summary>
+    [Parameter] public RenderFragment? Header { get; set; }
     [Parameter, EditorRequired] public RenderFragment Content { get; set; } = default!;
     [Parameter, EditorRequired] public RenderFragment Footer { get; set; } = default!;
     [Parameter] public EventCallback<KeyboardEventArgs> OnKeyDown { get; set; }

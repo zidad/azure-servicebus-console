@@ -1,0 +1,23 @@
+@namespace LLMAgentTUI.Components
+
+<div class="sort-header" @onclick="HandleClick">@Text</div>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter, EditorRequired] public required ITableSort Sort { get; set; }
+    [Parameter] public EventCallback OnSorted { get; set; }
+
+    private string Text => Sort.DirectionOf(Label) switch
+    {
+        SortDirection.Ascending => $"{Label} ▲",
+        SortDirection.Descending => $"{Label} ▼",
+        _ => Label,
+    };
+
+    // A method group keeps the handler id stable across renders; a lambda would not.
+    private Task HandleClick()
+    {
+        Sort.Cycle(Label);
+        return OnSorted.InvokeAsync();
+    }
+}

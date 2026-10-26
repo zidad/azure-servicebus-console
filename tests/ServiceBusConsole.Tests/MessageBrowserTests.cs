@@ -21,7 +21,7 @@ public sealed class MessageBrowserTests
         app.Queues.Queues.Add(new QueueInfo { Name = "orders", ActiveMessageCount = 2 });
         app.Messages.Messages.AddRange([Message(1, "order-created", "{\"id\":1}"), Message(2, "order-paid", "{\"id\":2}")]);
         var terminal = await app.OpenQueuesAsync();
-        await terminal.WaitForTextAsync("1 queue(s)", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
         var queueTable = terminal.FocusKey;
         await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
         await terminal.WaitForTextAsync("order-created", AppHarness.Timeout, Ct);
@@ -38,6 +38,7 @@ public sealed class MessageBrowserTests
         var frame = await terminal.WaitUntilAsync(f => f.ContainsText("order-created") && f.ContainsText("order-paid"), AppHarness.Timeout, cancellationToken: Ct);
 
         frame.ContainsText("[F6] View Active").ShouldBeTrue(frame.ScreenText);
+        frame.GetLine(1).ShouldContain("Local Emulator  ›  localhost  ›  Queues  ›  orders");
         app.Messages.Peeked.ShouldBe([new MessageSource("orders", IsDlq: true)]);
     }
 
@@ -52,5 +53,6 @@ public sealed class MessageBrowserTests
 
         var frame = await terminal.WaitForTextAsync("Message #1", AppHarness.Timeout, Ct);
         frame.ContainsText("\"id\": 1").ShouldBeTrue(frame.ScreenText);
+        frame.GetLine(1).ShouldContain("Local Emulator  ›  localhost  ›");
     }
 }

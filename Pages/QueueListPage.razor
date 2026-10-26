@@ -12,11 +12,11 @@
 @inject ITerminalViewport Viewport
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
+    <Header>
+        <Markup Content="Queues" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+        @if (_all.Count > 0) { <Markup Content="@ConnectionHeader.Count(_filtered.Count, _all.Count)" Foreground="@Color.Grey" /> }
+    </Header>
     <Content>
-        <Panel BorderColor="@Color.Grey37" FillWidth="true" Padding="@(new(0, 0, 0, 0))">
-            <Markup Content="Queues" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
-        </Panel>
-
         @if (_all.Count == 0 && _loadFailed)
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
@@ -34,10 +34,6 @@
         }
         else
         {
-            <Padder Padding="@(new(0, 1, 0, 0))">
-                <Markup Content="@($"{_filtered.Count} queue(s)")" Foreground="@Color.Grey" />
-            </Padder>
-
             <Scrollable Items="@_filtered"
                         PageSize="@FullscreenLayout.PageSizeRoundedTableWithFilter(Viewport.Height)"
                         Scrollbar="new()"
@@ -47,11 +43,11 @@
                 <SpectreTable Expand="true" Border="TableBorder.Rounded">
                     <SpectreTHead>
                         <SpectreTR>
-                            <SpectreTH Align="Justify.Left">Queue</SpectreTH>
-                            <SpectreTH Align="Justify.Right">Active</SpectreTH>
-                            <SpectreTH Align="Justify.Right">DLQ</SpectreTH>
-                            <SpectreTH Align="Justify.Right">Scheduled</SpectreTH>
-                            <SpectreTH Align="Justify.Right">Transfer</SpectreTH>
+                            <SpectreTH Align="Justify.Left"><SortHeader Label="Queue" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="Active" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="DLQ" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="Scheduled" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="Transfer" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
                             <SpectreTH></SpectreTH>
                         </SpectreTR>
                     </SpectreTHead>
@@ -125,6 +121,12 @@
     private readonly RenderThrottle _renderThrottle = new();
     private SpectreTBody? _tbody;
     private bool _tableAutoFocused;
+    private readonly TableSort<QueueInfo> _sort = new TableSort<QueueInfo>(qs => qs.OrderByDescending(q => q.DeadLetterMessageCount).ThenBy(q => q.Name))
+        .Add("Queue", q => q.Name, StringComparer.OrdinalIgnoreCase)
+        .Add("Active", q => q.ActiveMessageCount)
+        .Add("DLQ", q => q.DeadLetterMessageCount)
+        .Add("Scheduled", q => q.ScheduledMessageCount)
+        .Add("Transfer", q => q.TransferMessageCount);
 
     public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 
@@ -180,7 +182,7 @@
 
                 if (firstLive || _renderThrottle.ShouldRender())
                 {
-                    SortAndUpdateFilterState();
+                    UpdateFilterState(_filter);
                     await InvokeAsync(StateHasChanged);
                 }
             }
@@ -188,7 +190,7 @@
             if (!token.IsCancellationRequested)
             {
                 _all.RemoveAll(q => !live.Contains(q.Name));
-                SortAndUpdateFilterState();
+                UpdateFilterState(_filter);
             }
             await InvokeAsync(StateHasChanged);
             Logger.LogInformation("LoadQueues[{Inv}] END cached={Cached} live={Live} _all.Count={All} _filtered.Count={Filtered}",
@@ -198,18 +200,12 @@
         catch (Exception ex) { _loadFailed = true; _error = ex.Message; await InvokeAsync(StateHasChanged); Logger.LogWarning(ex, "LoadQueues[{Inv}] FAILED", invocationId); }
     }
 
-    private void SortAndUpdateFilterState()
-    {
-        _all = [.. _all.OrderByDescending(q => q.DeadLetterMessageCount).ThenBy(q => q.Name)];
-        UpdateFilterState(_filter);
-    }
-
     private void UpdateFilterState(string? value)
     {
         var currentFocus = _focusedItem;
         _filter = value;
-        _filtered = string.IsNullOrWhiteSpace(value) ? [.. _all]
-            : _all.Where(q => q.Name.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
+        _filtered = _sort.Apply(string.IsNullOrWhiteSpace(value) ? _all
+            : _all.Where(q => q.Name.Contains(value, StringComparison.OrdinalIgnoreCase)));
         if (currentFocus is not null)
         {
             var idx = _filtered.FindIndex(q => q.Name == currentFocus);

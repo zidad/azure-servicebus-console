@@ -10,11 +10,11 @@
 @inject ITerminalViewport Viewport
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
+    <Header>
+        <Markup Content="Topics" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+        @if (_all.Count > 0) { <Markup Content="@ConnectionHeader.Count(_filtered.Count, _all.Count)" Foreground="@Color.Grey" /> }
+    </Header>
     <Content>
-        <Panel BorderColor="@Color.Grey37" FillWidth="true" Padding="@(new(0, 0, 0, 0))">
-            <Markup Content="Topics" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
-        </Panel>
-
         @if (_all.Count == 0 && _loadFailed)
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
@@ -32,10 +32,6 @@
         }
         else
         {
-            <Padder Padding="@(new(0, 1, 0, 0))">
-                <Markup Content="@($"{_filtered.Count} topic(s)")" Foreground="@Color.Grey" />
-            </Padder>
-
             <Scrollable Items="@_filtered"
                         PageSize="@FullscreenLayout.PageSizeRoundedTableWithFilter(Viewport.Height)"
                         Scrollbar="new()"
@@ -45,9 +41,9 @@
                 <SpectreTable Expand="true" Border="TableBorder.Rounded">
                     <SpectreTHead>
                         <SpectreTR>
-                            <SpectreTH Align="Justify.Left">Topic</SpectreTH>
-                            <SpectreTH Align="Justify.Right">Subscriptions</SpectreTH>
-                            <SpectreTH Align="Justify.Right">Scheduled</SpectreTH>
+                            <SpectreTH Align="Justify.Left"><SortHeader Label="Topic" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="Subscriptions" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="Scheduled" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
                             <SpectreTH></SpectreTH>
                         </SpectreTR>
                     </SpectreTHead>
@@ -111,6 +107,10 @@
     private readonly RenderThrottle _renderThrottle = new();
     private SpectreTBody? _tbody;
     private bool _tableAutoFocused;
+    private readonly TableSort<TopicInfo> _sort = new TableSort<TopicInfo>(ts => ts)
+        .Add("Topic", t => t.Name, StringComparer.OrdinalIgnoreCase)
+        .Add("Subscriptions", t => t.SubscriptionCount)
+        .Add("Scheduled", t => t.ScheduledMessageCount);
 
     public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 
@@ -182,8 +182,8 @@
     {
         var currentFocus = _focusedItem;
         _filter = value;
-        _filtered = string.IsNullOrWhiteSpace(value) ? [.. _all]
-            : _all.Where(t => t.Name.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
+        _filtered = _sort.Apply(string.IsNullOrWhiteSpace(value) ? _all
+            : _all.Where(t => t.Name.Contains(value, StringComparison.OrdinalIgnoreCase)));
         if (currentFocus is not null)
         {
             var idx = _filtered.FindIndex(t => t.Name == currentFocus);

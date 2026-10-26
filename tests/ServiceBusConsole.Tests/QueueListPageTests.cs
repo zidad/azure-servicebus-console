@@ -34,9 +34,10 @@ public sealed class QueueListPageTests
         ]);
         await using var terminal = await app.OpenQueuesAsync();
 
-        var frame = await terminal.WaitForTextAsync("3 queue(s)", AppHarness.Timeout, Ct);
+        var frame = await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
 
         frame.ContainsText("! 3").ShouldBeTrue(frame.ScreenText);
+        frame.GetLine(1).ShouldContain("Local Emulator  ›  localhost  ›  Queues");
         RowOf(frame, "payments").ShouldBeLessThan(RowOf(frame, "emails"));
         RowOf(frame, "emails").ShouldBeLessThan(RowOf(frame, "orders"));
     }
@@ -45,11 +46,11 @@ public sealed class QueueListPageTests
     public async Task TypingFiltersTheList()
     {
         await using var terminal = await WithQueues().OpenQueuesAsync();
-        await terminal.WaitForTextAsync("3 queue(s)", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
 
         await terminal.TypeAsync("pay", Ct);
 
-        var frame = await terminal.WaitForTextAsync("1 queue(s)", AppHarness.Timeout, Ct);
+        var frame = await terminal.WaitForTextAsync("Queues (1 of 3)", AppHarness.Timeout, Ct);
         frame.ContainsText("payments").ShouldBeTrue();
         frame.ContainsText("orders").ShouldBeFalse();
     }
@@ -59,7 +60,7 @@ public sealed class QueueListPageTests
     {
         var app = WithQueues();
         await using var terminal = await app.OpenQueuesAsync();
-        await terminal.WaitForTextAsync("3 queue(s)", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
 
         await terminal.SendKeyAsync(ConsoleKey.F9, '\0', cancellationToken: Ct);
         await terminal.WaitForTextAsync("Delete queue 'payments'?", AppHarness.Timeout, Ct);
@@ -67,7 +68,7 @@ public sealed class QueueListPageTests
 
         await terminal.SendKeyAsync(ConsoleKey.Y, 'y', cancellationToken: Ct);
 
-        await terminal.WaitForTextAsync("2 queue(s)", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("Queues (2)", AppHarness.Timeout, Ct);
         app.Queues.Deleted.ShouldBe(["payments"]);
     }
 
@@ -76,7 +77,7 @@ public sealed class QueueListPageTests
     {
         var app = WithQueues();
         await using var terminal = await app.OpenQueuesAsync();
-        await terminal.WaitForTextAsync("3 queue(s)", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
 
         await terminal.SendKeyAsync(ConsoleKey.F9, '\0', cancellationToken: Ct);
         await terminal.WaitForTextAsync("Delete queue 'payments'?", AppHarness.Timeout, Ct);
@@ -100,10 +101,63 @@ public sealed class QueueListPageTests
     public async Task EnterOpensSelectedQueue()
     {
         await using var terminal = await WithQueues().OpenQueuesAsync();
-        await terminal.WaitForTextAsync("3 queue(s)", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
 
         await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
 
-        await terminal.WaitUntilAsync(f => !f.ContainsText("queue(s)") && f.ContainsText("payments"), AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => !f.ContainsText("Queues (") && f.ContainsText("payments"), AppHarness.Timeout, cancellationToken: Ct);
+    }
+
+    [Fact]
+    public async Task ClickingHeader_CyclesAscendingDescendingOff()
+    {
+        await using var terminal = await WithQueues().OpenQueuesAsync();
+        await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
+
+        await AppHarness.ClickTextAsync(terminal, "Active");
+        var frame = await terminal.WaitForTextAsync("Active ▲", AppHarness.Timeout, Ct);
+        RowOf(frame, "payments").ShouldBeLessThan(RowOf(frame, "emails"));
+        RowOf(frame, "emails").ShouldBeLessThan(RowOf(frame, "orders"));
+
+        await AppHarness.ClickTextAsync(terminal, "Active ▲");
+        frame = await terminal.WaitForTextAsync("Active ▼", AppHarness.Timeout, Ct);
+        RowOf(frame, "orders").ShouldBeLessThan(RowOf(frame, "emails"));
+        RowOf(frame, "emails").ShouldBeLessThan(RowOf(frame, "payments"));
+
+        await AppHarness.ClickTextAsync(terminal, "Active ▼");
+        frame = await terminal.WaitUntilAsync(f => f.ContainsText("Active") && !f.ContainsText("▲") && !f.ContainsText("▼"), AppHarness.Timeout, cancellationToken: Ct);
+        RowOf(frame, "payments").ShouldBeLessThan(RowOf(frame, "emails"));
+        RowOf(frame, "emails").ShouldBeLessThan(RowOf(frame, "orders"));
+    }
+
+    [Fact]
+    public async Task ClickingAnotherHeader_StartsAscendingOnThatColumn()
+    {
+        await using var terminal = await WithQueues().OpenQueuesAsync();
+        await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
+
+        await AppHarness.ClickTextAsync(terminal, "Active");
+        await terminal.WaitForTextAsync("Active ▲", AppHarness.Timeout, Ct);
+        await AppHarness.ClickTextAsync(terminal, "Queue ");
+
+        var frame = await terminal.WaitForTextAsync("Queue ▲", AppHarness.Timeout, Ct);
+        frame.ContainsText("Active ▲").ShouldBeFalse();
+        RowOf(frame, "emails").ShouldBeLessThan(RowOf(frame, "orders"));
+        RowOf(frame, "orders").ShouldBeLessThan(RowOf(frame, "payments"));
+    }
+
+    [Fact]
+    public async Task Sorting_KeepsSelectedQueue()
+    {
+        await using var terminal = await WithQueues().OpenQueuesAsync();
+        await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
+
+        await AppHarness.ClickTextAsync(terminal, "Active");
+        await AppHarness.ClickTextAsync(terminal, "Active ▲");
+        await terminal.WaitForTextAsync("Active ▼", AppHarness.Timeout, Ct);
+        await AppHarness.WaitForTableFocusAsync(terminal);
+        await terminal.SendKeyAsync(ConsoleKey.F9, '\0', cancellationToken: Ct);
+
+        await terminal.WaitForTextAsync("Delete queue 'payments'?", AppHarness.Timeout, Ct);
     }
 }
