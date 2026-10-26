@@ -1,15 +1,16 @@
 name: Publish
 
+# Release by pushing a version tag from main: git tag v1.2.3 && git push origin v1.2.3
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # create the GitHub release
       id-token: write # required for NuGet trusted publishing (OIDC)
     steps:
       - uses: actions/checkout@v7
@@ -17,39 +18,25 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Tag must be on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
-      - name: Extract version from csproj
-        id: version
-        run: |
-          VERSION=$(grep -oP '(?<=<Version>)[^<]+' ServiceBusConsole.csproj)
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+      - name: Test
+        run: dotnet test tests/ServiceBusConsole.Tests --configuration Release
 
-      - name: Check if tag already exists
-        id: tag_check
-        run: |
-          if git ls-remote --tags origin "refs/tags/v${{ steps.version.outputs.VERSION }}" | grep -q .; then
-            echo "EXISTS=true" >> $GITHUB_OUTPUT
-          else
-            echo "EXISTS=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Tag release
-        if: steps.tag_check.outputs.EXISTS == 'false'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag v${{ steps.version.outputs.VERSION }}
-          git push origin v${{ steps.version.outputs.VERSION }}
-
+      # After the tests, which build without the version; pack --no-build uses this build.
       - name: Build
-        if: steps.tag_check.outputs.EXISTS == 'false'
-        run: dotnet build --configuration Release
+        run: dotnet build ServiceBusConsole.csproj --configuration Release -p:Version=${{ steps.version.outputs.VERSION }}
 
       - name: Pack
-        if: steps.tag_check.outputs.EXISTS == 'false'
         run: |
           dotnet pack ServiceBusConsole.csproj --configuration Release --no-build \
             -p:Version=${{ steps.version.outputs.VERSION }} \
@@ -60,11 +47,14 @@ jobs:
       # zidad/azure-servicebus-console with workflow file "publish.yml".
       - name: NuGet login (OIDC)
         id: nuget_login
-        if: steps.tag_check.outputs.EXISTS == 'false'
         uses: NuGet/login@v1
         with:
           user: zidad
 
       - name: Push to NuGet
-        if: steps.tag_check.outputs.EXISTS == 'false'
         run: dotnet nuget push ./artifacts/Net.Azure.ServiceBusConsole.*.nupkg --api-key ${{ steps.nuget_login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" ./artifacts/*.nupkg --title "$GITHUB_REF_NAME" --generate-notes --verify-tag

@@ -18,36 +18,46 @@ To update to the latest version:
 dotnet tool update -g Net.Azure.ServiceBusConsole
 ```
 
-> **Note:** Subscription IDs are currently hardcoded. See [Configuration](#configuration).
-
 ## Features
 
-- Browse Service Bus namespaces across multiple Azure subscriptions
-- Queues and topics with live message counts (active, DLQ, scheduled, transfer) — animated spinner while refreshing from cache
-- Filter queues, topics, and subscriptions by typing in the filter box
-- Scrollable tables — arrow keys or scrollbar to navigate long lists
+- Lists the Azure subscriptions of your `az` login by name, hides the ones without Service Bus namespaces, and lets you filter them; the local emulator is always available
+- Namespace details (resource group, location, SKU, status) on the connection page and in every page's header
+- Switch subscription, namespace or section (Queues, Topics, All Subscriptions) from dropdowns in the header
+- Queues and topics with live message counts (active, DLQ, scheduled, transfer); everything loads from a local cache first, then refreshes
+- Sort any list by clicking a column header (ascending, descending, off); the default sort (DLQ) shows in the header
+- Filter queues, topics, subscriptions and Azure subscriptions by typing
+- Color-coded counts and states: dead letters in red, zero counts dimmed, lock and browse modes highlighted
 - Peek, receive (PeekLock) or receive-and-delete a chosen number of messages, like the Azure portal's Service Bus Explorer
 - Multi-select messages (`Space`, click the checkbox, `A` all, `I` invert) and act on all of them at once
 - Locked messages: complete, abandon, dead-letter or requeue; locks renew automatically and are released when you leave
-- Inspect message properties and body (auto pretty-printed if JSON) with a scrollable body panel
-- Dead-letter queue browsing per queue and per subscription
-- **Requeue DLQ messages**: republish locked dead-lettered messages to the origin queue/topic and complete them
-- Delete individual queues, topics or subscriptions
-- Mouse support: click buttons and rows, click a selected row to open it, scroll lists with the wheel
+- Message properties and body, with JSON syntax highlighting
+- Dead-letter queue browsing per queue and per subscription; requeue dead-lettered messages to their origin
+- Delete queues, topics or subscriptions; purge (dead-letter) queues
+- Mouse support: buttons, rows, column headers, header dropdowns, wheel scrolling
 
 ## Screenshots
 
-*Data blurred; captured against the local Service Bus emulator.*
+*Sample data from the test suite; regenerate with `tools/update-screenshots.sh`.*
 
-**Connection**: pick a subscription and namespace
+**Connection**: Azure subscriptions of your login, filter, namespace details
 
 ![Connection screen](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/connection.png)
 
-**Queues**: live counts, DLQ warnings, type to filter
+**Queues**: color-coded counts, sortable columns, type to filter
 
 ![Queue list](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/queues.png)
 
-**Message detail**: properties, dead-letter reason, pretty-printed JSON body
+**Header dropdowns**: switch namespace (or subscription, or section) in place
+
+![Namespace dropdown](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/namespace-dropdown.png)
+
+![Section dropdown](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/section-dropdown.png)
+
+**Message browser**: dead-letter reasons, delivery counts, multi-select
+
+![Message browser](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/message-browser.png)
+
+**Message detail**: properties and highlighted JSON body
 
 ![Message detail](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/message-detail.png)
 
@@ -64,12 +74,17 @@ dotnet tool update -g Net.Azure.ServiceBusConsole
 | `Tab` / `Shift+Tab` | Move focus between controls |
 | `Esc` | Go back to previous screen |
 | Click | Activate a button, or select a row; click the selected row to open it |
+| Click a column header | Sort by it: ascending, descending, off |
+| Click subscription / namespace / section in the header | Open a dropdown to switch |
 | Mouse wheel | Scroll the list under the pointer |
 
 ### Connection screen
 
 | Key | Action |
 |-----|--------|
+| `↑` / `↓` | Choose a subscription or namespace |
+| Type / `Backspace` | Filter Azure subscriptions (in the subscription list) |
+| `Enter` | Subscriptions: go to namespaces; namespaces: open queues |
 | `F1` | Open queue browser |
 | `F2` | Open topic browser |
 | `F3` | Open all-subscriptions view |
@@ -121,7 +136,7 @@ Actions apply to the selected messages, or to the focused one when nothing is se
 az login
 ```
 
-Authentication uses `AzureCliCredential` — no connection strings or API keys are stored.
+Authentication uses `AzureCliCredential` — no connection strings or API keys are stored. The subscriptions you see are the ones your `az login` account can access.
 
 ## Running from source
 
@@ -133,10 +148,6 @@ dotnet run
 ```
 
 Logs are written to `./logs/session-<timestamp>.log` on each run.
-
-## Configuration
-
-Azure subscription IDs are hardcoded in `Pages/ConnectionPage.razor` in the `SubscriptionOptions` array. Update these to match your environment before running from source.
 
 ## How message operations work
 
@@ -151,13 +162,14 @@ Bulk actions report partial failures; failed messages stay selected so you can r
 
 ## Releasing
 
-Every push to `main` checks the `<Version>` in `ServiceBusConsole.csproj`. If a tag for that version doesn't exist yet, the [publish workflow](.github/workflows/publish.yml) will automatically create the tag, pack, and push to NuGet.org.
+Push a version tag on a commit on `main`:
 
-To release a new version, bump the version in `ServiceBusConsole.csproj` and merge to `main`:
-
-```xml
-<Version>0.2.0</Version>
+```bash
+git tag v1.2.3 origin/main
+git push origin v1.2.3
 ```
+
+The [publish workflow](.github/workflows/publish.yml) runs the tests, packs the tool with the tag's version, pushes it to NuGet.org and creates a GitHub release with generated notes and the package attached. There is no version number in the code.
 
 Publishing uses [NuGet trusted publishing](https://learn.microsoft.com/nuget/nuget-org/trusted-publishing) — no API key secret is stored. The workflow exchanges a GitHub OIDC token for a short-lived nuget.org API key via `NuGet/login`.
 

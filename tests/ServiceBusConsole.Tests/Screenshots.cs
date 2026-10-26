@@ -7,7 +7,7 @@ namespace ServiceBusConsole.Tests;
 
 /// <summary>
 /// Dumps every page with sample data as cell JSON (text + style) for design review.
-/// Runs only when SCREENSHOT_DIR is set; render the JSON with tools/render-screenshots.py.
+/// Runs only when SCREENSHOT_DIR is set; tools/update-screenshots.sh renders them into docs/screenshots.
 /// </summary>
 public sealed class Screenshots
 {
@@ -20,36 +20,36 @@ public sealed class Screenshots
         Directory.CreateDirectory(dir);
 
         var app = SampleApp();
-        await using var terminal = await app.StartAsync(width: 120, height: 32);
+        await using var terminal = await app.StartAsync(width: 120, height: 36);
         await AppHarness.WaitForTableFocusAsync(terminal);
         await terminal.WaitForTextAsync("Contoso Development", AppHarness.Timeout, Ct);
         await Key(terminal, ConsoleKey.DownArrow);
         await terminal.WaitForTextAsync("sb-orders-dev", AppHarness.Timeout, Ct);
-        await Save(terminal, dir, "01-connection");
+        await Save(terminal, dir, "connection");
 
         var connectionFocus = terminal.FocusKey;
         await AppHarness.ClickTextAsync(terminal, "[F1] 📬 Queues");
         await AppHarness.WaitForTableFocusAsync(terminal, connectionFocus);
         await terminal.WaitForTextAsync("Queues (5)", AppHarness.Timeout, Ct);
-        await Save(terminal, dir, "02-queues");
+        await Save(terminal, dir, "queues");
 
         await AppHarness.ClickTextAsync(terminal, "sb-orders-dev");
         await terminal.WaitForTextAsync("Namespaces in Contoso Development", AppHarness.Timeout, Ct);
         await terminal.WaitForTextAsync("sb-orders-prd", AppHarness.Timeout, Ct);
-        await Save(terminal, dir, "03-namespace-picker");
+        await Save(terminal, dir, "namespace-dropdown");
         await Key(terminal, ConsoleKey.Escape, '\u001b');
         await terminal.WaitUntilAsync(f => !f.ContainsText("Namespaces in"), AppHarness.Timeout, cancellationToken: Ct);
 
         await AppHarness.ClickTextAsync(terminal, "Queues (5)");
         await terminal.WaitForTextAsync("Go to", AppHarness.Timeout, Ct);
-        await Save(terminal, dir, "03b-section-picker");
+        await Save(terminal, dir, "section-dropdown");
         await Key(terminal, ConsoleKey.Escape, '\u001b');
         await terminal.WaitUntilAsync(f => !f.ContainsText("Go to"), AppHarness.Timeout, cancellationToken: Ct);
 
         await AppHarness.WaitForTableFocusAsync(terminal);
         await Key(terminal, ConsoleKey.F9);
         await terminal.WaitForTextAsync("Delete queue", AppHarness.Timeout, Ct);
-        await Save(terminal, dir, "04-confirm");
+        await Save(terminal, dir, "confirm-delete");
         await Key(terminal, ConsoleKey.N, 'n');
         await terminal.WaitUntilAsync(f => !f.ContainsText("Delete queue"), AppHarness.Timeout, cancellationToken: Ct);
 
@@ -61,11 +61,11 @@ public sealed class Screenshots
         await Key(terminal, ConsoleKey.DownArrow);
         await Key(terminal, ConsoleKey.Spacebar, ' ');
         await terminal.WaitForTextAsync("2 selected", AppHarness.Timeout, Ct);
-        await Save(terminal, dir, "05-message-browser");
+        await Save(terminal, dir, "message-browser");
 
         await Key(terminal, ConsoleKey.Enter, '\r');
         await terminal.WaitForTextAsync("Message #", AppHarness.Timeout, Ct);
-        await Save(terminal, dir, "06-message-detail");
+        await Save(terminal, dir, "message-detail");
         await Key(terminal, ConsoleKey.Escape, '\u001b');
         await terminal.WaitForTextAsync("2 selected", AppHarness.Timeout, Ct);
         await AppHarness.WaitForTableFocusAsync(terminal);
@@ -76,35 +76,36 @@ public sealed class Screenshots
         await terminal.WaitForTextAsync("Queues (5)", AppHarness.Timeout, Ct);
         await AppHarness.WaitForTableFocusAsync(terminal);
         await Key(terminal, ConsoleKey.Escape, '\u001b');
-        await terminal.WaitForTextAsync("[F2] 📢 Topics", AppHarness.Timeout, Ct);
+        await terminal.WaitUntilAsync(f => f.ContainsText("[F2] 📢 Topics") && f.ContainsText("sb-orders-prd"), AppHarness.Timeout, cancellationToken: Ct);
 
         connectionFocus = terminal.FocusKey;
         await AppHarness.ClickTextAsync(terminal, "[F2] 📢 Topics");
         await AppHarness.WaitForTableFocusAsync(terminal, connectionFocus);
         await terminal.WaitForTextAsync("Topics (3)", AppHarness.Timeout, Ct);
-        await Save(terminal, dir, "07-topics");
+        await Save(terminal, dir, "topics");
 
         var topicTable = terminal.FocusKey;
         await Key(terminal, ConsoleKey.Enter, '\r');
         await terminal.WaitForTextAsync("shipping", AppHarness.Timeout, Ct);
         await AppHarness.WaitForTableFocusAsync(terminal, topicTable);
-        await Save(terminal, dir, "08-topic-subscriptions");
+        await Save(terminal, dir, "topic-subscriptions");
         await Key(terminal, ConsoleKey.Escape, '\u001b');
         await terminal.WaitForTextAsync("Topics (3)", AppHarness.Timeout, Ct);
         await AppHarness.WaitForTableFocusAsync(terminal);
         await Key(terminal, ConsoleKey.Escape, '\u001b');
-        await terminal.WaitForTextAsync("[F3] 📥 All Subscriptions", AppHarness.Timeout, Ct);
+        await terminal.WaitUntilAsync(f => f.ContainsText("[F3] 📥 All Subscriptions") && f.ContainsText("sb-orders-prd"), AppHarness.Timeout, cancellationToken: Ct);
 
         connectionFocus = terminal.FocusKey;
         await AppHarness.ClickTextAsync(terminal, "[F3] 📥 All Subscriptions");
         await AppHarness.WaitForTableFocusAsync(terminal, connectionFocus);
         await terminal.WaitForTextAsync("All Subscriptions (5)", AppHarness.Timeout, Ct);
-        await Save(terminal, dir, "09-all-subscriptions");
+        await Save(terminal, dir, "all-subscriptions");
     }
 
     private static AppHarness SampleApp()
     {
-        var app = new AppHarness();
+        // Shown on the connection page; keep the real home folder out of published screenshots.
+        var app = new AppHarness { CacheDirectory = "/home/you/.local/share/sb-console" };
         app.Namespaces.Subscriptions.AddRange(
         [
             new AzureSubscription("Contoso Production", "6f1d2c3b-0000-4000-8000-000000000002"),

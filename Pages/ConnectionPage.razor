@@ -211,7 +211,7 @@
         if (NavState.AzureSubscription is { IsEmulator: false } previous && !_subscriptions.Contains(previous)) _subscriptions.Add(previous);
         UpdateVisible();
         _ = Catalog.EnsureLoadedAsync();
-        await SelectSubscription(NavState.AzureSubscription ?? AzureSubscription.Emulator);
+        await SelectSubscription(NavState.AzureSubscription ?? AzureSubscription.Emulator, debounce: false);
     }
 
     public void Dispose() => Catalog.Changed -= OnCatalogChanged;
@@ -318,7 +318,7 @@
         StateHasChanged();
     }
 
-    private async Task SelectSubscription(AzureSubscription subscription)
+    private async Task SelectSubscription(AzureSubscription subscription, bool debounce = true)
     {
         // Take the token for *this* run: a newer selection replaces the field.
         _cts.Cancel();
@@ -344,7 +344,7 @@
         try
         {
             // Arrowing through subscriptions should not query Azure for each one passed.
-            await Task.Delay(SubscriptionDebounce, token);
+            if (debounce) await Task.Delay(SubscriptionDebounce, token);
             await foreach (var ns in NamespaceService.GetNamespacesAsync(subscription, token))
             {
                 if (token.IsCancellationRequested) return;

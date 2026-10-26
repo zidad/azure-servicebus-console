@@ -1,8 +1,8 @@
 """Render cell JSON from tests/ServiceBusConsole.Tests/Screenshots.cs to PNG.
 
-    SCREENSHOT_DIR=/tmp/shots dotnet test tests/ServiceBusConsole.Tests
-    python tools/render-screenshots.py /tmp/shots
+    python tools/render-screenshots.py <json dir> [<png dir>]
 
+Use tools/update-screenshots.sh to regenerate docs/screenshots.
 Needs Pillow; uses macOS Menlo and Apple Color Emoji.
 """
 import json
@@ -36,7 +36,7 @@ def dim(hex_color: str) -> str:
     return "#%02x%02x%02x" % tuple(int(c * 0.55 + int(BACKGROUND[i:i + 2], 16) * 0.45) for c, i in ((r, 1), (g, 3), (b, 5)))
 
 
-def render(path: Path) -> Path:
+def render(path: Path, out_dir: Path) -> Path:
     data = json.loads(path.read_text())
     width, height = data["Width"], data["Height"]
     pad = 14
@@ -68,11 +68,14 @@ def render(path: Path) -> Path:
             draw.text((px, py + 1), text, font=bold if deco & BOLD else regular, fill=color)
             if deco & UNDERLINE:
                 draw.line([px, py + cell_h - 2, px + cell_w, py + cell_h - 2], fill=color)
-    out = path.with_suffix(".png")
+    out = out_dir / path.with_suffix(".png").name
     image.save(out)
     return out
 
 
 if __name__ == "__main__":
-    for file in sorted(Path(sys.argv[1]).glob("*.json")):
-        print(render(file))
+    source = Path(sys.argv[1])
+    target = Path(sys.argv[2]) if len(sys.argv) > 2 else source
+    target.mkdir(parents=True, exist_ok=True)
+    for file in sorted(source.glob("*.json")):
+        print(render(file, target))
