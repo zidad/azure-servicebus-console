@@ -104,7 +104,7 @@
 
 <AsyncCommand @ref="_purgeDlq" TItem="string"
               ConfirmMessage="@(n => $"Purge ALL messages from DLQ of '{n}'? This cannot be undone.")"
-              Execute="@(n => MessageService.PurgeMessagesAsync(new MessageSource(n!, IsDlq: true)))"
+              Execute="@(n => MessageService.PurgeMessagesAsync(new MessageSource(n!, IsDlq: true), _ => { }))"
               OnCompleted="@(n => { if (_all.FirstOrDefault(q => q.Name == n) is {} q) q.DeadLetterMessageCount = 0; UpdateFilterState(_filter); StateHasChanged(); return Task.CompletedTask; })" />
 
 @code {

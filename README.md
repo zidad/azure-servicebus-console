@@ -21,7 +21,7 @@ dotnet tool update -g Net.Azure.ServiceBusConsole
 ## Features
 
 - Lists the Azure subscriptions of your `az` login by name, hides the ones without Service Bus namespaces, and lets you filter them; the local emulator is always available
-- Namespace details (resource group, location, SKU, status) on the connection page and in every page's header
+- Namespace details (resource group, location, SKU, status) on the connection page
 - Switch subscription, namespace or section (Queues, Topics, All Subscriptions) from dropdowns in the header
 - Queues and topics with live message counts (active, DLQ, scheduled, transfer); everything loads from a local cache first, then refreshes
 - Sort any list by clicking a column header (ascending, descending, off); the default sort (DLQ) shows in the header
@@ -30,7 +30,7 @@ dotnet tool update -g Net.Azure.ServiceBusConsole
 - Peek, receive (PeekLock) or receive-and-delete a chosen number of messages, like the Azure portal's Service Bus Explorer
 - Multi-select messages (`Space`, click the checkbox, `A` all, `I` invert) and act on all of them at once
 - Locked messages: complete, abandon, dead-letter or requeue; locks renew automatically and are released when you leave
-- Message properties and body, with JSON syntax highlighting
+- Split message browser: the list on top, a preview of the message under the cursor below (properties left, JSON-highlighted body right); `Enter` opens it full screen
 - Dead-letter queue browsing per queue and per subscription; requeue dead-lettered messages to their origin
 - Delete queues, topics or subscriptions; purge (dead-letter) queues
 - Mouse support: buttons, rows, column headers, header dropdowns, wheel scrolling
@@ -113,10 +113,11 @@ dotnet tool update -g Net.Azure.ServiceBusConsole
 | `F9` / `Del` | Complete *(locked)* |
 | `F4` | Abandon *(locked)* |
 | `F3` | Dead-letter *(locked, active queue)* |
-| `F10` | Requeue *(locked DLQ, or received-and-deleted)* / Resend copy *(peeked)* |
+| `F10` | **Retry** *(dead-letter queue)* / Requeue *(received-and-deleted)* / Resend copy *(peeked, active queue)* |
 | `F11` | Purge |
 | `↑` / `↓` | Move through message list |
-| `Enter` | View message detail |
+| `Tab` | Move into the preview body (`↑` / `↓` scroll it; page keys keep working) |
+| `Enter` | Open the message full screen |
 
 Actions apply to the selected messages, or to the focused one when nothing is selected.
 
@@ -153,12 +154,13 @@ Logs are written to `./logs/session-<timestamp>.log` on each run.
 
 The browser follows the Service Bus Explorer in the Azure portal:
 
-- **Peek** is read-only. `F10` sends copies; the originals stay.
+- **Peek** is read-only.
+- **Retry** (dead-letter queue): peek, select the messages to retry, press `F10`. The selected messages are locked, sent to the origin queue (or the topic, for subscriptions: every subscription gets a copy) in order, then removed from the dead-letter queue. Service Bus can only lock from the front of a queue, so dead-lettered messages ahead of them are locked briefly and released; their delivery count goes up by one and they stay in the dead-letter queue. Already locked or received messages are retried the same way, without the extra lock step.
 - **Receive (PeekLock)** locks the messages on a receiver that stays open. Locks are renewed in the background and abandoned when you leave the page or load something else, so messages come back right away instead of after lock expiry.
-- **Requeue** sends copies to the origin queue (or the topic, for subscriptions: every subscription gets a copy) in order, then completes the locked originals.
 - **Receive (ReceiveAndDelete)** removes messages immediately; requeue them before leaving or they are gone.
+- **Resend** (active queue, peeked) sends copies; the originals stay.
 
-Bulk actions report partial failures; failed messages stay selected so you can retry.
+Bulk actions show a progress dialog (`Esc` cancels). When done it shows the result, including any failures, until you press `Enter` (OK); failed messages stay selected so you can retry. If nothing is left in the list, OK returns to the queue or subscription list.
 
 ## Releasing
 

@@ -103,7 +103,7 @@
 
 <AsyncCommand @ref="_purgeDlq" TItem="SubscriptionInfo"
               ConfirmMessage="@(s => $"Purge ALL messages from DLQ of '{s!.TopicName}/{s.Name}'? This cannot be undone.")"
-              Execute="@(s => MessageService.PurgeMessagesAsync(new MessageSource(s!.Name, IsDlq: true, s.TopicName, s.Name)))"
+              Execute="@(s => MessageService.PurgeMessagesAsync(new MessageSource(s!.Name, IsDlq: true, s.TopicName, s.Name), _ => { }))"
               OnCompleted="@(s => { if (_all.FirstOrDefault(x => x.TopicName == s!.TopicName && x.Name == s.Name) is {} x) x.DeadLetterMessageCount = 0; SortAndUpdateFilterState(); StateHasChanged(); return Task.CompletedTask; })" />
 
 @code {

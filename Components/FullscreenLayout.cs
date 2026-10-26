@@ -15,8 +15,8 @@ public static class FullscreenLayout
     /// <summary><c>SpectreTable</c> with <c>TableBorder.Rounded</c> — top + header + separator + bottom = 4 lines.</summary>
     public const int RoundedTableChrome = 4;
 
-    /// <summary><c>SpectreTable</c> with <c>TableBorder.Simple</c> — header row + separator = 2 lines.</summary>
-    public const int SimpleTableChrome = 2;
+    /// <summary><c>SpectreTable</c> with <c>TableBorder.Simple</c> — top + header + separator + bottom = 4 lines.</summary>
+    public const int SimpleTableChrome = 4;
 
     /// <summary>A footer <c>TextInput</c> (default Rounded border, no outer padder) — 3 lines.</summary>
     public const int FooterTextInput = 3;
@@ -50,9 +50,12 @@ public static class FullscreenLayout
         => PageSize(terminalHeight, Header + RoundedTableChrome + FooterButtons);
 
     /// <summary>
-    /// PageSize for a page with a <c>TableBorder.Simple</c> table and only a button bar footer.
-    /// Chrome: Header + CountRow + SimpleTableChrome + FooterButtons = 8.
+    /// Message browser: list rows on top and the preview of the focused message below, about half each.
     /// </summary>
-    public static int PageSizeSimpleTable(int terminalHeight)
-        => PageSize(terminalHeight, Header + CountRow + SimpleTableChrome + FooterButtons);
+    public static (int Rows, int Preview) BrowserSplit(int terminalHeight)
+    {
+        var available = terminalHeight - 1 - (Header + CountRow + SimpleTableChrome + FooterButtons);
+        var rows = Math.Max(3, available / 2);
+        return (rows, Math.Max(6, available - rows));
+    }
 }

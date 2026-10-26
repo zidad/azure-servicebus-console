@@ -48,6 +48,7 @@ public static class Icons
     public const string Purge = "🧹";
     public const string Back = "🔙";
     public const string Send = "📤";
+    public const string Retry = "🔁";
     public const string Complete = "✅";
     public const string Active = "✅";
     public const string Inactive = "⛔";
@@ -56,6 +57,10 @@ public static class Icons
     public const string Confirm = "❓";
     public const string Error = "❌";
     public const string Selected = "✅";
+    public const string Done = "✅";
+    public const string Running = "⏳";
+    public const string Pending = "⬜";
+    public const string Cancelled = "🛑";
     public const string Unselected = "⬜";
 
     public static string NamespaceStatus(string? status) => status switch

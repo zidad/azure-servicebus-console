@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using RazorConsole.Core.Focus;
 using RazorConsole.Core.Rendering;
 using RazorConsole.Testing;
+using ServiceBusConsole.Syntax;
 
 namespace ServiceBusConsole.Tests;
 
@@ -48,6 +49,7 @@ public sealed class AppHarness
                     services.AddSingleton<MessageBrowserStore>();
                     services.AddSingleton(new FileCache(NullLogger<FileCache>.Instance, CacheDirectory));
                     services.AddSingleton<SubscriptionCatalog>();
+                    services.AddSyntaxLanguages();
                 },
             },
             TestContext.Current.CancellationToken);
@@ -77,12 +79,12 @@ public sealed class AppHarness
     /// <param name="previousKey">The focus key before navigating; the previous page's table also has focus order 1.</param>
     public static Task WaitForTableFocusAsync(HeadlessTerminal terminal, string? previousKey = null)
         => terminal.WaitUntilAsync(
-            _ => terminal.FocusKey != previousKey && FocusedOrder(terminal) == "1",
+            _ => terminal.FocusKey != previousKey && FocusedAttribute(terminal, "data-focus-order") == "1",
             Timeout,
             cancellationToken: TestContext.Current.CancellationToken);
 
     // HeadlessTerminal exposes only the focus key, so read the focused element's attributes from FocusManager.
-    private static string? FocusedOrder(HeadlessTerminal terminal)
+    public static string? FocusedAttribute(HeadlessTerminal terminal, string name)
     {
         var focus = terminal.Services.GetRequiredService<FocusManager>();
         var field = typeof(FocusManager).GetField("_focusTargets", BindingFlags.NonPublic | BindingFlags.Instance)
@@ -93,7 +95,7 @@ public sealed class AppHarness
             var type = target.GetType();
             if (type.GetProperty("Key")?.GetValue(target) as string != focus.CurrentFocusKey) continue;
             return type.GetProperty("Attributes")?.GetValue(target) is IReadOnlyDictionary<string, string?> attributes
-                ? attributes.GetValueOrDefault("data-focus-order")
+                ? attributes.GetValueOrDefault(name)
                 : null;
         }
         return null;

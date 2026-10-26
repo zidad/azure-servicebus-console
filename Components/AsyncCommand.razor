@@ -51,7 +51,7 @@
         switch (e.Key)
         {
             case "Y": case "y": case "Enter": case "Return":
-                _ = ExecuteConfirmed();
+                ExecuteConfirmed();
                 return true;
             case "N": case "n": case "Escape":
                 Cancel();
@@ -60,11 +60,12 @@
         return false;
     }
 
-    private Task ExecuteConfirmed()
+    // Not awaited: the key or click that confirmed must not hold up input (e.g. Esc to cancel) while it runs.
+    private void ExecuteConfirmed()
     {
         var item = _pending;
         _pending = default;
-        return RunAsync(item);
+        _ = RunAsync(item);
     }
 
     private async Task RunAsync(TItem? item)
