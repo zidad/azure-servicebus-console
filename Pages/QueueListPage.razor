@@ -13,14 +13,14 @@
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
     <Header>
-        <Markup Content="Queues" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
-        @if (_all.Count > 0) { <Markup Content="@ConnectionHeader.Count(_filtered.Count, _all.Count)" Foreground="@Color.Grey" /> }
+        <SectionCrumb Section="@Section.Queues" Current="true" />
+        @if (_all.Count > 0) { <Markup Content="@ConnectionHeader.Count(_filtered.Count, _all.Count)" Foreground="@Theme.Muted" /> }
     </Header>
     <Content>
         @if (_all.Count == 0 && _loadFailed)
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
-                <Markup Content="Failed to load. Press [F5] to retry." Foreground="@Color.Red" />
+                <Markup Content="Failed to load. Press [F5] to retry." Foreground="@Theme.Danger" />
             </Padder>
         }
         else if (_all.Count == 0)
@@ -28,7 +28,7 @@
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
                     <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
-                    <Markup Content="Loading queues..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+                    <Markup Content="Loading queues..." Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
                 </Columns>
             </Padder>
         }
@@ -45,9 +45,9 @@
                         <SpectreTR>
                             <SpectreTH Align="Justify.Left"><SortHeader Label="Queue" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
                             <SpectreTH Align="Justify.Right"><SortHeader Label="Active" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="DLQ" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="Scheduled" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="Transfer" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="DLQ" Icon="@Icons.DeadLetter" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="Scheduled" Icon="@Icons.Scheduled" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="Transfer" Icon="@Icons.Transfer" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
                             <SpectreTH></SpectreTH>
                         </SpectreTR>
                     </SpectreTHead>
@@ -62,10 +62,10 @@
                             var idx = i++;
                             <SpectreTR @key="q.Name" RowIndex="@idx">
                                 <SpectreTD>@q.Name</SpectreTD>
-                                <SpectreTD Align="Justify.Right">@q.ActiveMessageCount</SpectreTD>
-                                <SpectreTD Align="Justify.Right">@(q.DeadLetterMessageCount > 0 ? $"! {q.DeadLetterMessageCount}" : "0")</SpectreTD>
-                                <SpectreTD Align="Justify.Right">@q.ScheduledMessageCount</SpectreTD>
-                                <SpectreTD Align="Justify.Right">@q.TransferMessageCount</SpectreTD>
+                                <SpectreTD Align="Justify.Right"><CountCell Value="@q.ActiveMessageCount" /></SpectreTD>
+                                <SpectreTD Align="Justify.Right"><CountCell Value="@q.DeadLetterMessageCount" Color="@Theme.Danger" Bold="true" /></SpectreTD>
+                                <SpectreTD Align="Justify.Right"><CountCell Value="@q.ScheduledMessageCount" Color="@Theme.Scheduled" /></SpectreTD>
+                                <SpectreTD Align="Justify.Right"><CountCell Value="@q.TransferMessageCount" Color="@Theme.Transfer" /></SpectreTD>
                                 <SpectreTD>@if (q.IsRefreshing) { <Spinner /> }</SpectreTD>
                             </SpectreTR>
                         }
@@ -83,13 +83,13 @@
 
         <Padder Padding="@(new(1, 0, 0, 0))">
             <Columns>
-                <TextButton Content="[F5] Refresh" OnClick="LoadQueues" FocusedColor="@Color.Green" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F5] 🔄 Refresh" OnClick="LoadQueues" FocusedColor="@Theme.Success" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[F9] Delete" OnClick="@(() => _deleteQueue!.Invoke(_focusedItem))" FocusedColor="@Color.Red" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F9] ❌ Delete" OnClick="@(() => _deleteQueue!.Invoke(_focusedItem))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[F11] Purge DLQ" OnClick="@(() => _purgeDlq!.Invoke(_focusedItem))" FocusedColor="@Color.Red" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F11] 🧹 Purge DLQ" OnClick="@(() => _purgeDlq!.Invoke(_focusedItem))" FocusedColor="@Theme.Danger" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Color.Yellow" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[Esc] 🔙 Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Theme.Accent" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
     </Footer>
@@ -121,12 +121,13 @@
     private readonly RenderThrottle _renderThrottle = new();
     private SpectreTBody? _tbody;
     private bool _tableAutoFocused;
-    private readonly TableSort<QueueInfo> _sort = new TableSort<QueueInfo>(qs => qs.OrderByDescending(q => q.DeadLetterMessageCount).ThenBy(q => q.Name))
+    private readonly TableSort<QueueInfo> _sort = new TableSort<QueueInfo>(qs => qs.OrderBy(q => q.Name))
         .Add("Queue", q => q.Name, StringComparer.OrdinalIgnoreCase)
         .Add("Active", q => q.ActiveMessageCount)
         .Add("DLQ", q => q.DeadLetterMessageCount)
         .Add("Scheduled", q => q.ScheduledMessageCount)
-        .Add("Transfer", q => q.TransferMessageCount);
+        .Add("Transfer", q => q.TransferMessageCount)
+        .SortBy("DLQ", SortDirection.Descending);
 
     public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 

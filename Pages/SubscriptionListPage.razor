@@ -12,16 +12,16 @@
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
     <Header>
-        <Markup Content="Topics" Foreground="@Color.Grey" />
-        <Markup Content=" › " Foreground="@Color.Grey" />
-        <Markup Content="@TopicName" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
-        @if (_subscriptions.Count > 0) { <Markup Content="@ConnectionHeader.Count(_subscriptions.Count, _subscriptions.Count)" Foreground="@Color.Grey" /> }
+        <SectionCrumb Section="@Section.Topics" />
+        <Markup Content=" › " Foreground="@Theme.Muted" />
+        <Markup Content="@($"{Icons.Subscription} {TopicName}")" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
+        @if (_subscriptions.Count > 0) { <Markup Content="@ConnectionHeader.Count(_subscriptions.Count, _subscriptions.Count)" Foreground="@Theme.Muted" /> }
     </Header>
     <Content>
         @if (_subscriptions.Count == 0 && _loadFailed)
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
-                <Markup Content="Failed to load. Press [F5] to retry." Foreground="@Color.Red" />
+                <Markup Content="Failed to load. Press [F5] to retry." Foreground="@Theme.Danger" />
             </Padder>
         }
         else if (_subscriptions.Count == 0)
@@ -29,7 +29,7 @@
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
                     <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
-                    <Markup Content="Loading subscriptions..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+                    <Markup Content="Loading subscriptions..." Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
                 </Columns>
             </Padder>
         }
@@ -46,8 +46,8 @@
                         <SpectreTR>
                             <SpectreTH Align="Justify.Left"><SortHeader Label="Subscription" Sort="_sort" OnSorted="SortAndReanchor" /></SpectreTH>
                             <SpectreTH Align="Justify.Right"><SortHeader Label="Active" Sort="_sort" OnSorted="SortAndReanchor" /></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="DLQ" Sort="_sort" OnSorted="SortAndReanchor" /></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="Transfer" Sort="_sort" OnSorted="SortAndReanchor" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="DLQ" Icon="@Icons.DeadLetter" Sort="_sort" OnSorted="SortAndReanchor" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="Transfer" Icon="@Icons.Transfer" Sort="_sort" OnSorted="SortAndReanchor" /></SpectreTH>
                             <SpectreTH></SpectreTH>
                         </SpectreTR>
                     </SpectreTHead>
@@ -62,9 +62,9 @@
                             var idx = i++;
                             <SpectreTR @key="s.Name" RowIndex="@idx">
                                 <SpectreTD>@s.Name</SpectreTD>
-                                <SpectreTD Align="Justify.Right">@s.ActiveMessageCount</SpectreTD>
-                                <SpectreTD Align="Justify.Right">@(s.DeadLetterMessageCount > 0 ? $"! {s.DeadLetterMessageCount}" : "0")</SpectreTD>
-                                <SpectreTD Align="Justify.Right">@s.TransferMessageCount</SpectreTD>
+                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.ActiveMessageCount" /></SpectreTD>
+                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.DeadLetterMessageCount" Color="@Theme.Danger" Bold="true" /></SpectreTD>
+                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.TransferMessageCount" Color="@Theme.Transfer" /></SpectreTD>
                                 <SpectreTD>@if (s.IsRefreshing) { <Spinner /> }</SpectreTD>
                             </SpectreTR>
                         }
@@ -76,13 +76,13 @@
     <Footer>
         <Padder Padding="@(new(1, 0, 0, 0))">
             <Columns>
-                <TextButton Content="[F5] Refresh" OnClick="LoadSubscriptions" FocusedColor="@Color.Green" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F5] 🔄 Refresh" OnClick="LoadSubscriptions" FocusedColor="@Theme.Success" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[F9] Delete" OnClick="@(() => _deleteSub!.Invoke(_focusedItem))" FocusedColor="@Color.Red" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F9] ❌ Delete" OnClick="@(() => _deleteSub!.Invoke(_focusedItem))" FocusedColor="@Theme.Danger" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[F11] Purge DLQ" OnClick="@(() => _purgeDlq!.Invoke(_focusedItem))" FocusedColor="@Color.Red" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F11] 🧹 Purge DLQ" OnClick="@(() => _purgeDlq!.Invoke(_focusedItem))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/topics"))" FocusedColor="@Color.Yellow" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[Esc] 🔙 Back" OnClick="@(() => Nav.NavigateTo("/topics"))" FocusedColor="@Theme.Accent" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
     </Footer>
@@ -118,7 +118,8 @@
         .Add("Subscription", s => s.Name, StringComparer.OrdinalIgnoreCase)
         .Add("Active", s => s.ActiveMessageCount)
         .Add("DLQ", s => s.DeadLetterMessageCount)
-        .Add("Transfer", s => s.TransferMessageCount);
+        .Add("Transfer", s => s.TransferMessageCount)
+        .SortBy("Subscription", SortDirection.Ascending);
 
     public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 

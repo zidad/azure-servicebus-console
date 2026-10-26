@@ -6,9 +6,9 @@
 
 <MessageBrowserView Entity="@(new MessageSource(QueueName, IsDlq: true))" BackPath="/queues">
     <Breadcrumb>
-        <Markup Content="Queues" Foreground="@Color.Grey" />
-        <Markup Content=" › " Foreground="@Color.Grey" />
-        <Markup Content="@QueueName" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+        <SectionCrumb Section="@Section.Queues" />
+        <Markup Content=" › " Foreground="@Theme.Muted" />
+        <Markup Content="@QueueName" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
     </Breadcrumb>
 </MessageBrowserView>
 

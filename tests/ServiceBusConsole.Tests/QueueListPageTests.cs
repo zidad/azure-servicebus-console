@@ -36,8 +36,10 @@ public sealed class QueueListPageTests
 
         var frame = await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
 
-        frame.ContainsText("! 3").ShouldBeTrue(frame.ScreenText);
-        frame.GetLine(1).ShouldContain("Local Emulator  ›  localhost  ›  Queues");
+        frame.GetLine(RowOf(frame, "payments")).ShouldNotContain("💀");
+        frame.GetLine(RowOf(frame, "payments")).ShouldContain(" 3 ");
+        frame.ContainsText("💀 DLQ").ShouldBeTrue(frame.ScreenText);
+        frame.GetLine(1).ShouldContain("🧪 Local Emulator  ›  🌐 localhost  ›  📬 Queues (3)");
         RowOf(frame, "payments").ShouldBeLessThan(RowOf(frame, "emails"));
         RowOf(frame, "emails").ShouldBeLessThan(RowOf(frame, "orders"));
     }
@@ -124,10 +126,25 @@ public sealed class QueueListPageTests
         RowOf(frame, "orders").ShouldBeLessThan(RowOf(frame, "emails"));
         RowOf(frame, "emails").ShouldBeLessThan(RowOf(frame, "payments"));
 
+        // Off: no column sorted, neutral order by name.
         await AppHarness.ClickTextAsync(terminal, "Active ▼");
         frame = await terminal.WaitUntilAsync(f => f.ContainsText("Active") && !f.ContainsText("▲") && !f.ContainsText("▼"), AppHarness.Timeout, cancellationToken: Ct);
-        RowOf(frame, "payments").ShouldBeLessThan(RowOf(frame, "emails"));
         RowOf(frame, "emails").ShouldBeLessThan(RowOf(frame, "orders"));
+        RowOf(frame, "orders").ShouldBeLessThan(RowOf(frame, "payments"));
+    }
+
+    [Fact]
+    public async Task DefaultDlqSort_ShowsInHeader_AndClickTurnsItOff()
+    {
+        await using var terminal = await WithQueues().OpenQueuesAsync();
+        var frame = await terminal.WaitForTextAsync("DLQ ▼", AppHarness.Timeout, Ct);
+        RowOf(frame, "payments").ShouldBeLessThan(RowOf(frame, "emails"));
+
+        await AppHarness.ClickTextAsync(terminal, "DLQ ▼");
+
+        frame = await terminal.WaitUntilAsync(f => !f.ContainsText("▲") && !f.ContainsText("▼"), AppHarness.Timeout, cancellationToken: Ct);
+        RowOf(frame, "emails").ShouldBeLessThan(RowOf(frame, "orders"));
+        RowOf(frame, "orders").ShouldBeLessThan(RowOf(frame, "payments"));
     }
 
     [Fact]
@@ -159,5 +176,27 @@ public sealed class QueueListPageTests
         await terminal.SendKeyAsync(ConsoleKey.F9, '\0', cancellationToken: Ct);
 
         await terminal.WaitForTextAsync("Delete queue 'payments'?", AppHarness.Timeout, Ct);
+    }
+
+    [Fact]
+    public async Task FilterBox_IsNotStyledFocused_WhenTheTableHasFocus()
+    {
+        await using var terminal = await WithQueues().OpenQueuesAsync();
+        await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
+
+        // The filter is the first focusable element while the queues load; once the table takes focus,
+        // its border must go back to the unfocused color.
+        await AppHarness.WaitForTableFocusAsync(terminal);
+        await Task.Delay(300, Ct);
+        FilterBorder(terminal.CurrentFrame).ShouldNotBe(Spectre.Console.Color.Yellow);
+    }
+
+    private static Spectre.Console.Color? FilterBorder(TerminalFrame frame)
+    {
+        for (var y = frame.Height - 1; y >= 0; y--)
+        {
+            if (frame[0, y].Text == "╭") return frame[0, y].Style?.Foreground;
+        }
+        return null;
     }
 }

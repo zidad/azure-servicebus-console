@@ -37,8 +37,8 @@ public sealed class MessageBrowserTests
 
         var frame = await terminal.WaitUntilAsync(f => f.ContainsText("order-created") && f.ContainsText("order-paid"), AppHarness.Timeout, cancellationToken: Ct);
 
-        frame.ContainsText("[F6] View Active").ShouldBeTrue(frame.ScreenText);
-        frame.GetLine(1).ShouldContain("Local Emulator  ›  localhost  ›  Queues  ›  orders");
+        frame.ContainsText("[F6] 📬 View Active").ShouldBeTrue(frame.ScreenText);
+        frame.GetLine(1).ShouldContain("🧪 Local Emulator  ›  🌐 localhost  ›  📬 Queues  ›  orders 💀 DLQ");
         app.Messages.Peeked.ShouldBe([new MessageSource("orders", IsDlq: true)]);
     }
 
@@ -53,6 +53,6 @@ public sealed class MessageBrowserTests
 
         var frame = await terminal.WaitForTextAsync("Message #1", AppHarness.Timeout, Ct);
         frame.ContainsText("\"id\": 1").ShouldBeTrue(frame.ScreenText);
-        frame.GetLine(1).ShouldContain("Local Emulator  ›  localhost  ›");
+        frame.GetLine(1).ShouldContain("🧪 Local Emulator  ›  🌐 localhost  ›  📬 orders DLQ  ›  📨 Message #1");
     }
 }

@@ -11,14 +11,14 @@
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
     <Header>
-        <Markup Content="Topics" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
-        @if (_all.Count > 0) { <Markup Content="@ConnectionHeader.Count(_filtered.Count, _all.Count)" Foreground="@Color.Grey" /> }
+        <SectionCrumb Section="@Section.Topics" Current="true" />
+        @if (_all.Count > 0) { <Markup Content="@ConnectionHeader.Count(_filtered.Count, _all.Count)" Foreground="@Theme.Muted" /> }
     </Header>
     <Content>
         @if (_all.Count == 0 && _loadFailed)
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
-                <Markup Content="Failed to load. Press [F5] to retry." Foreground="@Color.Red" />
+                <Markup Content="Failed to load. Press [F5] to retry." Foreground="@Theme.Danger" />
             </Padder>
         }
         else if (_all.Count == 0)
@@ -26,7 +26,7 @@
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
                     <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
-                    <Markup Content="Loading topics..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+                    <Markup Content="Loading topics..." Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
                 </Columns>
             </Padder>
         }
@@ -42,8 +42,8 @@
                     <SpectreTHead>
                         <SpectreTR>
                             <SpectreTH Align="Justify.Left"><SortHeader Label="Topic" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="Subscriptions" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="Scheduled" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="Subscriptions" Icon="@Icons.Subscription" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="Scheduled" Icon="@Icons.Scheduled" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
                             <SpectreTH></SpectreTH>
                         </SpectreTR>
                     </SpectreTHead>
@@ -58,8 +58,8 @@
                             var idx = i++;
                             <SpectreTR @key="t.Name" RowIndex="@idx">
                                 <SpectreTD>@t.Name</SpectreTD>
-                                <SpectreTD Align="Justify.Right">@t.SubscriptionCount</SpectreTD>
-                                <SpectreTD Align="Justify.Right">@t.ScheduledMessageCount</SpectreTD>
+                                <SpectreTD Align="Justify.Right"><CountCell Value="@t.SubscriptionCount" /></SpectreTD>
+                                <SpectreTD Align="Justify.Right"><CountCell Value="@t.ScheduledMessageCount" Color="@Theme.Scheduled" /></SpectreTD>
                                 <SpectreTD>@if (t.IsRefreshing) { <Spinner /> }</SpectreTD>
                             </SpectreTR>
                         }
@@ -77,11 +77,11 @@
 
         <Padder Padding="@(new(1, 0, 0, 0))">
             <Columns>
-                <TextButton Content="[F5] Refresh" OnClick="LoadTopics" FocusedColor="@Color.Green" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F5] 🔄 Refresh" OnClick="LoadTopics" FocusedColor="@Theme.Success" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[F9] Delete" OnClick="@(() => _deleteTopic!.Invoke(_focusedItem))" FocusedColor="@Color.Red" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F9] ❌ Delete" OnClick="@(() => _deleteTopic!.Invoke(_focusedItem))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Color.Yellow" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[Esc] 🔙 Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Theme.Accent" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
     </Footer>

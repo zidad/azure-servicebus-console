@@ -4,19 +4,42 @@
 @inject NavigationState NavState
 @inject ServiceBusConnection Connection
 @inject INamespaceService NamespaceService
+@inject SubscriptionCatalog Catalog
 @inject MessageBrowserStore Store
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 
 @if (_mode != PickerMode.Closed)
 {
     <div class="connection-picker" position="absolute" left="@_left" top="@_top" data-opaque="true" z-index="100">
-        <Panel Title="@Title" BorderColor="@Color.DodgerBlue1" Padding="@(new(0, 0, 0, 0))">
-            @if (_mode == PickerMode.Subscriptions)
+        <Panel Title="@Title" BorderColor="@Theme.Accent" Padding="@(new(0, 0, 0, 0))">
+            @if (_mode == PickerMode.Sections)
             {
-                <Scrollable Items="@AzureSubscriptions.All"
-                            PageSize="@AzureSubscriptions.All.Length"
+                <Scrollable Items="@Section.All"
+                            PageSize="@Section.All.Count"
                             SelectedIndex="@_index"
                             SelectedIndexChanged="@(i => _index = i)"
+                            ActivateOnClick="true"
+                            OnActivate="PickSection">
+                    <SpectreTable Border="TableBorder.None">
+                        <SpectreTBody @ref="_body" Navigable="true" RowCount="@context.Items.Count" OnKeyDown="@HandleKeyDown">
+                            @{ var i = 0; }
+                            @foreach (var section in context.Items)
+                            {
+                                var idx = i++;
+                                <SpectreTR @key="section.Route" RowIndex="@idx"><SpectreTD>@section.Label</SpectreTD></SpectreTR>
+                            }
+                        </SpectreTBody>
+                    </SpectreTable>
+                </Scrollable>
+            }
+            else if (_mode == PickerMode.Subscriptions)
+            {
+                <Scrollable Items="@_subscriptions"
+                            PageSize="@Math.Clamp(_subscriptions.Count, 1, 10)"
+                            Scrollbar="new()"
+                            SelectedIndex="@_index"
+                            SelectedIndexChanged="@(i => _index = i)"
+                            ActivateOnClick="true"
                             OnActivate="PickSubscription">
                     <SpectreTable Border="TableBorder.None">
                         <SpectreTBody @ref="_body" Navigable="true" RowCount="@context.Items.Count" OnKeyDown="@HandleKeyDown">
@@ -24,7 +47,7 @@
                             @foreach (var sub in context.Items)
                             {
                                 var idx = i++;
-                                <SpectreTR @key="sub.Name" RowIndex="@idx"><SpectreTD>@sub.Name</SpectreTD></SpectreTR>
+                                <SpectreTR @key="@(sub.Id ?? "")" RowIndex="@idx"><SpectreTD>@($"{(sub.IsEmulator ? Icons.Emulator : Icons.AzureSubscription)} {sub.Name}")</SpectreTD></SpectreTR>
                             }
                         </SpectreTBody>
                     </SpectreTable>
@@ -36,13 +59,13 @@
                     @if (_loading)
                     {
                         <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
-                        <Markup Content="Discovering namespaces..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+                        <Markup Content="Discovering namespaces..." Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
                     }
                     else
                     {
-                        <Markup Content="@(_error ?? "No namespaces.")" Foreground="@Color.Red" />
+                        <Markup Content="@(_error ?? "No namespaces.")" Foreground="@Theme.Danger" />
                     }
-                    <TextButton @ref="_closeButton" Content="[Esc] Close" OnClick="Close" FocusedColor="@Color.Grey" OnKeyDown="@HandleKeyDown" />
+                    <TextButton @ref="_closeButton" Content="[Esc] Close" OnClick="Close" FocusedColor="@Theme.Muted" OnKeyDown="@HandleKeyDown" />
                 </Columns>
             }
             else
@@ -52,6 +75,7 @@
                             Scrollbar="new()"
                             SelectedIndex="@_index"
                             SelectedIndexChanged="@(i => _index = i)"
+                            ActivateOnClick="true"
                             OnActivate="PickNamespace">
                     <SpectreTable Border="TableBorder.None">
                         <SpectreTBody @ref="_body" Navigable="true" RowCount="@context.Items.Count" OnKeyDown="@HandleKeyDown">
@@ -59,7 +83,7 @@
                             @foreach (var ns in context.Items)
                             {
                                 var idx = i++;
-                                <SpectreTR @key="ns.Name" RowIndex="@idx"><SpectreTD>@ns.Name</SpectreTD></SpectreTR>
+                                <SpectreTR @key="ns.Name" RowIndex="@idx"><SpectreTD>@($"{Icons.Namespace} {ns.Name}")</SpectreTD></SpectreTR>
                             }
                         </SpectreTBody>
                     </SpectreTable>
@@ -70,13 +94,14 @@
 }
 
 @code {
-    private enum PickerMode { Closed, Subscriptions, Namespaces }
+    private enum PickerMode { Closed, Sections, Subscriptions, Namespaces }
 
     private PickerMode _mode;
     private int _left;
     private int _top;
     private int _index;
     private AzureSubscription? _subscription;
+    private List<AzureSubscription> _subscriptions = [AzureSubscription.Emulator];
     private List<NamespaceInfo> _namespaces = [];
     private bool _loading;
     private string? _error;
@@ -86,26 +111,72 @@
     private string? _returnFocusKey;
     private bool _focusPending;
 
-    private string Title => _mode == PickerMode.Subscriptions ? "Azure subscription" : $"Namespaces in {_subscription?.Name}";
+    private string Title => _mode switch
+    {
+        PickerMode.Sections => "Go to",
+        PickerMode.Subscriptions => "Azure subscription",
+        _ => $"Namespaces in {_subscription?.Name}",
+    };
 
-    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+    public void Dispose()
+    {
+        Catalog.Changed -= OnCatalogChanged;
+        _cts.Cancel();
+        _cts.Dispose();
+    }
 
     /// <summary>Opens the subscription list at a screen position (just below the clicked text).</summary>
     public void OpenSubscriptions(int left, int top)
     {
         Open(left, top);
+        _cts.Cancel();
         _mode = PickerMode.Subscriptions;
-        _index = Math.Max(0, Array.FindIndex(AzureSubscriptions.All, s => s.Name == NavState.AzureSubscriptionName));
+        RefreshSubscriptions(keepHighlight: false);
+        _ = Catalog.EnsureLoadedAsync();
         StateHasChanged();
     }
 
+    protected override void OnInitialized() => Catalog.Changed += OnCatalogChanged;
+
+    private void OnCatalogChanged() => _ = InvokeAsync(() =>
+    {
+        if (_mode != PickerMode.Subscriptions) return;
+        RefreshSubscriptions(keepHighlight: true);
+        StateHasChanged();
+    });
+
+    // Same rule as the connection page: hide subscriptions known to have no Service Bus namespaces.
+    private void RefreshSubscriptions(bool keepHighlight)
+    {
+        var highlighted = keepHighlight ? _subscriptions.ElementAtOrDefault(_index) : null;
+        _subscriptions = [.. Catalog.Subscriptions.Where(s => s == NavState.AzureSubscription || Catalog.HasNamespaces(s) != false)];
+        _index = Math.Max(0, _subscriptions.IndexOf(highlighted ?? NavState.AzureSubscription ?? AzureSubscription.Emulator));
+    }
+
     /// <summary>Opens the namespace list of the current subscription.</summary>
+    public void OpenSections(int left, int top)
+    {
+        Open(left, top);
+        _cts.Cancel();
+        _mode = PickerMode.Sections;
+        var root = SectionRoot();
+        _index = Math.Max(0, Section.All.ToList().FindIndex(s => s.Route == root));
+        StateHasChanged();
+    }
+
+    private void PickSection()
+    {
+        var section = Section.All[_index];
+        var onIt = "/" + Nav.ToBaseRelativePath(Nav.Uri) == section.Route;
+        _returnFocusKey = onIt ? _returnFocusKey : null;
+        Close();
+        if (!onIt) Nav.NavigateTo(section.Route);
+    }
+
     public void OpenNamespaces(int left, int top)
     {
         Open(left, top);
-        var current = AzureSubscriptions.All.FirstOrDefault(s => s.Name == NavState.AzureSubscriptionName);
-        if (current is null) return;
-        _ = ShowNamespaces(current);
+        _ = ShowNamespaces(NavState.AzureSubscription ?? AzureSubscription.Emulator);
     }
 
     private void Open(int left, int top)
@@ -140,7 +211,7 @@
         if (_returnFocusKey is { } key) _ = FocusManager.FocusAsync(key);
     }
 
-    private Task PickSubscription() => ShowNamespaces(AzureSubscriptions.All[_index]);
+    private Task PickSubscription() => ShowNamespaces(_subscriptions[_index]);
 
     private async Task ShowNamespaces(AzureSubscription subscription)
     {
@@ -181,7 +252,7 @@
         _cts.Cancel();
         _mode = PickerMode.Closed;
         _returnFocusKey = null;
-        if (ns.FullyQualifiedNamespace == Connection.CurrentNamespace && subscription.Name == NavState.AzureSubscriptionName)
+        if (ns.FullyQualifiedNamespace == Connection.CurrentNamespace && subscription == NavState.AzureSubscription)
         {
             Close();
             return;
@@ -189,7 +260,7 @@
 
         // The store keys browsers by queue name only; a same-named queue elsewhere must not reuse its locks.
         await Store.CloseAsync();
-        NavState.AzureSubscriptionName = subscription.Name;
+        NavState.AzureSubscription = subscription;
         var section = SectionRoot();
         if (Nav.ToBaseRelativePath(Nav.Uri) == section.TrimStart('/'))
         {
