@@ -157,7 +157,7 @@ Authentication uses `AzureCliCredential` — no connection strings or API keys a
 git clone --recurse-submodules https://github.com/zidad/azure-servicebus-console
 cd azure-servicebus-console
 az login
-dotnet run
+dotnet run --project src/ServiceBusConsole
 ```
 
 Logs are written to `./logs/session-<timestamp>.log` on each run.

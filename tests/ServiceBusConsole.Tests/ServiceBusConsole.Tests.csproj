@@ -1,21 +1,25 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <OutputType>Exe</OutputType>
     <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../ServiceBusConsole.csproj" />
+    <ProjectReference Include="../../src/ServiceBusConsole/ServiceBusConsole.csproj" />
     <ProjectReference Include="../../lib/RazorConsole/src/RazorConsole.Testing/RazorConsole.Testing.csproj" />
-    <PackageReference Include="xunit.v3" Version="3.2.0" />
-    <PackageReference Include="Shouldly" Version="4.3.0" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Shouldly" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
     <Using Include="Shouldly" />
+    <Using Include="ServiceBusConsole.Messaging" />
+    <Using Include="ServiceBusConsole.Models" />
+    <Using Include="ServiceBusConsole.Services" />
+    <Using Include="ServiceBusConsole.Services.Caching" />
+    <Using Include="ServiceBusConsole.Syntax" />
+    <Using Include="ServiceBusConsole.Threading" />
+    <Using Include="ServiceBusConsole.UI" />
   </ItemGroup>
 </Project>

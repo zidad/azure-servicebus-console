@@ -1,5 +1,3 @@
-using Spectre.Console;
-
 namespace ServiceBusConsole.Tests;
 
 public sealed class CountChangesTests

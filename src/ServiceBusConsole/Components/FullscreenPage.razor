@@ -1,0 +1,29 @@
+@using Microsoft.AspNetCore.Components.Web
+@inject ITerminalViewport Viewport
+
+<Flex Class="rows" Direction="FlexDirection.Column" @onkeydown="OnKeyDown" FillWidth="true">
+    <Flex Direction="FlexDirection.Column" Height="@(Viewport.Height - 1)" Justify="FlexJustify.SpaceBetween" FillWidth="true">
+        <Rows FillWidth="true">
+            <ConnectionHeader>@Header</ConnectionHeader>
+            @Content
+        </Rows>
+        <Rows FillWidth="true">
+            @Footer
+        </Rows>
+    </Flex>
+</Flex>
+
+@code {
+    /// <summary>
+    /// Fullscreen page layout: an outer column <c>Flex</c> captures keyboard events, wrapping a
+    /// <c>Flex</c> (Column, <see cref="FlexJustify.SpaceBetween"/>) whose two children are
+    /// the main content and the footer. <c>SpaceBetween</c> pins the footer to the bottom of
+    /// the terminal even when the content is short. Use
+    /// <see cref="FullscreenLayout.PageSize(int, int)"/> to compute <c>Scrollable.PageSize</c>.
+    /// </summary>
+    /// <summary>Breadcrumb pieces for the page, shown inside the <see cref="ConnectionHeader"/>.</summary>
+    [Parameter] public RenderFragment? Header { get; set; }
+    [Parameter, EditorRequired] public RenderFragment Content { get; set; } = default!;
+    [Parameter, EditorRequired] public RenderFragment Footer { get; set; } = default!;
+    [Parameter] public EventCallback<KeyboardEventArgs> OnKeyDown { get; set; }
+}

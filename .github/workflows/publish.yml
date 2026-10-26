@@ -34,11 +34,11 @@ jobs:
 
       # After the tests, which build without the version; pack --no-build uses this build.
       - name: Build
-        run: dotnet build ServiceBusConsole.csproj --configuration Release -p:Version=${{ steps.version.outputs.VERSION }}
+        run: dotnet build src/ServiceBusConsole/ServiceBusConsole.csproj --configuration Release -p:Version=${{ steps.version.outputs.VERSION }}
 
       - name: Pack
         run: |
-          dotnet pack ServiceBusConsole.csproj --configuration Release --no-build \
+          dotnet pack src/ServiceBusConsole/ServiceBusConsole.csproj --configuration Release --no-build \
             -p:Version=${{ steps.version.outputs.VERSION }} \
             --output ./artifacts
 

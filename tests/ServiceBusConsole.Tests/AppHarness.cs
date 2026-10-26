@@ -1,14 +1,13 @@
 using System.Collections;
 using System.Reflection;
 using Azure.Identity;
-using LLMAgentTUI.Components;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using RazorConsole.Core.Focus;
 using RazorConsole.Core.Rendering;
 using RazorConsole.Testing;
-using ServiceBusConsole.Syntax;
+using ServiceBusConsole.Components;
 
 namespace ServiceBusConsole.Tests;
 
