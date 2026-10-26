@@ -35,4 +35,27 @@ public sealed class TopicListPageTests
         RowOf(frame, "zeta").ShouldBeLessThan(RowOf(frame, "alpha"));
         RowOf(frame, "alpha").ShouldBeLessThan(RowOf(frame, "mid"));
     }
+
+    [Fact]
+    public async Task Poll_UpdatesCounts_AndDropsDeletedTopics()
+    {
+        var app = new AppHarness();
+        app.LiveCounts.Interval = TimeSpan.FromMilliseconds(50);
+        app.Topics.Topics.AddRange(
+        [
+            new TopicInfo { Name = "orders", SubscriptionCount = 2 },
+            new TopicInfo { Name = "legacy", SubscriptionCount = 1 },
+        ]);
+        await using var terminal = await app.OpenTopicsAsync();
+        await terminal.WaitForTextAsync("legacy", AppHarness.Timeout, Ct);
+
+        lock (app.Topics.Topics)
+        {
+            app.Topics.Topics.Single(t => t.Name == "orders").ScheduledMessageCount = 40;
+            app.Topics.Topics.RemoveAll(t => t.Name == "legacy");
+        }
+
+        var frame = await terminal.WaitUntilAsync(f => !f.ContainsText("legacy") && f.GetLine(RowOf(f, "orders")).Contains(" 40 "), AppHarness.Timeout, cancellationToken: Ct);
+        frame.ContainsText("Topics (1)").ShouldBeTrue(frame.ScreenText);
+    }
 }

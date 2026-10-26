@@ -69,6 +69,8 @@ This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, que
 
 **Theme:** colors and icons come from `Theme` and `Icons` (`Theme.cs`), chosen by meaning (danger, warning, muted, ...). Counts use `<CountCell>` (muted when zero). Only use emoji with default emoji presentation: ones that need U+FE0F (⚠️, 🗑️, ⬅️) are one cell wide in some terminals and break table alignment.
 
+**List pages:** rows live in a `LiveList<T>` (`LiveList.cs`): first load shows cached then live rows, then it polls every `LiveCountsOptions.Interval` (15 s; keep it slow for Service Bus throttling) and `CountChanges<T>` highlights changed counts (`<CountCell Highlight=...>`) for 2 s. Azure listings use the paged `Get*RuntimePropertiesAsync` calls, one request per 100 entities.
+
 **Syntax highlighting:** `Syntax/JsonLanguage.cs` replaces ColorCode's JSON grammar, which hangs on arrays of long strings (`AddSyntaxLanguages`, also called by `AppHarness`). Remove it once a ColorCode.Core release includes CommunityToolkit/ColorCode-Universal PR #46.
 
 **Azure subscriptions** are listed from Azure with the signed-in `az` account (`INamespaceService.GetSubscriptionsAsync`, cached like namespaces) and shown by display name; the local emulator is always the first entry (`AzureSubscription.Emulator`).

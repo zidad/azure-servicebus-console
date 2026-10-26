@@ -23,7 +23,7 @@ dotnet tool update -g Net.Azure.ServiceBusConsole
 - Lists the Azure subscriptions of your `az` login by name, hides the ones without Service Bus namespaces, and lets you filter them; the local emulator is always available
 - Namespace details (resource group, location, SKU, status) on the connection page
 - Switch subscription, namespace or section (Queues, Topics, All Subscriptions) from dropdowns in the header
-- Queues and topics with live message counts (active, DLQ, scheduled, transfer); everything loads from a local cache first, then refreshes
+- Queues, topics and subscriptions with live message counts (active, DLQ, scheduled, transfer): everything loads from a local cache first, then polls every 15 seconds; changed counts flash briefly
 - Sort any list by clicking a column header (ascending, descending, off); the default sort (DLQ) shows in the header
 - Filter queues, topics, subscriptions and Azure subscriptions by typing
 - Color-coded counts and states: dead letters in red, zero counts dimmed, lock and browse modes highlighted

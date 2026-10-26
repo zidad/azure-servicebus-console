@@ -9,6 +9,8 @@
 @inject IMessageService MessageService
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 @inject ITerminalViewport Viewport
+@inject LiveCountsOptions LiveCounts
+@inject Microsoft.Extensions.Logging.ILogger<SubscriptionListPage> Logger
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
     <Header>
@@ -62,9 +64,9 @@
                             var idx = i++;
                             <SpectreTR @key="s.Name" RowIndex="@idx">
                                 <SpectreTD>@s.Name</SpectreTD>
-                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.ActiveMessageCount" /></SpectreTD>
-                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.DeadLetterMessageCount" Color="@Theme.Danger" Bold="true" /></SpectreTD>
-                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.TransferMessageCount" Color="@Theme.Transfer" /></SpectreTD>
+                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.ActiveMessageCount" Highlight="@List.Changes.Highlight(s, "Active")" /></SpectreTD>
+                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.DeadLetterMessageCount" Color="@Theme.Danger" Bold="true" Highlight="@List.Changes.Highlight(s, "DLQ")" /></SpectreTD>
+                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.TransferMessageCount" Color="@Theme.Transfer" Highlight="@List.Changes.Highlight(s, "Transfer")" /></SpectreTD>
                                 <SpectreTD>@if (s.IsRefreshing) { <Spinner /> }</SpectreTD>
                             </SpectreTR>
                         }
@@ -93,7 +95,7 @@
 <AsyncCommand @ref="_deleteSub" TItem="string"
               ConfirmMessage="@(n => $"Delete subscription '{n}' from topic '{TopicName}'? This cannot be undone.")"
               Execute="@(n => TopicService.DeleteSubscriptionAsync(TopicName, n!))"
-              OnCompleted="@(n => { _subscriptions.RemoveAll(s => s.Name == n); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _subscriptions.Count - 1)); _focusedItem = _subscriptions.ElementAtOrDefault(_selectedIndex)?.Name; StateHasChanged(); return Task.CompletedTask; })" />
+              OnCompleted="@(n => { List.All.RemoveAll(s => s.Name == n); SortAndReanchor(); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _subscriptions.Count - 1)); _focusedItem = _subscriptions.ElementAtOrDefault(_selectedIndex)?.Name; StateHasChanged(); return Task.CompletedTask; })" />
 
 <AsyncCommand @ref="_purgeDlq" TItem="string"
               ConfirmMessage="@(n => $"Purge ALL messages from DLQ of '{TopicName}/{n}'? This cannot be undone.")"
@@ -103,6 +105,8 @@
 @code {
     private string TopicName => NavState.TopicName ?? "";
 
+    private LiveList<SubscriptionInfo>? _live;
+    private LiveList<SubscriptionInfo> List => _live ?? throw new InvalidOperationException("Subscription list not initialized");
     private List<SubscriptionInfo> _subscriptions = [];
     private int _selectedIndex;
     private string? _focusedItem;
@@ -110,8 +114,6 @@
     private AsyncCommand<string>? _deleteSub;
     private AsyncCommand<string>? _purgeDlq;
     private bool _loadFailed;
-    private CancellationTokenSource _cts = new();
-    private readonly RenderThrottle _renderThrottle = new();
     private SpectreTBody? _tbody;
     private bool _tableAutoFocused;
     private readonly TableSort<SubscriptionInfo> _sort = new TableSort<SubscriptionInfo>(ss => ss.OrderBy(s => s.Name))
@@ -121,11 +123,19 @@
         .Add("Transfer", s => s.TransferMessageCount)
         .SortBy("Subscription", SortDirection.Ascending);
 
-    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+    public void Dispose() => _live?.Dispose();
 
 
     protected override void OnInitialized()
     {
+        _live = new LiveList<SubscriptionInfo>(ct => TopicService.GetSubscriptionsAsync(TopicName, ct), s => s.Name, x => x.IsRefreshing,
+            new(s => s.Name, ("Active", x => x.ActiveMessageCount), ("DLQ", x => x.DeadLetterMessageCount), ("Transfer", x => x.TransferMessageCount)),
+            LiveCounts, Logger)
+        {
+            Changed = () => { SortAndReanchor(); return InvokeAsync(StateHasChanged); },
+            Render = StateHasChanged,
+            LoadFailed = ex => { _loadFailed = true; _error = ex.Message; return InvokeAsync(StateHasChanged); },
+        };
         if (Connection.CurrentNamespace is null)
             Nav.NavigateTo("/");
         _focusedItem = NavState.SubscriptionName;
@@ -142,54 +152,17 @@
         }
     }
 
-    private async Task LoadSubscriptions()
+    private Task LoadSubscriptions()
     {
-        // Take the token for *this* run: F5 replaces the field, and a superseded run
-        // must not read the new run's token and conclude it was never cancelled.
-        _cts.Cancel();
-        var token = (_cts = new CancellationTokenSource()).Token;
         _error = string.Empty;
         _loadFailed = false;
-
-        var live = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        _renderThrottle.Reset();
-        var transitionRendered = false;
-
-        try
-        {
-            await foreach (var s in TopicService.GetSubscriptionsAsync(TopicName, token))
-            {
-                if (token.IsCancellationRequested) break;
-                if (!s.IsRefreshing) live.Add(s.Name);
-                var idx = _subscriptions.FindIndex(x => x.Name == s.Name);
-                if (idx >= 0) _subscriptions[idx] = s; else _subscriptions.Add(s);
-
-                // Cached rows arrive in one burst, so force a render when the first live
-                // row lands; after that the throttle paces the (network-bound) stream.
-                var firstLive = !s.IsRefreshing && !transitionRendered;
-                if (firstLive) transitionRendered = true;
-
-                if (firstLive || _renderThrottle.ShouldRender())
-                {
-                    SortAndReanchor();
-                    await InvokeAsync(StateHasChanged);
-                }
-            }
-
-            if (!token.IsCancellationRequested)
-                _subscriptions.RemoveAll(s => !live.Contains(s.Name));
-
-            SortAndReanchor();
-            await InvokeAsync(StateHasChanged);
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { _loadFailed = true; _error = ex.Message; await InvokeAsync(StateHasChanged); }
+        return List.LoadAsync();
     }
 
     private void SortAndReanchor()
     {
         var focused = _focusedItem;
-        _subscriptions = _sort.Apply(_subscriptions);
+        _subscriptions = _sort.Apply(List.All);
         if (focused is not null)
         {
             var newIdx = _subscriptions.FindIndex(s => s.Name == focused);

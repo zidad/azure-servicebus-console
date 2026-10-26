@@ -8,6 +8,8 @@
 @inject ITopicService TopicService
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 @inject ITerminalViewport Viewport
+@inject LiveCountsOptions LiveCounts
+@inject Microsoft.Extensions.Logging.ILogger<TopicListPage> Logger
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
     <Header>
@@ -58,8 +60,8 @@
                             var idx = i++;
                             <SpectreTR @key="t.Name" RowIndex="@idx">
                                 <SpectreTD>@t.Name</SpectreTD>
-                                <SpectreTD Align="Justify.Right"><CountCell Value="@t.SubscriptionCount" /></SpectreTD>
-                                <SpectreTD Align="Justify.Right"><CountCell Value="@t.ScheduledMessageCount" Color="@Theme.Scheduled" /></SpectreTD>
+                                <SpectreTD Align="Justify.Right"><CountCell Value="@t.SubscriptionCount" Highlight="@List.Changes.Highlight(t, "Subscriptions")" /></SpectreTD>
+                                <SpectreTD Align="Justify.Right"><CountCell Value="@t.ScheduledMessageCount" Color="@Theme.Scheduled" Highlight="@List.Changes.Highlight(t, "Scheduled")" /></SpectreTD>
                                 <SpectreTD>@if (t.IsRefreshing) { <Spinner /> }</SpectreTD>
                             </SpectreTR>
                         }
@@ -89,7 +91,9 @@
               OnCompleted="@(n => { _all.RemoveAll(t => t.Name == n); UpdateFilterState(_filter); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1)); _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex)?.Name; StateHasChanged(); return Task.CompletedTask; })" />
 
 @code {
-    private List<TopicInfo> _all = [];
+    private LiveList<TopicInfo>? _live;
+    private LiveList<TopicInfo> List => _live ?? throw new InvalidOperationException("Topic list not initialized");
+    private List<TopicInfo> _all => List.All;
     private List<TopicInfo> _filtered = [];
     private string? _filter;
     private int _selectedIndex;
@@ -97,8 +101,6 @@
     private string _error = string.Empty;
     private AsyncCommand<string>? _deleteTopic;
     private bool _loadFailed;
-    private CancellationTokenSource _cts = new();
-    private readonly RenderThrottle _renderThrottle = new();
     private SpectreTBody? _tbody;
     private bool _tableAutoFocused;
     private readonly TableSort<TopicInfo> _sort = new TableSort<TopicInfo>(ts => ts)
@@ -106,11 +108,19 @@
         .Add("Subscriptions", t => t.SubscriptionCount)
         .Add("Scheduled", t => t.ScheduledMessageCount);
 
-    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+    public void Dispose() => _live?.Dispose();
 
 
     protected override void OnInitialized()
     {
+        _live = new LiveList<TopicInfo>(TopicService.GetTopicsAsync, t => t.Name, x => x.IsRefreshing,
+            new(t => t.Name, ("Subscriptions", x => x.SubscriptionCount), ("Scheduled", x => x.ScheduledMessageCount)),
+            LiveCounts, Logger)
+        {
+            Changed = () => { UpdateFilterState(_filter); return InvokeAsync(StateHasChanged); },
+            Render = StateHasChanged,
+            LoadFailed = ex => { _loadFailed = true; _error = ex.Message; return InvokeAsync(StateHasChanged); },
+        };
         if (Connection.CurrentNamespace is null)
             Nav.NavigateTo("/");
         _focusedItem = NavState.TopicName;
@@ -127,49 +137,11 @@
         }
     }
 
-    private async Task LoadTopics()
+    private Task LoadTopics()
     {
-        // Take the token for *this* run: F5 replaces the field, and a superseded run
-        // must not read the new run's token and conclude it was never cancelled.
-        _cts.Cancel();
-        var token = (_cts = new CancellationTokenSource()).Token;
         _error = string.Empty;
         _loadFailed = false;
-
-        var live = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        _renderThrottle.Reset();
-        var transitionRendered = false;
-
-        try
-        {
-            await foreach (var t in TopicService.GetTopicsAsync(token))
-            {
-                if (token.IsCancellationRequested) break;
-                if (!t.IsRefreshing) live.Add(t.Name);
-                var idx = _all.FindIndex(x => x.Name == t.Name);
-                if (idx >= 0) _all[idx] = t; else _all.Add(t);
-
-                // Cached rows arrive in one burst, so force a render when the first live
-                // row lands; after that the throttle paces the (network-bound) stream.
-                var firstLive = !t.IsRefreshing && !transitionRendered;
-                if (firstLive) transitionRendered = true;
-
-                if (firstLive || _renderThrottle.ShouldRender())
-                {
-                    UpdateFilterState(_filter);
-                    await InvokeAsync(StateHasChanged);
-                }
-            }
-
-            if (!token.IsCancellationRequested)
-            {
-                _all.RemoveAll(t => !live.Contains(t.Name));
-                UpdateFilterState(_filter);
-            }
-            await InvokeAsync(StateHasChanged);
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { _loadFailed = true; _error = ex.Message; await InvokeAsync(StateHasChanged); }
+        return List.LoadAsync();
     }
 
     private void UpdateFilterState(string? value)

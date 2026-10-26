@@ -20,6 +20,7 @@ public sealed class AppHarness
 
     public FakeNamespaceService Namespaces { get; } = new();
     public FakeQueueService Queues { get; } = new();
+    public LiveCountsOptions LiveCounts { get; } = new();
     public FakeTopicService Topics { get; } = new();
     public FakeMessageService Messages { get; } = new();
     public NavigationState NavState { get; } = new();
@@ -50,6 +51,7 @@ public sealed class AppHarness
                     services.AddSingleton(new FileCache(NullLogger<FileCache>.Instance, CacheDirectory));
                     services.AddSingleton<SubscriptionCatalog>();
                     services.AddSyntaxLanguages();
+                    services.AddSingleton(LiveCounts);
                 },
             },
             TestContext.Current.CancellationToken);

@@ -14,6 +14,10 @@ public static class Theme
     public static readonly Color Scheduled = Color.SkyBlue2;
     public static readonly Color Transfer = Color.MediumPurple2;
 
+    /// <summary>Background of a count that just changed; fades to <see cref="ChangedFadeTo"/>, a dark terminal background.</summary>
+    public static readonly Color Changed = new(140, 110, 0);
+    public static readonly Color ChangedFadeTo = new(30, 30, 30);
+
     public static Color NamespaceStatus(string? status) => status switch
     {
         "Active" => Success,
