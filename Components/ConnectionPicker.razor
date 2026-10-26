@@ -1,0 +1,215 @@
+@namespace LLMAgentTUI.Components
+@implements IDisposable
+@inject NavigationManager Nav
+@inject NavigationState NavState
+@inject ServiceBusConnection Connection
+@inject INamespaceService NamespaceService
+@inject MessageBrowserStore Store
+@inject RazorConsole.Core.Focus.FocusManager FocusManager
+
+@if (_mode != PickerMode.Closed)
+{
+    <div class="connection-picker" position="absolute" left="@_left" top="@_top" data-opaque="true" z-index="100">
+        <Panel Title="@Title" BorderColor="@Color.DodgerBlue1" Padding="@(new(0, 0, 0, 0))">
+            @if (_mode == PickerMode.Subscriptions)
+            {
+                <Scrollable Items="@AzureSubscriptions.All"
+                            PageSize="@AzureSubscriptions.All.Length"
+                            SelectedIndex="@_index"
+                            SelectedIndexChanged="@(i => _index = i)"
+                            OnActivate="PickSubscription">
+                    <SpectreTable Border="TableBorder.None">
+                        <SpectreTBody @ref="_body" Navigable="true" RowCount="@context.Items.Count" OnKeyDown="@HandleKeyDown">
+                            @{ var i = 0; }
+                            @foreach (var sub in context.Items)
+                            {
+                                var idx = i++;
+                                <SpectreTR @key="sub.Name" RowIndex="@idx"><SpectreTD>@sub.Name</SpectreTD></SpectreTR>
+                            }
+                        </SpectreTBody>
+                    </SpectreTable>
+                </Scrollable>
+            }
+            else if (_namespaces.Count == 0)
+            {
+                <Columns>
+                    @if (_loading)
+                    {
+                        <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                        <Markup Content="Discovering namespaces..." Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+                    }
+                    else
+                    {
+                        <Markup Content="@(_error ?? "No namespaces.")" Foreground="@Color.Red" />
+                    }
+                    <TextButton @ref="_closeButton" Content="[Esc] Close" OnClick="Close" FocusedColor="@Color.Grey" OnKeyDown="@HandleKeyDown" />
+                </Columns>
+            }
+            else
+            {
+                <Scrollable Items="@_namespaces"
+                            PageSize="@Math.Min(_namespaces.Count, 10)"
+                            Scrollbar="new()"
+                            SelectedIndex="@_index"
+                            SelectedIndexChanged="@(i => _index = i)"
+                            OnActivate="PickNamespace">
+                    <SpectreTable Border="TableBorder.None">
+                        <SpectreTBody @ref="_body" Navigable="true" RowCount="@context.Items.Count" OnKeyDown="@HandleKeyDown">
+                            @{ var i = 0; }
+                            @foreach (var ns in context.Items)
+                            {
+                                var idx = i++;
+                                <SpectreTR @key="ns.Name" RowIndex="@idx"><SpectreTD>@ns.Name</SpectreTD></SpectreTR>
+                            }
+                        </SpectreTBody>
+                    </SpectreTable>
+                </Scrollable>
+            }
+        </Panel>
+    </div>
+}
+
+@code {
+    private enum PickerMode { Closed, Subscriptions, Namespaces }
+
+    private PickerMode _mode;
+    private int _left;
+    private int _top;
+    private int _index;
+    private AzureSubscription? _subscription;
+    private List<NamespaceInfo> _namespaces = [];
+    private bool _loading;
+    private string? _error;
+    private CancellationTokenSource _cts = new();
+    private SpectreTBody? _body;
+    private TextButton? _closeButton;
+    private string? _returnFocusKey;
+    private bool _focusPending;
+
+    private string Title => _mode == PickerMode.Subscriptions ? "Azure subscription" : $"Namespaces in {_subscription?.Name}";
+
+    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+
+    /// <summary>Opens the subscription list at a screen position (just below the clicked text).</summary>
+    public void OpenSubscriptions(int left, int top)
+    {
+        Open(left, top);
+        _mode = PickerMode.Subscriptions;
+        _index = Math.Max(0, Array.FindIndex(AzureSubscriptions.All, s => s.Name == NavState.AzureSubscriptionName));
+        StateHasChanged();
+    }
+
+    /// <summary>Opens the namespace list of the current subscription.</summary>
+    public void OpenNamespaces(int left, int top)
+    {
+        Open(left, top);
+        var current = AzureSubscriptions.All.FirstOrDefault(s => s.Name == NavState.AzureSubscriptionName);
+        if (current is null) return;
+        _ = ShowNamespaces(current);
+    }
+
+    private void Open(int left, int top)
+    {
+        if (_mode == PickerMode.Closed) _returnFocusKey = FocusManager.CurrentFocusKey;
+        _left = left;
+        _top = top;
+        _focusPending = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusPending) return;
+        var key = _mode == PickerMode.Closed ? null
+            : _namespaces.Count == 0 && _mode == PickerMode.Namespaces ? _closeButton?.FocusKey
+            : _body?.FocusKey;
+        if (key is null) return;
+        _focusPending = false;
+        await FocusManager.FocusAsync(key);
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") Close();
+    }
+
+    private void Close()
+    {
+        _cts.Cancel();
+        _mode = PickerMode.Closed;
+        StateHasChanged();
+        if (_returnFocusKey is { } key) _ = FocusManager.FocusAsync(key);
+    }
+
+    private Task PickSubscription() => ShowNamespaces(AzureSubscriptions.All[_index]);
+
+    private async Task ShowNamespaces(AzureSubscription subscription)
+    {
+        _cts.Cancel();
+        var token = (_cts = new CancellationTokenSource()).Token;
+        _mode = PickerMode.Namespaces;
+        _subscription = subscription;
+        _namespaces = [];
+        _index = 0;
+        _error = null;
+        _loading = true;
+        _focusPending = true;
+        StateHasChanged();
+
+        try
+        {
+            await foreach (var ns in NamespaceService.GetNamespacesAsync(subscription, token))
+            {
+                if (token.IsCancellationRequested) return;
+                var idx = _namespaces.FindIndex(x => x.Name == ns.Name);
+                if (idx >= 0) _namespaces[idx] = ns; else _namespaces.Add(ns);
+                if (ns.FullyQualifiedNamespace == Connection.CurrentNamespace) _index = _namespaces.FindIndex(x => x.Name == ns.Name);
+                // The list replaces the spinner, so focus moves from the close button to it.
+                if (_namespaces.Count == 1) _focusPending = true;
+                StateHasChanged();
+            }
+        }
+        catch (OperationCanceledException) { return; }
+        catch (Exception ex) { _error = ex.Message; }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task PickNamespace()
+    {
+        if (_subscription is not { } subscription || _namespaces.ElementAtOrDefault(_index) is not { } ns) return;
+        _cts.Cancel();
+        _mode = PickerMode.Closed;
+        _returnFocusKey = null;
+        if (ns.FullyQualifiedNamespace == Connection.CurrentNamespace && subscription.Name == NavState.AzureSubscriptionName)
+        {
+            Close();
+            return;
+        }
+
+        // The store keys browsers by queue name only; a same-named queue elsewhere must not reuse its locks.
+        await Store.CloseAsync();
+        NavState.AzureSubscriptionName = subscription.Name;
+        var section = SectionRoot();
+        if (Nav.ToBaseRelativePath(Nav.Uri) == section.TrimStart('/'))
+        {
+            Connection.Switch(ns);
+        }
+        else
+        {
+            Connection.SetNamespace(ns);
+            Nav.NavigateTo(section);
+        }
+    }
+
+    // Names below the section (a queue, topic, message) belong to the old namespace.
+    private string SectionRoot()
+    {
+        var path = Nav.ToBaseRelativePath(Nav.Uri);
+        if (path.StartsWith("queues")) return "/queues";
+        if (path.StartsWith("subscriptions")) return "/subscriptions";
+        if (path.StartsWith("message")) return NavState.MessageSource?.TopicName is null ? "/queues" : "/topics";
+        if (path.StartsWith("subscription-browser") && NavState.ReturnPath == "/subscriptions") return "/subscriptions";
+        return "/topics";
+    }
+}

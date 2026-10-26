@@ -2,10 +2,12 @@
 @namespace ServiceBusConsole.Pages
 
 @inject NavigationManager Nav
+@inject NavigationState NavState
 @inject INamespaceService NamespaceService
 @inject ServiceBusConnection Connection
 @inject FileCache FileCache
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
+@inject ITerminalViewport Viewport
 
 <Figlet Content="SB Console" Color="@Color.DodgerBlue1" Justify="Justify.Left" />
 
@@ -18,12 +20,35 @@
 
 <Panel Title="Connection" BorderColor="@Color.Grey" FillWidth="true" Padding="@(new(1, 0, 1, 0))">
     <Rows>
-        <Select TItem="string" Options="@_subscriptions"
-                Value="@_selectedSubscription"
-                ValueChanged="@(async (string v) => await OnSubscriptionSelected(v))"
-                Placeholder="Azure Subscription..."
-                FocusOrder="1"
-                SelectedOptionForeground="@Color.DodgerBlue1" />
+        <Scrollable Items="@SubscriptionOptions"
+                    PageSize="@SubscriptionOptions.Length"
+                    SelectedIndex="@_subscriptionIndex"
+                    SelectedIndexChanged="@(i => { _subscriptionIndex = i; _ = SelectSubscription(SubscriptionOptions[i]); })"
+                    OnActivate="FocusNamespaces">
+            <SpectreTable Expand="true" Border="TableBorder.Rounded">
+                <SpectreTHead>
+                    <SpectreTR>
+                        <SpectreTH Align="Justify.Left">Azure subscription</SpectreTH>
+                        <SpectreTH Align="Justify.Left">ID</SpectreTH>
+                    </SpectreTR>
+                </SpectreTHead>
+                <SpectreTBody @ref="_subscriptionBody"
+                              Navigable="true"
+                              FocusOrder="1"
+                              RowCount="@context.Items.Count"
+                              OnKeyDown="@HandleKeyDown">
+                    @{ var i = 0; }
+                    @foreach (var sub in context.Items)
+                    {
+                        var idx = i++;
+                        <SpectreTR @key="sub.Name" RowIndex="@idx">
+                            <SpectreTD>@sub.Name</SpectreTD>
+                            <SpectreTD>@(sub.Id ?? "localhost:5672")</SpectreTD>
+                        </SpectreTR>
+                    }
+                </SpectreTBody>
+            </SpectreTable>
+        </Scrollable>
 
         @if (_namespacesLoading)
         {
@@ -43,19 +68,47 @@
                 </Columns>
             </Padder>
         }
-        else if (_namespaceOptions.Length > 0)
+        else if (_namespaces.Count > 0)
         {
-            <Padder Padding="@(new(0, 1, 0, 0))">
-                <Select @ref="_namespaceSelect" TItem="string" Options="@_namespaceOptions"
-                        Value="@_selectedNamespaceOption"
-                        ValueChanged="@((string v) => OnNamespaceSelected(v))"
-                        Placeholder="Service Bus Namespace..."
-                        FocusOrder="2"
-                        SelectedOptionForeground="@Color.DodgerBlue1" />
-            </Padder>
+            <Scrollable Items="@_namespaces"
+                        PageSize="@NamespacePageSize"
+                        Scrollbar="new()"
+                        SelectedIndex="@_namespaceIndex"
+                        SelectedIndexChanged="@(i => SelectNamespace(i))"
+                        OnActivate="@(() => Nav.NavigateTo("/queues"))">
+                <SpectreTable Expand="true" Border="TableBorder.Rounded">
+                    <SpectreTHead>
+                        <SpectreTR>
+                            <SpectreTH Align="Justify.Left">Namespace</SpectreTH>
+                            <SpectreTH Align="Justify.Left">Resource group</SpectreTH>
+                            <SpectreTH Align="Justify.Left">Location</SpectreTH>
+                            <SpectreTH Align="Justify.Left">SKU</SpectreTH>
+                            <SpectreTH Align="Justify.Left">Status</SpectreTH>
+                        </SpectreTR>
+                    </SpectreTHead>
+                    <SpectreTBody @ref="_namespaceBody"
+                                  Navigable="true"
+                                  FocusOrder="2"
+                                  RowCount="@context.Items.Count"
+                                  OnKeyDown="@HandleKeyDown">
+                        @{ var i = 0; }
+                        @foreach (var ns in context.Items)
+                        {
+                            var idx = i++;
+                            <SpectreTR @key="ns.Name" RowIndex="@idx">
+                                <SpectreTD>@ns.Name</SpectreTD>
+                                <SpectreTD>@ns.ResourceGroup</SpectreTD>
+                                <SpectreTD>@ns.Location</SpectreTD>
+                                <SpectreTD>@ns.Sku</SpectreTD>
+                                <SpectreTD>@ns.Status</SpectreTD>
+                            </SpectreTR>
+                        }
+                    </SpectreTBody>
+                </SpectreTable>
+            </Scrollable>
         }
 
-        @if (_selectedNamespaceOption is not null && !_namespacesLoading)
+        @if (ChosenNamespace is not null)
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
@@ -100,53 +153,67 @@
 <ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
 
 @code {
-    private static readonly string[] SubscriptionOptions =
-    [
-        "Local Emulator  (localhost:5672)",
-        "dev  (47ec78b6-8202-44cd-b2ea-adce486f7ff2)",
-        "tst  (f20969f7-2f17-4932-a7af-359e073160f2)",
-        "act  (365d1707-ec13-4e11-ad0a-919e5240ef03)",
-        "prd  (b8dbcf16-ed76-4c29-932b-b93ce96b0e6c)"
-    ];
+    private static AzureSubscription[] SubscriptionOptions => AzureSubscriptions.All;
 
-    private readonly string[] _subscriptions = SubscriptionOptions;
-    private string? _selectedSubscription;
+    // Figlet 6 + banner 4 + panel 2 + subscription table 9 + namespace chrome 4 + buttons 2 + cache row 2.
+    private const int NonNamespaceLines = 29;
+    private int NamespacePageSize => Math.Clamp(Viewport.Height - NonNamespaceLines, 1, 10);
+    private static readonly TimeSpan SubscriptionDebounce = TimeSpan.FromMilliseconds(250);
+
+    private int _subscriptionIndex;
+    private int _namespaceIndex;
     private List<NamespaceInfo> _namespaces = [];
-    private string[] _namespaceOptions = [];
-    private string? _selectedNamespaceOption;
     private bool _namespacesLoading;
     private bool _connectionFailed;
     private string _error = string.Empty;
     private CancellationTokenSource _cts = new();
-    private Select<string>? _namespaceSelect;
+    private SpectreTBody? _subscriptionBody;
+    private SpectreTBody? _namespaceBody;
+    private bool _subscriptionsFocused;
     private bool _focusNamespaces;
+    private string? _restoreNamespace;
+
+    private NamespaceInfo? ChosenNamespace => _namespacesLoading ? null : _namespaces.ElementAtOrDefault(_namespaceIndex);
+
+    protected override Task OnInitializedAsync()
+    {
+        _subscriptionIndex = Math.Max(0, Array.FindIndex(SubscriptionOptions, s => s.Name == NavState.AzureSubscriptionName));
+        return SelectSubscription(SubscriptionOptions[_subscriptionIndex]);
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!_focusNamespaces || _namespaceSelect is null || _namespaceOptions.Length == 0) return;
-        _focusNamespaces = false;
-        await FocusManager.FocusAsync(_namespaceSelect.FocusKey);
+        if (!_subscriptionsFocused && _subscriptionBody is not null)
+        {
+            _subscriptionsFocused = true;
+            await FocusManager.FocusAsync(_subscriptionBody.FocusKey);
+        }
+        if (_focusNamespaces && _namespaceBody is not null)
+        {
+            _focusNamespaces = false;
+            await FocusManager.FocusAsync(_namespaceBody.FocusKey);
+        }
     }
 
     private void HandleKeyDown(KeyboardEventArgs e)
     {
         if (e.CtrlKey || e.AltKey || e.MetaKey) return;
-        if (_selectedNamespaceOption is not null)
+        if (ChosenNamespace is null) return;
+        switch (e.Key)
         {
-            switch (e.Key)
-            {
-                case "F1": Nav.NavigateTo("/queues"); return;
-                case "F2": Nav.NavigateTo("/topics"); return;
-                case "F3": Nav.NavigateTo("/subscriptions"); return;
-            }
+            case "F1": Nav.NavigateTo("/queues"); return;
+            case "F2": Nav.NavigateTo("/topics"); return;
+            case "F3": Nav.NavigateTo("/subscriptions"); return;
         }
     }
 
-    private async Task RetryConnection()
+    private void FocusNamespaces()
     {
-        if (_selectedSubscription is not null)
-            await OnSubscriptionSelected(_selectedSubscription);
+        _focusNamespaces = true;
+        StateHasChanged();
     }
+
+    private Task RetryConnection() => SelectSubscription(SubscriptionOptions[_subscriptionIndex]);
 
     private string? _cacheStatus;
     private bool _cacheClearFailed;
@@ -166,23 +233,22 @@
         StateHasChanged();
     }
 
-    private async Task OnSubscriptionSelected(string value)
+    private async Task SelectSubscription(AzureSubscription subscription)
     {
-        _selectedSubscription = value;
-        _selectedNamespaceOption = null;
-        _focusNamespaces = true;
+        // Take the token for *this* run: a newer selection replaces the field.
+        _cts.Cancel();
+        var token = (_cts = new CancellationTokenSource()).Token;
         _error = string.Empty;
         _connectionFailed = false;
-        _namespaces.Clear();
-        _namespaceOptions = [];
-        _cts.Cancel();
-        _cts = new CancellationTokenSource();
+        _namespaces = [];
+        _namespaceIndex = 0;
+        _restoreNamespace = Connection.CurrentNamespace;
+        NavState.AzureSubscriptionName = subscription.Name;
 
-        if (value.StartsWith("Local Emulator"))
+        if (subscription.IsEmulator)
         {
-            _namespaces = [new NamespaceInfo { Name = "localhost", FullyQualifiedNamespace = "localhost", ResourceGroup = "", Location = "Local Emulator" }];
-            _namespaceOptions = ["localhost"];
-            StateHasChanged();
+            _namespaces = [AzureSubscriptions.EmulatorNamespace];
+            SelectNamespace(0);
             return;
         }
 
@@ -191,28 +257,33 @@
 
         try
         {
-            var subscriptionId = value[(value.IndexOf('(') + 1)..value.IndexOf(')')];
-            await foreach (var ns in NamespaceService.GetNamespacesAsync(subscriptionId, _cts.Token))
+            // Arrowing through subscriptions should not query Azure for each one passed.
+            await Task.Delay(SubscriptionDebounce, token);
+            await foreach (var ns in NamespaceService.GetNamespacesAsync(subscription, token))
             {
+                if (token.IsCancellationRequested) return;
                 _namespacesLoading = false;
                 var idx = _namespaces.FindIndex(x => x.Name == ns.Name);
                 if (idx >= 0) _namespaces[idx] = ns; else _namespaces.Add(ns);
-                _namespaceOptions = _namespaces.Select(n => n.Name).ToArray();
-                await InvokeAsync(StateHasChanged);
+                if (ns.FullyQualifiedNamespace == _restoreNamespace)
+                {
+                    _restoreNamespace = null;
+                    _namespaceIndex = _namespaces.FindIndex(x => x.Name == ns.Name);
+                }
+                SelectNamespace(_namespaceIndex);
             }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException) { return; }
         catch (Exception ex) { _connectionFailed = true; _error = ex.Message; }
 
         _namespacesLoading = false;
         StateHasChanged();
     }
 
-    private void OnNamespaceSelected(string value)
+    private void SelectNamespace(int index)
     {
-        _selectedNamespaceOption = value;
-        var ns = _namespaces.FirstOrDefault(n => n.Name == value);
-        if (ns is not null) Connection.SetNamespace(ns.FullyQualifiedNamespace);
+        _namespaceIndex = index;
+        if (_namespaces.ElementAtOrDefault(index) is { } ns) Connection.SetNamespace(ns);
         StateHasChanged();
     }
 }

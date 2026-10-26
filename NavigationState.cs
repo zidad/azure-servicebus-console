@@ -12,4 +12,5 @@ public class NavigationState
     public string? SubscriptionName { get; set; }
     public string? ReturnPath { get; set; }
     public string? FocusedQueueName { get; set; }
+    public string? AzureSubscriptionName { get; set; }
 }

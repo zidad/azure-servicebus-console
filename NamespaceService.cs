@@ -21,7 +21,9 @@ public class NamespaceService(ArmClient armClient, ILogger<NamespaceService> log
                 Name = ns.Data.Name,
                 FullyQualifiedNamespace = $"{ns.Data.Name}.servicebus.windows.net",
                 ResourceGroup = ns.Id?.ResourceGroupName ?? "",
-                Location = ns.Data.Location.DisplayName ?? ns.Data.Location.Name
+                Location = ns.Data.Location.DisplayName ?? ns.Data.Location.Name,
+                Sku = ns.Data.Sku?.Name.ToString(),
+                Status = ns.Data.Status
             };
         }
     }

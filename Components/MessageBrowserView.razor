@@ -7,19 +7,16 @@
 @inject ITerminalViewport Viewport
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
+    <Header>
+        @Breadcrumb
+        @if (_isDlq) { <Markup Content=" (DLQ)" Foreground="@Color.Yellow" /> }
+        @if (_browser is { } header)
+        {
+            <Markup Content="@ModeLabel(header.Mode)" Foreground="@ModeColor(header.Mode)" />
+        }
+        @if (_isAutoForwarding) { <Markup Content=" (auto-forwarding)" Foreground="@Color.Grey" /> }
+    </Header>
     <Content>
-        <Panel BorderColor="@Color.Grey37" FillWidth="true" Padding="@(new(0, 0, 0, 0))">
-            <Columns>
-                @Breadcrumb
-                @if (_isDlq) { <Markup Content=" (DLQ)" Foreground="@Color.Yellow" /> }
-                @if (_browser is { } header)
-                {
-                    <Markup Content="@ModeLabel(header.Mode)" Foreground="@ModeColor(header.Mode)" />
-                }
-                @if (_isAutoForwarding) { <Markup Content=" (auto-forwarding)" Foreground="@Color.Grey" /> }
-            </Columns>
-        </Panel>
-
         @if (_browser is not { } browser || _loading is not null)
         {
             <Padder Padding="@(new(0, 1, 0, 0))">

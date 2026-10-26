@@ -16,13 +16,11 @@ else
     var msg = NavState.Message;
 
     <Flex Class="rows" Direction="FlexDirection.Column" @onkeydown="HandleKeyDown">
-        <Panel BorderColor="@Color.Grey37" FillWidth="true" Padding="@(new(0, 0, 0, 0))">
-            <Columns>
-                <Markup Content="@(NavState.MessageSource?.DisplayName ?? "")" Foreground="@Color.Grey" />
-                <Markup Content=" › " Foreground="@Color.Grey" />
-                <Markup Content="@($"Message #{msg.SequenceNumber}")" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
-            </Columns>
-        </Panel>
+        <ConnectionHeader>
+            <Markup Content="@(NavState.MessageSource?.DisplayName ?? "")" Foreground="@Color.Grey" />
+            <Markup Content=" › " Foreground="@Color.Grey" />
+            <Markup Content="@($"Message #{msg.SequenceNumber}")" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+        </ConnectionHeader>
 
         <Padder Padding="@(new(0, 1, 0, 0))">
             <Panel Title="Properties" BorderColor="@Color.Grey" FillWidth="true" Padding="@(new(1, 0, 1, 0))">

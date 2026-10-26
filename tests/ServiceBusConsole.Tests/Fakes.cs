@@ -22,8 +22,11 @@ public sealed class FakeQueueService : IQueueService
     public List<string> Deleted { get; } = [];
     public Exception? LoadError { get; set; }
 
+    public int Loads { get; private set; }
+
     public async IAsyncEnumerable<QueueInfo> GetQueuesAsync([EnumeratorCancellation] CancellationToken ct = default)
     {
+        Loads++;
         await Task.Yield();
         if (LoadError is not null) throw LoadError;
         foreach (var q in Queues.ToList()) yield return q;

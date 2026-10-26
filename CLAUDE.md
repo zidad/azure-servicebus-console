@@ -13,6 +13,12 @@ git rebase origin/main
 
 Resolve any conflicts, then push with `--force-with-lease`.
 
+With every change, also rebase the fork's `azsb` branch (`lib/RazorConsole`) onto the latest upstream `RazorConsole/RazorConsole` main:
+
+- Drop fork commits upstream now covers (merged PRs, equivalent fixes); git skips identical patches on its own
+- Check each remaining customization for an upstream replacement; remove the patch and the app workaround when one exists
+- Run the fork and app tests, push `azsb` with `--force-with-lease`, bump the submodule pointer in the same PR
+
 ## Releases
 
 `publish.yml` publishes to NuGet on push to main only when `<Version>` in `ServiceBusConsole.csproj` has no `v<Version>` tag yet. Any PR that should ship (including submodule bumps) must bump `<Version>`, and put it in the PR title, e.g. `(v0.7.1)`.
@@ -58,9 +64,9 @@ This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, que
 - `FileCache.cs` — Filesystem cache; services stream cached data first, then live data.
 - `FileLogger.cs` — Simple `ILoggerProvider` that writes structured logs to a timestamped file.
 
-**UI pattern:** Use `/razorconsole` for a full component and pattern reference. Each page follows: `<Rows @onkeydown="HandleKeyDown">` root, header panel, content (table wrapped in `<Scrollable>`), action button bar. Navigation uses `Nav.NavigateTo("/route")`.
+**UI pattern:** Use `/razorconsole` for a full component and pattern reference. Namespace pages use `<FullscreenPage>`: `<Header>` (breadcrumb + count, rendered inside `ConnectionHeader`), `<Content>` (table wrapped in `<Scrollable>`), `<Footer>` (action buttons). `ConnectionHeader` shows subscription › namespace with click-to-switch pickers; switching calls `ServiceBusConnection.Switch`, which remounts the page (`App.razor` keys `RouteView` on `Connection.Version`). Navigation uses `Nav.NavigateTo("/route")`.
 
-**Azure subscription IDs** are hardcoded in `Pages/ConnectionPage.razor` in the `SubscriptionOptions` array — update these to match the target environment.
+**Azure subscription IDs** are hardcoded in `AzureSubscriptions.cs` (`AzureSubscriptions.All`) — update these to match the target environment.
 
 **Async commands:** Confirm-then-execute flows (delete, purge, requeue, etc.) use the `<AsyncCommand<TItem>>` component (`Components/AsyncCommand.razor`). It owns the pending-item, busy, and error state — pages should NOT reintroduce `_pending*` bool/field patterns or inline `ConfirmModal` + `ErrorModal` pairs per action.
 

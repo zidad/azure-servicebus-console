@@ -6,7 +6,7 @@ namespace LLMAgentTUI.Components;
 /// </summary>
 public static class FullscreenLayout
 {
-    /// <summary>Header <c>Panel</c> with default Square border — 3 lines.</summary>
+    /// <summary><see cref="ConnectionHeader"/> panel with default Square border — 3 lines.</summary>
     public const int Header = 3;
 
     /// <summary><c>Padder(0,1,0,0)</c> + a single-line count/status markup — 2 lines.</summary>
@@ -37,17 +37,17 @@ public static class FullscreenLayout
 
     /// <summary>
     /// PageSize for a page with a <c>TableBorder.Rounded</c> table and a filter <c>TextInput</c>
-    /// in the footer. Chrome: Header + CountRow + RoundedTableChrome + FooterTextInput + FooterButtons = 13.
+    /// in the footer; the count is in the header. Chrome: Header + RoundedTableChrome + FooterTextInput + FooterButtons = 11.
     /// </summary>
     public static int PageSizeRoundedTableWithFilter(int terminalHeight)
-        => PageSize(terminalHeight, Header + CountRow + RoundedTableChrome + FooterTextInput + FooterButtons);
+        => PageSize(terminalHeight, Header + RoundedTableChrome + FooterTextInput + FooterButtons);
 
     /// <summary>
     /// PageSize for a page with a <c>TableBorder.Rounded</c> table and only a button bar footer.
-    /// Chrome: Header + CountRow + RoundedTableChrome + FooterButtons = 10.
+    /// The count is in the header. Chrome: Header + RoundedTableChrome + FooterButtons = 8.
     /// </summary>
     public static int PageSizeRoundedTable(int terminalHeight)
-        => PageSize(terminalHeight, Header + CountRow + RoundedTableChrome + FooterButtons);
+        => PageSize(terminalHeight, Header + RoundedTableChrome + FooterButtons);
 
     /// <summary>
     /// PageSize for a page with a <c>TableBorder.Simple</c> table and only a button bar footer.
