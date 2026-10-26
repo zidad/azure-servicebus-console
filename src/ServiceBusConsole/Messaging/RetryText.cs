@@ -18,13 +18,15 @@ public static class RetryText
             BrowseMode.Locked => [what, requeue, "Mark complete"],
             _ => [what, requeue],
         };
-        var lines = new List<string> { $"{Label(source.IsDlq)} {what}?", "", string.Join(" → ", steps) };
-        if (mode == BrowseMode.Peek)
-            lines.AddRange(["", "Messages ahead of them in the dead-letter queue are", "locked briefly and released (delivery count +1)."]);
-        if (mode == BrowseMode.Received)
-            lines.AddRange(["", "Receive-and-delete already removed the originals."]);
-        if (source.IsSubscription)
-            lines.AddRange(["", "Every subscription of the topic gets a copy."]);
-        return string.Join('\n', lines);
+        string[][] notes =
+        [
+            mode == BrowseMode.Peek ? ["Messages ahead of them in the dead-letter queue are", "locked briefly and released (delivery count +1)."] : [],
+            mode == BrowseMode.Received ? ["Receive-and-delete already removed the originals."] : [],
+            source.IsSubscription ? ["Every subscription of the topic gets a copy."] : [],
+        ];
+        return string.Join('\n', [
+            $"{Label(source.IsDlq)} {what}?", "", string.Join(" → ", steps),
+            .. notes.Where(note => note.Length > 0).SelectMany(note => note.Prepend("")),
+        ]);
     }
 }

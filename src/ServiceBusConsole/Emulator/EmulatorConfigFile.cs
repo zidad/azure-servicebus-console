@@ -1,8 +1,7 @@
-using System.Text.Json.Serialization;
-
 namespace ServiceBusConsole.Emulator;
 
-public class EmulatorConfigFile
+/// <summary>The emulator's <c>Config.json</c>.</summary>
+public sealed record EmulatorConfigFile
 {
-    [JsonPropertyName("UserConfig")] public EmulatorUserConfig UserConfig { get; set; } = new();
+    public EmulatorUserConfig UserConfig { get; init; } = new();
 }

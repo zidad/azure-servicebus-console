@@ -42,10 +42,13 @@ public static class FullscreenLayout
     /// <summary>
     /// Message browser: list rows on top and the preview of the focused message below, about half each.
     /// </summary>
-    public static (int Rows, int Preview) BrowserSplit(int terminalHeight)
+    public static BrowserSplit Browser(int terminalHeight)
     {
         var available = terminalHeight - 1 - (Header + CountRow + SimpleTableChrome + FooterButtons);
         var rows = Math.Max(3, available / 2);
-        return (rows, Math.Max(6, available - rows));
+        return new(rows, Math.Max(6, available - rows));
     }
 }
+
+/// <summary>Lines for the message list and for the preview below it.</summary>
+public readonly record struct BrowserSplit(int Rows, int Preview);

@@ -49,11 +49,11 @@ public sealed class TopicListPageTests
         await using var terminal = await app.OpenTopicsAsync();
         await terminal.WaitForTextAsync("legacy", AppHarness.Timeout, Ct);
 
-        lock (app.Topics.Topics)
+        app.Topics.Change(topics =>
         {
-            app.Topics.Topics.Single(t => t.Name == "orders").ScheduledMessageCount = 40;
-            app.Topics.Topics.RemoveAll(t => t.Name == "legacy");
-        }
+            topics[topics.FindIndex(t => t.Name == "orders")] = topics.Single(t => t.Name == "orders") with { ScheduledMessageCount = 40 };
+            topics.RemoveAll(t => t.Name == "legacy");
+        });
 
         var frame = await terminal.WaitUntilAsync(f => !f.ContainsText("legacy") && f.GetLine(RowOf(f, "orders")).Contains(" 40 "), AppHarness.Timeout, cancellationToken: Ct);
         frame.ContainsText("Topics (1)").ShouldBeTrue(frame.ScreenText);

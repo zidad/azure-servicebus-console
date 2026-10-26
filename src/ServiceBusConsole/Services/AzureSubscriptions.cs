@@ -26,16 +26,9 @@ public static class AzureSubscriptions
     }
 
     /// <summary>Namespaces of <paramref name="subscription"/>: cached first, then live.</summary>
-    public static async IAsyncEnumerable<NamespaceInfo> GetNamespacesAsync(
-        this INamespaceService service, AzureSubscription subscription,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
-    {
-        if (subscription.Id is null)
-        {
-            yield return EmulatorNamespace;
-            yield break;
-        }
-        await foreach (var ns in service.GetNamespacesAsync(subscription.Id, ct))
-            yield return ns;
-    }
+    public static IAsyncEnumerable<NamespaceInfo> GetNamespacesAsync(
+        this INamespaceService service, AzureSubscription subscription, CancellationToken ct = default) =>
+        subscription.Id is { } id
+            ? service.GetNamespacesAsync(id, ct)
+            : new[] { EmulatorNamespace }.ToAsyncEnumerable();
 }

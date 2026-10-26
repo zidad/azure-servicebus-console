@@ -51,30 +51,31 @@ public sealed class FakeQueueService : IQueueService
 
     public int Loads { get; private set; }
 
+    /// <summary>Changes a queue while a page may be polling.</summary>
+    public void Update(string name, Func<QueueInfo, QueueInfo> change)
+    {
+        lock (Queues) Queues[Queues.FindIndex(q => q.Name == name)] = change(Queues.Single(q => q.Name == name));
+    }
+
+    public void Add(QueueInfo queue)
+    {
+        lock (Queues) Queues.Add(queue);
+    }
+
     public async IAsyncEnumerable<QueueInfo> GetQueuesAsync([EnumeratorCancellation] CancellationToken ct = default)
     {
         Loads++;
         await Task.Yield();
         if (LoadError is not null) throw LoadError;
-        // Fresh objects per listing, like the real service; tests change counts on the stored ones.
-        // Tests that change the list during polling lock it.
         List<QueueInfo> queues;
-        lock (Queues) queues = Queues.ToList();
-        foreach (var q in queues)
-            yield return new QueueInfo
-            {
-                Name = q.Name,
-                ActiveMessageCount = q.ActiveMessageCount,
-                DeadLetterMessageCount = q.DeadLetterMessageCount,
-                ScheduledMessageCount = q.ScheduledMessageCount,
-                TransferMessageCount = q.TransferMessageCount,
-            };
+        lock (Queues) queues = [.. Queues];
+        foreach (var q in queues) yield return q;
     }
 
     public Task DeleteQueueAsync(string queueName)
     {
         Deleted.Add(queueName);
-        Queues.RemoveAll(q => q.Name == queueName);
+        lock (Queues) Queues.RemoveAll(q => q.Name == queueName);
         return Task.CompletedTask;
     }
 }
@@ -84,38 +85,35 @@ public sealed class FakeTopicService : ITopicService
     public List<TopicInfo> Topics { get; } = [];
     public List<SubscriptionInfo> Subscriptions { get; } = [];
 
+    /// <summary>Changes the topic list while a page may be polling.</summary>
+    public void Change(Action<List<TopicInfo>> change)
+    {
+        lock (Topics) change(Topics);
+    }
+
     public async IAsyncEnumerable<TopicInfo> GetTopicsAsync([EnumeratorCancellation] CancellationToken ct = default)
     {
         await Task.Yield();
         List<TopicInfo> topics;
-        lock (Topics) topics = Topics.ToList();
-        foreach (var t in topics) yield return new TopicInfo { Name = t.Name, SubscriptionCount = t.SubscriptionCount, ScheduledMessageCount = t.ScheduledMessageCount };
+        lock (Topics) topics = [.. Topics];
+        foreach (var t in topics) yield return t;
     }
 
     public async IAsyncEnumerable<SubscriptionInfo> GetSubscriptionsAsync(string topicName, [EnumeratorCancellation] CancellationToken ct = default)
     {
         await Task.Yield();
-        foreach (var s in Subscriptions.Where(s => s.TopicName == topicName).ToList()) yield return Copy(s);
+        foreach (var s in Subscriptions.Where(s => s.TopicName == topicName).ToList()) yield return s;
     }
 
     public async IAsyncEnumerable<SubscriptionInfo> GetAllSubscriptionsAsync([EnumeratorCancellation] CancellationToken ct = default)
     {
         await Task.Yield();
-        foreach (var s in Subscriptions.ToList()) yield return Copy(s);
+        foreach (var s in Subscriptions.ToList()) yield return s;
     }
 
     public Task DeleteTopicAsync(string topicName) => Task.CompletedTask;
 
     public Task DeleteSubscriptionAsync(string topicName, string subscriptionName) => Task.CompletedTask;
-
-    private static SubscriptionInfo Copy(SubscriptionInfo s) => new()
-    {
-        Name = s.Name,
-        TopicName = s.TopicName,
-        ActiveMessageCount = s.ActiveMessageCount,
-        DeadLetterMessageCount = s.DeadLetterMessageCount,
-        TransferMessageCount = s.TransferMessageCount,
-    };
 }
 
 public sealed class FakeMessageService : IMessageService

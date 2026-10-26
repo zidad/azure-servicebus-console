@@ -43,6 +43,17 @@ dotnet test tests/ServiceBusConsole.Tests  # Headless UI tests
 - `AppHarness` gives each test its own `FileCache` directory under the temp folder.
 - Screenshots for design review: `SCREENSHOT_DIR=<dir> dotnet test tests/ServiceBusConsole.Tests` dumps every page (`Screenshots.cs`), then `python tools/render-screenshots.py <dir>` renders PNGs (Pillow, macOS fonts).
 
+## C# style
+
+Modern, functional C#. Apply to new code and to code you touch.
+
+- **Records for data.** `sealed record` with `required`/`init` properties (positional for small ones); change a value with `with`, never by setting properties. `readonly record struct` for small values (results, pairs, layout numbers). Data that crosses a boundary is immutable.
+- **Classes for identity and lifecycle** only: services, components, state holders. `sealed` by default.
+- **Expressions over statements.** Expression-bodied members, switch expressions, pattern matching, collection expressions (`[.. xs]`), LINQ and `IAsyncEnumerable` operators (`Select`, `Where`, `SelectMany`, `AnyAsync`), fluent builders (`services.AddX().AddY()`, `TableSort.Add(...)`). No loops that fill a list another operator could produce.
+- **Loops where they read better:** channel pipelines, paging, retries, early exit with side effects.
+- **Read-only at the edges:** expose `IReadOnlyList<T>`, accept `IEnumerable<T>`.
+- **No `!`.** Make values non-null by construction: `required`, `where T : notnull`, pass the value instead of reading nullable state (e.g. an operation body receives its `OperationProgress`).
+
 ## Prerequisites
 
 Requires an active Azure CLI login before running:
@@ -87,14 +98,14 @@ Declare once per action and trigger via `@ref`:
 
 ```razor
 <AsyncCommand @ref="_delete" TItem="MessageInfo"
-              ConfirmMessage="@(m => $"Delete #{m!.SequenceNumber}?")"
-              Execute="@(m => MessageService.DeleteMessageAsync(Source, m!.SequenceNumber))"
-              OnCompleted="@(m => { _messages.Remove(m!); StateHasChanged(); return Task.CompletedTask; })" />
+              ConfirmMessage="@(m => $"Delete #{m.SequenceNumber}?")"
+              Execute="@(m => MessageService.DeleteMessageAsync(Source, m.SequenceNumber))"
+              OnCompleted="@(m => { _messages.Remove(m); StateHasChanged(); return Task.CompletedTask; })" />
 ```
 
 - Omit `ConfirmMessage` to run without a confirm prompt.
-- Use `TItem="object"` and call `_cmd!.Invoke()` (no arg) for page-scoped commands like Purge.
-- `Execute` may return any `Task`/`Task<T>` (covariant via `Func<TItem?, Task>`); exceptions are caught and shown in the component's own `ErrorModal`.
+- `TItem` is the thing acted on and never null (`where TItem : notnull`): the focused name, the message, or the `MessageSource` for a page-wide Purge. Invoke only when it exists: `if (_focusedItem is { } item) _cmd?.Invoke(item)`.
+- `Execute` may return any `Task`/`Task<T>`; exceptions are caught and shown in the component's own `ErrorModal`.
 - A page may still keep its own `_error`/`_loading` + `ErrorModal` for non-command paths like initial load (`PeekMessages`, streaming list loads) — those aren't async commands.
 
 **Message operations:** `Components/MessageBrowserView.razor` is the shared queue/subscription browser. State lives in `MessageBrowser` (list, selection, locked receiver), kept by the singleton `MessageBrowserStore` so the detail page acts on the same locks.

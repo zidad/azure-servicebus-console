@@ -38,7 +38,7 @@ public sealed class OperationProgress(string title, IReadOnlyList<OperationStep>
     /// <summary>Marks earlier steps done and <paramref name="step"/> running.</summary>
     public OperationStep Start(int step)
     {
-        for (var i = 0; i < step; i++) Steps[i].State = StepState.Done;
+        foreach (var earlier in Steps.Take(step)) earlier.State = StepState.Done;
         Steps[step].State = StepState.Running;
         return Steps[step];
     }

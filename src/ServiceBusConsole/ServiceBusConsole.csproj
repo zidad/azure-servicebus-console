@@ -24,6 +24,7 @@
   </ItemGroup>
   <ItemGroup>
     <Using Include="ServiceBusConsole.Emulator" />
+    <Using Include="ServiceBusConsole.Extensions" />
     <Using Include="ServiceBusConsole.Logging" />
     <Using Include="ServiceBusConsole.Messaging" />
     <Using Include="ServiceBusConsole.Models" />

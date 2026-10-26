@@ -23,7 +23,7 @@
     /// </summary>
     /// <summary>Breadcrumb pieces for the page, shown inside the <see cref="ConnectionHeader"/>.</summary>
     [Parameter] public RenderFragment? Header { get; set; }
-    [Parameter, EditorRequired] public RenderFragment Content { get; set; } = default!;
-    [Parameter, EditorRequired] public RenderFragment Footer { get; set; } = default!;
+    [Parameter, EditorRequired] public required RenderFragment Content { get; set; }
+    [Parameter, EditorRequired] public required RenderFragment Footer { get; set; }
     [Parameter] public EventCallback<KeyboardEventArgs> OnKeyDown { get; set; }
 }

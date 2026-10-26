@@ -34,6 +34,13 @@ public sealed class LiveList<T>(
     /// <summary>The first load failed; polls only log their errors.</summary>
     public required Func<Exception, Task> LoadFailed { get; init; }
 
+    /// <summary>Replaces the row with key <paramref name="rowKey"/>, e.g. a count reset after a purge.</summary>
+    public void Update(string rowKey, Func<T, T> change)
+    {
+        var idx = All.FindIndex(x => key(x) == rowKey);
+        if (idx >= 0) All[idx] = change(All[idx]);
+    }
+
     /// <summary>Loads, then keeps polling until <see cref="Dispose"/> or the next load (F5).</summary>
     public async Task LoadAsync()
     {
@@ -77,13 +84,8 @@ public sealed class LiveList<T>(
                 var cached = isCached(row);
                 if (poll && cached) continue;
                 if (!cached) live.Add(key(row));
-                var idx = All.FindIndex(x => key(x) == key(row));
-                if (idx >= 0)
-                {
-                    if (poll) Changes.Compare(All[idx], row);
-                    All[idx] = row;
-                }
-                else All.Add(row);
+                if (poll && All.Find(x => key(x) == key(row)) is { } previous) Changes.Compare(previous, row);
+                All.Upsert(row, x => key(x) == key(row));
                 if (poll) continue;
 
                 // Cached rows arrive in one burst, so force a render when the first live

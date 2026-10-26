@@ -31,11 +31,8 @@ public sealed class QueueListPageTests
         await using var terminal = await app.OpenQueuesAsync();
         await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
 
-        lock (app.Queues.Queues)
-        {
-            app.Queues.Queues.Single(q => q.Name == "emails").ActiveMessageCount = 7;
-            app.Queues.Queues.Add(new QueueInfo { Name = "refunds" });
-        }
+        app.Queues.Update("emails", q => q with { ActiveMessageCount = 7 });
+        app.Queues.Add(new QueueInfo { Name = "refunds" });
 
         var frame = await terminal.WaitUntilAsync(f => f.GetLine(RowOf(f, "emails")).Contains(" 7 ") && f.ContainsText("refunds"), AppHarness.Timeout, cancellationToken: Ct);
         frame.ContainsText("Queues (4)").ShouldBeTrue(frame.ScreenText);
@@ -62,7 +59,7 @@ public sealed class QueueListPageTests
         frame.ContainsText("boom").ShouldBeFalse(frame.ScreenText);
         frame.ContainsText("orders").ShouldBeTrue(frame.ScreenText);
 
-        lock (app.Queues.Queues) app.Queues.Queues.Single(q => q.Name == "orders").ActiveMessageCount = 13;
+        app.Queues.Update("orders", q => q with { ActiveMessageCount = 13 });
         app.Queues.LoadError = null;
         await terminal.WaitUntilAsync(f => f.GetLine(RowOf(f, "orders")).Contains(" 13 "), AppHarness.Timeout, cancellationToken: Ct);
     }

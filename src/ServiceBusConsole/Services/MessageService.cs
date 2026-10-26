@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ServiceBusConsole.Services;
 
-public class MessageService(ServiceBusConnection connection, ILoggerFactory loggerFactory) : IMessageService
+public sealed class MessageService(ServiceBusConnection connection, ILoggerFactory loggerFactory) : IMessageService
 {
     private const int MaxBatch = 250;
     private readonly ILogger _logger = loggerFactory.CreateLogger<MessageService>();

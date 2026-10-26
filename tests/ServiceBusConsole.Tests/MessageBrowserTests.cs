@@ -69,7 +69,8 @@ public sealed class MessageBrowserTests
         await terminal.WaitForTextAsync("first", AppHarness.Timeout, Ct);
         await AppHarness.WaitForTableFocusAsync(terminal, queueTable);
         await terminal.SendKeyAsync(ConsoleKey.F6, '\0', cancellationToken: Ct);
-        await terminal.WaitForTextAsync("View DLQ", AppHarness.Timeout, Ct);
+        // The button flips before the active queue is peeked; wait for the reloaded list.
+        await terminal.WaitUntilAsync(f => f.ContainsText("View DLQ") && f.ContainsText("3 message(s)"), AppHarness.Timeout, cancellationToken: Ct);
         await AppHarness.WaitForTableFocusAsync(terminal);
 
         await terminal.SendKeyAsync(ConsoleKey.Spacebar, ' ', cancellationToken: Ct);
@@ -233,6 +234,7 @@ public sealed class MessageBrowserTests
         var (app, terminal) = await OpenOrdersAsync();
         await using var _ = terminal;
 
+        var tableFocus = terminal.FocusKey;
         await terminal.SendKeyAsync(ConsoleKey.A, 'a', cancellationToken: Ct);
         await terminal.WaitForTextAsync("2 selected", AppHarness.Timeout, Ct);
         await terminal.SendKeyAsync(ConsoleKey.F10, '\0', cancellationToken: Ct);
@@ -245,8 +247,9 @@ public sealed class MessageBrowserTests
         frame.ContainsText("Queues (1)").ShouldBeFalse(frame.ScreenText);
         app.Messages.Completed.Order().ShouldBe([1L, 2L]);
 
-        // The list is empty, so the only focus order 1 left is the dialog's OK.
-        await terminal.WaitUntilAsync(_ => AppHarness.FocusedAttribute(terminal, "data-focus-order") == "1", AppHarness.Timeout, cancellationToken: Ct);
+        // The list is empty: the focus order 1 that is not the table is the dialog's OK.
+        await terminal.WaitUntilAsync(_ => terminal.FocusKey != tableFocus && AppHarness.FocusedAttribute(terminal, "data-focus-order") == "1",
+            AppHarness.Timeout, cancellationToken: Ct);
         await terminal.SendKeyAsync(ConsoleKey.Escape, '\u001b', cancellationToken: Ct);
         await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
     }
@@ -280,7 +283,8 @@ public sealed class MessageBrowserTests
     [Fact]
     public async Task Retry_ShowsAProgressDialogWithItsSteps_ThenItsResultUntilOk()
     {
-        var (app, terminal) = await PeekDlqAndSelectFirstAndThirdAsync(a => a.Messages.HoldSend = new TaskCompletionSource());
+        var hold = new TaskCompletionSource();
+        var (app, terminal) = await PeekDlqAndSelectFirstAndThirdAsync(a => a.Messages.HoldSend = hold);
         await using var _ = terminal;
 
         await terminal.SendKeyAsync(ConsoleKey.F10, '\0', cancellationToken: Ct);
@@ -297,7 +301,7 @@ public sealed class MessageBrowserTests
         Line(frame, "Requeue to orders").ShouldContain("0/2");
         Line(frame, "Mark complete").ShouldContain($"{Icons.Pending} Mark complete");
 
-        app.Messages.HoldSend!.SetResult();
+        hold.SetResult();
         frame = await terminal.WaitForTextAsync("Retried 2 of 2.", AppHarness.Timeout, Ct);
         Line(frame, "Mark complete").ShouldContain($"{Icons.Done} Mark complete");
         Line(frame, "Mark complete").ShouldContain("2/2");

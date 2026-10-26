@@ -6,49 +6,39 @@ using Microsoft.Extensions.Logging;
 using RazorConsole.Core;
 using ServiceBusConsole.Components;
 
-var logDir = Path.Combine(AppContext.BaseDirectory, "logs");
-Directory.CreateDirectory(logDir);
-var logFile = Path.Combine(logDir, $"session-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+var logFile = Path.Combine(
+    Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "logs")).FullName,
+    $"session-{DateTime.Now:yyyyMMdd-HHmmss}.log");
 
-IHostBuilder hostBuilder = Host.CreateDefaultBuilder(args)
+await Host.CreateDefaultBuilder(args)
     .UseRazorConsole<App>()
-    .ConfigureLogging(logging =>
-    {
-        logging.ClearProviders();
-        logging.AddProvider(new FileLoggerProvider(logFile));
-        logging.SetMinimumLevel(LogLevel.Debug);
+    .ConfigureLogging(logging => logging
+        .ClearProviders()
+        .AddProvider(new FileLoggerProvider(logFile))
+        .SetMinimumLevel(LogLevel.Debug)
         // Blazor logs every component render at Debug: hundreds of MB per session.
-        logging.AddFilter("Microsoft.AspNetCore.Components", LogLevel.Information);
-    });
-
-hostBuilder.ConfigureServices(services =>
-{
-    var credential = new AzureCliCredential();
-    services.AddSingleton(credential);
-    services.AddSingleton(new ArmClient(credential));
-    services.AddSingleton<ServiceBusConnection>();
-    services.AddSingleton<FileCache>();
-
-    services.AddSingleton<INamespaceService, NamespaceService>();
-    services.AddSingleton<IQueueService, QueueService>();
-    services.AddSingleton<ITopicService, TopicService>();
-    services.AddSingleton<IMessageService, MessageService>();
-    services.AddSingleton<NavigationState>();
-    services.AddSingleton<SubscriptionCatalog>();
-    services.AddSingleton<MessageBrowserStore>();
-    services.AddSingleton<LiveCountsOptions>();
-    services.AddSyntaxLanguages();
-
-    services.Decorate<INamespaceService, CachingNamespaceService>();
-    services.Decorate<IQueueService, CachingQueueService>();
-    services.Decorate<ITopicService, CachingTopicService>();
-
-    services.Configure<ConsoleAppOptions>(options =>
-    {
-        options.AutoClearConsole = true;
-        options.ConsoleLiveDisplayOptions.EnableMouseEvents = true;
-    });
-});
-
-var host = hostBuilder.Build();
-await host.RunAsync();
+        .AddFilter("Microsoft.AspNetCore.Components", LogLevel.Information))
+    .ConfigureServices(services => services
+        .AddSingleton(new AzureCliCredential())
+        .AddSingleton(sp => new ArmClient(sp.GetRequiredService<AzureCliCredential>()))
+        .AddSingleton<ServiceBusConnection>()
+        .AddSingleton<FileCache>()
+        .AddSingleton<INamespaceService, NamespaceService>()
+        .AddSingleton<IQueueService, QueueService>()
+        .AddSingleton<ITopicService, TopicService>()
+        .AddSingleton<IMessageService, MessageService>()
+        .AddSingleton<NavigationState>()
+        .AddSingleton<SubscriptionCatalog>()
+        .AddSingleton<MessageBrowserStore>()
+        .AddSingleton<LiveCountsOptions>()
+        .AddSyntaxLanguages()
+        .Decorate<INamespaceService, CachingNamespaceService>()
+        .Decorate<IQueueService, CachingQueueService>()
+        .Decorate<ITopicService, CachingTopicService>()
+        .Configure<ConsoleAppOptions>(options =>
+        {
+            options.AutoClearConsole = true;
+            options.ConsoleLiveDisplayOptions.EnableMouseEvents = true;
+        }))
+    .Build()
+    .RunAsync();

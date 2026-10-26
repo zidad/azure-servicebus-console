@@ -63,16 +63,9 @@ public sealed class SubscriptionCatalog(INamespaceService service, ILogger<Subsc
 
     private void StartChecks(IEnumerable<AzureSubscription> subscriptions)
     {
-        List<string> started = [];
+        List<string> started;
         lock (_sync)
-        {
-            foreach (var id in subscriptions.Select(s => s.Id).OfType<string>())
-            {
-                if (_checks.ContainsKey(id)) continue;
-                _checks[id] = Task.CompletedTask;
-                started.Add(id);
-            }
-        }
+            started = [.. subscriptions.Select(s => s.Id).OfType<string>().Where(id => _checks.TryAdd(id, Task.CompletedTask))];
 
         // Started outside the lock: a cached answer can complete synchronously and take the lock itself.
         foreach (var id in started)

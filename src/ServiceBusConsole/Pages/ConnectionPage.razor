@@ -272,17 +272,8 @@
     private void HandleSubscriptionKeyDown(KeyboardEventArgs e)
     {
         if (e.CtrlKey || e.AltKey || e.MetaKey) return;
-        if (e.Key == "Backspace")
-        {
-            ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]);
-            return;
-        }
-        if (e.Key.Length == 1 && !char.IsControl(e.Key[0]))
-        {
-            ApplyFilter((_filter ?? "") + e.Key);
-            return;
-        }
-        HandleKeyDown(e);
+        if (FilterEdit.From(_filter, e) is { } edit) ApplyFilter(edit.Filter);
+        else HandleKeyDown(e);
     }
 
     private void FocusNamespaces()
@@ -342,12 +333,11 @@
             {
                 if (token.IsCancellationRequested) return;
                 _namespacesLoading = false;
-                var idx = _namespaces.FindIndex(x => x.Name == ns.Name);
-                if (idx >= 0) _namespaces[idx] = ns; else _namespaces.Add(ns);
+                var idx = _namespaces.Upsert(ns, x => x.Name == ns.Name);
                 if (ns.FullyQualifiedNamespace == _restoreNamespace)
                 {
                     _restoreNamespace = null;
-                    _namespaceIndex = _namespaces.FindIndex(x => x.Name == ns.Name);
+                    _namespaceIndex = idx;
                 }
                 SelectNamespace(_namespaceIndex);
             }

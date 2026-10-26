@@ -230,9 +230,8 @@
             await foreach (var ns in NamespaceService.GetNamespacesAsync(subscription, token))
             {
                 if (token.IsCancellationRequested) return;
-                var idx = _namespaces.FindIndex(x => x.Name == ns.Name);
-                if (idx >= 0) _namespaces[idx] = ns; else _namespaces.Add(ns);
-                if (ns.FullyQualifiedNamespace == Connection.CurrentNamespace) _index = _namespaces.FindIndex(x => x.Name == ns.Name);
+                var idx = _namespaces.Upsert(ns, x => x.Name == ns.Name);
+                if (ns.FullyQualifiedNamespace == Connection.CurrentNamespace) _index = idx;
                 // The list replaces the spinner, so focus moves from the close button to it.
                 if (_namespaces.Count == 1) _focusPending = true;
                 StateHasChanged();

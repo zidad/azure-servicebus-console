@@ -28,28 +28,28 @@ else
             <Columns>
                 @if (Mode == BrowseMode.Locked)
                 {
-                    <TextButton Content="@($"[F9] {Icons.Complete} Complete")" OnClick="@(() => _complete?.Invoke())"
+                    <TextButton Content="@($"[F9] {Icons.Complete} Complete")" OnClick="@(() => Run(_complete))"
                                 FocusedColor="@Theme.Danger" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
-                    <TextButton Content="@($"[F4] {Icons.Unlocked} Abandon")" OnClick="@(() => _abandon?.Invoke())"
+                    <TextButton Content="@($"[F4] {Icons.Unlocked} Abandon")" OnClick="@(() => Run(_abandon))"
                                 FocusedColor="@Theme.Warning" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
                     @if (!IsDlq)
                     {
-                        <TextButton Content="@($"[F3] {Icons.DeadLetter} Dead-letter")" OnClick="@(() => _deadLetter?.Invoke())"
+                        <TextButton Content="@($"[F3] {Icons.DeadLetter} Dead-letter")" OnClick="@(() => Run(_deadLetter))"
                                     FocusedColor="@Theme.Danger" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                         <Markup Content="  " />
                     }
                 }
                 @if (CanRetry)
                 {
-                    <TextButton Content="@($"[F10] {Icons.Retry} {RetryText.Label(IsDlq)}")" OnClick="@(() => _retry?.Invoke())"
+                    <TextButton Content="@($"[F10] {Icons.Retry} {RetryText.Label(IsDlq)}")" OnClick="@(() => Run(_retry))"
                                 FocusedColor="@Theme.Success" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
                 }
                 else if (Mode == BrowseMode.Peek && _browser is not null)
                 {
-                    <TextButton Content="@($"[F10] {Icons.Send} Resend")" OnClick="@(() => _resend?.Invoke())"
+                    <TextButton Content="@($"[F10] {Icons.Send} Resend")" OnClick="@(() => Run(_resend))"
                                 FocusedColor="@Theme.Success" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
                 }
@@ -62,39 +62,39 @@ else
 
 <OperationDialog Operation="@_browser?.Operation" OnDismiss="DismissOperation" />
 
-<AsyncCommand @ref="_complete" TItem="object"
-              ConfirmMessage="@(_ => $"Complete message #{NavState.Message?.SequenceNumber}? It is removed from {NavState.MessageSource?.DisplayName}.")"
-              Execute="@(_ => Act((b, m) => b.CompleteAsync(m)))" />
+<AsyncCommand @ref="_complete" TItem="MessageInfo"
+              ConfirmMessage="@(m => $"Complete message #{m.SequenceNumber}? It is removed from {NavState.MessageSource?.DisplayName}.")"
+              Execute="@(m => Act(m, (b, l) => b.CompleteAsync(l)))" />
 
-<AsyncCommand @ref="_abandon" TItem="object"
-              Execute="@(_ => Act((b, m) => b.AbandonAsync(m)))" />
+<AsyncCommand @ref="_abandon" TItem="MessageInfo"
+              Execute="@(m => Act(m, (b, l) => b.AbandonAsync(l)))" />
 
-<AsyncCommand @ref="_deadLetter" TItem="object"
-              ConfirmMessage="@(_ => $"Move message #{NavState.Message?.SequenceNumber} to the dead-letter queue?")"
-              Execute="@(_ => Act((b, m) => b.DeadLetterAsync(m)))" />
+<AsyncCommand @ref="_deadLetter" TItem="MessageInfo"
+              ConfirmMessage="@(m => $"Move message #{m.SequenceNumber} to the dead-letter queue?")"
+              Execute="@(m => Act(m, (b, l) => b.DeadLetterAsync(l)))" />
 
-<AsyncCommand @ref="_retry" TItem="object"
-              ConfirmMessage="@(_ => RetryConfirm)"
-              Execute="@(_ => Act((b, m) => b.RetryAsync(m)))" />
+<AsyncCommand @ref="_retry" TItem="MessageInfo"
+              ConfirmMessage="@(m => RetryConfirm(m))"
+              Execute="@(m => Act(m, (b, l) => b.RetryAsync(l)))" />
 
-<AsyncCommand @ref="_resend" TItem="object"
-              ConfirmMessage="@(_ => $"Send a copy of message #{NavState.Message?.SequenceNumber} to {NavState.MessageSource?.SendTarget}? The original stays.")"
-              Execute="@(_ => Act((b, m) => b.ResendAsync(m)))" />
+<AsyncCommand @ref="_resend" TItem="MessageInfo"
+              ConfirmMessage="@(m => $"Send a copy of message #{m.SequenceNumber} to {NavState.MessageSource?.SendTarget}? The original stays.")"
+              Execute="@(m => Act(m, (b, l) => b.ResendAsync(l)))" />
 
 @code {
-    private AsyncCommand<object>? _complete;
-    private AsyncCommand<object>? _abandon;
-    private AsyncCommand<object>? _deadLetter;
-    private AsyncCommand<object>? _retry;
-    private AsyncCommand<object>? _resend;
+    private AsyncCommand<MessageInfo>? _complete;
+    private AsyncCommand<MessageInfo>? _abandon;
+    private AsyncCommand<MessageInfo>? _deadLetter;
+    private AsyncCommand<MessageInfo>? _retry;
+    private AsyncCommand<MessageInfo>? _resend;
     private MessageBrowser? _browser;
 
     private bool IsDlq => NavState.MessageSource?.IsDlq == true;
     private BrowseMode? Mode => NavState.Message is null ? null : _browser?.Mode;
     private bool CanRetry => _browser is not null && Mode is { } mode && RetryText.CanRetry(mode, IsDlq);
 
-    private string RetryConfirm => Mode is { } mode && NavState.MessageSource is { } source
-        ? RetryText.Confirm(mode, source, $"message #{NavState.Message?.SequenceNumber}")
+    private string RetryConfirm(MessageInfo message) => Mode is { } mode && NavState.MessageSource is { } source
+        ? RetryText.Confirm(mode, source, $"message #{message.SequenceNumber}")
         : "";
 
     protected override void OnInitialized()
@@ -118,12 +118,17 @@ else
         ? $"{(source.TopicName is null ? Icons.Queue : Icons.Subscription)} {source.DisplayName}"
         : "";
 
-    private AsyncCommand<object>?[] Commands => [_complete, _abandon, _deadLetter, _retry, _resend];
+    private AsyncCommand<MessageInfo>?[] Commands => [_complete, _abandon, _deadLetter, _retry, _resend];
 
-    private Task Act(Func<MessageBrowser, IReadOnlyList<MessageInfo>, Task> action) =>
-        _browser is { } b && NavState.Message is { } m
-            ? action(b, [m])
+    private Task Act(MessageInfo message, Func<MessageBrowser, IReadOnlyList<MessageInfo>, Task> action) =>
+        _browser is { } b
+            ? action(b, [message])
             : throw new InvalidOperationException("This message is no longer loaded.");
+
+    private void Run(AsyncCommand<MessageInfo>? command)
+    {
+        if (NavState.Message is { } message) command?.Invoke(message);
+    }
 
     // The message is handled: back to the list. After a failure or cancel it is still here.
     private void DismissOperation()
@@ -162,12 +167,12 @@ else
         switch (e.Key)
         {
             case "Escape": GoBack(); return;
-            case "F9": case "Delete": if (Mode == BrowseMode.Locked) _complete?.Invoke(); return;
-            case "F4": if (Mode == BrowseMode.Locked) _abandon?.Invoke(); return;
-            case "F3": if (Mode == BrowseMode.Locked && !IsDlq) _deadLetter?.Invoke(); return;
+            case "F9": case "Delete": if (Mode == BrowseMode.Locked) Run(_complete); return;
+            case "F4": if (Mode == BrowseMode.Locked) Run(_abandon); return;
+            case "F3": if (Mode == BrowseMode.Locked && !IsDlq) Run(_deadLetter); return;
             case "F10":
-                if (CanRetry) _retry?.Invoke();
-                else if (Mode == BrowseMode.Peek) _resend?.Invoke();
+                if (CanRetry) Run(_retry);
+                else if (Mode == BrowseMode.Peek) Run(_resend);
                 return;
         }
     }
