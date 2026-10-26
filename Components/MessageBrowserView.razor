@@ -18,12 +18,14 @@
         @if (_isAutoForwarding) { <Markup Content="@($"· {Icons.Transfer} auto-forwarding")" Foreground="@Theme.Transfer" /> }
     </Header>
     <Content>
-        @if (_browser is not { } browser || _loading is not null)
+        @* A load shows the spinner only until its first page arrives; then the list fills in. *@
+        @if (_browser is not { } browser || (_loading is not null && browser.Messages.Count == 0))
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
                     <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
                     <Markup Content="@(_loading ?? "Loading…")" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+                    @if (_loading is not null) { <Markup Content="· Esc cancels" Foreground="@Theme.Muted" /> }
                 </Columns>
             </Padder>
         }
@@ -37,25 +39,29 @@
                     {
                         <Markup Content="@($"· {Icons.Selected} {browser.Selected.Count} selected")" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
                     }
-                    <Markup Content="· Space select, A all, I invert" Foreground="@Theme.Muted" />
-                    @if (browser.Progress is { } progress)
+                    @if (browser.Operation is { Modal: false } load)
                     {
-                        <Markup Content="@($"  {progress}")" Foreground="@Theme.Warning" />
+                        <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                        <Markup Content="@($"{load.Title}: {load.Steps[0].Done:N0} so far · Esc cancels")" Foreground="@Theme.Warning" />
+                    }
+                    else
+                    {
+                        <Markup Content="· Space select, A all, I invert" Foreground="@Theme.Muted" />
                     }
                 </Columns>
             </Padder>
 
             <Scrollable Items="@browser.Messages"
-                        PageSize="@FullscreenLayout.PageSizeSimpleTable(Viewport.Height)"
+                        PageSize="@Split.Rows"
                         Scrollbar="new()"
                         SelectedIndex="@browser.Cursor"
                         SelectedIndexChanged="@(i => browser.Cursor = i)"
                         OnToggle="@(i => ToggleAt(i))"
-                        OnActivate="@(() => { if (browser.Focused is { } m) ViewMessage(m); })">
+                        OnActivate="@(() => { if (browser.Operation is not { Modal: true } && browser.Focused is { } m) ViewMessage(m); })">
                 <SpectreTable Expand="true" Border="TableBorder.Simple">
                     <SpectreTHead>
                         <SpectreTR>
-                            <SpectreTH>@(showChecks ? $"{browser.Selected.Count}" : "")</SpectreTH>
+                            <SpectreTH Width="4"><div class="check-all" @onclick="ToggleAll">@(browser.AllSelected ? Icons.Selected : Icons.Unselected)</div></SpectreTH>
                             <SpectreTH Align="Justify.Right">#</SpectreTH>
                             <SpectreTH Align="Justify.Left">Message ID</SpectreTH>
                             <SpectreTH Align="Justify.Left">Subject</SpectreTH>
@@ -101,6 +107,11 @@
                     </SpectreTBody>
                 </SpectreTable>
             </Scrollable>
+
+            @if (browser.Focused is { } focused)
+            {
+                <MessagePreview Message="@focused" Browser="@browser" Width="@Viewport.Width" Height="@PreviewHeight(browser)" BodyFocusOrder="2" OnKeyDown="@HandleKeyDown" />
+            }
         }
         else
         {
@@ -117,7 +128,7 @@
                 <Markup Content="  " />
                 <TextButton Content="@($"[F8] {Icons.Subscription} Receive…")" OnClick="@(() => _receiveDialog?.Open())" FocusedColor="@Theme.Danger" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="  " />
-                <TextButton Content="@(_isDlq ? $"[F6] {Icons.Queue} View Active" : $"[F6] {Icons.DeadLetter} View DLQ")" OnClick="@(() => SwitchDlq(!_isDlq))" FocusedColor="@Theme.Warning" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="@(_isDlq ? $"[F6] {Icons.Queue} View Active" : $"[F6] {Icons.DeadLetter} View DLQ")" OnClick="@(() => { _ = SwitchDlq(!_isDlq); })" FocusedColor="@Theme.Warning" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="  " />
                 @if (Mode == BrowseMode.Locked)
                 {
@@ -131,9 +142,9 @@
                         <Markup Content="  " />
                     }
                 }
-                @if (CanRequeue)
+                @if (CanRetry)
                 {
-                    <TextButton Content="@($"[F10] {Icons.Transfer} Requeue")" OnClick="@(() => Run(_requeue))" FocusedColor="@Theme.Success" FocusOrder="8" OnKeyDown="@HandleKeyDown" />
+                    <TextButton Content="@($"[F10] {Icons.Retry} {RetryText.Label(_isDlq)}")" OnClick="@(() => Run(_retry))" FocusedColor="@Theme.Success" FocusOrder="8" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
                 }
                 else if (Mode == BrowseMode.Peek)
@@ -149,8 +160,11 @@
     </Footer>
 </FullscreenPage>
 
-<FetchDialog @ref="_peekDialog" OnSubmit="Peek" OnCancel="FocusTable" />
-<FetchDialog @ref="_receiveDialog" IsReceive="true" DefaultCount="10" OnSubmit="Receive" OnCancel="FocusTable" />
+@* Loads are not awaited by the submitting key, so keys (Esc to cancel) keep working while they run. *@
+<FetchDialog @ref="_peekDialog" OnSubmit="@(r => { _ = Peek(r); })" OnCancel="FocusTable" />
+<FetchDialog @ref="_receiveDialog" IsReceive="true" DefaultCount="10" OnSubmit="@(r => { _ = Receive(r); })" OnCancel="FocusTable" />
+
+<OperationDialog Operation="@_browser?.Operation" OnDismiss="DismissOperation" />
 
 <ErrorModal Message="@_error" OnDismiss="@(() => { _error = ""; FocusTable(); })" />
 
@@ -165,9 +179,9 @@
               ConfirmMessage="@(l => $"Move {Count(l)} to the dead-letter queue?")"
               Execute="@(l => Browser.DeadLetterAsync(l ?? []))" />
 
-<AsyncCommand @ref="_requeue" TItem="IReadOnlyList<MessageInfo>"
-              ConfirmMessage="@(l => $"Requeue {Count(l)} to {Source.SendTarget}?{TopicNote}")"
-              Execute="@(l => Browser.RequeueAsync(l ?? []))" />
+<AsyncCommand @ref="_retry" TItem="IReadOnlyList<MessageInfo>"
+              ConfirmMessage="@(l => RetryText.Confirm(Mode, Source, Count(l)))"
+              Execute="@(l => Browser.RetryAsync(l ?? []))" />
 
 <AsyncCommand @ref="_resend" TItem="IReadOnlyList<MessageInfo>"
               ConfirmMessage="@(l => $"Send copies of {Count(l)} to {Source.SendTarget}? The originals stay in {Source.DisplayName}.{TopicNote}")"
@@ -198,17 +212,21 @@
     private AsyncCommand<IReadOnlyList<MessageInfo>>? _complete;
     private AsyncCommand<IReadOnlyList<MessageInfo>>? _abandon;
     private AsyncCommand<IReadOnlyList<MessageInfo>>? _deadLetter;
-    private AsyncCommand<IReadOnlyList<MessageInfo>>? _requeue;
+    private AsyncCommand<IReadOnlyList<MessageInfo>>? _retry;
     private AsyncCommand<IReadOnlyList<MessageInfo>>? _resend;
     private AsyncCommand<object>? _purge;
 
     private MessageBrowser Browser => _browser ?? throw new InvalidOperationException("Message browser not initialized");
     private MessageSource Source => Entity with { IsDlq = _isDlq };
     private BrowseMode Mode => _browser?.Mode ?? BrowseMode.Peek;
-    private bool CanRequeue => Mode == BrowseMode.Received || (Mode == BrowseMode.Locked && _isDlq);
+    private bool CanRetry => RetryText.CanRetry(Mode, _isDlq);
+    private (int Rows, int Preview) Split => FullscreenLayout.BrowserSplit(Viewport.Height);
+
+    // A short list leaves rows unused; the preview takes them.
+    private int PreviewHeight(MessageBrowser browser) => Split.Preview + Math.Max(0, Split.Rows - browser.Messages.Count);
     private string TopicNote => Source.IsSubscription ? " Every subscription of the topic gets a copy." : "";
 
-    private IEnumerable<AsyncCommand<IReadOnlyList<MessageInfo>>?> ListCommands => [_complete, _abandon, _deadLetter, _requeue, _resend];
+    private IEnumerable<AsyncCommand<IReadOnlyList<MessageInfo>>?> ListCommands => [_complete, _abandon, _deadLetter, _retry, _resend];
     private bool IsBusy => _loading is not null || ListCommands.Any(c => c?.IsBusy == true) || _purge?.IsBusy == true;
     private bool IsDialogOpen => _peekDialog?.IsOpened == true || _receiveDialog?.IsOpened == true;
 
@@ -219,6 +237,16 @@
             ? current.Source.IsDlq
             : Entity.IsDlq;
         if (Attach()) await Peek(new FetchDialog.Request(DefaultPeekCount, null, false));
+        // Back from the detail page after it handled the last message: nothing left to browse.
+        else if (Browser.Messages.Count == 0) GoBack();
+    }
+
+    // Nothing left after a purge or acting on every message: back to the list.
+    private void DismissOperation()
+    {
+        Browser.Dismiss();
+        if (Browser.Messages.Count == 0) GoBack();
+        else FocusTable();
     }
 
     public void Dispose()
@@ -239,7 +267,7 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_tbody is not null && _tbody != _focusedTbody && !IsDialogOpen)
+        if (_tbody is not null && _tbody != _focusedTbody && !IsDialogOpen && _browser?.Operation is not { Finished: true })
         {
             _focusedTbody = _tbody;
             await FocusManager.FocusAsync(_tbody.FocusKey);
@@ -310,6 +338,12 @@
         if (Browser.Messages.Find(x => x.SequenceNumber == sequenceNumber) is { } m) Toggle(m);
     }
 
+    private void ToggleAll()
+    {
+        Browser.ToggleAll();
+        StateHasChanged();
+    }
+
     private void ToggleAt(int index)
     {
         if (Browser.Messages.ElementAtOrDefault(index) is { } m) Toggle(m);
@@ -331,6 +365,18 @@
     private void HandleKeyDown(KeyboardEventArgs e)
     {
         if (e.CtrlKey || e.AltKey || e.MetaKey || IsDialogOpen) return;
+        // A finished operation's dialog waits for OK, also when focus is still here.
+        if (_browser?.Operation is { Finished: true })
+        {
+            if (e.Key is "Escape" or "Enter") DismissOperation();
+            return;
+        }
+        if (e.Key == "Escape" && _browser?.Operation is { Finished: false } running)
+        {
+            running.Cancel();
+            StateHasChanged();
+            return;
+        }
         if (ListCommands.Any(c => c?.HandleKey(e) == true) || _purge?.HandleKey(e) == true) return;
         switch (e.Key)
         {
@@ -351,7 +397,7 @@
             case "F4": if (Mode == BrowseMode.Locked) Run(_abandon); return;
             case "F3": if (Mode == BrowseMode.Locked && !_isDlq) Run(_deadLetter); return;
             case "F10":
-                if (CanRequeue) Run(_requeue);
+                if (CanRetry) Run(_retry);
                 else if (Mode == BrowseMode.Peek) Run(_resend);
                 return;
             case "F11": _purge?.Invoke(); return;

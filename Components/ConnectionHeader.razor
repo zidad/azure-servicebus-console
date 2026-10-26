@@ -2,7 +2,7 @@
 @inject ServiceBusConnection Connection
 @inject NavigationState NavState
 
-<Panel BorderColor="@Theme.Border" Title="@Title" TitleColor="@Theme.Muted" FillWidth="true" Padding="@(new(0, 0, 0, 0))">
+<Panel BorderColor="@Theme.Border" FillWidth="true" Padding="@(new(0, 0, 0, 0))">
     <Columns>
         @if (Connection.Namespace is { } ns)
         {
@@ -34,8 +34,6 @@
     private const int SubscriptionX = 2;
     private int NamespaceX => SubscriptionX + 3 + SubscriptionName.Length + 1 + " › ".Length + 1;
 
-    private string? Title => Connection.Namespace is { } ns && Details(ns) is { Length: > 0 } text ? text : null;
-
     private void OpenSubscriptions(MouseEventArgs e) => _picker?.OpenSubscriptions(SubscriptionX - 1, (int)e.ClientY + 1);
 
     private void OpenNamespaces(MouseEventArgs e) => _picker?.OpenNamespaces(NamespaceX - 1, (int)e.ClientY + 1);
@@ -45,12 +43,4 @@
 
     /// <summary>Item count for a page header: "(3)", or "(1 of 3)" while filtered.</summary>
     public static string Count(int shown, int total) => shown == total ? $"({total})" : $"({shown} of {total})";
-
-    private static string Details(NamespaceInfo ns)
-    {
-        var status = string.IsNullOrEmpty(ns.Status) ? null : $"{Icons.NamespaceStatus(ns.Status)} {ns.Status}";
-        var parts = new[] { ns.ResourceGroup, ns.Location, ns.Sku, status }.Where(p => !string.IsNullOrEmpty(p));
-        var text = string.Join(" · ", parts);
-        return text.Length == 0 ? "" : $" {text} ";
-    }
 }

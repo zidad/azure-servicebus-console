@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RazorConsole.Core;
 using ServiceBusConsole;
+using ServiceBusConsole.Syntax;
 
 var logDir = Path.Combine(AppContext.BaseDirectory, "logs");
 Directory.CreateDirectory(logDir);
@@ -18,6 +19,8 @@ IHostBuilder hostBuilder = Host.CreateDefaultBuilder(args)
         logging.ClearProviders();
         logging.AddProvider(new FileLoggerProvider(logFile));
         logging.SetMinimumLevel(LogLevel.Debug);
+        // Blazor logs every component render at Debug: hundreds of MB per session.
+        logging.AddFilter("Microsoft.AspNetCore.Components", LogLevel.Information);
     });
 
 hostBuilder.ConfigureServices(services =>
@@ -35,6 +38,7 @@ hostBuilder.ConfigureServices(services =>
     services.AddSingleton<NavigationState>();
     services.AddSingleton<SubscriptionCatalog>();
     services.AddSingleton<MessageBrowserStore>();
+    services.AddSyntaxLanguages();
 
     services.Decorate<INamespaceService, CachingNamespaceService>();
     services.Decorate<IQueueService, CachingQueueService>();

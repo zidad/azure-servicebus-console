@@ -69,6 +69,8 @@ This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, que
 
 **Theme:** colors and icons come from `Theme` and `Icons` (`Theme.cs`), chosen by meaning (danger, warning, muted, ...). Counts use `<CountCell>` (muted when zero). Only use emoji with default emoji presentation: ones that need U+FE0F (⚠️, 🗑️, ⬅️) are one cell wide in some terminals and break table alignment.
 
+**Syntax highlighting:** `Syntax/JsonLanguage.cs` replaces ColorCode's JSON grammar, which hangs on arrays of long strings (`AddSyntaxLanguages`, also called by `AppHarness`). Remove it once a ColorCode.Core release includes CommunityToolkit/ColorCode-Universal PR #46.
+
 **Azure subscriptions** are listed from Azure with the signed-in `az` account (`INamespaceService.GetSubscriptionsAsync`, cached like namespaces) and shown by display name; the local emulator is always the first entry (`AzureSubscription.Emulator`).
 
 **Async commands:** Confirm-then-execute flows (delete, purge, requeue, etc.) use the `<AsyncCommand<TItem>>` component (`Components/AsyncCommand.razor`). It owns the pending-item, busy, and error state — pages should NOT reintroduce `_pending*` bool/field patterns or inline `ConfirmModal` + `ErrorModal` pairs per action.
@@ -88,7 +90,9 @@ Declare once per action and trigger via `@ref`:
 - A page may still keep its own `_error`/`_loading` + `ErrorModal` for non-command paths like initial load (`PeekMessages`, streaming list loads) — those aren't async commands.
 
 **Message operations:** `Components/MessageBrowserView.razor` is the shared queue/subscription browser. State lives in `MessageBrowser` (list, selection, locked receiver), kept by the singleton `MessageBrowserStore` so the detail page acts on the same locks.
-- *Peek* is read-only; *Resend* sends copies.
-- *Receive (PeekLock)* returns `LockedMessages`: the receiver stays open, locks auto-renew, leftovers are abandoned on dispose. Complete/abandon/dead-letter/requeue only work on these.
+- *Peek* is read-only; on an active queue *Resend* sends copies.
+- *Receive (PeekLock)* returns `ILockedMessages`: the receiver stays open, locks auto-renew, leftovers are abandoned on dispose. Complete/abandon/dead-letter only work on these.
 - *Receive (ReceiveAndDelete)* removes messages at once; *Requeue* resends them.
-- Never settle a peeked message by scanning with receive+abandon: abandon bumps the delivery count and dead-letters unrelated messages.
+- *Retry* (DLQ, `MessageBrowser.RetryAsync`): send copies in order, then complete the originals. Peeked DLQ messages are locked first with `IMessageService.LockAsync`, which receives from the front and abandons what it passes.
+- Batch operations end in `OperationDialog` with a result (failures included) until OK; navigate in its `OnDismiss`, not in `AsyncCommand.OnCompleted`.
+- That scan is only allowed in a dead-letter queue (abandon there only bumps the delivery count). Never scan an active queue: abandon there can dead-letter unrelated messages.

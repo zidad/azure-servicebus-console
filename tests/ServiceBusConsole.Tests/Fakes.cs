@@ -1,3 +1,4 @@
+using Azure.Messaging.ServiceBus;
 using System.Runtime.CompilerServices;
 
 namespace ServiceBusConsole.Tests;
@@ -100,24 +101,141 @@ public sealed class FakeMessageService : IMessageService
     public List<MessageSource> Purged { get; } = [];
     public List<MessageSource> Peeked { get; } = [];
 
-    public Task<List<MessageInfo>> PeekAsync(MessageSource source, int count, long? fromSequenceNumber = null, CancellationToken ct = default)
+    private const int PageSize = 100;
+
+    /// <summary>When set, peeking pauses after the first page until it completes.</summary>
+    public TaskCompletionSource? PausePeek { get; set; }
+
+    public async IAsyncEnumerable<IReadOnlyList<MessageInfo>> PeekAsync(MessageSource source, int count, long? fromSequenceNumber = null, [EnumeratorCancellation] CancellationToken ct = default)
     {
         Peeked.Add(source);
-        return Task.FromResult(Messages.Where(m => fromSequenceNumber is null || m.SequenceNumber >= fromSequenceNumber).Take(count).ToList());
+        var pages = Messages.Where(m => fromSequenceNumber is null || m.SequenceNumber >= fromSequenceNumber).Take(count).Chunk(PageSize);
+        var first = true;
+        foreach (var page in pages)
+        {
+            if (!first && PausePeek is { } pause) await pause.Task.WaitAsync(ct);
+            first = false;
+            await Task.Yield();
+            yield return page;
+        }
     }
 
-    public Task<List<MessageInfo>> ReceiveAndDeleteAsync(MessageSource source, int count, CancellationToken ct = default)
-        => throw new NotSupportedException();
+    public async IAsyncEnumerable<IReadOnlyList<MessageInfo>> ReceiveAndDeleteAsync(MessageSource source, int count, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        foreach (var page in Messages.Take(count).Chunk(PageSize))
+        {
+            await Task.Yield();
+            yield return [.. page.Select(m => new MessageInfo(m.Raw, MessageState.Received))];
+        }
+    }
 
-    public Task<LockedMessages> ReceiveLockedAsync(MessageSource source, int count, CancellationToken ct = default)
-        => throw new NotSupportedException();
+    // Completes run in parallel, so recording must be thread-safe.
+    public System.Collections.Concurrent.ConcurrentQueue<long> Completed { get; } = [];
 
-    public Task SendCopiesAsync(MessageSource source, IReadOnlyList<MessageInfo> messages, Action<int> onSent, CancellationToken ct = default)
-        => throw new NotSupportedException();
+    /// <summary>When set, the lock scan stops after <see cref="PauseScanAfter"/> messages until it completes.</summary>
+    public TaskCompletionSource? PauseScan { get; set; }
+    public int PauseScanAfter { get; set; }
 
-    public Task<int> PurgeMessagesAsync(MessageSource source)
+    /// <summary>Sequence numbers someone else holds a lock on: the lock scan cannot get them.</summary>
+    public HashSet<long> LockedElsewhere { get; } = [];
+
+    public ILockedMessages StartReceiving(MessageSource source, int count, System.Threading.Channels.ChannelWriter<ServiceBusReceivedMessage> received, CancellationToken ct = default)
+    {
+        var batch = Messages.Take(count).Select(m => m.Raw).ToList();
+        _ = Task.Run(async () =>
+        {
+            foreach (var m in batch) await received.WriteAsync(m, ct);
+            received.TryComplete();
+        }, ct);
+        return new FakeLockedMessages(this, batch);
+    }
+
+    public ILockedMessages StartLocking(MessageSource source, IReadOnlyCollection<long> sequenceNumbers, System.Threading.Channels.ChannelWriter<ServiceBusReceivedMessage> found, CancellationToken ct = default)
+    {
+        var lockable = Messages.Where(m => sequenceNumbers.Contains(m.SequenceNumber) && !LockedElsewhere.Contains(m.SequenceNumber)).ToList();
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var written = 0;
+                foreach (var m in lockable)
+                {
+                    if (written++ == PauseScanAfter && PauseScan is { } pause) await pause.Task.WaitAsync(ct);
+                    await found.WriteAsync(m.Raw, ct);
+                }
+                found.TryComplete();
+            }
+            catch (Exception ex)
+            {
+                found.TryComplete(ex);
+            }
+        }, CancellationToken.None);
+        return new FakeLockedMessages(this, lockable.Select(m => m.Raw));
+    }
+
+    public List<(MessageSource Source, long SequenceNumber)> Sent { get; } = [];
+
+    /// <summary>When set, sending waits on it, so a test can see an operation in progress.</summary>
+    public TaskCompletionSource? HoldSend { get; set; }
+
+    public async Task SendCopiesAsync(MessageSource source, IReadOnlyList<MessageInfo> messages, Action<int> onSent, CancellationToken ct = default)
+    {
+        if (HoldSend is { } hold) await hold.Task.WaitAsync(ct);
+        Sent.AddRange(messages.Select(m => (source, m.SequenceNumber)));
+        onSent(messages.Count);
+    }
+
+    public Task<int> PurgeMessagesAsync(MessageSource source, Action<int> onPurged, CancellationToken ct = default)
     {
         Purged.Add(source);
-        return Task.FromResult(0);
+        onPurged(Messages.Count);
+        return Task.FromResult(Messages.Count);
+    }
+}
+
+public sealed class FakeLockedMessages(FakeMessageService service, IEnumerable<ServiceBusReceivedMessage> messages) : ILockedMessages
+{
+    private readonly HashSet<long> _held = [.. messages.Select(m => m.SequenceNumber)];
+
+    public event Action<long>? LockLost { add { } remove { } }
+
+    public bool Disposed { get; private set; }
+
+    public bool IsHeld(long sequenceNumber)
+    {
+        lock (_held) return _held.Contains(sequenceNumber);
+    }
+
+    public Task CompleteAsync(MessageInfo message, CancellationToken ct = default)
+    {
+        Settle(message);
+        service.Completed.Enqueue(message.SequenceNumber);
+        return Task.CompletedTask;
+    }
+
+    public Task AbandonAsync(MessageInfo message, CancellationToken ct = default)
+    {
+        Settle(message);
+        return Task.CompletedTask;
+    }
+
+    public Task DeadLetterAsync(MessageInfo message, string reason, CancellationToken ct = default)
+    {
+        Settle(message);
+        return Task.CompletedTask;
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        Disposed = true;
+        return ValueTask.CompletedTask;
+    }
+
+    private void Settle(MessageInfo message)
+    {
+        bool removed;
+        lock (_held) removed = _held.Remove(message.SequenceNumber);
+        if (!removed)
+            throw new InvalidOperationException($"Message #{message.SequenceNumber} is no longer locked");
     }
 }
