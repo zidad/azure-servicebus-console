@@ -20,6 +20,7 @@ public sealed class Screenshots
         Directory.CreateDirectory(dir);
 
         var app = SampleApp();
+        app.LiveCounts.Interval = TimeSpan.FromMilliseconds(200);
         await using var terminal = await app.StartAsync(width: 120, height: 36);
         await AppHarness.WaitForTableFocusAsync(terminal);
         await terminal.WaitForTextAsync("Contoso Development", AppHarness.Timeout, Ct);
@@ -32,6 +33,10 @@ public sealed class Screenshots
         await AppHarness.WaitForTableFocusAsync(terminal, connectionFocus);
         await terminal.WaitForTextAsync("Queues (5)", AppHarness.Timeout, Ct);
         await Save(terminal, dir, "queues");
+
+        lock (app.Queues.Queues) app.Queues.Queues.Single(q => q.Name == "emails").ActiveMessageCount = 12;
+        await terminal.WaitUntilAsync(f => f.ContainsText(" 12 "), AppHarness.Timeout, cancellationToken: Ct);
+        await Save(terminal, dir, "queues-live");
 
         await AppHarness.ClickTextAsync(terminal, "sb-orders-dev");
         await terminal.WaitForTextAsync("Namespaces in Contoso Development", AppHarness.Timeout, Ct);

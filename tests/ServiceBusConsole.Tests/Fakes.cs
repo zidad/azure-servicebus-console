@@ -56,7 +56,19 @@ public sealed class FakeQueueService : IQueueService
         Loads++;
         await Task.Yield();
         if (LoadError is not null) throw LoadError;
-        foreach (var q in Queues.ToList()) yield return q;
+        // Fresh objects per listing, like the real service; tests change counts on the stored ones.
+        // Tests that change the list during polling lock it.
+        List<QueueInfo> queues;
+        lock (Queues) queues = Queues.ToList();
+        foreach (var q in queues)
+            yield return new QueueInfo
+            {
+                Name = q.Name,
+                ActiveMessageCount = q.ActiveMessageCount,
+                DeadLetterMessageCount = q.DeadLetterMessageCount,
+                ScheduledMessageCount = q.ScheduledMessageCount,
+                TransferMessageCount = q.TransferMessageCount,
+            };
     }
 
     public Task DeleteQueueAsync(string queueName)
@@ -75,24 +87,35 @@ public sealed class FakeTopicService : ITopicService
     public async IAsyncEnumerable<TopicInfo> GetTopicsAsync([EnumeratorCancellation] CancellationToken ct = default)
     {
         await Task.Yield();
-        foreach (var t in Topics) yield return t;
+        List<TopicInfo> topics;
+        lock (Topics) topics = Topics.ToList();
+        foreach (var t in topics) yield return new TopicInfo { Name = t.Name, SubscriptionCount = t.SubscriptionCount, ScheduledMessageCount = t.ScheduledMessageCount };
     }
 
     public async IAsyncEnumerable<SubscriptionInfo> GetSubscriptionsAsync(string topicName, [EnumeratorCancellation] CancellationToken ct = default)
     {
         await Task.Yield();
-        foreach (var s in Subscriptions.Where(s => s.TopicName == topicName)) yield return s;
+        foreach (var s in Subscriptions.Where(s => s.TopicName == topicName).ToList()) yield return Copy(s);
     }
 
     public async IAsyncEnumerable<SubscriptionInfo> GetAllSubscriptionsAsync([EnumeratorCancellation] CancellationToken ct = default)
     {
         await Task.Yield();
-        foreach (var s in Subscriptions) yield return s;
+        foreach (var s in Subscriptions.ToList()) yield return Copy(s);
     }
 
     public Task DeleteTopicAsync(string topicName) => Task.CompletedTask;
 
     public Task DeleteSubscriptionAsync(string topicName, string subscriptionName) => Task.CompletedTask;
+
+    private static SubscriptionInfo Copy(SubscriptionInfo s) => new()
+    {
+        Name = s.Name,
+        TopicName = s.TopicName,
+        ActiveMessageCount = s.ActiveMessageCount,
+        DeadLetterMessageCount = s.DeadLetterMessageCount,
+        TransferMessageCount = s.TransferMessageCount,
+    };
 }
 
 public sealed class FakeMessageService : IMessageService

@@ -38,6 +38,7 @@ hostBuilder.ConfigureServices(services =>
     services.AddSingleton<NavigationState>();
     services.AddSingleton<SubscriptionCatalog>();
     services.AddSingleton<MessageBrowserStore>();
+    services.AddSingleton<LiveCountsOptions>();
     services.AddSyntaxLanguages();
 
     services.Decorate<INamespaceService, CachingNamespaceService>();

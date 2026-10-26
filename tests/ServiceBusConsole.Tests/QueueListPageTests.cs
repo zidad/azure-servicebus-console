@@ -1,4 +1,5 @@
 using RazorConsole.Testing;
+using Spectre.Console;
 
 namespace ServiceBusConsole.Tests;
 
@@ -21,6 +22,59 @@ public sealed class QueueListPageTests
 
     private static int RowOf(TerminalFrame frame, string text)
         => Enumerable.Range(0, frame.Height).First(y => frame.GetLine(y).Contains(text));
+
+    [Fact]
+    public async Task ChangedCounts_ShowUpWithoutRefresh_HighlightedUntilTheyFade()
+    {
+        var app = WithQueues();
+        app.LiveCounts.Interval = TimeSpan.FromMilliseconds(50);
+        await using var terminal = await app.OpenQueuesAsync();
+        await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
+
+        lock (app.Queues.Queues)
+        {
+            app.Queues.Queues.Single(q => q.Name == "emails").ActiveMessageCount = 7;
+            app.Queues.Queues.Add(new QueueInfo { Name = "refunds" });
+        }
+
+        var frame = await terminal.WaitUntilAsync(f => f.GetLine(RowOf(f, "emails")).Contains(" 7 ") && f.ContainsText("refunds"), AppHarness.Timeout, cancellationToken: Ct);
+        frame.ContainsText("Queues (4)").ShouldBeTrue(frame.ScreenText);
+        var (x, y) = CellOf(frame, "emails", "7");
+        Background(frame, x, y).ShouldNotBe(Color.Default);
+        var (ox, oy) = CellOf(frame, "orders", "12");
+        Background(frame, ox, oy).ShouldBe(Color.Default);
+
+        await terminal.WaitUntilAsync(f => Background(f, x, y) == Color.Default, AppHarness.Timeout, cancellationToken: Ct);
+    }
+
+    [Fact]
+    public async Task FailedPoll_KeepsTheListAndShowsNoError_ThenRecovers()
+    {
+        var app = WithQueues();
+        app.LiveCounts.Interval = TimeSpan.FromMilliseconds(50);
+        await using var terminal = await app.OpenQueuesAsync();
+        await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
+        var loads = app.Queues.Loads;
+
+        app.Queues.LoadError = new InvalidOperationException("boom");
+        await terminal.WaitUntilAsync(_ => app.Queues.Loads >= loads + 3, AppHarness.Timeout, cancellationToken: Ct);
+        var frame = terminal.CurrentFrame;
+        frame.ContainsText("boom").ShouldBeFalse(frame.ScreenText);
+        frame.ContainsText("orders").ShouldBeTrue(frame.ScreenText);
+
+        lock (app.Queues.Queues) app.Queues.Queues.Single(q => q.Name == "orders").ActiveMessageCount = 13;
+        app.Queues.LoadError = null;
+        await terminal.WaitUntilAsync(f => f.GetLine(RowOf(f, "orders")).Contains(" 13 "), AppHarness.Timeout, cancellationToken: Ct);
+    }
+
+    private static Color Background(TerminalFrame frame, int x, int y) => frame[x, y].Style?.Background ?? Color.Default;
+
+    // The count in a row; counts are right-aligned, so match it with the spaces around it.
+    private static (int X, int Y) CellOf(TerminalFrame frame, string row, string count)
+    {
+        var y = RowOf(frame, row);
+        return (frame.GetLine(y).IndexOf($" {count} ", StringComparison.Ordinal) + 1, y);
+    }
 
     [Fact]
     public async Task ShowsQueues_WithDeadLetteredFirst()

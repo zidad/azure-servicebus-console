@@ -9,6 +9,8 @@
 @inject IMessageService MessageService
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 @inject ITerminalViewport Viewport
+@inject LiveCountsOptions LiveCounts
+@inject Microsoft.Extensions.Logging.ILogger<AllSubscriptionsPage> Logger
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
     <Header>
@@ -62,9 +64,9 @@
                             <SpectreTR @key="@($"{s.TopicName}/{s.Name}")" RowIndex="@idx">
                                 <SpectreTD>@s.TopicName</SpectreTD>
                                 <SpectreTD>@s.Name</SpectreTD>
-                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.ActiveMessageCount" /></SpectreTD>
-                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.DeadLetterMessageCount" Color="@Theme.Danger" Bold="true" /></SpectreTD>
-                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.TransferMessageCount" Color="@Theme.Transfer" /></SpectreTD>
+                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.ActiveMessageCount" Highlight="@List.Changes.Highlight(s, "Active")" /></SpectreTD>
+                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.DeadLetterMessageCount" Color="@Theme.Danger" Bold="true" Highlight="@List.Changes.Highlight(s, "DLQ")" /></SpectreTD>
+                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.TransferMessageCount" Color="@Theme.Transfer" Highlight="@List.Changes.Highlight(s, "Transfer")" /></SpectreTD>
                                 <SpectreTD>@if (s.IsRefreshing) { <Spinner /> }</SpectreTD>
                             </SpectreTR>
                         }
@@ -101,7 +103,9 @@
               OnCompleted="@(s => { if (_all.FirstOrDefault(x => x.TopicName == s!.TopicName && x.Name == s.Name) is {} x) x.DeadLetterMessageCount = 0; SortAndUpdateFilterState(); StateHasChanged(); return Task.CompletedTask; })" />
 
 @code {
-    private List<SubscriptionInfo> _all = [];
+    private LiveList<SubscriptionInfo>? _live;
+    private LiveList<SubscriptionInfo> List => _live ?? throw new InvalidOperationException("Subscription list not initialized");
+    private List<SubscriptionInfo> _all => List.All;
     private List<SubscriptionInfo> _filtered = [];
     private string? _filter;
     private int _selectedIndex;
@@ -110,8 +114,6 @@
     private AsyncCommand<SubscriptionInfo>? _deleteSub;
     private AsyncCommand<SubscriptionInfo>? _purgeDlq;
     private bool _loadFailed;
-    private CancellationTokenSource _cts = new();
-    private readonly RenderThrottle _renderThrottle = new();
     private string? _restoreFocusKey;
     private SpectreTBody? _tbody;
     private bool _tableAutoFocused;
@@ -123,11 +125,19 @@
         .Add("Transfer", s => s.TransferMessageCount)
         .SortBy("DLQ", SortDirection.Descending);
 
-    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+    public void Dispose() => _live?.Dispose();
 
 
     protected override void OnInitialized()
     {
+        _live = new LiveList<SubscriptionInfo>(TopicService.GetAllSubscriptionsAsync, Key, s => s.IsRefreshing,
+            new(Key, ("Active", s => s.ActiveMessageCount), ("DLQ", s => s.DeadLetterMessageCount), ("Transfer", s => s.TransferMessageCount)),
+            LiveCounts, Logger)
+        {
+            Changed = () => { SortAndUpdateFilterState(); return InvokeAsync(StateHasChanged); },
+            Render = StateHasChanged,
+            LoadFailed = ex => { _loadFailed = true; _error = ex.Message; return InvokeAsync(StateHasChanged); },
+        };
         if (Connection.CurrentNamespace is null)
             Nav.NavigateTo("/");
         if (NavState.TopicName is not null && NavState.SubscriptionName is not null)
@@ -145,51 +155,14 @@
         }
     }
 
-    private async Task LoadSubscriptions()
+    private Task LoadSubscriptions()
     {
-        // Take the token for *this* run: F5 replaces the field, and a superseded run
-        // must not read the new run's token and conclude it was never cancelled.
-        _cts.Cancel();
-        var token = (_cts = new CancellationTokenSource()).Token;
         _error = string.Empty;
         _loadFailed = false;
-
-        var live = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        _renderThrottle.Reset();
-        var transitionRendered = false;
-
-        try
-        {
-            await foreach (var s in TopicService.GetAllSubscriptionsAsync(token))
-            {
-                if (token.IsCancellationRequested) break;
-                var key = $"{s.TopicName}/{s.Name}";
-                if (!s.IsRefreshing) live.Add(key);
-                var idx = _all.FindIndex(x => x.TopicName == s.TopicName && x.Name == s.Name);
-                if (idx >= 0) _all[idx] = s; else _all.Add(s);
-
-                // Cached rows arrive in one burst, so force a render when the first live
-                // row lands; after that the throttle paces the (network-bound) stream.
-                var firstLive = !s.IsRefreshing && !transitionRendered;
-                if (firstLive) transitionRendered = true;
-
-                if (firstLive || _renderThrottle.ShouldRender())
-                {
-                    SortAndUpdateFilterState();
-                    await InvokeAsync(StateHasChanged);
-                }
-            }
-
-            if (!token.IsCancellationRequested)
-            {
-                _all.RemoveAll(s => !live.Contains($"{s.TopicName}/{s.Name}"));
-                SortAndUpdateFilterState();
-            }
-            await InvokeAsync(StateHasChanged);
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { _loadFailed = true; _error = ex.Message; await InvokeAsync(StateHasChanged); }
+        return List.LoadAsync();
     }
+
+    private static string Key(SubscriptionInfo s) => $"{s.TopicName}/{s.Name}";
 
     private void SortAndUpdateFilterState()
     {

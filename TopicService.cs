@@ -5,8 +5,8 @@ namespace ServiceBusConsole;
 
 public class TopicService(ServiceBusConnection connection, ILogger<TopicService> logger) : ITopicService
 {
-    // Every count below costs one round-trip, and they dominate load time. Run a handful
-    // at once — kept low so a large namespace doesn't trip Service Bus request throttling.
+    // Topics listed in parallel (all subscriptions), or emulator peeks: a handful at once,
+    // kept low so a large namespace doesn't trip Service Bus request throttling.
     private const int MaxConcurrency = 8;
 
     public async IAsyncEnumerable<TopicInfo> GetTopicsAsync(
@@ -24,9 +24,14 @@ public class TopicService(ServiceBusConnection connection, ILogger<TopicService>
             yield break;
         }
 
-        await foreach (var topic in AsyncParallel.MapAsync(
-            GetTopicNamesAsync(ct), GetTopicInfoAsync, MaxConcurrency, ct))
-            yield return topic;
+        // One call per page of topics, so polling stays cheap.
+        await foreach (var runtime in connection.AdminClient.GetTopicsRuntimePropertiesAsync(ct))
+            yield return new TopicInfo
+            {
+                Name = runtime.Name,
+                SubscriptionCount = runtime.SubscriptionCount,
+                ScheduledMessageCount = runtime.ScheduledMessageCount,
+            };
     }
 
     public async IAsyncEnumerable<SubscriptionInfo> GetSubscriptionsAsync(
@@ -34,10 +39,17 @@ public class TopicService(ServiceBusConnection connection, ILogger<TopicService>
     {
         logger.LogInformation("Listing subscriptions for topic {Topic}", topicName);
 
-        await foreach (var sub in AsyncParallel.MapAsync(
-            GetSubscriptionNamesAsync(topicName, ct),
-            (name, token) => GetSubscriptionInfoAsync(topicName, name, token),
-            MaxConcurrency, ct))
+        if (connection.IsEmulator)
+        {
+            await foreach (var sub in AsyncParallel.MapAsync(
+                EmulatorSubscriptionNames(topicName),
+                (name, token) => GetEmulatorSubscriptionInfoAsync(topicName, name, token),
+                MaxConcurrency, ct))
+                yield return sub;
+            yield break;
+        }
+
+        await foreach (var sub in GetSubscriptionsRuntimeAsync(topicName, ct))
             yield return sub;
     }
 
@@ -46,19 +58,28 @@ public class TopicService(ServiceBusConnection connection, ILogger<TopicService>
     {
         logger.LogInformation("Listing all subscriptions across all topics");
 
-        // Only topic names are needed here, so the per-topic runtime lookup GetTopicsAsync
-        // does is skipped. Two bounded stages: list each topic's subscriptions, then fetch
-        // their counts — the second stage overlaps subscriptions from different topics.
-        var byTopic = AsyncParallel.MapAsync(
-            GetTopicNamesAsync(ct),
-            async (topic, token) => (topic, names: await GetSubscriptionNamesAsync(topic, token).ToListAsync(token)),
-            MaxConcurrency, ct);
+        if (connection.IsEmulator)
+        {
+            // Two bounded stages: list each topic's subscriptions, then peek their counts.
+            var byTopic = AsyncParallel.MapAsync(
+                GetTopicNamesAsync(ct),
+                async (topic, token) => (topic, names: await EmulatorSubscriptionNames(topic).ToListAsync(token)),
+                MaxConcurrency, ct);
+            await foreach (var sub in AsyncParallel.MapAsync(
+                Flatten(byTopic, ct),
+                (pair, token) => GetEmulatorSubscriptionInfoAsync(pair.topic, pair.name, token),
+                MaxConcurrency, ct))
+                yield return sub;
+            yield break;
+        }
 
-        await foreach (var sub in AsyncParallel.MapAsync(
-            Flatten(byTopic, ct),
-            (pair, token) => GetSubscriptionInfoAsync(pair.topic, pair.name, token),
+        // One paged listing per topic, a few topics at a time.
+        await foreach (var subs in AsyncParallel.MapAsync(
+            GetTopicNamesAsync(ct),
+            (topic, token) => GetSubscriptionsRuntimeAsync(topic, token).ToListAsync(token).AsTask(),
             MaxConcurrency, ct))
-            yield return sub;
+            foreach (var sub in subs)
+                yield return sub;
     }
 
     public async Task DeleteTopicAsync(string topicName)
@@ -107,61 +128,33 @@ public class TopicService(ServiceBusConnection connection, ILogger<TopicService>
             }
     }
 
-    private async IAsyncEnumerable<string> GetSubscriptionNamesAsync(
+    private static IAsyncEnumerable<string> EmulatorSubscriptionNames(string topicName) =>
+        (LoadEmulatorConfig().Topics.FirstOrDefault(t => t.Name == topicName)
+            ?? throw new InvalidOperationException($"Topic '{topicName}' not found in emulator config."))
+        .Subscriptions.Select(s => s.Name).ToAsyncEnumerable();
+
+    private async IAsyncEnumerable<SubscriptionInfo> GetSubscriptionsRuntimeAsync(
         string topicName, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
     {
-        if (connection.IsEmulator)
-        {
-            var topic = LoadEmulatorConfig().Topics.FirstOrDefault(t => t.Name == topicName)
-                ?? throw new InvalidOperationException($"Topic '{topicName}' not found in emulator config.");
-
-            foreach (var sub in topic.Subscriptions)
+        await foreach (var runtime in connection.AdminClient.GetSubscriptionsRuntimePropertiesAsync(topicName, ct))
+            yield return new SubscriptionInfo
             {
-                ct.ThrowIfCancellationRequested();
-                yield return sub.Name;
-            }
-            yield break;
-        }
-
-        await foreach (var page in connection.AdminClient.GetSubscriptionsAsync(topicName).AsPages().WithCancellation(ct))
-            foreach (var sub in page.Values)
-            {
-                ct.ThrowIfCancellationRequested();
-                yield return sub.SubscriptionName;
-            }
-    }
-
-    private async Task<TopicInfo> GetTopicInfoAsync(string topicName, CancellationToken ct)
-    {
-        var runtime = await connection.AdminClient.GetTopicRuntimePropertiesAsync(topicName, ct);
-        return new TopicInfo
-        {
-            Name = topicName,
-            SubscriptionCount = runtime.Value.SubscriptionCount,
-            ScheduledMessageCount = runtime.Value.ScheduledMessageCount
-        };
-    }
-
-    private async Task<SubscriptionInfo> GetSubscriptionInfoAsync(string topicName, string subscriptionName, CancellationToken ct)
-    {
-        if (connection.IsEmulator)
-        {
-            var (active, dlq) = await PeekSubscriptionCountsAsync(topicName, subscriptionName, ct);
-            return new SubscriptionInfo
-            {
-                Name = subscriptionName, TopicName = topicName,
-                ActiveMessageCount = active, DeadLetterMessageCount = dlq
+                Name = runtime.SubscriptionName,
+                TopicName = topicName,
+                ActiveMessageCount = runtime.ActiveMessageCount,
+                DeadLetterMessageCount = runtime.DeadLetterMessageCount,
+                TransferMessageCount = runtime.TransferMessageCount,
             };
-        }
+    }
 
-        var runtime = await connection.AdminClient.GetSubscriptionRuntimePropertiesAsync(topicName, subscriptionName, ct);
+    // The emulator has no management API: count by peeking.
+    private async Task<SubscriptionInfo> GetEmulatorSubscriptionInfoAsync(string topicName, string subscriptionName, CancellationToken ct)
+    {
+        var (active, dlq) = await PeekSubscriptionCountsAsync(topicName, subscriptionName, ct);
         return new SubscriptionInfo
         {
-            Name = subscriptionName,
-            TopicName = topicName,
-            ActiveMessageCount = runtime.Value.ActiveMessageCount,
-            DeadLetterMessageCount = runtime.Value.DeadLetterMessageCount,
-            TransferMessageCount = runtime.Value.TransferMessageCount
+            Name = subscriptionName, TopicName = topicName,
+            ActiveMessageCount = active, DeadLetterMessageCount = dlq
         };
     }
 
