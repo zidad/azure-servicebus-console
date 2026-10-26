@@ -2,14 +2,14 @@
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 
 <ModalWindow IsOpened="@IsOpened">
-    <Panel Title="Error" BorderColor="@Color.Red" Padding="@(new(2, 1, 2, 1))">
+    <Panel Title="@($"{Icons.Error} Error")" BorderColor="@Theme.Danger" Padding="@(new(2, 1, 2, 1))">
         <Rows>
-            <Markup Content="@Message" Foreground="@Color.Red" />
+            <Markup Content="@Message" Foreground="@Theme.Danger" />
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <TextButton @ref="_dismissButton"
                             Content="Dismiss"
                             OnClick="@(() => OnDismiss.InvokeAsync())"
-                            FocusedColor="@Color.Grey"
+                            FocusedColor="@Theme.Muted"
                             FocusOrder="1" />
             </Padder>
         </Rows>

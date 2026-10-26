@@ -2,7 +2,7 @@
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 
 <ModalWindow IsOpened="@IsOpened">
-    <Panel Title="Confirm" BorderColor="@Color.Red" Padding="@(new(2, 1, 2, 1))">
+    <Panel Title="@($"{Icons.Confirm} Confirm")" BorderColor="@Theme.Danger" Padding="@(new(2, 1, 2, 1))">
         <Rows>
             <Markup Content="@Message" />
             <Padder Padding="@(new(0, 1, 0, 0))">
@@ -11,13 +11,13 @@
                                 Content="[Y] Yes"
                                 OnClick="@(() => OnConfirm.InvokeAsync())"
                                 OnKeyDown="HandleKey"
-                                FocusedColor="@Color.Red"
+                                FocusedColor="@Theme.Danger"
                                 FocusOrder="0" />
                     <Markup Content="   " />
                     <TextButton Content="[N] No"
                                 OnClick="@(() => OnCancel.InvokeAsync())"
                                 OnKeyDown="HandleKey"
-                                FocusedColor="@Color.Grey"
+                                FocusedColor="@Theme.Muted"
                                 FocusOrder="1" />
                 </Columns>
             </Padder>

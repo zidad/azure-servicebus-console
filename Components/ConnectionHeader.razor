@@ -2,20 +2,16 @@
 @inject ServiceBusConnection Connection
 @inject NavigationState NavState
 
-<Panel BorderColor="@Color.Grey37" FillWidth="true" Padding="@(new(0, 0, 0, 0))">
+<Panel BorderColor="@Theme.Border" Title="@Title" TitleColor="@Theme.Muted" FillWidth="true" Padding="@(new(0, 0, 0, 0))">
     <Columns>
         @if (Connection.Namespace is { } ns)
         {
-            <div class="pick-subscription" @onclick="OpenSubscriptions"><Markup Content="@SubscriptionName" Foreground="@Color.Grey" Decoration="@Decoration.Underline" /></div>
-            <Markup Content=" › " Foreground="@Color.Grey" />
-            <div class="pick-namespace" @onclick="OpenNamespaces"><Markup Content="@ns.Name" Foreground="@Color.White" Decoration="@Decoration.Underline" /></div>
-            <Markup Content=" › " Foreground="@Color.Grey" />
+            <div class="pick-subscription" @onclick="OpenSubscriptions"><Markup Content="@SubscriptionLabel" Foreground="@Theme.Muted" Decoration="@Decoration.Underline" /></div>
+            <Markup Content=" › " Foreground="@Theme.Muted" />
+            <div class="pick-namespace" @onclick="OpenNamespaces"><Markup Content="@($"{Icons.Namespace} {ns.Name}")" Foreground="@Color.White" Decoration="@Decoration.Underline" /></div>
+            <Markup Content=" › " Foreground="@Theme.Muted" />
         }
-        @ChildContent
-        @if (Connection.Namespace is { } details && Details(details) is { Length: > 0 } text)
-        {
-            <Markup Content="@text" Foreground="@Color.Grey" />
-        }
+        <CascadingValue Value="this" IsFixed="true">@ChildContent</CascadingValue>
     </Columns>
 </Panel>
 
@@ -27,24 +23,34 @@
 
     private ConnectionPicker? _picker;
 
-    private string SubscriptionName => NavState.AzureSubscriptionName ?? "";
+    private string SubscriptionName => NavState.AzureSubscription?.Name ?? "";
 
-    // Panel border + padding put the subscription at x = 2; Columns adds one space around " › ".
+    private string SubscriptionIcon => Connection.IsEmulator ? Icons.Emulator : Icons.AzureSubscription;
+
+    private string SubscriptionLabel => $"{SubscriptionIcon} {SubscriptionName}";
+
+    // Panel border + padding put the subscription at x = 2; the icon is two cells wide;
+    // Columns adds one space around " › ".
     private const int SubscriptionX = 2;
-    private int NamespaceX => SubscriptionX + SubscriptionName.Length + 1 + " › ".Length + 1;
+    private int NamespaceX => SubscriptionX + 3 + SubscriptionName.Length + 1 + " › ".Length + 1;
+
+    private string? Title => Connection.Namespace is { } ns && Details(ns) is { Length: > 0 } text ? text : null;
 
     private void OpenSubscriptions(MouseEventArgs e) => _picker?.OpenSubscriptions(SubscriptionX - 1, (int)e.ClientY + 1);
 
     private void OpenNamespaces(MouseEventArgs e) => _picker?.OpenNamespaces(NamespaceX - 1, (int)e.ClientY + 1);
+
+    /// <summary>Opens the section dropdown under a clicked <see cref="SectionCrumb"/>.</summary>
+    public void OpenSections(int x, int top) => _picker?.OpenSections(Math.Max(0, x - 3), top);
 
     /// <summary>Item count for a page header: "(3)", or "(1 of 3)" while filtered.</summary>
     public static string Count(int shown, int total) => shown == total ? $"({total})" : $"({shown} of {total})";
 
     private static string Details(NamespaceInfo ns)
     {
-        var parts = new[] { ns.ResourceGroup, ns.Location, ns.Sku, ns.Status }.Where(p => !string.IsNullOrEmpty(p));
-        var text = string.Join("  ·  ", parts);
-        // Columns already adds one space before this cell.
-        return text.Length == 0 ? "" : $"  │  {text}";
+        var status = string.IsNullOrEmpty(ns.Status) ? null : $"{Icons.NamespaceStatus(ns.Status)} {ns.Status}";
+        var parts = new[] { ns.ResourceGroup, ns.Location, ns.Sku, status }.Where(p => !string.IsNullOrEmpty(p));
+        var text = string.Join(" · ", parts);
+        return text.Length == 0 ? "" : $" {text} ";
     }
 }

@@ -9,12 +9,13 @@
 <FullscreenPage OnKeyDown="HandleKeyDown">
     <Header>
         @Breadcrumb
-        @if (_isDlq) { <Markup Content=" (DLQ)" Foreground="@Color.Yellow" /> }
+        @if (_isDlq) { <Markup Content="@($"{Icons.DeadLetter} DLQ")" Foreground="@Theme.Danger" Decoration="@Decoration.Bold" /> }
         @if (_browser is { } header)
         {
+            <Markup Content="·" Foreground="@Theme.Muted" />
             <Markup Content="@ModeLabel(header.Mode)" Foreground="@ModeColor(header.Mode)" />
         }
-        @if (_isAutoForwarding) { <Markup Content=" (auto-forwarding)" Foreground="@Color.Grey" /> }
+        @if (_isAutoForwarding) { <Markup Content="@($"· {Icons.Transfer} auto-forwarding")" Foreground="@Theme.Transfer" /> }
     </Header>
     <Content>
         @if (_browser is not { } browser || _loading is not null)
@@ -22,7 +23,7 @@
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
                     <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
-                    <Markup Content="@(_loading ?? "Loading…")" Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+                    <Markup Content="@(_loading ?? "Loading…")" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
                 </Columns>
             </Padder>
         }
@@ -31,10 +32,15 @@
             var showChecks = browser.Selected.Count > 0;
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
-                    <Markup Content="@StatusLine(browser)" Foreground="@Color.Grey" />
+                    <Markup Content="@StatusCount(browser)" Foreground="@(browser.Mode == BrowseMode.Received ? Theme.Danger : Color.Default)" />
+                    @if (browser.Selected.Count > 0)
+                    {
+                        <Markup Content="@($"· {Icons.Selected} {browser.Selected.Count} selected")" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
+                    }
+                    <Markup Content="· Space select, A all, I invert" Foreground="@Theme.Muted" />
                     @if (browser.Progress is { } progress)
                     {
-                        <Markup Content="@($"  {progress}")" Foreground="@Color.Yellow" />
+                        <Markup Content="@($"  {progress}")" Foreground="@Theme.Warning" />
                     }
                 </Columns>
             </Padder>
@@ -74,20 +80,20 @@
                                 <SpectreTD>
                                     @if (showChecks || isCursor)
                                     {
-                                        <div class="check" @onclick="@ToggleHandler(m)" @onclick:stopPropagation="true">@(selected ? "[x]" : "[ ]")</div>
+                                        <div class="check" @onclick="@ToggleHandler(m)" @onclick:stopPropagation="true">@(selected ? Icons.Selected : Icons.Unselected)</div>
                                     }
                                 </SpectreTD>
                                 <SpectreTD Align="Justify.Right">@m.SequenceNumber</SpectreTD>
                                 <SpectreTD>@Truncate(m.MessageId, 30)</SpectreTD>
                                 <SpectreTD>@Truncate(m.Subject, 25)</SpectreTD>
-                                @if (_isDlq) { <SpectreTD>@Truncate(m.DeadLetterReason ?? "", 25)</SpectreTD> }
+                                @if (_isDlq) { <SpectreTD><Markup Content="@Truncate(m.DeadLetterReason ?? "", 25)" Foreground="@Theme.Danger" /></SpectreTD> }
                                 <SpectreTD>@m.EnqueuedTime.LocalDateTime.ToString("MM-dd HH:mm:ss")</SpectreTD>
-                                <SpectreTD Align="Justify.Right">@m.DeliveryCount</SpectreTD>
+                                <SpectreTD Align="Justify.Right"><Markup Content="@m.DeliveryCount.ToString()" Foreground="@(m.DeliveryCount > 1 ? Theme.Warning : Theme.Muted)" /></SpectreTD>
                                 @if (browser.Mode == BrowseMode.Locked)
                                 {
                                     <SpectreTD>
-                                        <Markup Content="@(browser.IsLockHeld(m) ? "held" : "lost")"
-                                                Foreground="@(browser.IsLockHeld(m) ? Color.Green : Color.Red)" />
+                                        <Markup Content="@(browser.IsLockHeld(m) ? $"{Icons.Locked} held" : $"{Icons.Unlocked} lost")"
+                                                Foreground="@(browser.IsLockHeld(m) ? Theme.Success : Theme.Danger)" />
                                     </SpectreTD>
                                 }
                             </SpectreTR>
@@ -100,44 +106,44 @@
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Markup Content="@(_isAutoForwarding ? "Auto-forwarding enabled — messages are forwarded to another entity." : EmptyText(browser.Mode))"
-                        Foreground="@Color.Grey" Decoration="@Decoration.Italic" />
+                        Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
             </Padder>
         }
     </Content>
     <Footer>
         <Padder Padding="@(new(1, 0, 0, 0))">
             <Columns>
-                <TextButton Content="[F7] Peek…" OnClick="@(() => _peekDialog?.Open())" FocusedColor="@Color.Green" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="@($"[F7] {Icons.Peek} Peek…")" OnClick="@(() => _peekDialog?.Open())" FocusedColor="@Theme.Success" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="  " />
-                <TextButton Content="[F8] Receive…" OnClick="@(() => _receiveDialog?.Open())" FocusedColor="@Color.Red" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="@($"[F8] {Icons.Subscription} Receive…")" OnClick="@(() => _receiveDialog?.Open())" FocusedColor="@Theme.Danger" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="  " />
-                <TextButton Content="@(_isDlq ? "[F6] View Active" : "[F6] View DLQ")" OnClick="@(() => SwitchDlq(!_isDlq))" FocusedColor="@Color.Yellow" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="@(_isDlq ? $"[F6] {Icons.Queue} View Active" : $"[F6] {Icons.DeadLetter} View DLQ")" OnClick="@(() => SwitchDlq(!_isDlq))" FocusedColor="@Theme.Warning" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="  " />
                 @if (Mode == BrowseMode.Locked)
                 {
-                    <TextButton Content="[F9] Complete" OnClick="@(() => Run(_complete))" FocusedColor="@Color.Red" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
+                    <TextButton Content="@($"[F9] {Icons.Complete} Complete")" OnClick="@(() => Run(_complete))" FocusedColor="@Theme.Danger" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
-                    <TextButton Content="[F4] Abandon" OnClick="@(() => Run(_abandon))" FocusedColor="@Color.Yellow" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
+                    <TextButton Content="@($"[F4] {Icons.Unlocked} Abandon")" OnClick="@(() => Run(_abandon))" FocusedColor="@Theme.Warning" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
                     @if (!_isDlq)
                     {
-                        <TextButton Content="[F3] Dead-letter" OnClick="@(() => Run(_deadLetter))" FocusedColor="@Color.Red" FocusOrder="7" OnKeyDown="@HandleKeyDown" />
+                        <TextButton Content="@($"[F3] {Icons.DeadLetter} Dead-letter")" OnClick="@(() => Run(_deadLetter))" FocusedColor="@Theme.Danger" FocusOrder="7" OnKeyDown="@HandleKeyDown" />
                         <Markup Content="  " />
                     }
                 }
                 @if (CanRequeue)
                 {
-                    <TextButton Content="[F10] Requeue" OnClick="@(() => Run(_requeue))" FocusedColor="@Color.Green" FocusOrder="8" OnKeyDown="@HandleKeyDown" />
+                    <TextButton Content="@($"[F10] {Icons.Transfer} Requeue")" OnClick="@(() => Run(_requeue))" FocusedColor="@Theme.Success" FocusOrder="8" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
                 }
                 else if (Mode == BrowseMode.Peek)
                 {
-                    <TextButton Content="[F10] Resend" OnClick="@(() => Run(_resend))" FocusedColor="@Color.Green" FocusOrder="8" OnKeyDown="@HandleKeyDown" />
+                    <TextButton Content="@($"[F10] {Icons.Send} Resend")" OnClick="@(() => Run(_resend))" FocusedColor="@Theme.Success" FocusOrder="8" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
                 }
-                <TextButton Content="[F11] Purge" OnClick="@(() => _purge?.Invoke())" FocusedColor="@Color.Red" FocusOrder="9" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="@($"[F11] {Icons.Purge} Purge")" OnClick="@(() => _purge?.Invoke())" FocusedColor="@Theme.Danger" FocusOrder="9" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="  " />
-                <TextButton Content="[Esc] Back" OnClick="GoBack" FocusedColor="@Color.Yellow" FocusOrder="10" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="@($"[Esc] {Icons.Back} Back")" OnClick="GoBack" FocusedColor="@Theme.Accent" FocusOrder="10" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
     </Footer>
@@ -357,16 +363,16 @@
 
     private static string ModeLabel(BrowseMode mode) => mode switch
     {
-        BrowseMode.Locked => " · locked",
-        BrowseMode.Received => " · received and deleted",
-        _ => " · peek",
+        BrowseMode.Locked => $"{Icons.Locked} locked",
+        BrowseMode.Received => $"{Icons.Received} received and deleted",
+        _ => $"{Icons.Peek} peek",
     };
 
     private static Color ModeColor(BrowseMode mode) => mode switch
     {
-        BrowseMode.Locked => Color.Green,
-        BrowseMode.Received => Color.Red,
-        _ => Color.Grey,
+        BrowseMode.Locked => Theme.Warning,
+        BrowseMode.Received => Theme.Danger,
+        _ => Theme.Accent,
     };
 
     private static string EmptyText(BrowseMode mode) => mode switch
@@ -375,17 +381,12 @@
         _ => "No messages left. Use F7 Peek or F8 Receive to load more.",
     };
 
-    private static string StatusLine(MessageBrowser b)
+    private static string StatusCount(MessageBrowser b) => b.Mode switch
     {
-        var count = b.Mode switch
-        {
-            BrowseMode.Locked => $"{b.Messages.Count} locked message(s), {b.LockedCount} held",
-            BrowseMode.Received => $"{b.Messages.Count} message(s) already deleted, requeue them or they are gone",
-            _ => $"{b.Messages.Count} message(s)",
-        };
-        var selection = b.Selected.Count > 0 ? $" · {b.Selected.Count} selected" : "";
-        return $"{count}{selection} · Space select, A all, I invert";
-    }
+        BrowseMode.Locked => $"{Icons.Message} {b.Messages.Count} locked message(s), {b.LockedCount} held",
+        BrowseMode.Received => $"{Icons.Received} {b.Messages.Count} message(s) already deleted, requeue them or they are gone",
+        _ => $"{Icons.Message} {b.Messages.Count} message(s)",
+    };
 
     private static string Truncate(string value, int maxLength) =>
         value.Length <= maxLength ? value : value[..(maxLength - 1)] + "…";

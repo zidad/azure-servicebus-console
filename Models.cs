@@ -49,8 +49,6 @@ public class SubscriptionInfo
     public long DeadLetterMessageCount { get; set; }
     public long TransferMessageCount { get; set; }
     public bool IsRefreshing { get; set; }
-
-    public long TotalMessageCount => ActiveMessageCount + DeadLetterMessageCount + TransferMessageCount;
 }
 
 public enum MessageState { Peeked, Locked, Received }

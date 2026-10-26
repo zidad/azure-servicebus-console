@@ -6,12 +6,13 @@
     [Parameter, EditorRequired] public string Label { get; set; } = "";
     [Parameter, EditorRequired] public required ITableSort Sort { get; set; }
     [Parameter] public EventCallback OnSorted { get; set; }
+    [Parameter] public string? Icon { get; set; }
 
-    private string Text => Sort.DirectionOf(Label) switch
+    private string Text => (Icon is { } icon ? $"{icon} {Label}" : Label) + Sort.DirectionOf(Label) switch
     {
-        SortDirection.Ascending => $"{Label} ▲",
-        SortDirection.Descending => $"{Label} ▼",
-        _ => Label,
+        SortDirection.Ascending => " ▲",
+        SortDirection.Descending => " ▼",
+        _ => "",
     };
 
     // A method group keeps the handler id stable across renders; a lambda would not.

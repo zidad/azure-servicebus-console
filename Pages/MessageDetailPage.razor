@@ -9,7 +9,7 @@
 
 @if (NavState.Message is null)
 {
-    <Markup Content="No message selected." Foreground="@Color.Red" />
+    <Markup Content="No message selected." Foreground="@Theme.Danger" />
 }
 else
 {
@@ -17,13 +17,13 @@ else
 
     <Flex Class="rows" Direction="FlexDirection.Column" @onkeydown="HandleKeyDown">
         <ConnectionHeader>
-            <Markup Content="@(NavState.MessageSource?.DisplayName ?? "")" Foreground="@Color.Grey" />
-            <Markup Content=" › " Foreground="@Color.Grey" />
-            <Markup Content="@($"Message #{msg.SequenceNumber}")" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+            <Markup Content="@SourceLabel" Foreground="@Theme.Muted" />
+            <Markup Content=" › " Foreground="@Theme.Muted" />
+            <Markup Content="@($"{Icons.Message} Message #{msg.SequenceNumber}")" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
         </ConnectionHeader>
 
         <Padder Padding="@(new(0, 1, 0, 0))">
-            <Panel Title="Properties" BorderColor="@Color.Grey" FillWidth="true" Padding="@(new(1, 0, 1, 0))">
+            <Panel Title="@($"{Icons.Properties} Properties")" BorderColor="@Theme.Border" FillWidth="true" Padding="@(new(1, 0, 1, 0))">
                 <SpectreTable Expand="true" Border="TableBorder.Simple">
                     <SpectreTHead>
                         <SpectreTR>
@@ -38,7 +38,7 @@ else
                         <SpectreTR><SpectreTD>Content Type</SpectreTD><SpectreTD>@msg.ContentType</SpectreTD></SpectreTR>
                         <SpectreTR><SpectreTD>Enqueued</SpectreTD><SpectreTD>@msg.EnqueuedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss")</SpectreTD></SpectreTR>
                         <SpectreTR><SpectreTD>Delivery Count</SpectreTD><SpectreTD>@msg.DeliveryCount</SpectreTD></SpectreTR>
-                        <SpectreTR><SpectreTD>State</SpectreTD><SpectreTD>@StateText(msg)</SpectreTD></SpectreTR>
+                        <SpectreTR><SpectreTD>State</SpectreTD><SpectreTD><Markup Content="@StateText(msg)" Foreground="@StateColor(msg)" /></SpectreTD></SpectreTR>
                         @foreach (var prop in msg.Properties)
                         {
                             <SpectreTR>
@@ -52,9 +52,16 @@ else
         </Padder>
 
         <Padder Padding="@(new(0, 1, 0, 0))">
-            <Panel Title="Body" BorderColor="@Color.Grey" FillWidth="true" Padding="@(new(1, 0, 1, 0))">
+            <Panel Title="@($"{Icons.Body} Body")" BorderColor="@Theme.Border" FillWidth="true" Padding="@(new(1, 0, 1, 0))">
                 <ViewHeightScrollable LinesToRender="@(Math.Max(5, Viewport.Height / 2))" Scrollbar="new()">
-                    <Markup Content="@FormatBody(msg.Body)" />
+                    @if (FormatJson(msg.Body) is { } json)
+                    {
+                        <SyntaxHighlighter Code="@json" Language="json" />
+                    }
+                    else
+                    {
+                        <Markup Content="@msg.Body" />
+                    }
                 </ViewHeightScrollable>
             </Panel>
         </Padder>
@@ -63,33 +70,33 @@ else
             <Columns>
                 @if (Mode == BrowseMode.Locked)
                 {
-                    <TextButton Content="[F9] Complete" OnClick="@(() => _complete?.Invoke())"
-                                FocusedColor="@Color.Red" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
+                    <TextButton Content="@($"[F9] {Icons.Complete} Complete")" OnClick="@(() => _complete?.Invoke())"
+                                FocusedColor="@Theme.Danger" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
-                    <TextButton Content="[F4] Abandon" OnClick="@(() => _abandon?.Invoke())"
-                                FocusedColor="@Color.Yellow" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+                    <TextButton Content="@($"[F4] {Icons.Unlocked} Abandon")" OnClick="@(() => _abandon?.Invoke())"
+                                FocusedColor="@Theme.Warning" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
                     @if (!IsDlq)
                     {
-                        <TextButton Content="[F3] Dead-letter" OnClick="@(() => _deadLetter?.Invoke())"
-                                    FocusedColor="@Color.Red" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                        <TextButton Content="@($"[F3] {Icons.DeadLetter} Dead-letter")" OnClick="@(() => _deadLetter?.Invoke())"
+                                    FocusedColor="@Theme.Danger" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                         <Markup Content="  " />
                     }
                 }
                 @if (CanRequeue)
                 {
-                    <TextButton Content="[F10] Requeue" OnClick="@(() => _requeue?.Invoke())"
-                                FocusedColor="@Color.Green" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                    <TextButton Content="@($"[F10] {Icons.Transfer} Requeue")" OnClick="@(() => _requeue?.Invoke())"
+                                FocusedColor="@Theme.Success" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
                 }
                 else if (Mode == BrowseMode.Peek && _browser is not null)
                 {
-                    <TextButton Content="[F10] Resend" OnClick="@(() => _resend?.Invoke())"
-                                FocusedColor="@Color.Green" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                    <TextButton Content="@($"[F10] {Icons.Send} Resend")" OnClick="@(() => _resend?.Invoke())"
+                                FocusedColor="@Theme.Success" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
                 }
-                <TextButton Content="[Esc] Back" OnClick="GoBack"
-                            FocusedColor="@Color.Yellow" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="@($"[Esc] {Icons.Back} Back")" OnClick="GoBack"
+                            FocusedColor="@Theme.Accent" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
     </Flex>
@@ -138,10 +145,21 @@ else
 
     private string StateText(MessageInfo m) => m.State switch
     {
-        MessageState.Locked => _browser?.IsLockHeld(m) == true ? "Locked by this console" : "Lock lost (back on the queue)",
-        MessageState.Received => "Received and deleted; requeue it or it is gone",
-        _ => "Peeked (read-only)",
+        MessageState.Locked => _browser?.IsLockHeld(m) == true ? $"{Icons.Locked} Locked by this console" : $"{Icons.Unlocked} Lock lost (back on the queue)",
+        MessageState.Received => $"{Icons.Received} Received and deleted; requeue it or it is gone",
+        _ => $"{Icons.Peek} Peeked (read-only)",
     };
+
+    private Color StateColor(MessageInfo m) => m.State switch
+    {
+        MessageState.Locked => _browser?.IsLockHeld(m) == true ? Theme.Warning : Theme.Danger,
+        MessageState.Received => Theme.Danger,
+        _ => Theme.Accent,
+    };
+
+    private string SourceLabel => NavState.MessageSource is { } source
+        ? $"{(source.TopicName is null ? Icons.Queue : Icons.Subscription)} {source.DisplayName}"
+        : "";
 
     private AsyncCommand<object>?[] Commands => [_complete, _abandon, _deadLetter, _requeue, _resend];
 
@@ -184,16 +202,17 @@ else
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
-    private static string FormatBody(string body)
+    /// <summary>The body as indented JSON, or null when it is not JSON.</summary>
+    private static string? FormatJson(string body)
     {
         try
         {
             using var doc = System.Text.Json.JsonDocument.Parse(body);
             // Bodies sent as AMQP strings arrive JSON-encoded; unwrap one level.
             if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.String)
-                return FormatBody(doc.RootElement.GetString() ?? body);
+                return FormatJson(doc.RootElement.GetString() ?? body);
             return System.Text.Json.JsonSerializer.Serialize(doc.RootElement, IndentedJson);
         }
-        catch (System.Text.Json.JsonException) { return body; }
+        catch (System.Text.Json.JsonException) { return null; }
     }
 }

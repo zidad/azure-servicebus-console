@@ -44,16 +44,17 @@ public sealed class AppHarness
                     services.AddSingleton(NavState);
                     services.AddSingleton<MessageBrowserStore>();
                     services.AddSingleton<FileCache>();
+                    services.AddSingleton<SubscriptionCatalog>();
                 },
             },
             TestContext.Current.CancellationToken);
     }
 
     /// <summary>Starts on the connection page (local emulator is preselected) and opens its queue list, the way a user does.</summary>
-    public Task<HeadlessTerminal> OpenQueuesAsync() => OpenAsync("[F1] Queues");
+    public Task<HeadlessTerminal> OpenQueuesAsync() => OpenAsync("[F1] 📬 Queues");
 
     /// <summary>Same as <see cref="OpenQueuesAsync"/>, for the topic list.</summary>
-    public Task<HeadlessTerminal> OpenTopicsAsync() => OpenAsync("[F2] Topics");
+    public Task<HeadlessTerminal> OpenTopicsAsync() => OpenAsync("[F2] 📢 Topics");
 
     private async Task<HeadlessTerminal> OpenAsync(string button)
     {

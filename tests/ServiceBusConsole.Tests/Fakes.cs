@@ -5,6 +5,32 @@ namespace ServiceBusConsole.Tests;
 public sealed class FakeNamespaceService : INamespaceService
 {
     public List<NamespaceInfo> Namespaces { get; } = [];
+    public List<AzureSubscription> Subscriptions { get; } = [];
+    public Exception? SubscriptionsError { get; set; }
+
+    /// <summary>When set, the listing waits on it after the last subscription, like a slow live refresh.</summary>
+    public TaskCompletionSource? HoldListing { get; set; }
+
+    /// <summary>Subscription IDs that report no Service Bus namespaces.</summary>
+    public HashSet<string> WithoutNamespaces { get; } = [];
+
+    public async IAsyncEnumerable<bool> HasNamespacesAsync(string subscriptionId, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        await Task.Yield();
+        yield return !WithoutNamespaces.Contains(subscriptionId);
+    }
+
+    public async IAsyncEnumerable<AzureSubscription> GetSubscriptionsAsync([EnumeratorCancellation] CancellationToken ct = default)
+    {
+        await Task.Yield();
+        if (SubscriptionsError is not null) throw SubscriptionsError;
+        foreach (var sub in Subscriptions)
+        {
+            await Task.Yield();
+            yield return sub;
+        }
+        if (HoldListing is { } hold) await hold.Task.WaitAsync(ct);
+    }
 
     public async IAsyncEnumerable<NamespaceInfo> GetNamespacesAsync(string subscriptionId, [EnumeratorCancellation] CancellationToken ct = default)
     {

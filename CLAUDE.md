@@ -41,6 +41,7 @@ dotnet test tests/ServiceBusConsole.Tests  # Headless UI tests
 - RazorConsole bugs found by tests are fixed in the fork (`azsb`), not worked around in the app.
 - Keys go only to the focused element; they do not bubble. Page `HandleKeyDown` runs only via components that forward `OnKeyDown`.
 - Never click "Clear cache" in tests: `FileCache` uses the real user cache directory.
+- Screenshots for design review: `SCREENSHOT_DIR=<dir> dotnet test tests/ServiceBusConsole.Tests` dumps every page (`Screenshots.cs`), then `python tools/render-screenshots.py <dir>` renders PNGs (Pillow, macOS fonts).
 
 ## Prerequisites
 
@@ -66,7 +67,9 @@ This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, que
 
 **UI pattern:** Use `/razorconsole` for a full component and pattern reference. Namespace pages use `<FullscreenPage>`: `<Header>` (breadcrumb + count, rendered inside `ConnectionHeader`), `<Content>` (table wrapped in `<Scrollable>`), `<Footer>` (action buttons). `ConnectionHeader` shows subscription › namespace with click-to-switch pickers; switching calls `ServiceBusConnection.Switch`, which remounts the page (`App.razor` keys `RouteView` on `Connection.Version`). Navigation uses `Nav.NavigateTo("/route")`.
 
-**Azure subscription IDs** are hardcoded in `AzureSubscriptions.cs` (`AzureSubscriptions.All`) — update these to match the target environment.
+**Theme:** colors and icons come from `Theme` and `Icons` (`Theme.cs`), chosen by meaning (danger, warning, muted, ...). Counts use `<CountCell>` (muted when zero). Only use emoji with default emoji presentation: ones that need U+FE0F (⚠️, 🗑️, ⬅️) are one cell wide in some terminals and break table alignment.
+
+**Azure subscriptions** are listed from Azure with the signed-in `az` account (`INamespaceService.GetSubscriptionsAsync`, cached like namespaces) and shown by display name; the local emulator is always the first entry (`AzureSubscription.Emulator`).
 
 **Async commands:** Confirm-then-execute flows (delete, purge, requeue, etc.) use the `<AsyncCommand<TItem>>` component (`Components/AsyncCommand.razor`). It owns the pending-item, busy, and error state — pages should NOT reintroduce `_pending*` bool/field patterns or inline `ConfirmModal` + `ErrorModal` pairs per action.
 

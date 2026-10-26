@@ -2,7 +2,7 @@
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 
 <ModalWindow IsOpened="@IsOpened">
-    <Panel Title="@(IsReceive ? "Receive messages" : "Peek messages")" BorderColor="@(IsReceive && _deleteOnReceive ? Color.Red : Color.DodgerBlue1)" Padding="@(new(2, 1, 2, 1))">
+    <Panel Title="@(IsReceive ? $"{Icons.Subscription} Receive messages" : $"{Icons.Peek} Peek messages")" BorderColor="@(IsReceive && _deleteOnReceive ? Theme.Danger : Theme.Accent)" Padding="@(new(2, 1, 2, 1))">
         <Flex Class="rows" Direction="FlexDirection.Column" @onkeydown="HandleKey">
             <TextInput @ref="_countInput" FillWidth="true" Label="Number of messages" Value="@_count" ValueChanged="@(v => _count = v ?? "")"
                        OnSubmit="@(_ => Submit())" FocusOrder="100" />
@@ -13,17 +13,17 @@
                         <Markup Content="Receive mode: " />
                         <TextButton Content="@(_deleteOnReceive ? "ReceiveAndDelete" : "PeekLock")"
                                     OnClick="@(() => _deleteOnReceive = !_deleteOnReceive)"
-                                    FocusedColor="@(_deleteOnReceive ? Color.Red : Color.Green)" FocusOrder="101" />
-                        <Markup Content="  (Enter/click to switch)" Foreground="@Color.Grey" />
+                                    FocusedColor="@(_deleteOnReceive ? Theme.Danger : Theme.Success)" FocusOrder="101" />
+                        <Markup Content="  (Enter/click to switch)" Foreground="@Theme.Muted" />
                     </Columns>
                 </Padder>
                 @if (_deleteOnReceive)
                 {
-                    <Markup Content="Messages are deleted from the entity as they are received. Requeue them before you leave, or they are gone." Foreground="@Color.Red" />
+                    <Markup Content="Messages are deleted from the entity as they are received. Requeue them before you leave, or they are gone." Foreground="@Theme.Danger" />
                 }
                 else
                 {
-                    <Markup Content="Messages stay locked (renewed automatically) until you complete, abandon, dead-letter or requeue them." Foreground="@Color.Grey" />
+                    <Markup Content="Messages stay locked (renewed automatically) until you complete, abandon, dead-letter or requeue them." Foreground="@Theme.Muted" />
                 }
             }
             else
@@ -33,13 +33,13 @@
             }
             @if (_error.Length > 0)
             {
-                <Markup Content="@_error" Foreground="@Color.Red" />
+                <Markup Content="@_error" Foreground="@Theme.Danger" />
             }
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
-                    <TextButton Content="[Enter] OK" OnClick="Submit" FocusedColor="@Color.Green" FocusOrder="102" />
+                    <TextButton Content="[Enter] OK" OnClick="Submit" FocusedColor="@Theme.Success" FocusOrder="102" />
                     <Markup Content="   " />
-                    <TextButton Content="[Esc] Cancel" OnClick="Cancel" FocusedColor="@Color.Grey" FocusOrder="103" />
+                    <TextButton Content="[Esc] Cancel" OnClick="Cancel" FocusedColor="@Theme.Muted" FocusOrder="103" />
                 </Columns>
             </Padder>
         </Flex>

@@ -7,11 +7,11 @@
 
 <MessageBrowserView Entity="@(new MessageSource(SubscriptionName, IsDlq: true, TopicName, SubscriptionName))" BackPath="@BackPath">
     <Breadcrumb>
-        <Markup Content="Topics" Foreground="@Color.Grey" />
-        <Markup Content=" › " Foreground="@Color.Grey" />
-        <Markup Content="@TopicName" Foreground="@Color.Grey" />
-        <Markup Content=" › " Foreground="@Color.Grey" />
-        <Markup Content="@SubscriptionName" Foreground="@Color.DodgerBlue1" Decoration="@Decoration.Bold" />
+        <SectionCrumb Section="@(NavState.ReturnPath == "/subscriptions" ? Section.AllSubscriptions : Section.Topics)" />
+        <Markup Content=" › " Foreground="@Theme.Muted" />
+        <Markup Content="@TopicName" Foreground="@Theme.Muted" />
+        <Markup Content=" › " Foreground="@Theme.Muted" />
+        <Markup Content="@($"{Icons.Subscription} {SubscriptionName}")" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
     </Breadcrumb>
 </MessageBrowserView>
 
