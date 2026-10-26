@@ -1,9 +1,7 @@
-using System.Text.Json.Serialization;
-
 namespace ServiceBusConsole.Emulator;
 
-public class EmulatorTopicDef
+public sealed record EmulatorTopicDef
 {
-    [JsonPropertyName("Name")]          public string Name { get; set; } = "";
-    [JsonPropertyName("Subscriptions")] public List<EmulatorSubscriptionDef> Subscriptions { get; set; } = [];
+    public required string Name { get; init; }
+    public IReadOnlyList<EmulatorSubscriptionDef> Subscriptions { get; init; } = [];
 }

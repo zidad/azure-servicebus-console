@@ -74,7 +74,7 @@
             <Columns>
                 <TextButton Content="[F5] 🔄 Refresh" OnClick="LoadTopics" FocusedColor="@Theme.Success" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[F9] ❌ Delete" OnClick="@(() => _deleteTopic!.Invoke(_focusedItem))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F9] ❌ Delete" OnClick="@(() => OnFocused(_deleteTopic))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
                 <TextButton Content="[Esc] 🔙 Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Theme.Accent" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
             </Columns>
@@ -86,7 +86,7 @@
 
 <AsyncCommand @ref="_deleteTopic" TItem="string"
               ConfirmMessage="@(n => $"Delete topic '{n}' and all its subscriptions? This cannot be undone.")"
-              Execute="@(n => TopicService.DeleteTopicAsync(n!))"
+              Execute="@(n => TopicService.DeleteTopicAsync(n))"
               OnCompleted="@(n => { _all.RemoveAll(t => t.Name == n); UpdateFilterState(_filter); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1)); _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex)?.Name; StateHasChanged(); return Task.CompletedTask; })" />
 
 @code {
@@ -165,6 +165,11 @@
         StateHasChanged();
     }
 
+    private void OnFocused(AsyncCommand<string>? command)
+    {
+        if (_focusedItem is { } item) command?.Invoke(item);
+    }
+
     private void HandleKeyDown(KeyboardEventArgs e)
     {
         if (e.CtrlKey || e.AltKey || e.MetaKey) return;
@@ -174,15 +179,11 @@
             case "Escape": Nav.NavigateTo("/"); return;
             case "F5": _ = LoadTopics(); return;
             case "F9": case "Delete": case "\\":
-                if (_focusedItem is not null) _deleteTopic!.Invoke(_focusedItem);
-                return;
-            case "Backspace":
-                ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]);
+                OnFocused(_deleteTopic);
                 return;
             default:
-                if (e.Key.Length == 1 && !char.IsControl(e.Key[0]))
-                    ApplyFilter((_filter ?? "") + e.Key);
-                break;
+                if (FilterEdit.From(_filter, e) is { } edit) ApplyFilter(edit.Filter);
+                return;
         }
     }
 }

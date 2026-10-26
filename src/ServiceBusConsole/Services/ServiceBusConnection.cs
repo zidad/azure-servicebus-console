@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ServiceBusConsole.Services;
 
-public class ServiceBusConnection(AzureCliCredential credential, ILogger<ServiceBusConnection> logger)
+public sealed class ServiceBusConnection(AzureCliCredential credential, ILogger<ServiceBusConnection> logger)
 {
     private ServiceBusAdministrationClient? _adminClient;
     private ServiceBusClient? _busClient;
@@ -37,16 +37,11 @@ public class ServiceBusConnection(AzureCliCredential credential, ILogger<Service
         Namespace = ns;
         if (sameEndpoint) return;
         logger.LogInformation("Connecting to namespace {Namespace}", fullyQualifiedNamespace);
-        if (fullyQualifiedNamespace == "localhost")
-        {
-            _adminClient = null; // management API not supported by emulator
-            _busClient = new ServiceBusClient(EmulatorConnectionString);
-        }
-        else
-        {
-            _adminClient = new ServiceBusAdministrationClient($"https://{fullyQualifiedNamespace}", credential);
-            _busClient = new ServiceBusClient($"sb://{fullyQualifiedNamespace}/", credential);
-        }
+        // The emulator has no management API.
+        (_adminClient, _busClient) = fullyQualifiedNamespace == "localhost"
+            ? (null, new ServiceBusClient(EmulatorConnectionString))
+            : (new ServiceBusAdministrationClient($"https://{fullyQualifiedNamespace}", credential),
+               new ServiceBusClient($"sb://{fullyQualifiedNamespace}/", credential));
     }
 
     public ServiceBusAdministrationClient AdminClient =>

@@ -4,13 +4,14 @@ namespace ServiceBusConsole.Emulator;
 
 public static class EmulatorConfigReader
 {
-    private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
-    public static EmulatorNamespace? TryLoad()
-    {
-        var path = Path.Combine(Directory.GetCurrentDirectory(), "emulator", "Config.json");
-        if (!File.Exists(path)) return null;
-        var config = JsonSerializer.Deserialize<EmulatorConfigFile>(File.ReadAllText(path), JsonOpts);
-        return config?.UserConfig.Namespaces.FirstOrDefault();
-    }
+    /// <summary>The first namespace in <c>emulator/Config.json</c> under the working directory, if any.</summary>
+    public static EmulatorNamespace? TryLoad() =>
+        Path.Combine(Directory.GetCurrentDirectory(), "emulator", "Config.json") is var path && File.Exists(path)
+            ? Parse(File.ReadAllText(path))
+            : null;
+
+    public static EmulatorNamespace? Parse(string json) =>
+        JsonSerializer.Deserialize<EmulatorConfigFile>(json, JsonOptions)?.UserConfig.Namespaces.FirstOrDefault();
 }

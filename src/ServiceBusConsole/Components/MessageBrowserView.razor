@@ -151,7 +151,7 @@
                     <TextButton Content="@($"[F10] {Icons.Send} Resend")" OnClick="@(() => Run(_resend))" FocusedColor="@Theme.Success" FocusOrder="8" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
                 }
-                <TextButton Content="@($"[F11] {Icons.Purge} Purge")" OnClick="@(() => _purge?.Invoke())" FocusedColor="@Theme.Danger" FocusOrder="9" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="@($"[F11] {Icons.Purge} Purge")" OnClick="@(() => _purge?.Invoke(Source))" FocusedColor="@Theme.Danger" FocusOrder="9" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="  " />
                 <TextButton Content="@($"[Esc] {Icons.Back} Back")" OnClick="GoBack" FocusedColor="@Theme.Accent" FocusOrder="10" OnKeyDown="@HandleKeyDown" />
             </Columns>
@@ -169,25 +169,25 @@
 
 <AsyncCommand @ref="_complete" TItem="IReadOnlyList<MessageInfo>"
               ConfirmMessage="@(l => $"Complete {Count(l)}? They are removed from {Source.DisplayName}.")"
-              Execute="@(l => Browser.CompleteAsync(l ?? []))" />
+              Execute="@(l => Browser.CompleteAsync(l))" />
 
 <AsyncCommand @ref="_abandon" TItem="IReadOnlyList<MessageInfo>"
-              Execute="@(l => Browser.AbandonAsync(l ?? []))" />
+              Execute="@(l => Browser.AbandonAsync(l))" />
 
 <AsyncCommand @ref="_deadLetter" TItem="IReadOnlyList<MessageInfo>"
               ConfirmMessage="@(l => $"Move {Count(l)} to the dead-letter queue?")"
-              Execute="@(l => Browser.DeadLetterAsync(l ?? []))" />
+              Execute="@(l => Browser.DeadLetterAsync(l))" />
 
 <AsyncCommand @ref="_retry" TItem="IReadOnlyList<MessageInfo>"
               ConfirmMessage="@(l => RetryText.Confirm(Mode, Source, Count(l)))"
-              Execute="@(l => Browser.RetryAsync(l ?? []))" />
+              Execute="@(l => Browser.RetryAsync(l))" />
 
 <AsyncCommand @ref="_resend" TItem="IReadOnlyList<MessageInfo>"
               ConfirmMessage="@(l => $"Send copies of {Count(l)} to {Source.SendTarget}? The originals stay in {Source.DisplayName}.{TopicNote}")"
-              Execute="@(l => Browser.ResendAsync(l ?? []))" />
+              Execute="@(l => Browser.ResendAsync(l))" />
 
-<AsyncCommand @ref="_purge" TItem="object"
-              ConfirmMessage="@(_ => $"Purge ALL messages from {Source.DisplayName}? This cannot be undone.")"
+<AsyncCommand @ref="_purge" TItem="MessageSource"
+              ConfirmMessage="@(source => $"Purge ALL messages from {source.DisplayName}? This cannot be undone.")"
               Execute="@(_ => Browser.PurgeAsync())" />
 
 @code {
@@ -213,13 +213,13 @@
     private AsyncCommand<IReadOnlyList<MessageInfo>>? _deadLetter;
     private AsyncCommand<IReadOnlyList<MessageInfo>>? _retry;
     private AsyncCommand<IReadOnlyList<MessageInfo>>? _resend;
-    private AsyncCommand<object>? _purge;
+    private AsyncCommand<MessageSource>? _purge;
 
     private MessageBrowser Browser => _browser ?? throw new InvalidOperationException("Message browser not initialized");
     private MessageSource Source => Entity with { IsDlq = _isDlq };
     private BrowseMode Mode => _browser?.Mode ?? BrowseMode.Peek;
     private bool CanRetry => RetryText.CanRetry(Mode, _isDlq);
-    private (int Rows, int Preview) Split => FullscreenLayout.BrowserSplit(Viewport.Height);
+    private BrowserSplit Split => FullscreenLayout.Browser(Viewport.Height);
 
     // A short list leaves rows unused; the preview takes them.
     private int PreviewHeight(MessageBrowser browser) => Split.Preview + Math.Max(0, Split.Rows - browser.Messages.Count);
@@ -334,7 +334,7 @@
 
     private void ToggleBySequence(long sequenceNumber)
     {
-        if (Browser.Messages.Find(x => x.SequenceNumber == sequenceNumber) is { } m) Toggle(m);
+        if (Browser.Messages.FirstOrDefault(x => x.SequenceNumber == sequenceNumber) is { } m) Toggle(m);
     }
 
     private void ToggleAll()
@@ -399,12 +399,12 @@
                 if (CanRetry) Run(_retry);
                 else if (Mode == BrowseMode.Peek) Run(_resend);
                 return;
-            case "F11": _purge?.Invoke(); return;
+            case "F11": _purge?.Invoke(Source); return;
         }
     }
 
-    private static string Count(IReadOnlyList<MessageInfo>? list) =>
-        list is [var single] ? $"message #{single.SequenceNumber}" : $"{list?.Count ?? 0} messages";
+    private static string Count(IReadOnlyList<MessageInfo> list) =>
+        list is [var single] ? $"message #{single.SequenceNumber}" : $"{list.Count} messages";
 
     private static string ModeLabel(BrowseMode mode) => mode switch
     {

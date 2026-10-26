@@ -1,11 +1,13 @@
 namespace ServiceBusConsole.Models;
 
-public class QueueInfo
+public sealed record QueueInfo
 {
-    public required string Name { get; set; }
-    public long ActiveMessageCount { get; set; }
-    public long DeadLetterMessageCount { get; set; }
-    public long ScheduledMessageCount { get; set; }
-    public long TransferMessageCount { get; set; }
-    public bool IsRefreshing { get; set; }
+    public required string Name { get; init; }
+    public long ActiveMessageCount { get; init; }
+    public long DeadLetterMessageCount { get; init; }
+    public long ScheduledMessageCount { get; init; }
+    public long TransferMessageCount { get; init; }
+
+    /// <summary>From the cache, while the live listing is still on its way.</summary>
+    public bool IsRefreshing { get; init; }
 }

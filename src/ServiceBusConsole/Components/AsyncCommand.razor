@@ -1,75 +1,69 @@
-@typeparam TItem
+@typeparam TItem where TItem : notnull
 
-<ConfirmModal IsOpened="@(_state == State.Confirming)"
-              Message="@_confirmText"
+<ConfirmModal IsOpened="@(_pending is not null)"
+              Message="@(_pending?.Text ?? "")"
               OnConfirm="ExecuteConfirmed"
               OnCancel="Cancel" />
 
 <ErrorModal Message="@_error" OnDismiss="ClearError" />
 
 @code {
-    [Parameter] public Func<TItem?, string>? ConfirmMessage { get; set; }
-    [Parameter, EditorRequired] public Func<TItem?, Task> Execute { get; set; } = null!;
-    [Parameter] public Func<TItem?, Task>? OnCompleted { get; set; }
+    /// <summary>Confirm prompt for the item; without it the command runs at once.</summary>
+    [Parameter] public Func<TItem, string>? ConfirmMessage { get; set; }
+    [Parameter, EditorRequired] public required Func<TItem, Task> Execute { get; set; }
+    [Parameter] public Func<TItem, Task>? OnCompleted { get; set; }
     [Parameter] public Func<Exception, string>? FormatError { get; set; }
 
-    private enum State { Idle, Confirming, Running }
-    private State _state = State.Idle;
-    private TItem? _pending;
-    private string _confirmText = "";
+    private sealed record Pending(TItem Item, string Text);
+
+    private Pending? _pending;
+    private bool _running;
     private string _error = "";
 
-    public bool IsBusy => _state == State.Running;
-    public bool IsPending => _state == State.Confirming;
+    public bool IsBusy => _running;
+    public bool IsPending => _pending is not null;
 
-    public void Invoke(TItem? item = default)
+    public void Invoke(TItem item)
     {
-        if (_state != State.Idle) return;
+        if (_running || _pending is not null) return;
         if (ConfirmMessage is null)
         {
             _ = RunAsync(item);
             return;
         }
-        _pending = item;
-        _confirmText = ConfirmMessage(item);
-        _state = State.Confirming;
+        _pending = new(item, ConfirmMessage(item));
         StateHasChanged();
     }
 
     public void Cancel()
     {
-        if (_state != State.Confirming) return;
-        _pending = default;
-        _state = State.Idle;
+        if (_pending is null) return;
+        _pending = null;
         StateHasChanged();
     }
 
     public bool HandleKey(KeyboardEventArgs e)
     {
-        if (_state != State.Confirming) return false;
+        if (_pending is null) return false;
         switch (e.Key)
         {
-            case "Y": case "y": case "Enter": case "Return":
-                ExecuteConfirmed();
-                return true;
-            case "N": case "n": case "Escape":
-                Cancel();
-                return true;
+            case "Y" or "y" or "Enter" or "Return": ExecuteConfirmed(); return true;
+            case "N" or "n" or "Escape": Cancel(); return true;
+            default: return false;
         }
-        return false;
     }
 
     // Not awaited: the key or click that confirmed must not hold up input (e.g. Esc to cancel) while it runs.
     private void ExecuteConfirmed()
     {
-        var item = _pending;
-        _pending = default;
+        if (_pending is not { Item: var item }) return;
+        _pending = null;
         _ = RunAsync(item);
     }
 
-    private async Task RunAsync(TItem? item)
+    private async Task RunAsync(TItem item)
     {
-        _state = State.Running;
+        _running = true;
         _error = "";
         StateHasChanged();
         try
@@ -81,7 +75,7 @@
         {
             _error = FormatError?.Invoke(ex) ?? ex.Message.Split('\n')[0];
         }
-        _state = State.Idle;
+        _running = false;
         StateHasChanged();
     }
 

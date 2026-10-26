@@ -26,8 +26,9 @@ public sealed class RetryPipelineTests
         service.Completed.Count.ShouldBe(250);
         service.Sent.Select(s => s.SequenceNumber).ShouldBe(Enumerable.Range(1, 250).Select(i => (long)i));
         browser.Messages.ShouldBeEmpty();
-        browser.Operation!.Result.ShouldBe("Retried 250 of 250.");
-        browser.Operation.Outcome.ShouldBe(OperationOutcome.Succeeded);
+        var op = browser.Operation.ShouldNotBeNull();
+        op.Result.ShouldBe("Retried 250 of 250.");
+        op.Outcome.ShouldBe(OperationOutcome.Succeeded);
     }
 
     [Fact]
@@ -41,11 +42,12 @@ public sealed class RetryPipelineTests
 
         var retry = browser.RetryAsync(browser.Targets);
         await WaitUntilAsync(() => service.Completed.Count == 100);
-        browser.Operation!.Cancel();
+        var op = browser.Operation.ShouldNotBeNull();
+        op.Cancel();
 
         await retry.WaitAsync(TimeSpan.FromSeconds(10), Ct);
-        browser.Operation.Result.ShouldStartWith("Cancelled. Retried 100 of 250");
-        browser.Operation.Outcome.ShouldBe(OperationOutcome.Cancelled);
+        op.Result.ShouldNotBeNull().ShouldStartWith("Cancelled. Retried 100 of 250");
+        op.Outcome.ShouldBe(OperationOutcome.Cancelled);
         service.Completed.Count.ShouldBe(100);
         browser.Messages.Count.ShouldBe(150);
         browser.Selected.Count.ShouldBe(150);

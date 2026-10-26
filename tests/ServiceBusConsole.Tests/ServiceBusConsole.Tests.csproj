@@ -14,6 +14,7 @@
   <ItemGroup>
     <Using Include="Xunit" />
     <Using Include="Shouldly" />
+    <Using Include="ServiceBusConsole.Emulator" />
     <Using Include="ServiceBusConsole.Messaging" />
     <Using Include="ServiceBusConsole.Models" />
     <Using Include="ServiceBusConsole.Services" />

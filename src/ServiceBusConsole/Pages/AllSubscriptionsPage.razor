@@ -79,9 +79,9 @@
             <Columns>
                 <TextButton Content="[F5] 🔄 Refresh" OnClick="LoadSubscriptions" FocusedColor="@Theme.Success" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[F9] ❌ Delete" OnClick="@(() => _deleteSub!.Invoke(_focusedItem))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F9] ❌ Delete" OnClick="@(() => OnFocused(_deleteSub))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[F11] 🧹 Purge DLQ" OnClick="@(() => _purgeDlq!.Invoke(_focusedItem))" FocusedColor="@Theme.Danger" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F11] 🧹 Purge DLQ" OnClick="@(() => OnFocused(_purgeDlq))" FocusedColor="@Theme.Danger" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
                 <TextButton Content="[Esc] 🔙 Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Theme.Accent" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
             </Columns>
@@ -92,14 +92,14 @@
 <ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
 
 <AsyncCommand @ref="_deleteSub" TItem="SubscriptionInfo"
-              ConfirmMessage="@(s => $"Delete subscription '{s!.Name}' from topic '{s.TopicName}'? This cannot be undone.")"
-              Execute="@(s => TopicService.DeleteSubscriptionAsync(s!.TopicName, s.Name))"
-              OnCompleted="@(s => { _all.RemoveAll(x => x.TopicName == s!.TopicName && x.Name == s.Name); _focusedItem = null; SortAndUpdateFilterState(); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1)); _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex); StateHasChanged(); return Task.CompletedTask; })" />
+              ConfirmMessage="@(s => $"Delete subscription '{s.Name}' from topic '{s.TopicName}'? This cannot be undone.")"
+              Execute="@(s => TopicService.DeleteSubscriptionAsync(s.TopicName, s.Name))"
+              OnCompleted="@(s => { _all.RemoveAll(x => x.TopicName == s.TopicName && x.Name == s.Name); _focusedItem = null; SortAndUpdateFilterState(); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1)); _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex); StateHasChanged(); return Task.CompletedTask; })" />
 
 <AsyncCommand @ref="_purgeDlq" TItem="SubscriptionInfo"
-              ConfirmMessage="@(s => $"Purge ALL messages from DLQ of '{s!.TopicName}/{s.Name}'? This cannot be undone.")"
-              Execute="@(s => MessageService.PurgeMessagesAsync(new MessageSource(s!.Name, IsDlq: true, s.TopicName, s.Name), _ => { }))"
-              OnCompleted="@(s => { if (_all.FirstOrDefault(x => x.TopicName == s!.TopicName && x.Name == s.Name) is {} x) x.DeadLetterMessageCount = 0; SortAndUpdateFilterState(); StateHasChanged(); return Task.CompletedTask; })" />
+              ConfirmMessage="@(s => $"Purge ALL messages from DLQ of '{s.TopicName}/{s.Name}'? This cannot be undone.")"
+              Execute="@(s => MessageService.PurgeMessagesAsync(new MessageSource(s.Name, IsDlq: true, s.TopicName, s.Name), _ => { }))"
+              OnCompleted="@(s => { List.Update(Key(s), x => x with { DeadLetterMessageCount = 0 }); SortAndUpdateFilterState(); StateHasChanged(); return Task.CompletedTask; })" />
 
 @code {
     private LiveList<SubscriptionInfo>? _live;
@@ -192,6 +192,11 @@
         StateHasChanged();
     }
 
+    private void OnFocused(AsyncCommand<SubscriptionInfo>? command)
+    {
+        if (_focusedItem is { } item) command?.Invoke(item);
+    }
+
     private void HandleKeyDown(KeyboardEventArgs e)
     {
         if (e.CtrlKey || e.AltKey || e.MetaKey) return;
@@ -202,18 +207,14 @@
             case "Escape": Nav.NavigateTo("/"); return;
             case "F5": _ = LoadSubscriptions(); return;
             case "F9": case "Delete": case "\\":
-                if (_focusedItem is not null) _deleteSub!.Invoke(_focusedItem);
+                OnFocused(_deleteSub);
                 return;
             case "F11":
-                if (_focusedItem is not null) _purgeDlq!.Invoke(_focusedItem);
-                return;
-            case "Backspace":
-                ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]);
+                OnFocused(_purgeDlq);
                 return;
             default:
-                if (e.Key.Length == 1 && !char.IsControl(e.Key[0]))
-                    ApplyFilter((_filter ?? "") + e.Key);
-                break;
+                if (FilterEdit.From(_filter, e) is { } edit) ApplyFilter(edit.Filter);
+                return;
         }
     }
 }

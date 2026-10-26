@@ -2,11 +2,9 @@ using Azure.Messaging.ServiceBus;
 
 namespace ServiceBusConsole.Models;
 
-public class MessageInfo(ServiceBusReceivedMessage raw, MessageState state)
+/// <summary>A received or peeked message and how this console holds it.</summary>
+public sealed record MessageInfo(ServiceBusReceivedMessage Raw, MessageState State)
 {
-    public ServiceBusReceivedMessage Raw { get; } = raw;
-    public MessageState State { get; } = state;
-
     public string MessageId => Raw.MessageId;
     public long SequenceNumber => Raw.SequenceNumber;
     public DateTimeOffset EnqueuedTime => Raw.EnqueuedTime;

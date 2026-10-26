@@ -79,9 +79,9 @@
             <Columns>
                 <TextButton Content="[F5] 🔄 Refresh" OnClick="LoadQueues" FocusedColor="@Theme.Success" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[F9] ❌ Delete" OnClick="@(() => _deleteQueue!.Invoke(_focusedItem))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F9] ❌ Delete" OnClick="@(() => OnFocused(_deleteQueue))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[F11] 🧹 Purge DLQ" OnClick="@(() => _purgeDlq!.Invoke(_focusedItem))" FocusedColor="@Theme.Danger" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
+                <TextButton Content="[F11] 🧹 Purge DLQ" OnClick="@(() => OnFocused(_purgeDlq))" FocusedColor="@Theme.Danger" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
                 <TextButton Content="[Esc] 🔙 Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Theme.Accent" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
             </Columns>
@@ -93,13 +93,13 @@
 
 <AsyncCommand @ref="_deleteQueue" TItem="string"
               ConfirmMessage="@(n => $"Delete queue '{n}'? This cannot be undone.")"
-              Execute="@(n => QueueService.DeleteQueueAsync(n!))"
+              Execute="@(n => QueueService.DeleteQueueAsync(n))"
               OnCompleted="@(n => { _all.RemoveAll(q => q.Name == n); UpdateFilterState(_filter); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1)); _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex)?.Name; StateHasChanged(); return Task.CompletedTask; })" />
 
 <AsyncCommand @ref="_purgeDlq" TItem="string"
               ConfirmMessage="@(n => $"Purge ALL messages from DLQ of '{n}'? This cannot be undone.")"
-              Execute="@(n => MessageService.PurgeMessagesAsync(new MessageSource(n!, IsDlq: true), _ => { }))"
-              OnCompleted="@(n => { if (_all.FirstOrDefault(q => q.Name == n) is {} q) q.DeadLetterMessageCount = 0; UpdateFilterState(_filter); StateHasChanged(); return Task.CompletedTask; })" />
+              Execute="@(n => MessageService.PurgeMessagesAsync(new MessageSource(n, IsDlq: true), _ => { }))"
+              OnCompleted="@(n => { List.Update(n, q => q with { DeadLetterMessageCount = 0 }); UpdateFilterState(_filter); StateHasChanged(); return Task.CompletedTask; })" />
 
 @code {
     private LiveList<QueueInfo>? _live;
@@ -184,6 +184,11 @@
         StateHasChanged();
     }
 
+    private void OnFocused(AsyncCommand<string>? command)
+    {
+        if (_focusedItem is { } item) command?.Invoke(item);
+    }
+
     private void HandleKeyDown(KeyboardEventArgs e)
     {
         if (e.CtrlKey || e.AltKey || e.MetaKey) return;
@@ -194,18 +199,14 @@
             case "Escape": Nav.NavigateTo("/"); return;
             case "F5": _ = LoadQueues(); return;
             case "F9": case "Delete": case "\\":
-                if (_focusedItem is not null) _deleteQueue!.Invoke(_focusedItem);
+                OnFocused(_deleteQueue);
                 return;
             case "F11":
-                if (_focusedItem is not null) _purgeDlq!.Invoke(_focusedItem);
-                return;
-            case "Backspace":
-                ApplyFilter(string.IsNullOrEmpty(_filter) ? null : _filter[..^1]);
+                OnFocused(_purgeDlq);
                 return;
             default:
-                if (e.Key.Length == 1 && !char.IsControl(e.Key[0]))
-                    ApplyFilter((_filter ?? "") + e.Key);
-                break;
+                if (FilterEdit.From(_filter, e) is { } edit) ApplyFilter(edit.Filter);
+                return;
         }
     }
 }

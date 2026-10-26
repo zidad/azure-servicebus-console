@@ -34,7 +34,7 @@ public sealed class Screenshots
         await terminal.WaitForTextAsync("Queues (5)", AppHarness.Timeout, Ct);
         await Save(terminal, dir, "queues");
 
-        lock (app.Queues.Queues) app.Queues.Queues.Single(q => q.Name == "emails").ActiveMessageCount = 12;
+        app.Queues.Update("emails", q => q with { ActiveMessageCount = 12 });
         await terminal.WaitUntilAsync(f => f.ContainsText(" 12 "), AppHarness.Timeout, cancellationToken: Ct);
         await Save(terminal, dir, "queues-live");
 
