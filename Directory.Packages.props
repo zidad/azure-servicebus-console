@@ -4,13 +4,13 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Azure.Identity" Version="1.21.0" />
-    <PackageVersion Include="Azure.Messaging.ServiceBus" Version="7.20.2" />
+    <PackageVersion Include="Azure.Messaging.ServiceBus" Version="7.21.0" />
     <PackageVersion Include="Azure.ResourceManager" Version="1.14.0" />
     <PackageVersion Include="Azure.ResourceManager.ServiceBus" Version="1.2.0" />
     <PackageVersion Include="Scrutor" Version="7.0.0" />
     <!-- Pinned to what lib/RazorConsole builds against; 0.55 made Style a struct. -->
     <PackageVersion Include="Spectre.Console" Version="0.54.0" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
-    <PackageVersion Include="xunit.v3" Version="3.2.0" />
+    <PackageVersion Include="xunit.v3" Version="4.0.2" />
   </ItemGroup>
 </Project>
