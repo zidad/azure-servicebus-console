@@ -18,9 +18,6 @@ public static class FullscreenLayout
     /// <summary><c>SpectreTable</c> with <c>TableBorder.Simple</c> — top + header + separator + bottom = 4 lines.</summary>
     public const int SimpleTableChrome = 4;
 
-    /// <summary>A footer <c>TextInput</c> (default Rounded border, no outer padder) — 3 lines.</summary>
-    public const int FooterTextInput = 3;
-
     /// <summary>Footer button row wrapped in <c>Padder(1,0,0,0)</c> + <c>Columns</c> — 1 line.</summary>
     public const int FooterButtons = 1;
 
@@ -30,17 +27,10 @@ public static class FullscreenLayout
     /// subtracts it from the FlexBox height (<c>terminalHeight - 1</c>) and floors at 5.
     /// </summary>
     /// <param name="chromeLines">Sum of every non-table element's height — e.g.
-    /// <c>Header + CountRow + RoundedTableChrome + FooterTextInput + FooterButtons</c>.
+    /// <c>Header + RoundedTableChrome + FooterButtons</c>.
     /// Include the table's border chrome; the result is the number of data rows.</param>
     public static int PageSize(int terminalHeight, int chromeLines)
         => Math.Max(5, terminalHeight - 1 - chromeLines);
-
-    /// <summary>
-    /// PageSize for a page with a <c>TableBorder.Rounded</c> table and a filter <c>TextInput</c>
-    /// in the footer; the count is in the header. Chrome: Header + RoundedTableChrome + FooterTextInput + FooterButtons = 11.
-    /// </summary>
-    public static int PageSizeRoundedTableWithFilter(int terminalHeight)
-        => PageSize(terminalHeight, Header + RoundedTableChrome + FooterTextInput + FooterButtons);
 
     /// <summary>
     /// PageSize for a page with a <c>TableBorder.Rounded</c> table and only a button bar footer.

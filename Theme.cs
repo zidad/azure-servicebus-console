@@ -43,6 +43,7 @@ public static class Icons
     public const string Locked = "🔒";
     public const string Unlocked = "🔓";
     public const string Received = "❗";
+    public const string Filter = "🔍";
     public const string Refresh = "🔄";
     public const string Delete = "❌";
     public const string Purge = "🧹";

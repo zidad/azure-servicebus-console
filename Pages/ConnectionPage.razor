@@ -31,7 +31,7 @@
             <SpectreTable Expand="true" Border="TableBorder.Rounded">
                 <SpectreTHead>
                     <SpectreTR>
-                        <SpectreTH Align="Justify.Left">Azure subscription</SpectreTH>
+                        <SpectreTH Align="Justify.Left"><Columns><Markup Content="Azure subscription" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
                         <SpectreTH Align="Justify.Left">ID</SpectreTH>
                     </SpectreTR>
                 </SpectreTHead>
@@ -52,12 +52,6 @@
                 </SpectreTBody>
             </SpectreTable>
         </Scrollable>
-
-        <TextInput Value="@_filter"
-                   ValueChanged="ApplyFilter"
-                   Placeholder="Type to filter subscriptions..."
-                   FillWidth="true"
-                   FocusOrder="2" />
 
         @if (Catalog.Error is { } listError)
         {
@@ -179,8 +173,8 @@
 <ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
 
 @code {
-    // Figlet 6 + banner 4 + panel 2 + subscription table chrome 4 + filter 3 + namespace chrome 4 + buttons 2 + cache row 2.
-    private const int FixedLines = 27;
+    // Figlet 6 + banner 4 + panel 2 + subscription table chrome 4 + namespace chrome 4 + buttons 2 + cache row 2.
+    private const int FixedLines = 24;
     private int SubscriptionPageSize => Math.Clamp(_visible.Count, 1, 8);
     private int NamespacePageSize => Math.Clamp(Viewport.Height - FixedLines - SubscriptionPageSize, 1, 10);
     private static readonly TimeSpan SubscriptionDebounce = TimeSpan.FromMilliseconds(250);
