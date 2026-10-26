@@ -10,7 +10,7 @@
                 <Padder Padding="@(new(0, 1, 0, 0))">
                     <Columns>
                         <Markup Content="Receive mode: " />
-                        <TextButton Content="@(_deleteOnReceive ? "ReceiveAndDelete" : "PeekLock")"
+                        <KeyButton Content="@(_deleteOnReceive ? "ReceiveAndDelete" : "PeekLock")"
                                     OnClick="@(() => _deleteOnReceive = !_deleteOnReceive)"
                                     FocusedColor="@(_deleteOnReceive ? Theme.Danger : Theme.Success)" FocusOrder="101" />
                         <Markup Content="  (Enter/click to switch)" Foreground="@Theme.Muted" />
@@ -36,9 +36,9 @@
             }
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
-                    <TextButton Content="[Enter] OK" OnClick="Submit" FocusedColor="@Theme.Success" FocusOrder="102" />
+                    <KeyButton Content="[Enter] OK" OnClick="Submit" FocusedColor="@Theme.Success" FocusOrder="102" />
                     <Markup Content="   " />
-                    <TextButton Content="[Esc] Cancel" OnClick="Cancel" FocusedColor="@Theme.Muted" FocusOrder="103" />
+                    <KeyButton Content="[Esc] Cancel" OnClick="Cancel" FocusedColor="@Theme.Muted" FocusOrder="103" />
                 </Columns>
             </Padder>
         </Flex>

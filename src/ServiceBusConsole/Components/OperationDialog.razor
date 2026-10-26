@@ -28,7 +28,7 @@
                         <Rows>
                             <Markup Content="@($"{OutcomeIcon(op.Outcome)} {op.Result}")" Foreground="@OutcomeColor(op.Outcome)" />
                             <Padder Padding="@(new(0, 1, 0, 0))">
-                                <TextButton @ref="_ok" Content="[Enter] OK" OnClick="@(() => OnDismiss.InvokeAsync())"
+                                <KeyButton @ref="_ok" Content="[Enter] OK" OnClick="@(() => OnDismiss.InvokeAsync())"
                                             FocusedColor="@Theme.Accent" FocusOrder="1" OnKeyDown="@OkKeyDown" />
                             </Padder>
                         </Rows>
@@ -52,7 +52,7 @@
     /// <summary>OK (or Esc) on a finished operation.</summary>
     [Parameter] public EventCallback OnDismiss { get; set; }
 
-    private TextButton? _ok;
+    private KeyButton? _ok;
     private OperationProgress? _focused;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

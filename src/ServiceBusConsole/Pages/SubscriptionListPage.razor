@@ -36,7 +36,7 @@
         }
         else
         {
-            <Scrollable Items="@_subscriptions"
+            <SelectableList Items="@_subscriptions"
                         PageSize="@FullscreenLayout.PageSizeRoundedTable(Viewport.Height)"
                         Scrollbar="new()"
                         SelectedIndex="@_selectedIndex"
@@ -52,38 +52,36 @@
                             <SpectreTH></SpectreTH>
                         </SpectreTR>
                     </SpectreTHead>
-                    <SpectreTBody @ref="_tbody"
-                                  Navigable="true"
+                    <NavigableTBody @ref="_tbody"
                                   FocusOrder="1"
-                                  RowCount="@context.Items.Count"
                                   OnKeyDown="@HandleKeyDown">
                         @{ var i = 0; }
                         @foreach (var s in context.Items)
                         {
                             var idx = i++;
-                            <SpectreTR @key="s.Name" RowIndex="@idx">
+                            <SelectableRow @key="s.Name" RowIndex="@idx">
                                 <SpectreTD>@s.Name</SpectreTD>
                                 <SpectreTD Align="Justify.Right"><CountCell Value="@s.ActiveMessageCount" Highlight="@List.Changes.Highlight(s, "Active")" /></SpectreTD>
                                 <SpectreTD Align="Justify.Right"><CountCell Value="@s.DeadLetterMessageCount" Color="@Theme.Danger" Bold="true" Highlight="@List.Changes.Highlight(s, "DLQ")" /></SpectreTD>
                                 <SpectreTD Align="Justify.Right"><CountCell Value="@s.TransferMessageCount" Color="@Theme.Transfer" Highlight="@List.Changes.Highlight(s, "Transfer")" /></SpectreTD>
                                 <SpectreTD>@if (s.IsRefreshing) { <Spinner /> }</SpectreTD>
-                            </SpectreTR>
+                            </SelectableRow>
                         }
-                    </SpectreTBody>
+                    </NavigableTBody>
                 </SpectreTable>
-            </Scrollable>
+            </SelectableList>
         }
     </Content>
     <Footer>
         <Padder Padding="@(new(1, 0, 0, 0))">
             <Columns>
-                <TextButton Content="[F5] 🔄 Refresh" OnClick="LoadSubscriptions" FocusedColor="@Theme.Success" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+                <KeyButton Content="[F5] 🔄 Refresh" OnClick="LoadSubscriptions" FocusedColor="@Theme.Success" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[F9] ❌ Delete" OnClick="@(() => OnFocused(_deleteSub))" FocusedColor="@Theme.Danger" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                <KeyButton Content="[F9] ❌ Delete" OnClick="@(() => OnFocused(_deleteSub))" FocusedColor="@Theme.Danger" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[F11] 🧹 Purge DLQ" OnClick="@(() => OnFocused(_purgeDlq))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <KeyButton Content="[F11] 🧹 Purge DLQ" OnClick="@(() => OnFocused(_purgeDlq))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[Esc] 🔙 Back" OnClick="@(() => Nav.NavigateTo("/topics"))" FocusedColor="@Theme.Accent" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
+                <KeyButton Content="[Esc] 🔙 Back" OnClick="@(() => Nav.NavigateTo("/topics"))" FocusedColor="@Theme.Accent" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
     </Footer>
@@ -113,7 +111,7 @@
     private AsyncCommand<string>? _deleteSub;
     private AsyncCommand<string>? _purgeDlq;
     private bool _loadFailed;
-    private SpectreTBody? _tbody;
+    private NavigableTBody? _tbody;
     private bool _tableAutoFocused;
     private readonly TableSort<SubscriptionInfo> _sort = new TableSort<SubscriptionInfo>(ss => ss.OrderBy(s => s.Name))
         .Add("Subscription", s => s.Name, StringComparer.OrdinalIgnoreCase)

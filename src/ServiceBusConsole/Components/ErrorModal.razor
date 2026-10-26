@@ -5,7 +5,7 @@
         <Rows>
             <Markup Content="@Message" Foreground="@Theme.Danger" />
             <Padder Padding="@(new(0, 1, 0, 0))">
-                <TextButton @ref="_dismissButton"
+                <KeyButton @ref="_dismissButton"
                             Content="Dismiss"
                             OnClick="@(() => OnDismiss.InvokeAsync())"
                             FocusedColor="@Theme.Muted"
@@ -19,7 +19,7 @@
     [Parameter] public string Message { get; set; } = "";
     [Parameter] public EventCallback OnDismiss { get; set; }
 
-    private TextButton? _dismissButton;
+    private KeyButton? _dismissButton;
     private bool _wasOpened;
 
     private bool IsOpened => !string.IsNullOrEmpty(Message);

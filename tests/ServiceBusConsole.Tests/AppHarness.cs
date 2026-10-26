@@ -57,17 +57,19 @@ public sealed class AppHarness
     }
 
     /// <summary>Starts on the connection page (local emulator is preselected) and opens its queue list, the way a user does.</summary>
-    public Task<HeadlessTerminal> OpenQueuesAsync() => OpenAsync("[F1] 📬 Queues");
+    public Task<HeadlessTerminal> OpenQueuesAsync() => OpenAsync(ConsoleKey.F1);
 
     /// <summary>Same as <see cref="OpenQueuesAsync"/>, for the topic list.</summary>
-    public Task<HeadlessTerminal> OpenTopicsAsync() => OpenAsync("[F2] 📢 Topics");
+    public Task<HeadlessTerminal> OpenTopicsAsync() => OpenAsync(ConsoleKey.F2);
 
-    private async Task<HeadlessTerminal> OpenAsync(string button)
+    // A key, not a click: the connection page can still shift its buttons (e.g. the subscription
+    // spinner appears), so a click at a position read from an earlier frame may miss.
+    private async Task<HeadlessTerminal> OpenAsync(ConsoleKey key)
     {
         var terminal = await StartAsync();
         await WaitForTableFocusAsync(terminal);
         var connectionFocus = terminal.FocusKey;
-        await ClickTextAsync(terminal, button);
+        await terminal.SendKeyAsync(key, '\0', cancellationToken: TestContext.Current.CancellationToken);
         await WaitForTableFocusAsync(terminal, connectionFocus);
         return terminal;
     }

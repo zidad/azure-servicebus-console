@@ -1,0 +1,122 @@
+@typeparam TItem
+
+@* Renders the engine's <scrollable> element itself, so selection, wheel and Tab behaviour live in the app. *@
+<scrollable @onwheel="HandleWheel" @onwheel:stopPropagation="true"
+            data-focusable="false"
+            data-items-count="@Items.Count"
+            data-offset="@_offset"
+            data-page-size="@PageSize"
+            data-enable-embedded="@IsScrollbarEmbedded.ToString()">
+    @if (Scrollbar is { } bar)
+    {
+        <div data-scrollbar="true"
+             @onfocusin="() => _scrollbarFocused = true"
+             @onfocusout="() => _scrollbarFocused = false"
+             @onkeydown="HandleKeyDown"
+             data-track-char="@bar.TrackChar"
+             data-thumb-char="@bar.ThumbChar"
+             data-track-color="@((_scrollbarFocused ? bar.TrackFocusedColor : bar.TrackColor).ToHex())"
+             data-thumb-color="@((_scrollbarFocused ? bar.ThumbFocusedColor : bar.ThumbColor).ToHex())"
+             data-min-thumb-height="@bar.MinThumbHeight">
+        </div>
+    }
+    <CascadingValue Value="@_selection">
+        @ChildContent(new ListPage<TItem>([.. Items.Skip(_offset).Take(PageSize)], _offset))
+    </CascadingValue>
+</scrollable>
+
+@code {
+    /// <summary>
+    /// A paged list with a selected item: arrows, paging keys and the wheel move the selection and scroll
+    /// to keep it visible; Enter activates it; Space toggles it when <see cref="OnToggle"/> is bound.
+    /// Rows render through a <see cref="NavigableTBody"/> with <see cref="SelectableRow"/>s.
+    /// </summary>
+    [Parameter] public IReadOnlyList<TItem> Items { get; set; } = [];
+    [Parameter] public int PageSize { get; set; } = 1;
+    [Parameter] public int SelectedIndex { get; set; }
+    [Parameter] public EventCallback<int> SelectedIndexChanged { get; set; }
+    [Parameter] public EventCallback OnActivate { get; set; }
+
+    /// <summary>A click on another row selects and activates it at once, as in a dropdown; by default the first click only selects.</summary>
+    [Parameter] public bool ActivateOnClick { get; set; }
+
+    /// <summary>Space toggles the selected item instead of paging down.</summary>
+    [Parameter] public EventCallback<int> OnToggle { get; set; }
+
+    [Parameter] public ScrollbarSettings? Scrollbar { get; set; }
+    [Parameter] public bool IsScrollbarEmbedded { get; set; } = true;
+    [Parameter, EditorRequired] public required RenderFragment<ListPage<TItem>> ChildContent { get; set; }
+
+    private int _offset;
+    private bool _scrollbarFocused;
+    private ListSelection? _selection;
+
+    protected override void OnParametersSet()
+    {
+        KeepSelectedVisible();
+        _selection = new(SelectedIndex - _offset, HandleKeyDown, HandleRowClick);
+    }
+
+    private void KeepSelectedVisible()
+    {
+        if (Items.Count == 0) return;
+        var selected = Math.Clamp(SelectedIndex, 0, Items.Count - 1);
+        var page = Math.Max(1, PageSize);
+        _offset = selected < _offset ? selected
+            : selected >= _offset + page ? selected - page + 1
+            : Math.Min(_offset, Math.Max(0, Items.Count - page));
+    }
+
+    private Task HandleWheel(WheelEventArgs e) => SelectAsync(SelectedIndex + (int)e.DeltaY);
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (Items.Count == 0) return;
+        if (e.Key == " " && OnToggle.HasDelegate)
+        {
+            await OnToggle.InvokeAsync(SelectedIndex);
+            return;
+        }
+        if (e.Key is "Enter" or "Return")
+        {
+            await OnActivate.InvokeAsync();
+            return;
+        }
+        var page = Math.Max(1, PageSize);
+        int? target = e.Key switch
+        {
+            "ArrowDown" or "DownArrow" => SelectedIndex + 1,
+            "ArrowUp" or "UpArrow" => SelectedIndex - 1,
+            "PageDown" or " " => SelectedIndex + page,
+            "PageUp" => SelectedIndex - page,
+            "Home" => 0,
+            "End" => Items.Count - 1,
+            _ => null,
+        };
+        if (target is { } index) await SelectAsync(index);
+    }
+
+    // Clicking a row selects it; clicking the selected row (or any row with ActivateOnClick) activates it.
+    private async Task HandleRowClick(int relativeIndex)
+    {
+        var index = _offset + relativeIndex;
+        if (index < 0 || index >= Items.Count) return;
+        if (index != SelectedIndex)
+        {
+            await SelectAsync(index);
+            if (!ActivateOnClick) return;
+        }
+        await OnActivate.InvokeAsync();
+    }
+
+    private async Task SelectAsync(int index)
+    {
+        index = Math.Clamp(index, 0, Math.Max(0, Items.Count - 1));
+        if (index == SelectedIndex) return;
+        SelectedIndex = index;
+        KeepSelectedVisible();
+        _selection = new(SelectedIndex - _offset, HandleKeyDown, HandleRowClick);
+        await SelectedIndexChanged.InvokeAsync(index);
+        StateHasChanged();
+    }
+}

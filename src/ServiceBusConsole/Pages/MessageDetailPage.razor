@@ -28,32 +28,32 @@ else
             <Columns>
                 @if (Mode == BrowseMode.Locked)
                 {
-                    <TextButton Content="@($"[F9] {Icons.Complete} Complete")" OnClick="@(() => Run(_complete))"
+                    <KeyButton Content="@($"[F9] {Icons.Complete} Complete")" OnClick="@(() => Run(_complete))"
                                 FocusedColor="@Theme.Danger" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
-                    <TextButton Content="@($"[F4] {Icons.Unlocked} Abandon")" OnClick="@(() => Run(_abandon))"
+                    <KeyButton Content="@($"[F4] {Icons.Unlocked} Abandon")" OnClick="@(() => Run(_abandon))"
                                 FocusedColor="@Theme.Warning" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
                     @if (!IsDlq)
                     {
-                        <TextButton Content="@($"[F3] {Icons.DeadLetter} Dead-letter")" OnClick="@(() => Run(_deadLetter))"
+                        <KeyButton Content="@($"[F3] {Icons.DeadLetter} Dead-letter")" OnClick="@(() => Run(_deadLetter))"
                                     FocusedColor="@Theme.Danger" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                         <Markup Content="  " />
                     }
                 }
                 @if (CanRetry)
                 {
-                    <TextButton Content="@($"[F10] {Icons.Retry} {RetryText.Label(IsDlq)}")" OnClick="@(() => Run(_retry))"
+                    <KeyButton Content="@($"[F10] {Icons.Retry} {RetryText.Label(IsDlq)}")" OnClick="@(() => Run(_retry))"
                                 FocusedColor="@Theme.Success" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
                 }
                 else if (Mode == BrowseMode.Peek && _browser is not null)
                 {
-                    <TextButton Content="@($"[F10] {Icons.Send} Resend")" OnClick="@(() => Run(_resend))"
+                    <KeyButton Content="@($"[F10] {Icons.Send} Resend")" OnClick="@(() => Run(_resend))"
                                 FocusedColor="@Theme.Success" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
                 }
-                <TextButton Content="@($"[Esc] {Icons.Back} Back")" OnClick="GoBack"
+                <KeyButton Content="@($"[Esc] {Icons.Back} Back")" OnClick="GoBack"
                             FocusedColor="@Theme.Accent" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>

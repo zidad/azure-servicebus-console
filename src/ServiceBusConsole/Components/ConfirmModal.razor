@@ -6,14 +6,14 @@
             <Markup Content="@Message" />
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
-                    <TextButton @ref="_confirmButton"
+                    <KeyButton @ref="_confirmButton"
                                 Content="[Y] Yes"
                                 OnClick="@(() => OnConfirm.InvokeAsync())"
                                 OnKeyDown="HandleKey"
                                 FocusedColor="@Theme.Danger"
                                 FocusOrder="0" />
                     <Markup Content="   " />
-                    <TextButton Content="[N] No"
+                    <KeyButton Content="[N] No"
                                 OnClick="@(() => OnCancel.InvokeAsync())"
                                 OnKeyDown="HandleKey"
                                 FocusedColor="@Theme.Muted"
@@ -30,7 +30,7 @@
     [Parameter] public EventCallback OnConfirm { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
 
-    private TextButton? _confirmButton;
+    private KeyButton? _confirmButton;
     private bool _wasOpened;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
