@@ -47,15 +47,27 @@ dotnet tool update -g Net.Azure.ServiceBusConsole
 
 ![Queue list](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/queues.png)
 
+**Live counts**: lists poll every 15 seconds; a changed count flashes and fades
+
+![Queue list with a changed count](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/queues-live.png)
+
 **Header dropdowns**: switch namespace (or subscription, or section) in place
 
 ![Namespace dropdown](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/namespace-dropdown.png)
 
 ![Section dropdown](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/section-dropdown.png)
 
-**Message browser**: dead-letter reasons, delivery counts, multi-select
+**Message browser**: dead-letter reasons, delivery counts, multi-select, preview of the message under the cursor
 
 ![Message browser](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/message-browser.png)
+
+**Retry**: confirm the flow, follow its progress, check the result
+
+![Retry confirm](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/retry-confirm.png)
+
+![Retry progress](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/retry-progress.png)
+
+![Retry result](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/retry-result.png)
 
 **Message detail**: properties and highlighted JSON body
 
