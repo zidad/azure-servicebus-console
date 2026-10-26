@@ -35,7 +35,7 @@
         else
         {
             <Scrollable Items="@_filtered"
-                        PageSize="@FullscreenLayout.PageSizeRoundedTableWithFilter(Viewport.Height)"
+                        PageSize="@FullscreenLayout.PageSizeRoundedTable(Viewport.Height)"
                         Scrollbar="new()"
                         SelectedIndex="@_selectedIndex"
                         SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _filtered.ElementAtOrDefault(i)?.Name; })"
@@ -43,7 +43,7 @@
                 <SpectreTable Expand="true" Border="TableBorder.Rounded">
                     <SpectreTHead>
                         <SpectreTR>
-                            <SpectreTH Align="Justify.Left"><SortHeader Label="Queue" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Left"><Columns><SortHeader Label="Queue" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
                             <SpectreTH Align="Justify.Right"><SortHeader Label="Active" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
                             <SpectreTH Align="Justify.Right"><SortHeader Label="DLQ" Icon="@Icons.DeadLetter" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
                             <SpectreTH Align="Justify.Right"><SortHeader Label="Scheduled" Icon="@Icons.Scheduled" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
@@ -75,12 +75,6 @@
         }
     </Content>
     <Footer>
-        <TextInput Value="@_filter"
-                   ValueChanged="ApplyFilter"
-                   Placeholder="Type to filter..."
-                   FillWidth="true"
-                   FocusOrder="2" />
-
         <Padder Padding="@(new(1, 0, 0, 0))">
             <Columns>
                 <TextButton Content="[F5] 🔄 Refresh" OnClick="LoadQueues" FocusedColor="@Theme.Success" FocusOrder="3" OnKeyDown="@HandleKeyDown" />

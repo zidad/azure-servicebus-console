@@ -53,6 +53,7 @@ public sealed class QueueListPageTests
         await terminal.TypeAsync("pay", Ct);
 
         var frame = await terminal.WaitForTextAsync("Queues (1 of 3)", AppHarness.Timeout, Ct);
+        frame.GetLine(RowOf(frame, "Queue ")).ShouldContain("🔍 pay");
         frame.ContainsText("payments").ShouldBeTrue();
         frame.ContainsText("orders").ShouldBeFalse();
     }
@@ -178,25 +179,4 @@ public sealed class QueueListPageTests
         await terminal.WaitForTextAsync("Delete queue 'payments'?", AppHarness.Timeout, Ct);
     }
 
-    [Fact]
-    public async Task FilterBox_IsNotStyledFocused_WhenTheTableHasFocus()
-    {
-        await using var terminal = await WithQueues().OpenQueuesAsync();
-        await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
-
-        // The filter is the first focusable element while the queues load; once the table takes focus,
-        // its border must go back to the unfocused color.
-        await AppHarness.WaitForTableFocusAsync(terminal);
-        await Task.Delay(300, Ct);
-        FilterBorder(terminal.CurrentFrame).ShouldNotBe(Spectre.Console.Color.Yellow);
-    }
-
-    private static Spectre.Console.Color? FilterBorder(TerminalFrame frame)
-    {
-        for (var y = frame.Height - 1; y >= 0; y--)
-        {
-            if (frame[0, y].Text == "╭") return frame[0, y].Style?.Foreground;
-        }
-        return null;
-    }
 }
