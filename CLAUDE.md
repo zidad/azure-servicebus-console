@@ -30,7 +30,7 @@ When a PR moves the `lib/RazorConsole` pointer, tag that fork commit `azsb-pr<PR
 ```bash
 dotnet build ServiceBusConsole.slnx        # Build everything
 dotnet run --project src/ServiceBusConsole # Run the console app
-dotnet test tests/ServiceBusConsole.Tests  # Headless UI tests
+dotnet test --project tests/ServiceBusConsole.Tests  # Headless UI tests
 ```
 
 ## Tests
@@ -41,7 +41,7 @@ dotnet test tests/ServiceBusConsole.Tests  # Headless UI tests
 - RazorConsole bugs found by tests are fixed in the fork (`azsb`), not worked around in the app.
 - Keys go only to the focused element; they do not bubble. Page `HandleKeyDown` runs only via components that forward `OnKeyDown`.
 - `AppHarness` gives each test its own `FileCache` directory under the temp folder.
-- Screenshots for design review: `SCREENSHOT_DIR=<dir> dotnet test tests/ServiceBusConsole.Tests` dumps every page (`Screenshots.cs`), then `python tools/render-screenshots.py <dir>` renders PNGs (Pillow, macOS fonts).
+- Screenshots for design review: `SCREENSHOT_DIR=<dir> dotnet test --project tests/ServiceBusConsole.Tests` dumps every page (`Screenshots.cs`), then `python tools/render-screenshots.py <dir>` renders PNGs (Pillow, macOS fonts).
 
 ## C# style
 
