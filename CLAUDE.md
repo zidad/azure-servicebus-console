@@ -30,8 +30,6 @@ With every change:
 
 Release by pushing a version tag on a `main` commit: `git tag v1.2.3 origin/main && git push origin v1.2.3`. `publish.yml` then tests, packs with the tag's version, pushes to NuGet and creates a GitHub release with generated notes. There is no version in the code or in PR titles.
 
-When a PR moves the `lib/RazorConsole` pointer, tag that fork commit `azsb-pr<PR number>` and push the tag to the fork, so later `azsb` rebases don't orphan it. (Older tags are `azsb-v<Version>`.)
-
 ## Commands
 
 ```bash
