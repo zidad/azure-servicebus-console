@@ -1,6 +1,15 @@
 # azure-servicebus-console
 
+[![Build](https://github.com/zidad/azure-servicebus-console/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/zidad/azure-servicebus-console/actions/workflows/build.yml)
+[![NuGet](https://img.shields.io/nuget/v/Net.Azure.ServiceBusConsole?logo=nuget)](https://www.nuget.org/packages/Net.Azure.ServiceBusConsole)
+[![NuGet downloads](https://img.shields.io/nuget/dt/Net.Azure.ServiceBusConsole?logo=nuget)](https://www.nuget.org/packages/Net.Azure.ServiceBusConsole)
+[![Release](https://img.shields.io/github/v/release/zidad/azure-servicebus-console?logo=github)](https://github.com/zidad/azure-servicebus-console/releases/latest)
+[![.NET](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet)](https://dotnet.microsoft.com/download)
+[![License: MIT](https://img.shields.io/github/license/zidad/azure-servicebus-console)](LICENSE)
+
 A terminal UI browser for Azure Service Bus — explore namespaces, queues, topics, and messages directly from your terminal.
+
+Built with [RazorConsole](https://github.com/RazorConsole/RazorConsole): Blazor Razor components rendered to the terminal via Spectre.Console.
 
 ## Install
 
@@ -198,6 +207,5 @@ This requires a trusted publishing policy on nuget.org (Account → Trusted Publ
 
 ## Built with
 
-- [RazorConsole](https://github.com/RazorConsole/RazorConsole) — Blazor Razor components rendered to the terminal via Spectre.Console
 - [Azure.Messaging.ServiceBus](https://www.nuget.org/packages/Azure.Messaging.ServiceBus) — Service Bus client
 - [Azure.ResourceManager.ServiceBus](https://www.nuget.org/packages/Azure.ResourceManager.ServiceBus) — namespace discovery via ARM
