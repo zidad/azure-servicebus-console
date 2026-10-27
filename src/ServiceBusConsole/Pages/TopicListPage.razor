@@ -33,7 +33,7 @@
         }
         else
         {
-            <Scrollable Items="@_filtered"
+            <SelectableList Items="@_filtered"
                         PageSize="@FullscreenLayout.PageSizeRoundedTable(Viewport.Height)"
                         Scrollbar="new()"
                         SelectedIndex="@_selectedIndex"
@@ -48,35 +48,33 @@
                             <SpectreTH></SpectreTH>
                         </SpectreTR>
                     </SpectreTHead>
-                    <SpectreTBody @ref="_tbody"
-                                  Navigable="true"
+                    <NavigableTBody @ref="_tbody"
                                   FocusOrder="1"
-                                  RowCount="@context.Items.Count"
                                   OnKeyDown="@HandleKeyDown">
                         @{ var i = 0; }
                         @foreach (var t in context.Items)
                         {
                             var idx = i++;
-                            <SpectreTR @key="t.Name" RowIndex="@idx">
+                            <SelectableRow @key="t.Name" RowIndex="@idx">
                                 <SpectreTD>@t.Name</SpectreTD>
                                 <SpectreTD Align="Justify.Right"><CountCell Value="@t.SubscriptionCount" Highlight="@List.Changes.Highlight(t, "Subscriptions")" /></SpectreTD>
                                 <SpectreTD Align="Justify.Right"><CountCell Value="@t.ScheduledMessageCount" Color="@Theme.Scheduled" Highlight="@List.Changes.Highlight(t, "Scheduled")" /></SpectreTD>
                                 <SpectreTD>@if (t.IsRefreshing) { <Spinner /> }</SpectreTD>
-                            </SpectreTR>
+                            </SelectableRow>
                         }
-                    </SpectreTBody>
+                    </NavigableTBody>
                 </SpectreTable>
-            </Scrollable>
+            </SelectableList>
         }
     </Content>
     <Footer>
         <Padder Padding="@(new(1, 0, 0, 0))">
             <Columns>
-                <TextButton Content="[F5] 🔄 Refresh" OnClick="LoadTopics" FocusedColor="@Theme.Success" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                <KeyButton Content="[F5] 🔄 Refresh" OnClick="LoadTopics" FocusedColor="@Theme.Success" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[F9] ❌ Delete" OnClick="@(() => OnFocused(_deleteTopic))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <KeyButton Content="[F9] ❌ Delete" OnClick="@(() => OnFocused(_deleteTopic))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[Esc] 🔙 Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Theme.Accent" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
+                <KeyButton Content="[Esc] 🔙 Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Theme.Accent" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
     </Footer>
@@ -100,7 +98,7 @@
     private string _error = string.Empty;
     private AsyncCommand<string>? _deleteTopic;
     private bool _loadFailed;
-    private SpectreTBody? _tbody;
+    private NavigableTBody? _tbody;
     private bool _tableAutoFocused;
     private readonly TableSort<TopicInfo> _sort = new TableSort<TopicInfo>(ts => ts)
         .Add("Topic", t => t.Name, StringComparer.OrdinalIgnoreCase)

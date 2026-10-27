@@ -50,7 +50,7 @@
                 </Columns>
             </Padder>
 
-            <Scrollable Items="@browser.Messages"
+            <SelectableList Items="@browser.Messages"
                         PageSize="@Split.Rows"
                         Scrollbar="new()"
                         SelectedIndex="@browser.Cursor"
@@ -70,10 +70,8 @@
                             @if (browser.Mode == BrowseMode.Locked) { <SpectreTH Align="Justify.Left">Lock</SpectreTH> }
                         </SpectreTR>
                     </SpectreTHead>
-                    <SpectreTBody @ref="_tbody"
-                                  Navigable="true"
+                    <NavigableTBody @ref="_tbody"
                                   FocusOrder="1"
-                                  RowCount="@context.Items.Count"
                                   OnKeyDown="@HandleKeyDown">
                         @{ var i = 0; }
                         @foreach (var m in context.Items)
@@ -81,7 +79,7 @@
                             var idx = i++;
                             var isCursor = context.CurrentOffset + idx == browser.Cursor;
                             var selected = browser.IsSelected(m);
-                            <SpectreTR @key="m.SequenceNumber" RowIndex="@idx">
+                            <SelectableRow @key="m.SequenceNumber" RowIndex="@idx">
                                 <SpectreTD>
                                     @if (showChecks || isCursor)
                                     {
@@ -101,11 +99,11 @@
                                                 Foreground="@(browser.IsLockHeld(m) ? Theme.Success : Theme.Danger)" />
                                     </SpectreTD>
                                 }
-                            </SpectreTR>
+                            </SelectableRow>
                         }
-                    </SpectreTBody>
+                    </NavigableTBody>
                 </SpectreTable>
-            </Scrollable>
+            </SelectableList>
 
             @if (browser.Focused is { } focused)
             {
@@ -123,37 +121,37 @@
     <Footer>
         <Padder Padding="@(new(1, 0, 0, 0))">
             <Columns>
-                <TextButton Content="@($"[F7] {Icons.Peek} Peek…")" OnClick="@(() => _peekDialog?.Open())" FocusedColor="@Theme.Success" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+                <KeyButton Content="@($"[F7] {Icons.Peek} Peek…")" OnClick="@(() => _peekDialog?.Open())" FocusedColor="@Theme.Success" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="  " />
-                <TextButton Content="@($"[F8] {Icons.Subscription} Receive…")" OnClick="@(() => _receiveDialog?.Open())" FocusedColor="@Theme.Danger" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                <KeyButton Content="@($"[F8] {Icons.Subscription} Receive…")" OnClick="@(() => _receiveDialog?.Open())" FocusedColor="@Theme.Danger" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="  " />
-                <TextButton Content="@(_isDlq ? $"[F6] {Icons.Queue} View Active" : $"[F6] {Icons.DeadLetter} View DLQ")" OnClick="@(() => { _ = SwitchDlq(!_isDlq); })" FocusedColor="@Theme.Warning" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <KeyButton Content="@(_isDlq ? $"[F6] {Icons.Queue} View Active" : $"[F6] {Icons.DeadLetter} View DLQ")" OnClick="@(() => { _ = SwitchDlq(!_isDlq); })" FocusedColor="@Theme.Warning" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="  " />
                 @if (Mode == BrowseMode.Locked)
                 {
-                    <TextButton Content="@($"[F9] {Icons.Complete} Complete")" OnClick="@(() => Run(_complete))" FocusedColor="@Theme.Danger" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
+                    <KeyButton Content="@($"[F9] {Icons.Complete} Complete")" OnClick="@(() => Run(_complete))" FocusedColor="@Theme.Danger" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
-                    <TextButton Content="@($"[F4] {Icons.Unlocked} Abandon")" OnClick="@(() => Run(_abandon))" FocusedColor="@Theme.Warning" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
+                    <KeyButton Content="@($"[F4] {Icons.Unlocked} Abandon")" OnClick="@(() => Run(_abandon))" FocusedColor="@Theme.Warning" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
                     @if (!_isDlq)
                     {
-                        <TextButton Content="@($"[F3] {Icons.DeadLetter} Dead-letter")" OnClick="@(() => Run(_deadLetter))" FocusedColor="@Theme.Danger" FocusOrder="7" OnKeyDown="@HandleKeyDown" />
+                        <KeyButton Content="@($"[F3] {Icons.DeadLetter} Dead-letter")" OnClick="@(() => Run(_deadLetter))" FocusedColor="@Theme.Danger" FocusOrder="7" OnKeyDown="@HandleKeyDown" />
                         <Markup Content="  " />
                     }
                 }
                 @if (CanRetry)
                 {
-                    <TextButton Content="@($"[F10] {Icons.Retry} {RetryText.Label(_isDlq)}")" OnClick="@(() => Run(_retry))" FocusedColor="@Theme.Success" FocusOrder="8" OnKeyDown="@HandleKeyDown" />
+                    <KeyButton Content="@($"[F10] {Icons.Retry} {RetryText.Label(_isDlq)}")" OnClick="@(() => Run(_retry))" FocusedColor="@Theme.Success" FocusOrder="8" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
                 }
                 else if (Mode == BrowseMode.Peek)
                 {
-                    <TextButton Content="@($"[F10] {Icons.Send} Resend")" OnClick="@(() => Run(_resend))" FocusedColor="@Theme.Success" FocusOrder="8" OnKeyDown="@HandleKeyDown" />
+                    <KeyButton Content="@($"[F10] {Icons.Send} Resend")" OnClick="@(() => Run(_resend))" FocusedColor="@Theme.Success" FocusOrder="8" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
                 }
-                <TextButton Content="@($"[F11] {Icons.Purge} Purge")" OnClick="@(() => _purge?.Invoke(Source))" FocusedColor="@Theme.Danger" FocusOrder="9" OnKeyDown="@HandleKeyDown" />
+                <KeyButton Content="@($"[F11] {Icons.Purge} Purge")" OnClick="@(() => _purge?.Invoke(Source))" FocusedColor="@Theme.Danger" FocusOrder="9" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="  " />
-                <TextButton Content="@($"[Esc] {Icons.Back} Back")" OnClick="GoBack" FocusedColor="@Theme.Accent" FocusOrder="10" OnKeyDown="@HandleKeyDown" />
+                <KeyButton Content="@($"[Esc] {Icons.Back} Back")" OnClick="GoBack" FocusedColor="@Theme.Accent" FocusOrder="10" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
     </Footer>
@@ -203,8 +201,8 @@
     private bool _isAutoForwarding;
     private string? _loading;
     private string _error = "";
-    private SpectreTBody? _tbody;
-    private SpectreTBody? _focusedTbody;
+    private NavigableTBody? _tbody;
+    private NavigableTBody? _focusedTbody;
 
     private FetchDialog? _peekDialog;
     private FetchDialog? _receiveDialog;

@@ -13,27 +13,27 @@
         <Panel Title="@Title" BorderColor="@Theme.Accent" Padding="@(new(0, 0, 0, 0))">
             @if (_mode == PickerMode.Sections)
             {
-                <Scrollable Items="@Section.All"
+                <SelectableList Items="@Section.All"
                             PageSize="@Section.All.Count"
                             SelectedIndex="@_index"
                             SelectedIndexChanged="@(i => _index = i)"
                             ActivateOnClick="true"
                             OnActivate="PickSection">
                     <SpectreTable Border="TableBorder.None">
-                        <SpectreTBody @ref="_body" Navigable="true" RowCount="@context.Items.Count" OnKeyDown="@HandleKeyDown">
+                        <NavigableTBody @ref="_body" OnKeyDown="@HandleKeyDown">
                             @{ var i = 0; }
                             @foreach (var section in context.Items)
                             {
                                 var idx = i++;
-                                <SpectreTR @key="section.Route" RowIndex="@idx"><SpectreTD>@section.Label</SpectreTD></SpectreTR>
+                                <SelectableRow @key="section.Route" RowIndex="@idx"><SpectreTD>@section.Label</SpectreTD></SelectableRow>
                             }
-                        </SpectreTBody>
+                        </NavigableTBody>
                     </SpectreTable>
-                </Scrollable>
+                </SelectableList>
             }
             else if (_mode == PickerMode.Subscriptions)
             {
-                <Scrollable Items="@_subscriptions"
+                <SelectableList Items="@_subscriptions"
                             PageSize="@Math.Clamp(_subscriptions.Count, 1, 10)"
                             Scrollbar="new()"
                             SelectedIndex="@_index"
@@ -41,16 +41,16 @@
                             ActivateOnClick="true"
                             OnActivate="PickSubscription">
                     <SpectreTable Border="TableBorder.None">
-                        <SpectreTBody @ref="_body" Navigable="true" RowCount="@context.Items.Count" OnKeyDown="@HandleKeyDown">
+                        <NavigableTBody @ref="_body" OnKeyDown="@HandleKeyDown">
                             @{ var i = 0; }
                             @foreach (var sub in context.Items)
                             {
                                 var idx = i++;
-                                <SpectreTR @key="@(sub.Id ?? "")" RowIndex="@idx"><SpectreTD>@($"{(sub.IsEmulator ? Icons.Emulator : Icons.AzureSubscription)} {sub.Name}")</SpectreTD></SpectreTR>
+                                <SelectableRow @key="@(sub.Id ?? "")" RowIndex="@idx"><SpectreTD>@($"{(sub.IsEmulator ? Icons.Emulator : Icons.AzureSubscription)} {sub.Name}")</SpectreTD></SelectableRow>
                             }
-                        </SpectreTBody>
+                        </NavigableTBody>
                     </SpectreTable>
-                </Scrollable>
+                </SelectableList>
             }
             else if (_namespaces.Count == 0)
             {
@@ -64,12 +64,12 @@
                     {
                         <Markup Content="@(_error ?? "No namespaces.")" Foreground="@Theme.Danger" />
                     }
-                    <TextButton @ref="_closeButton" Content="[Esc] Close" OnClick="Close" FocusedColor="@Theme.Muted" OnKeyDown="@HandleKeyDown" />
+                    <KeyButton @ref="_closeButton" Content="[Esc] Close" OnClick="Close" FocusedColor="@Theme.Muted" OnKeyDown="@HandleKeyDown" />
                 </Columns>
             }
             else
             {
-                <Scrollable Items="@_namespaces"
+                <SelectableList Items="@_namespaces"
                             PageSize="@Math.Min(_namespaces.Count, 10)"
                             Scrollbar="new()"
                             SelectedIndex="@_index"
@@ -77,16 +77,16 @@
                             ActivateOnClick="true"
                             OnActivate="PickNamespace">
                     <SpectreTable Border="TableBorder.None">
-                        <SpectreTBody @ref="_body" Navigable="true" RowCount="@context.Items.Count" OnKeyDown="@HandleKeyDown">
+                        <NavigableTBody @ref="_body" OnKeyDown="@HandleKeyDown">
                             @{ var i = 0; }
                             @foreach (var ns in context.Items)
                             {
                                 var idx = i++;
-                                <SpectreTR @key="ns.Name" RowIndex="@idx"><SpectreTD>@($"{Icons.Namespace} {ns.Name}")</SpectreTD></SpectreTR>
+                                <SelectableRow @key="ns.Name" RowIndex="@idx"><SpectreTD>@($"{Icons.Namespace} {ns.Name}")</SpectreTD></SelectableRow>
                             }
-                        </SpectreTBody>
+                        </NavigableTBody>
                     </SpectreTable>
-                </Scrollable>
+                </SelectableList>
             }
         </Panel>
     </div>
@@ -105,8 +105,8 @@
     private bool _loading;
     private string? _error;
     private CancellationTokenSource _cts = new();
-    private SpectreTBody? _body;
-    private TextButton? _closeButton;
+    private NavigableTBody? _body;
+    private KeyButton? _closeButton;
     private string? _returnFocusKey;
     private bool _focusPending;
 

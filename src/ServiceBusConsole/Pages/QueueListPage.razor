@@ -34,7 +34,7 @@
         }
         else
         {
-            <Scrollable Items="@_filtered"
+            <SelectableList Items="@_filtered"
                         PageSize="@FullscreenLayout.PageSizeRoundedTable(Viewport.Height)"
                         Scrollbar="new()"
                         SelectedIndex="@_selectedIndex"
@@ -51,39 +51,37 @@
                             <SpectreTH></SpectreTH>
                         </SpectreTR>
                     </SpectreTHead>
-                    <SpectreTBody @ref="_tbody"
-                                  Navigable="true"
+                    <NavigableTBody @ref="_tbody"
                                   FocusOrder="1"
-                                  RowCount="@context.Items.Count"
                                   OnKeyDown="@HandleKeyDown">
                         @{ var i = 0; }
                         @foreach (var q in context.Items)
                         {
                             var idx = i++;
-                            <SpectreTR @key="q.Name" RowIndex="@idx">
+                            <SelectableRow @key="q.Name" RowIndex="@idx">
                                 <SpectreTD>@q.Name</SpectreTD>
                                 <SpectreTD Align="Justify.Right"><CountCell Value="@q.ActiveMessageCount" Highlight="@_changes.Highlight(q, "Active")" /></SpectreTD>
                                 <SpectreTD Align="Justify.Right"><CountCell Value="@q.DeadLetterMessageCount" Color="@Theme.Danger" Bold="true" Highlight="@_changes.Highlight(q, "DLQ")" /></SpectreTD>
                                 <SpectreTD Align="Justify.Right"><CountCell Value="@q.ScheduledMessageCount" Color="@Theme.Scheduled" Highlight="@_changes.Highlight(q, "Scheduled")" /></SpectreTD>
                                 <SpectreTD Align="Justify.Right"><CountCell Value="@q.TransferMessageCount" Color="@Theme.Transfer" Highlight="@_changes.Highlight(q, "Transfer")" /></SpectreTD>
                                 <SpectreTD>@if (q.IsRefreshing) { <Spinner /> }</SpectreTD>
-                            </SpectreTR>
+                            </SelectableRow>
                         }
-                    </SpectreTBody>
+                    </NavigableTBody>
                 </SpectreTable>
-            </Scrollable>
+            </SelectableList>
         }
     </Content>
     <Footer>
         <Padder Padding="@(new(1, 0, 0, 0))">
             <Columns>
-                <TextButton Content="[F5] 🔄 Refresh" OnClick="LoadQueues" FocusedColor="@Theme.Success" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                <KeyButton Content="[F5] 🔄 Refresh" OnClick="LoadQueues" FocusedColor="@Theme.Success" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[F9] ❌ Delete" OnClick="@(() => OnFocused(_deleteQueue))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                <KeyButton Content="[F9] ❌ Delete" OnClick="@(() => OnFocused(_deleteQueue))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[F11] 🧹 Purge DLQ" OnClick="@(() => OnFocused(_purgeDlq))" FocusedColor="@Theme.Danger" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
+                <KeyButton Content="[F11] 🧹 Purge DLQ" OnClick="@(() => OnFocused(_purgeDlq))" FocusedColor="@Theme.Danger" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[Esc] 🔙 Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Theme.Accent" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
+                <KeyButton Content="[Esc] 🔙 Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Theme.Accent" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
     </Footer>
@@ -114,7 +112,7 @@
     private AsyncCommand<string>? _deleteQueue;
     private AsyncCommand<string>? _purgeDlq;
     private bool _loadFailed;
-    private SpectreTBody? _tbody;
+    private NavigableTBody? _tbody;
     private bool _tableAutoFocused;
     private readonly TableSort<QueueInfo> _sort = new TableSort<QueueInfo>(qs => qs.OrderBy(q => q.Name))
         .Add("Queue", q => q.Name, StringComparer.OrdinalIgnoreCase)

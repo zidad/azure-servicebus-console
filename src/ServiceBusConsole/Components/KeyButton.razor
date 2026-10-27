@@ -1,0 +1,40 @@
+@using System.Globalization
+
+<div @onfocus="() => SetFocused(true)" @onfocusout="() => SetFocused(false)" @onclick="OnClick" @onkeydown="OnKeyDownHandler"
+     @onmouseenter="() => _hovered = true" @onmouseleave="() => _hovered = false"
+     data-focusable="true"
+     data-focus-order="@FocusOrder?.ToString(CultureInfo.InvariantCulture)"
+     @key="FocusKey"
+     data-focus-key="@FocusKey">
+    <Markup Content="@Content" Background="@(_focused ? FocusedColor : Hovered ? HoverColor : BackgroundColor)"
+            Foreground="@(Hovered && !_focused ? HoverForegroundColor : Color.Default)" />
+</div>
+
+@code {
+    /// <summary>
+    /// A text button like RazorConsole's <c>TextButton</c>, plus <see cref="OnKeyDown"/> (so page shortcuts keep
+    /// working while it has focus) and <see cref="FocusKey"/> (to focus it from code).
+    /// </summary>
+    [Parameter, EditorRequired] public required string Content { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+    [Parameter] public Action<KeyboardEventArgs>? OnKeyDown { get; set; }
+    [Parameter] public int? FocusOrder { get; set; }
+    [Parameter] public Color FocusedColor { get; set; } = Color.DeepSkyBlue1;
+    [Parameter] public Color BackgroundColor { get; set; } = Color.Default;
+    [Parameter] public Color HoverColor { get; set; } = Color.Grey70;
+    [Parameter] public Color HoverForegroundColor { get; set; } = Color.Black;
+
+    /// <summary>The focus manager key, for <c>FocusManager.FocusAsync</c>.</summary>
+    public string FocusKey { get; } = Guid.NewGuid().ToString("N");
+
+    private bool _focused;
+    private bool _hovered;
+    private bool Hovered => _hovered && OnClick.HasDelegate;
+
+    private void SetFocused(bool focused) => _focused = focused;
+
+    private void OnKeyDownHandler(KeyboardEventArgs e)
+    {
+        if (OnKeyDown is { } forward) _ = InvokeAsync(() => forward(e));
+    }
+}

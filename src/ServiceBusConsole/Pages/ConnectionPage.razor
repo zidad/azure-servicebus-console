@@ -21,7 +21,7 @@
 
 <Panel Title="@($"{Icons.Connection} Connection")" BorderColor="@Theme.Border" FillWidth="true" Padding="@(new(1, 0, 1, 0))">
     <Rows>
-        <Scrollable Items="@_visible"
+        <SelectableList Items="@_visible"
                     PageSize="@SubscriptionPageSize"
                     Scrollbar="new()"
                     SelectedIndex="@_subscriptionIndex"
@@ -34,23 +34,21 @@
                         <SpectreTH Align="Justify.Left">ID</SpectreTH>
                     </SpectreTR>
                 </SpectreTHead>
-                <SpectreTBody @ref="_subscriptionBody"
-                              Navigable="true"
+                <NavigableTBody @ref="_subscriptionBody"
                               FocusOrder="1"
-                              RowCount="@context.Items.Count"
                               OnKeyDown="@HandleSubscriptionKeyDown">
                     @{ var i = 0; }
                     @foreach (var sub in context.Items)
                     {
                         var idx = i++;
-                        <SpectreTR @key="@(sub.Id ?? "")" RowIndex="@idx">
+                        <SelectableRow @key="@(sub.Id ?? "")" RowIndex="@idx">
                             <SpectreTD>@($"{(sub.IsEmulator ? Icons.Emulator : Icons.AzureSubscription)} {sub.Name}")</SpectreTD>
                             <SpectreTD><Markup Content="@(sub.Id ?? "localhost:5672")" Foreground="@Theme.Muted" /></SpectreTD>
-                        </SpectreTR>
+                        </SelectableRow>
                     }
-                </SpectreTBody>
+                </NavigableTBody>
             </SpectreTable>
-        </Scrollable>
+        </SelectableList>
 
         @if (Catalog.Error is { } listError)
         {
@@ -78,13 +76,13 @@
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
                     <Markup Content="Could not connect.  " Foreground="@Theme.Danger" />
-                    <TextButton Content="@($"{Icons.Refresh} Retry")" OnClick="RetryConnection" FocusedColor="@Theme.Warning" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                    <KeyButton Content="@($"{Icons.Refresh} Retry")" OnClick="RetryConnection" FocusedColor="@Theme.Warning" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                 </Columns>
             </Padder>
         }
         else if (_namespaces.Count > 0)
         {
-            <Scrollable Items="@_namespaces"
+            <SelectableList Items="@_namespaces"
                         PageSize="@NamespacePageSize"
                         Scrollbar="new()"
                         SelectedIndex="@_namespaceIndex"
@@ -100,16 +98,14 @@
                             <SpectreTH Align="Justify.Left">Status</SpectreTH>
                         </SpectreTR>
                     </SpectreTHead>
-                    <SpectreTBody @ref="_namespaceBody"
-                                  Navigable="true"
+                    <NavigableTBody @ref="_namespaceBody"
                                   FocusOrder="3"
-                                  RowCount="@context.Items.Count"
                                   OnKeyDown="@HandleKeyDown">
                         @{ var i = 0; }
                         @foreach (var ns in context.Items)
                         {
                             var idx = i++;
-                            <SpectreTR @key="ns.Name" RowIndex="@idx">
+                            <SelectableRow @key="ns.Name" RowIndex="@idx">
                                 <SpectreTD>@($"{Icons.Namespace} {ns.Name}")</SpectreTD>
                                 <SpectreTD><Markup Content="@ns.ResourceGroup" Foreground="@Theme.Muted" /></SpectreTD>
                                 <SpectreTD><Markup Content="@ns.Location" Foreground="@Theme.Muted" /></SpectreTD>
@@ -120,30 +116,30 @@
                                         <Markup Content="@($"{Icons.NamespaceStatus(ns.Status)} {ns.Status}")" Foreground="@Theme.NamespaceStatus(ns.Status)" />
                                     }
                                 </SpectreTD>
-                            </SpectreTR>
+                            </SelectableRow>
                         }
-                    </SpectreTBody>
+                    </NavigableTBody>
                 </SpectreTable>
-            </Scrollable>
+            </SelectableList>
         }
 
         @if (ChosenNamespace is not null)
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
-                    <TextButton Content="@($"[F1] {Icons.Queue} Queues")"
+                    <KeyButton Content="@($"[F1] {Icons.Queue} Queues")"
                                 OnClick="@(() => Nav.NavigateTo("/queues"))"
                                 FocusedColor="@Theme.Accent"
                                 FocusOrder="4"
                                 OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
-                    <TextButton Content="@($"[F2] {Icons.Topic} Topics")"
+                    <KeyButton Content="@($"[F2] {Icons.Topic} Topics")"
                                 OnClick="@(() => Nav.NavigateTo("/topics"))"
                                 FocusedColor="@Theme.Accent"
                                 FocusOrder="5"
                                 OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
-                    <TextButton Content="@($"[F3] {Icons.Subscription} All Subscriptions")"
+                    <KeyButton Content="@($"[F3] {Icons.Subscription} All Subscriptions")"
                                 OnClick="@(() => Nav.NavigateTo("/subscriptions"))"
                                 FocusedColor="@Theme.Accent"
                                 FocusOrder="6"
@@ -160,7 +156,7 @@
         <Markup Content="   " />
         @if (_cacheStatus is null)
         {
-            <TextButton Content="@($"{Icons.Purge} Clear cache")" OnClick="ClearCache" FocusedColor="@Theme.Danger" FocusOrder="7" OnKeyDown="@HandleKeyDown" />
+            <KeyButton Content="@($"{Icons.Purge} Clear cache")" OnClick="ClearCache" FocusedColor="@Theme.Danger" FocusOrder="7" OnKeyDown="@HandleKeyDown" />
         }
         else
         {
@@ -189,8 +185,8 @@
     private bool _connectionFailed;
     private string _error = string.Empty;
     private CancellationTokenSource _cts = new();
-    private SpectreTBody? _subscriptionBody;
-    private SpectreTBody? _namespaceBody;
+    private NavigableTBody? _subscriptionBody;
+    private NavigableTBody? _namespaceBody;
     private bool _subscriptionsFocused;
     private bool _focusNamespaces;
     private string? _restoreNamespace;

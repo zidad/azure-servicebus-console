@@ -1,0 +1,65 @@
+@using System.Globalization
+
+<CascadingValue Name="RowNavSelectedIndex" Value="@(_focused ? Selection?.RelativeSelectedIndex : null)">
+    <CascadingValue Name="RowNavClick" Value="@_rowClick" IsFixed="true">
+        <tbody @onfocus="OnFocus"
+               @onfocusout="OnFocusOut"
+               @onkeydown="OnKeyDownHandler"
+               data-focusable="true"
+               data-focus-order="@FocusOrder?.ToString(CultureInfo.InvariantCulture)"
+               @key="FocusKey"
+               data-focus-key="@FocusKey"
+               @attributes="AdditionalAttributes">
+            @ChildContent
+        </tbody>
+    </CascadingValue>
+</CascadingValue>
+
+@code {
+    /// <summary>
+    /// A table body that is one Tab stop inside a <see cref="SelectableList{TItem}"/>: navigation keys and row
+    /// clicks go to the list, other keys to <see cref="OnKeyDown"/>. The selected row is highlighted while focused.
+    /// </summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public int? FocusOrder { get; set; }
+
+    /// <summary>Keys the list does not handle (e.g. F5, Escape), for the page's shortcuts.</summary>
+    [Parameter] public Action<KeyboardEventArgs>? OnKeyDown { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object?>? AdditionalAttributes { get; set; }
+
+    [CascadingParameter] private ListSelection? Selection { get; set; }
+
+    /// <summary>The focus manager key, for <c>FocusManager.FocusAsync</c>.</summary>
+    public string FocusKey { get; } = Guid.NewGuid().ToString("N");
+
+    private static readonly HashSet<string> NavigationKeys =
+        ["ArrowDown", "DownArrow", "ArrowUp", "UpArrow", "PageDown", "PageUp", "Home", "End", " ", "Enter", "Return"];
+
+    private bool _focused;
+    private readonly Func<int, Task> _rowClick;
+
+    public NavigableTBody() => _rowClick = index => Selection?.HandleRowClick(index) ?? Task.CompletedTask;
+
+    private void OnFocus(FocusEventArgs e)
+    {
+        if (_focused) return;
+        _focused = true;
+        StateHasChanged();
+    }
+
+    private void OnFocusOut(FocusEventArgs e)
+    {
+        if (!_focused) return;
+        _focused = false;
+        StateHasChanged();
+    }
+
+    private async Task OnKeyDownHandler(KeyboardEventArgs e)
+    {
+        if (!e.CtrlKey && !e.AltKey && !e.MetaKey && NavigationKeys.Contains(e.Key) && Selection is { } selection)
+            await selection.HandleKeyDown(e);
+        else if (OnKeyDown is { } forward)
+            _ = InvokeAsync(() => forward(e));
+    }
+}

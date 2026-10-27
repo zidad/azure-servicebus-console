@@ -40,7 +40,7 @@ RazorConsole renders Blazor Razor components to the terminal via Spectre.Console
 
 | Component | Key parameters | Notes |
 |---|---|---|
-| `<TextButton>` | `Content`, `FocusedColor`, `BackgroundColor`, `FocusOrder`, `OnClick` (EventCallback), `OnFocus` (Action), `OnBlur` (Action), `OnKeyDown` (Action) | Clickable label. `FocusKey` property exposes the internal GUID for programmatic focus. |
+| `<TextButton>` | `Content`, `FocusedColor`, `BackgroundColor`, `FocusOrder`, `OnClick` (EventCallback) | Upstream clickable label; no `OnKeyDown`/`FocusKey`. In this app use the project's `<KeyButton>` (same parameters plus `OnKeyDown`, `FocusKey`). |
 | `<TextInput>` | `Value`, `ValueChanged`, `Placeholder`, `Label`, `Expand`, `FocusOrder`, `OnFocus`, `OnBlur`, `OnInput`, `OnSubmit` | Text field. Use `ValueChanged` for reactive filtering. |
 | `<Select<TItem>>` | `Options` (TItem[]), `Value`, `ValueChanged`, `FocusedValue`, `FocusedValueChanged`, `Expand`, `FocusOrder`, `SelectedOptionForeground`, `Formatter`, `Comparer` | Keyboard-navigable pick list. Arrow keys move highlight; Enter commits; Escape cancels; typing ahead jumps to matching option. |
 
@@ -58,7 +58,7 @@ RazorConsole renders Blazor Razor components to the terminal via Spectre.Console
         @foreach (var item in items)
         {
             <SpectreTR @key="item.Id">
-                <SpectreTD><TextButton Content="@item.Name" .../></SpectreTD>
+                <SpectreTD><KeyButton Content="@item.Name" .../></SpectreTD>
                 <SpectreTD Align="Justify.Right">@item.Count</SpectreTD>
             </SpectreTR>
         }
@@ -90,6 +90,29 @@ Always add `@key` on `SpectreTR` to prevent render-tree diff crashes on list upd
 Parameters: `Items` (IReadOnlyList\<T\>), `PageSize`, `ScrollOffset` / `ScrollOffsetChanged`, `Scrollbar` (ScrollbarSettings?), `IsScrollbarEmbedded` (default true).
 `context` is `ScrollContext<T>` with `.Items`, `.CurrentOffset`, `.PagesCount`, `.KeyDownEventHandler`.
 When `Scrollbar="new()"` the scrollbar is embedded in the table/panel border and handles ArrowUp/Down, PageUp/Down, Home/End itself.
+
+**Project list components** (`src/ServiceBusConsole/Components/Lists/`, app-owned so the fork stays minimal):
+
+```razor
+<SelectableList Items="@_items" PageSize="@size" Scrollbar="new()"
+                SelectedIndex="@_index" SelectedIndexChanged="@(i => _index = i)"
+                OnActivate="Open" OnToggle="@(i => Toggle(i))">
+    <SpectreTable Expand="true" Border="TableBorder.Rounded">
+        <SpectreTHead>...</SpectreTHead>
+        <NavigableTBody @ref="_tbody" FocusOrder="1" OnKeyDown="@HandleKeyDown">
+            @{ var i = 0; }
+            @foreach (var item in context.Items)
+            {
+                <SelectableRow @key="item.Name" RowIndex="@(i++)">...</SelectableRow>
+            }
+        </NavigableTBody>
+    </SpectreTable>
+</SelectableList>
+```
+
+- `SelectableList`: arrows/paging/wheel move the selection, Enter → `OnActivate`, Space → `OnToggle` when bound, `ActivateOnClick` for dropdowns; `context.Items` / `context.CurrentOffset` are the visible page
+- `NavigableTBody`: one Tab stop; navigation keys go to the list, other keys to `OnKeyDown`
+- `KeyButton`: `TextButton` plus `OnKeyDown` and `FocusKey`; use it for every button so page shortcuts keep working
 
 **`<ViewHeightScrollable>`** — clips rendered content to N lines and scrolls by line offset. Use for long text bodies (e.g. message JSON).
 
@@ -131,8 +154,8 @@ The modal is rendered outside the normal flow; all page elements remain in the f
 - `FocusManager` (singleton, injectable) manages focus programmatically:
   - `FocusAsync(string key)` — focus a specific element by its key.
   - `FocusNextAsync()` / `FocusPreviousAsync()` — move focus one step.
-- `TextButton.FocusKey` (string) — the element's unique focus key, usable with `FocusAsync`.
-- Use `@ref="_myButton"` on a `TextButton` to capture the instance, then call `FocusManager.FocusAsync(_myButton.FocusKey)`.
+- `KeyButton.FocusKey` / `NavigableTBody.FocusKey` / `TextInput.FocusKey` (string) — the element's unique focus key, usable with `FocusAsync`.
+- Use `@ref="_myButton"` on a `KeyButton` to capture the instance, then call `FocusManager.FocusAsync(_myButton.FocusKey)`.
 
 ### Focus order conventions in this project
 
@@ -167,9 +190,9 @@ Every page uses the project's `<FullscreenPage>` wrapper (`src/ServiceBusConsole
         {{filter TextInput (optional, above the button row)}}
         <Padder Padding="@(new(1, 0, 0, 0))">
             <Columns>
-                <TextButton Content="[F5] Refresh" OnClick="Load" FocusedColor="@Color.Green" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
+                <KeyButton Content="[F5] Refresh" OnClick="Load" FocusedColor="@Color.Green" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <TextButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/prev"))" FocusedColor="@Color.Yellow" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
+                <KeyButton Content="[Esc] Back" OnClick="@(() => Nav.NavigateTo("/prev"))" FocusedColor="@Color.Yellow" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
     </Footer>

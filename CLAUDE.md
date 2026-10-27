@@ -13,10 +13,17 @@ git rebase origin/main
 
 Resolve any conflicts, then push with `--force-with-lease`.
 
-With every change, also rebase the fork's `azsb` branch (`lib/RazorConsole`) onto the latest upstream `RazorConsole/RazorConsole` main:
+The fork's `azsb` branch (`lib/RazorConsole`) is always **one commit** on top of upstream `RazorConsole/RazorConsole` main, so `git diff upstream/main azsb` shows every customization at once. Keep that commit minimal, aiming to switch back to the RazorConsole NuGet package:
 
-- Drop fork commits upstream now covers (merged PRs, equivalent fixes); git skips identical patches on its own
+- Component behaviour lives in the app (`Components/`, `Components/Lists/`): `SelectableList`, `NavigableTBody`, `SelectableRow` and `KeyButton` render RazorConsole's element protocol (`<scrollable>`, `<tbody>`, `<tr data-selected-bg>`, `data-focusable`) themselves
+- The fork only holds engine fixes and the smallest hooks the app cannot add itself, each with an upstream PR or one to open; drop it once upstream has it
+
+With every change:
+
+- Rebase that commit onto the latest upstream main; where upstream merged one of our PRs or an equivalent fix, keep upstream's version
 - Check each remaining customization for an upstream replacement; remove the patch and the app workaround when one exists
+- New fork changes: commit, then fold back into one commit (`git reset --soft upstream/main && git commit`); the message lists the customizations by area
+- Upstream PRs come from separate `fix/*` branches off upstream main, never from `azsb`
 - Run the fork and app tests, push `azsb` with `--force-with-lease`, bump the submodule pointer in the same PR
 
 ## Releases
