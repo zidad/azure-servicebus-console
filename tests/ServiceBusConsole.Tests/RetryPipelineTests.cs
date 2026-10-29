@@ -1,5 +1,3 @@
-using Azure.Messaging.ServiceBus;
-
 namespace ServiceBusConsole.Tests;
 
 public sealed class RetryPipelineTests
@@ -11,7 +9,7 @@ public sealed class RetryPipelineTests
     {
         var service = new FakeMessageService { PauseScan = new TaskCompletionSource(), PauseScanAfter = 100 };
         service.Messages.AddRange(Enumerable.Range(1, 250).Select(i => Message(i)));
-        var browser = new MessageBrowser(new MessageSource("orders", IsDlq: true), service);
+        var browser = new MessageBrowser(new MessageSource.Queue("orders", IsDlq: true), service);
         await browser.PeekAsync(250, null);
         browser.SelectAll();
 
@@ -36,7 +34,7 @@ public sealed class RetryPipelineTests
     {
         var service = new FakeMessageService { PauseScan = new TaskCompletionSource(), PauseScanAfter = 100 };
         service.Messages.AddRange(Enumerable.Range(1, 250).Select(i => Message(i)));
-        var browser = new MessageBrowser(new MessageSource("orders", IsDlq: true), service);
+        var browser = new MessageBrowser(new MessageSource.Queue("orders", IsDlq: true), service);
         await browser.PeekAsync(250, null);
         browser.SelectAll();
 
@@ -56,9 +54,8 @@ public sealed class RetryPipelineTests
         browser.Operation.ShouldBeNull();
     }
 
-    private static MessageInfo Message(long sequence) => new(
-        ServiceBusModelFactory.ServiceBusReceivedMessage(body: BinaryData.FromString("{}"), messageId: $"msg-{sequence}", sequenceNumber: sequence),
-        MessageState.Peeked);
+    private static MessageInfo Message(long sequence) =>
+        new() { SequenceNumber = sequence, State = MessageState.Peeked, MessageId = $"msg-{sequence}", Body = "{}"u8.ToArray() };
 
     private static async Task WaitUntilAsync(Func<bool> condition)
     {

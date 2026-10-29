@@ -1,5 +1,5 @@
+using System.Text;
 using System.Text.Json;
-using Azure.Messaging.ServiceBus;
 using RazorConsole.Testing;
 using Spectre.Console;
 
@@ -173,17 +173,19 @@ public sealed class Screenshots
         return app;
     }
 
-    private static MessageInfo Message(long sequence, string subject, string body, DateTimeOffset enqueued, int deliveries, string reason) => new(
-        ServiceBusModelFactory.ServiceBusReceivedMessage(
-            body: BinaryData.FromString(body),
-            messageId: $"{Guid.CreateVersion7(enqueued):N}"[..20],
-            subject: subject,
-            contentType: "application/json",
-            sequenceNumber: sequence,
-            deliveryCount: deliveries,
-            enqueuedTime: enqueued,
-            properties: new Dictionary<string, object> { ["DeadLetterReason"] = reason, ["source"] = "checkout-api" }),
-        MessageState.Peeked);
+    private static MessageInfo Message(long sequence, string subject, string body, DateTimeOffset enqueued, int deliveries, string reason) => new()
+    {
+        SequenceNumber = sequence,
+        State = MessageState.Peeked,
+        MessageId = $"{Guid.CreateVersion7(enqueued):N}"[..20],
+        Subject = subject,
+        ContentType = "application/json",
+        Body = Encoding.UTF8.GetBytes(body),
+        DeliveryCount = deliveries,
+        EnqueuedTime = enqueued,
+        DeadLetterReason = reason,
+        Properties = [KeyValuePair.Create("source", "checkout-api")],
+    };
 
     private static Task Key(HeadlessTerminal terminal, ConsoleKey key, char ch = '\0')
         => terminal.SendKeyAsync(key, ch, cancellationToken: Ct);

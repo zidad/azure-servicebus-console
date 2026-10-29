@@ -313,7 +313,7 @@
 
         if (subscription.IsEmulator)
         {
-            _namespaces = [AzureSubscriptions.EmulatorNamespace];
+            _namespaces = [NamespaceInfo.Emulator];
             SelectNamespace(0);
             return;
         }

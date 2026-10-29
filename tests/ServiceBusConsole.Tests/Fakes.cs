@@ -1,5 +1,5 @@
 using System.Runtime.CompilerServices;
-using Azure.Messaging.ServiceBus;
+using System.Threading.Channels;
 
 namespace ServiceBusConsole.Tests;
 
@@ -72,7 +72,7 @@ public sealed class FakeQueueService : IQueueService
         foreach (var q in queues) yield return q;
     }
 
-    public Task DeleteQueueAsync(string queueName)
+    public Task DeleteQueueAsync(string queueName, CancellationToken ct = default)
     {
         Deleted.Add(queueName);
         lock (Queues) Queues.RemoveAll(q => q.Name == queueName);
@@ -111,9 +111,9 @@ public sealed class FakeTopicService : ITopicService
         foreach (var s in Subscriptions.ToList()) yield return s;
     }
 
-    public Task DeleteTopicAsync(string topicName) => Task.CompletedTask;
+    public Task DeleteTopicAsync(string topicName, CancellationToken ct = default) => Task.CompletedTask;
 
-    public Task DeleteSubscriptionAsync(string topicName, string subscriptionName) => Task.CompletedTask;
+    public Task DeleteSubscriptionAsync(string topicName, string subscriptionName, CancellationToken ct = default) => Task.CompletedTask;
 }
 
 public sealed class FakeMessageService : IMessageService
@@ -146,7 +146,7 @@ public sealed class FakeMessageService : IMessageService
         foreach (var page in Messages.Take(count).Chunk(PageSize))
         {
             await Task.Yield();
-            yield return [.. page.Select(m => new MessageInfo(m.Raw, MessageState.Received))];
+            yield return [.. page.Select(m => m with { State = MessageState.Received })];
         }
     }
 
@@ -160,38 +160,26 @@ public sealed class FakeMessageService : IMessageService
     /// <summary>Sequence numbers someone else holds a lock on: the lock scan cannot get them.</summary>
     public HashSet<long> LockedElsewhere { get; } = [];
 
-    public ILockedMessages StartReceiving(MessageSource source, int count, System.Threading.Channels.ChannelWriter<ServiceBusReceivedMessage> received, CancellationToken ct = default)
+    public ILockedMessages StartReceiving(MessageSource source, int count, CancellationToken ct = default)
     {
-        var batch = Messages.Take(count).Select(m => m.Raw).ToList();
-        _ = Task.Run(async () =>
-        {
-            foreach (var m in batch) await received.WriteAsync(m, ct);
-            received.TryComplete();
-        }, ct);
-        return new FakeLockedMessages(this, batch);
+        var batch = Messages.Take(count).Select(m => m with { State = MessageState.Locked }).ToList();
+        return new FakeLockedMessages(this, batch, batch.ToAsyncEnumerable());
     }
 
-    public ILockedMessages StartLocking(MessageSource source, IReadOnlyCollection<long> sequenceNumbers, System.Threading.Channels.ChannelWriter<ServiceBusReceivedMessage> found, CancellationToken ct = default)
+    public ILockedMessages StartLocking(MessageSource source, IReadOnlyCollection<long> sequenceNumbers, CancellationToken ct = default)
     {
-        var lockable = Messages.Where(m => sequenceNumbers.Contains(m.SequenceNumber) && !LockedElsewhere.Contains(m.SequenceNumber)).ToList();
-        _ = Task.Run(async () =>
+        var lockable = Messages.Where(m => sequenceNumbers.Contains(m.SequenceNumber) && !LockedElsewhere.Contains(m.SequenceNumber))
+            .Select(m => m with { State = MessageState.Locked }).ToList();
+        return new FakeLockedMessages(this, lockable, ScanAsync(lockable, ct));
+    }
+
+    private async IAsyncEnumerable<MessageInfo> ScanAsync(IReadOnlyList<MessageInfo> lockable, [EnumeratorCancellation] CancellationToken ct)
+    {
+        foreach (var (i, m) in lockable.Index())
         {
-            try
-            {
-                var written = 0;
-                foreach (var m in lockable)
-                {
-                    if (written++ == PauseScanAfter && PauseScan is { } pause) await pause.Task.WaitAsync(ct);
-                    await found.WriteAsync(m.Raw, ct);
-                }
-                found.TryComplete();
-            }
-            catch (Exception ex)
-            {
-                found.TryComplete(ex);
-            }
-        }, CancellationToken.None);
-        return new FakeLockedMessages(this, lockable.Select(m => m.Raw));
+            if (i == PauseScanAfter && PauseScan is { } pause) await pause.Task.WaitAsync(ct);
+            yield return m;
+        }
     }
 
     public List<(MessageSource Source, long SequenceNumber)> Sent { get; } = [];
@@ -199,26 +187,30 @@ public sealed class FakeMessageService : IMessageService
     /// <summary>When set, sending waits on it, so a test can see an operation in progress.</summary>
     public TaskCompletionSource? HoldSend { get; set; }
 
-    public async Task SendCopiesAsync(MessageSource source, IReadOnlyList<MessageInfo> messages, Action<int> onSent, CancellationToken ct = default)
+    public async IAsyncEnumerable<int> SendCopiesAsync(MessageSource source, IReadOnlyList<MessageInfo> messages, [EnumeratorCancellation] CancellationToken ct = default)
     {
         if (HoldSend is { } hold) await hold.Task.WaitAsync(ct);
         Sent.AddRange(messages.Select(m => (source, m.SequenceNumber)));
-        onSent(messages.Count);
+        yield return messages.Count;
     }
 
-    public Task<int> PurgeMessagesAsync(MessageSource source, Action<int> onPurged, CancellationToken ct = default)
+    public async IAsyncEnumerable<int> PurgeAsync(MessageSource source, [EnumeratorCancellation] CancellationToken ct = default)
     {
         Purged.Add(source);
-        onPurged(Messages.Count);
-        return Task.FromResult(Messages.Count);
+        await Task.Yield();
+        yield return Messages.Count;
     }
 }
 
-public sealed class FakeLockedMessages(FakeMessageService service, IEnumerable<ServiceBusReceivedMessage> messages) : ILockedMessages
+/// <summary>Holds <paramref name="messages"/> from the start; <paramref name="locking"/> is what arrives on <see cref="Held"/>.</summary>
+public sealed class FakeLockedMessages(FakeMessageService service, IEnumerable<MessageInfo> messages, IAsyncEnumerable<MessageInfo> locking) : ILockedMessages
 {
     private readonly HashSet<long> _held = [.. messages.Select(m => m.SequenceNumber)];
+    private readonly Channel<long> _lockLost = Channel.CreateUnbounded<long>();
 
-    public event Action<long>? LockLost { add { } remove { } }
+    public ChannelReader<MessageInfo> Held { get; } = Pump(locking);
+
+    public ChannelReader<long> LockLost => _lockLost.Reader;
 
     public bool Disposed { get; private set; }
 
@@ -249,7 +241,26 @@ public sealed class FakeLockedMessages(FakeMessageService service, IEnumerable<S
     public ValueTask DisposeAsync()
     {
         Disposed = true;
+        _lockLost.Writer.TryComplete();
         return ValueTask.CompletedTask;
+    }
+
+    private static ChannelReader<MessageInfo> Pump(IAsyncEnumerable<MessageInfo> locking)
+    {
+        var channel = Channel.CreateUnbounded<MessageInfo>();
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await foreach (var m in locking) await channel.Writer.WriteAsync(m);
+                channel.Writer.TryComplete();
+            }
+            catch (Exception ex)
+            {
+                channel.Writer.TryComplete(ex);
+            }
+        });
+        return channel.Reader;
     }
 
     private void Settle(MessageInfo message)

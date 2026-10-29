@@ -13,13 +13,11 @@
   <ItemGroup>
     <Using Include="Xunit" />
     <Using Include="Shouldly" />
-    <Using Include="ServiceBusConsole.Emulator" />
+    <Using Include="ServiceBusConsole.Abstractions" />
     <Using Include="ServiceBusConsole.Messaging" />
-    <Using Include="ServiceBusConsole.Models" />
     <Using Include="ServiceBusConsole.Services" />
     <Using Include="ServiceBusConsole.Services.Caching" />
     <Using Include="ServiceBusConsole.Syntax" />
-    <Using Include="ServiceBusConsole.Threading" />
     <Using Include="ServiceBusConsole.UI" />
   </ItemGroup>
 </Project>

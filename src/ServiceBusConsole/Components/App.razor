@@ -1,11 +1,11 @@
 @using Microsoft.AspNetCore.Components.Routing
 @using RazorConsole.Components
 @implements IDisposable
-@inject ServiceBusConnection Connection
+@inject NavigationState NavState
 
 <Router AppAssembly="@typeof(App).Assembly">
     <Found Context="routeData">
-        <RouteView @key="Connection.Version" RouteData="routeData" />
+        <RouteView @key="NavState.PageVersion" RouteData="routeData" />
     </Found>
     <NotFound>
         <Markup Content="Page not found." Foreground="@Theme.Danger" />
@@ -13,9 +13,9 @@
 </Router>
 
 @code {
-    protected override void OnInitialized() => Connection.Switched += OnSwitched;
+    protected override void OnInitialized() => NavState.Reloaded += OnReloaded;
 
-    public void Dispose() => Connection.Switched -= OnSwitched;
+    public void Dispose() => NavState.Reloaded -= OnReloaded;
 
-    private void OnSwitched() => _ = InvokeAsync(StateHasChanged);
+    private void OnReloaded() => _ = InvokeAsync(StateHasChanged);
 }

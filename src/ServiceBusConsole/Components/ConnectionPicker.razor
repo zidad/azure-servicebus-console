@@ -260,15 +260,9 @@
         await Store.CloseAsync();
         NavState.AzureSubscription = subscription;
         var section = SectionRoot();
-        if (Nav.ToBaseRelativePath(Nav.Uri) == section.TrimStart('/'))
-        {
-            Connection.Switch(ns);
-        }
-        else
-        {
-            Connection.SetNamespace(ns);
-            Nav.NavigateTo(section);
-        }
+        Connection.SetNamespace(ns);
+        if (Nav.ToBaseRelativePath(Nav.Uri) == section.TrimStart('/')) NavState.Reload();
+        else Nav.NavigateTo(section);
     }
 
     // Names below the section (a queue, topic, message) belong to the old namespace.
@@ -277,7 +271,7 @@
         var path = Nav.ToBaseRelativePath(Nav.Uri);
         if (path.StartsWith("queues")) return "/queues";
         if (path.StartsWith("subscriptions")) return "/subscriptions";
-        if (path.StartsWith("message")) return NavState.MessageSource?.TopicName is null ? "/queues" : "/topics";
+        if (path.StartsWith("message")) return NavState.MessageSource is MessageSource.Subscription ? "/topics" : "/queues";
         if (path.StartsWith("subscription-browser") && NavState.ReturnPath == "/subscriptions") return "/subscriptions";
         return "/topics";
     }

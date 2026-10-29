@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Reflection;
-using Azure.Identity;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -27,7 +26,7 @@ public sealed class AppHarness
     /// <summary>Per-test cache folder, so tests never touch the user's real cache.</summary>
     public string CacheDirectory { get; set; } = Path.Combine(Path.GetTempPath(), "sb-console-tests", Guid.NewGuid().ToString("N"));
     public ConsoleNavigationManager Navigation { get; } = new();
-    public ServiceBusConnection Connection { get; } = new(new AzureCliCredential(), NullLogger<ServiceBusConnection>.Instance);
+    public ServiceBusConnection Connection { get; } = new();
 
     public Task<HeadlessTerminal> StartAsync(int width = 120, int height = 30)
     {

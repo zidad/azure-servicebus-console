@@ -1,9 +1,8 @@
-using Azure.Identity;
-using Azure.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RazorConsole.Core;
+using ServiceBusConsole.AzureServiceBus;
 using ServiceBusConsole.Components;
 
 var logFile = Path.Combine(
@@ -19,14 +18,9 @@ await Host.CreateDefaultBuilder(args)
         // Blazor logs every component render at Debug: hundreds of MB per session.
         .AddFilter("Microsoft.AspNetCore.Components", LogLevel.Information))
     .ConfigureServices(services => services
-        .AddSingleton(new AzureCliCredential())
-        .AddSingleton(sp => new ArmClient(sp.GetRequiredService<AzureCliCredential>()))
         .AddSingleton<ServiceBusConnection>()
+        .AddAzureServiceBus()
         .AddSingleton<FileCache>()
-        .AddSingleton<INamespaceService, NamespaceService>()
-        .AddSingleton<IQueueService, QueueService>()
-        .AddSingleton<ITopicService, TopicService>()
-        .AddSingleton<IMessageService, MessageService>()
         .AddSingleton<NavigationState>()
         .AddSingleton<SubscriptionCatalog>()
         .AddSingleton<MessageBrowserStore>()
