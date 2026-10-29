@@ -1,13 +1,12 @@
 namespace ServiceBusConsole.Tests;
 
+[NotInParallel(nameof(ConnectionPageTests))]
 public sealed class ConnectionPageTests
 {
-    private static CancellationToken Ct => TestContext.Current.CancellationToken;
-
-    [Theory]
-    [InlineData(ConsoleKey.F1, "Queues")]
-    [InlineData(ConsoleKey.F2, "Topics")]
-    [InlineData(ConsoleKey.F3, "All Subscriptions")]
+    [Test]
+    [Arguments(ConsoleKey.F1, "Queues")]
+    [Arguments(ConsoleKey.F2, "Topics")]
+    [Arguments(ConsoleKey.F3, "All Subscriptions")]
     public async Task FunctionKey_WithEmulatorPreselected_OpensPage(ConsoleKey key, string header)
     {
         await using var terminal = await new AppHarness().StartAsync();
@@ -19,7 +18,7 @@ public sealed class ConnectionPageTests
         await terminal.WaitUntilAsync(f => !f.ContainsText("[F1] 📬 Queues") && f.ContainsText(header), AppHarness.Timeout, cancellationToken: Ct);
     }
 
-    [Fact]
+    [Test]
     public async Task AzureSubscription_ListsNamespacesWithDetails_AndF1OpensHighlightedOne()
     {
         var app = new AppHarness();
@@ -57,7 +56,7 @@ public sealed class ConnectionPageTests
         app.Connection.CurrentNamespace.ShouldBe("sb-dev-b.servicebus.windows.net");
     }
 
-    [Fact]
+    [Test]
     public async Task SubscriptionListingFails_ShowsError_AndEmulatorStillWorks()
     {
         var app = new AppHarness();
@@ -71,7 +70,7 @@ public sealed class ConnectionPageTests
         await terminal.WaitUntilAsync(f => !f.ContainsText("[F1]") && f.ContainsText("📬 Queues"), AppHarness.Timeout, cancellationToken: Ct);
     }
 
-    [Fact]
+    [Test]
     public async Task TypingFiltersSubscriptions_AndPicksTheFirstMatch()
     {
         var app = new AppHarness();
@@ -93,7 +92,7 @@ public sealed class ConnectionPageTests
         app.NavState.AzureSubscription?.Name.ShouldBe("Contoso Production");
     }
 
-    [Fact]
+    [Test]
     public async Task SubscriptionsWithoutServiceBus_AreHiddenOnceChecked()
     {
         var app = new AppHarness();
@@ -111,7 +110,7 @@ public sealed class ConnectionPageTests
         frame.ContainsText("Local Emulator").ShouldBeTrue(frame.ScreenText);
     }
 
-    [Fact]
+    [Test]
     public async Task NamespaceChecks_ApplyBeforeTheSubscriptionListFinishes()
     {
         var app = new AppHarness();

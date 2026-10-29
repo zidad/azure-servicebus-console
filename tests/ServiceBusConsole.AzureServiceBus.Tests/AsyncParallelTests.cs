@@ -2,9 +2,7 @@ namespace ServiceBusConsole.AzureServiceBus.Tests;
 
 public sealed class AsyncParallelTests
 {
-    private static CancellationToken Ct => TestContext.Current.CancellationToken;
-
-    [Fact]
+    [Test]
     public async Task MapAsync_YieldsInCompletionOrder_SoASlowItemDoesNotHoldUpTheRest()
     {
         var slow = new TaskCompletionSource();
@@ -25,7 +23,7 @@ public sealed class AsyncParallelTests
         results[2].ShouldBe(1);
     }
 
-    [Fact]
+    [Test]
     public async Task MapAsync_PropagatesAFailure()
     {
         var run = async () =>
@@ -39,7 +37,7 @@ public sealed class AsyncParallelTests
         (await Should.ThrowAsync<InvalidOperationException>(run)).Message.ShouldBe("boom");
     }
 
-    [Fact]
+    [Test]
     public async Task MapAsync_RunsAtMostMaxConcurrencyAtOnce()
     {
         var running = 0;
@@ -59,7 +57,7 @@ public sealed class AsyncParallelTests
         peak.ShouldBeLessThanOrEqualTo(4);
     }
 
-    [Fact]
+    [Test]
     public async Task MergeAsync_YieldsFromEveryStreamAsItArrives()
     {
         var secondDone = new TaskCompletionSource();

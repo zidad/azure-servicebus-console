@@ -1,10 +1,9 @@
 namespace ServiceBusConsole.Tests;
 
+[NotInParallel(nameof(ConnectionHeaderTests))]
 public sealed class ConnectionHeaderTests
 {
-    private static CancellationToken Ct => TestContext.Current.CancellationToken;
-
-    [Fact]
+    [Test]
     public async Task ClickingSubscriptionThenNamespace_SwitchesAndReloadsTheSection()
     {
         var app = new AppHarness();
@@ -27,7 +26,7 @@ public sealed class ConnectionHeaderTests
         app.Queues.Loads.ShouldBeGreaterThan(loadsBefore);
     }
 
-    [Fact]
+    [Test]
     public async Task Escape_ClosesThePicker_WithoutSwitching()
     {
         var app = new AppHarness();
@@ -43,7 +42,7 @@ public sealed class ConnectionHeaderTests
         app.Connection.CurrentNamespace.ShouldBe("localhost");
     }
 
-    [Fact]
+    [Test]
     public async Task SectionDropdown_SwitchesFromQueuesToTopics()
     {
         var app = new AppHarness();

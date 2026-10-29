@@ -9,11 +9,10 @@ namespace ServiceBusConsole.Tests;
 /// Dumps every page with sample data as cell JSON (text + style) for design review.
 /// Runs only when SCREENSHOT_DIR is set; tools/update-screenshots.sh renders them into docs/screenshots.
 /// </summary>
+[NotInParallel(nameof(Screenshots))]
 public sealed class Screenshots
 {
-    private static CancellationToken Ct => TestContext.Current.CancellationToken;
-
-    [Fact]
+    [Test]
     public async Task AllPages()
     {
         if (Environment.GetEnvironmentVariable("SCREENSHOT_DIR") is not { Length: > 0 } dir) return;

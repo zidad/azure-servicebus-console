@@ -2,10 +2,9 @@ using System.Text;
 
 namespace ServiceBusConsole.Tests;
 
+[NotInParallel(nameof(MessageBrowserTests))]
 public sealed class MessageBrowserTests
 {
-    private static CancellationToken Ct => TestContext.Current.CancellationToken;
-
     private static MessageInfo Message(long sequence, string subject, string body) => new()
     {
         SequenceNumber = sequence,
@@ -30,7 +29,7 @@ public sealed class MessageBrowserTests
         return (app, terminal);
     }
 
-    [Fact]
+    [Test]
     public async Task OpeningQueue_PeeksItsDeadLetterQueue()
     {
         var (app, terminal) = await OpenOrdersAsync();
@@ -43,7 +42,7 @@ public sealed class MessageBrowserTests
         app.Messages.Peeked.ShouldBe([new MessageSource.Queue("orders", IsDlq: true)]);
     }
 
-    [Fact]
+    [Test]
     public async Task EnterOnMessage_ShowsItsBody()
     {
         var (_, terminal) = await OpenOrdersAsync();
@@ -57,7 +56,7 @@ public sealed class MessageBrowserTests
         frame.GetLine(1).ShouldContain("🧪 Local Emulator  ›  🌐 localhost  ›  📬 orders DLQ  ›  📨 Message #1");
     }
 
-    [Fact]
+    [Test]
     public async Task ActingOnOneMessageFromItsDetailPage_KeepsTheOtherSelections()
     {
         var app = new AppHarness();
@@ -113,7 +112,7 @@ public sealed class MessageBrowserTests
         return (app, terminal);
     }
 
-    [Fact]
+    [Test]
     public async Task RetryFromPeek_LocksSendsInOrderAndCompletesTheSelection()
     {
         var (app, terminal) = await PeekDlqAndSelectFirstAndThirdAsync();
@@ -130,7 +129,7 @@ public sealed class MessageBrowserTests
         app.Messages.Completed.ShouldBe([1L, 3L], ignoreOrder: true);
     }
 
-    [Fact]
+    [Test]
     public async Task RetryFromPeek_MessageLockedElsewhere_StaysSelectedAndIsNotSent()
     {
         var (app, terminal) = await PeekDlqAndSelectFirstAndThirdAsync(a => a.Messages.LockedElsewhere.Add(3));
@@ -152,7 +151,7 @@ public sealed class MessageBrowserTests
     }
 
     // ColorCode's own JSON grammar backtracks exponentially on this (arrays of long strings) and hangs the render thread.
-    [Fact]
+    [Test]
     public async Task Preview_HighlightsJsonWithAnArrayOfLongStrings()
     {
         var item = new string('x', 60);
@@ -168,7 +167,7 @@ public sealed class MessageBrowserTests
         frame.ContainsText(item[..30]).ShouldBeTrue(frame.ScreenText);
     }
 
-    [Fact]
+    [Test]
     public async Task Preview_FollowsTheCursor()
     {
         var (_, terminal) = await OpenOrdersAsync();
@@ -182,7 +181,7 @@ public sealed class MessageBrowserTests
         frame.ContainsText("Properties").ShouldBeTrue(frame.ScreenText);
     }
 
-    [Fact]
+    [Test]
     public async Task TabMovesIntoTheBody_WherePageKeysStillWork()
     {
         var (_, terminal) = await OpenOrdersAsync();
@@ -198,7 +197,7 @@ public sealed class MessageBrowserTests
         await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
     }
 
-    [Fact]
+    [Test]
     public async Task HeaderCheckbox_SelectsAll_ThenClears()
     {
         var (_, terminal) = await OpenOrdersAsync();
@@ -214,7 +213,7 @@ public sealed class MessageBrowserTests
         await terminal.WaitUntilAsync(f => !f.ContainsText("selected"), AppHarness.Timeout, cancellationToken: Ct);
     }
 
-    [Fact]
+    [Test]
     public async Task Purge_ReturnsToTheList()
     {
         var (app, terminal) = await OpenOrdersAsync();
@@ -229,7 +228,7 @@ public sealed class MessageBrowserTests
         app.Messages.Purged.ShouldBe([new MessageSource.Queue("orders", IsDlq: true)]);
     }
 
-    [Fact]
+    [Test]
     public async Task RetryingEveryMessage_ReturnsToTheList()
     {
         var (app, terminal) = await OpenOrdersAsync();
@@ -255,7 +254,7 @@ public sealed class MessageBrowserTests
         await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
     }
 
-    [Fact]
+    [Test]
     public async Task RetryingTheLastMessageFromItsDetailPage_ReturnsToTheList()
     {
         var app = new AppHarness();
@@ -281,7 +280,7 @@ public sealed class MessageBrowserTests
         app.Messages.Completed.ShouldBe([1L]);
     }
 
-    [Fact]
+    [Test]
     public async Task Retry_ShowsAProgressDialogWithItsSteps_ThenItsResultUntilOk()
     {
         var hold = new TaskCompletionSource();
@@ -327,7 +326,7 @@ public sealed class MessageBrowserTests
         => terminal.WaitUntilAsync(_ => terminal.FocusKey != browserFocus && AppHarness.FocusedAttribute(terminal, "data-scrollbar") == "true",
             AppHarness.Timeout, cancellationToken: Ct);
 
-    [Fact]
+    [Test]
     public async Task Peek_FillsTheListPageByPage_AndEscapeStopsIt()
     {
         var app = new AppHarness();
@@ -358,7 +357,7 @@ public sealed class MessageBrowserTests
         frame.ContainsText("Queues (1)").ShouldBeFalse(frame.ScreenText);
     }
 
-    [Fact]
+    [Test]
     public async Task EscapeCancelsARunningRetry()
     {
         var (app, terminal) = await PeekDlqAndSelectFirstAndThirdAsync(a => a.Messages.HoldSend = new TaskCompletionSource());

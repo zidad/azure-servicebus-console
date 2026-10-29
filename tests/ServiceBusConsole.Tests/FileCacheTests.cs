@@ -4,7 +4,7 @@ namespace ServiceBusConsole.Tests;
 
 public sealed class FileCacheTests
 {
-    [Fact]
+    [Test]
     public void RegisteredLikeTheApp_UsesTheUserCacheFolder()
     {
         using var services = new ServiceCollection().AddLogging().AddSingleton<FileCache>().BuildServiceProvider();

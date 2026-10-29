@@ -5,7 +5,7 @@ namespace ServiceBusConsole.Tests;
 
 public sealed class JsonLanguageTests
 {
-    [Fact]
+    [Test]
     public async Task Highlight_JsonArrayOfLongStrings_DoesNotBacktrackForever()
     {
         using var services = new ServiceCollection().AddSyntaxLanguages().BuildServiceProvider();
@@ -25,7 +25,7 @@ public sealed class JsonLanguageTests
             """;
 
         var result = await Task.Run(() => highlighter.Highlight(new SyntaxHighlightRequest(json, "json", null, false, SyntaxOptions.Default)))
-            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            .WaitAsync(TimeSpan.FromSeconds(5), Ct);
 
         var text = string.Join("\n", result.Lines);
         text.ShouldContain(item);

@@ -2,7 +2,7 @@ namespace ServiceBusConsole.AzureServiceBus.Tests;
 
 public sealed class EmulatorConfigTests
 {
-    [Fact]
+    [Test]
     public void ParsesTheRepositoryEmulatorConfig()
     {
         var config = EmulatorConfigReader.Parse(File.ReadAllText(RepositoryFile("emulator", "Config.json"))).ShouldNotBeNull();
@@ -12,7 +12,7 @@ public sealed class EmulatorConfigTests
         config.Topics.SelectMany(t => t.Subscriptions).ShouldNotBeEmpty();
     }
 
-    [Fact]
+    [Test]
     public void MissingListsAreEmpty()
     {
         var config = EmulatorConfigReader.Parse("""{ "UserConfig": { "Namespaces": [ { "Name": "sbemulatorns" } ] } }""").ShouldNotBeNull();

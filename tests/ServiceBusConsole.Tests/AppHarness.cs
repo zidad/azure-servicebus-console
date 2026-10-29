@@ -52,7 +52,7 @@ public sealed class AppHarness
                     services.AddSingleton(LiveCounts);
                 },
             },
-            TestContext.Current.CancellationToken);
+            Ct);
     }
 
     /// <summary>Starts on the connection page (local emulator is preselected) and opens its queue list, the way a user does.</summary>
@@ -68,7 +68,7 @@ public sealed class AppHarness
         var terminal = await StartAsync();
         await WaitForTableFocusAsync(terminal);
         var connectionFocus = terminal.FocusKey;
-        await terminal.SendKeyAsync(key, '\0', cancellationToken: TestContext.Current.CancellationToken);
+        await terminal.SendKeyAsync(key, '\0', cancellationToken: Ct);
         await WaitForTableFocusAsync(terminal, connectionFocus);
         return terminal;
     }
@@ -83,7 +83,7 @@ public sealed class AppHarness
         => terminal.WaitUntilAsync(
             _ => terminal.FocusKey != previousKey && FocusedAttribute(terminal, "data-focus-order") == "1",
             Timeout,
-            cancellationToken: TestContext.Current.CancellationToken);
+            cancellationToken: Ct);
 
     // HeadlessTerminal exposes only the focus key, so read the focused element's attributes from FocusManager.
     public static string? FocusedAttribute(HeadlessTerminal terminal, string name)
@@ -106,7 +106,7 @@ public sealed class AppHarness
     /// <summary>Waits for <paramref name="text"/> to appear, then clicks its first character.</summary>
     public static async Task ClickTextAsync(HeadlessTerminal terminal, string text, bool exactLine = false)
     {
-        var ct = TestContext.Current.CancellationToken;
+        var ct = Ct;
         var frame = await terminal.WaitUntilAsync(f => Find(f, text, exactLine) is not null, Timeout, cancellationToken: ct);
         if (Find(frame, text, exactLine) is not var (x, y)) throw new InvalidOperationException($"'{text}' not on screen");
         await terminal.ClickAsync(x, y, ct);

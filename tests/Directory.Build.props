@@ -1,0 +1,14 @@
+<Project>
+  <Import Project="../Directory.Build.props" />
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Shouldly" />
+    <Using Include="Shouldly" />
+    <Using Include="ServiceBusConsole.Tests.TestRun" Static="true" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestRun.cs" Link="TestRun.cs" />
+  </ItemGroup>
+</Project>

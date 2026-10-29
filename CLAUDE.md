@@ -40,12 +40,15 @@ dotnet test --solution ServiceBusConsole.slnx --max-parallel-test-modules 1  # A
 
 ## Tests
 
+Tests use TUnit on Microsoft.Testing.Platform with Shouldly assertions; `Ct` (`tests/TestRun.cs`) is the running test's cancellation token. CI writes the TRX results to the job summary (failed tests listed) and uploads TUnit's HTML reports as artifacts.
+
 `tests/ServiceBusConsole.Tests` mounts the real `App` in RazorConsole.Testing's `HeadlessTerminal` with fake services (`Fakes.cs`); no Azure or emulator needed. `tests/ServiceBusConsole.AzureServiceBus.Tests` covers the Azure project's internals (`LockedMessages` on a fake receiver, message mapping, emulator config).
 - Start through `AppHarness.OpenQueuesAsync()` (clicks through the connection page). Navigating `NavigationManager` from the test thread does not render.
 - Pages focus their table after rendering; call `AppHarness.WaitForTableFocusAsync` before sending keys to a new page.
 - RazorConsole bugs found by tests are fixed in the fork (`azsb`), not worked around in the app.
 - Keys go only to the focused element; they do not bubble. Page `HandleKeyDown` runs only via components that forward `OnKeyDown`.
 - `AppHarness` gives each test its own `FileCache` directory under the temp folder.
+- UI tests run at most one per core (`TestParallelism.cs`), and one at a time per class: a new UI test class gets `[NotInParallel(nameof(TheClass))]`. TUnit's defaults (4 per core, tests of a class in parallel) starve their render timeouts.
 - Screenshots for design review: `SCREENSHOT_DIR=<dir> dotnet test --project tests/ServiceBusConsole.Tests` dumps every page (`Screenshots.cs`), then `python tools/render-screenshots.py <dir>` renders PNGs (Pillow, macOS fonts).
 
 ## C# style
