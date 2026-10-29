@@ -80,8 +80,15 @@ public sealed class AppHarness
     /// <param name="terminal">The terminal.</param>
     /// <param name="previousKey">The focus key before navigating; the previous page's table also has focus order 1.</param>
     public static Task WaitForTableFocusAsync(HeadlessTerminal terminal, string? previousKey = null)
+        => WaitForFocusAsync(terminal, focusOrder: "1", previousKey);
+
+    /// <summary>
+    /// Waits until the element with <paramref name="focusOrder"/> has focus. Dialogs and pages take focus
+    /// one render after their text appears; a key sent before that goes to the element that had focus.
+    /// </summary>
+    public static Task WaitForFocusAsync(HeadlessTerminal terminal, string focusOrder, string? previousKey = null)
         => terminal.WaitUntilAsync(
-            _ => terminal.FocusKey != previousKey && FocusedAttribute(terminal, "data-focus-order") == "1",
+            _ => terminal.FocusKey != previousKey && FocusedAttribute(terminal, "data-focus-order") == focusOrder,
             Timeout,
             cancellationToken: Ct);
 

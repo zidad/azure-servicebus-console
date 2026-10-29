@@ -79,11 +79,8 @@
     {
         if (!_focusPending || _countInput is null) return;
         _focusPending = false;
-        for (var i = 0; i < 3; i++)
-        {
-            if (await FocusManager.FocusAsync(_countInput.FocusKey)) break;
-            await Task.Delay(16);
-        }
+        // Once, as in ConfirmModal: a retry after submit would replace the browser's request to focus the table.
+        await FocusManager.FocusAsync(_countInput.FocusKey);
     }
 
     private void HandleKey(KeyboardEventArgs e)

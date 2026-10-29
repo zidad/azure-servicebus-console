@@ -38,12 +38,9 @@
         if (IsOpened && !_wasOpened && _confirmButton is not null)
         {
             _wasOpened = true;
-            // Retry a couple of times in case the button hasn't been registered as a focus target yet.
-            for (var i = 0; i < 3; i++)
-            {
-                if (await FocusManager.FocusAsync(_confirmButton.FocusKey)) break;
-                await Task.Delay(16);
-            }
+            // Once: FocusAsync keeps the request until the button renders, and a retry after the modal
+            // closed would replace a later request, such as the result dialog's OK.
+            await FocusManager.FocusAsync(_confirmButton.FocusKey);
         }
         else if (!IsOpened)
         {

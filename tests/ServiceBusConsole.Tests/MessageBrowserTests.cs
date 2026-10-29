@@ -342,6 +342,7 @@ public sealed class MessageBrowserTests
         await AppHarness.WaitForTableFocusAsync(terminal);
         await terminal.SendKeyAsync(ConsoleKey.F7, '\0', cancellationToken: Ct);
         await terminal.WaitForTextAsync("Peek messages", AppHarness.Timeout, Ct);
+        await AppHarness.WaitForFocusAsync(terminal, focusOrder: "100"); // the dialog's count input
         await terminal.SendKeyAsync(ConsoleKey.Backspace, '\b', cancellationToken: Ct);
         await terminal.SendKeyAsync(ConsoleKey.Backspace, '\b', cancellationToken: Ct);
         await terminal.SendKeyAsync(ConsoleKey.Backspace, '\b', cancellationToken: Ct);
@@ -368,6 +369,8 @@ public sealed class MessageBrowserTests
         await terminal.WaitForTextAsync("Retry 2 messages?", AppHarness.Timeout, Ct);
         await terminal.SendKeyAsync(ConsoleKey.Y, 'y', cancellationToken: Ct);
         await terminal.WaitForTextAsync("[Esc] Cancel", AppHarness.Timeout, Ct);
+        // Escape reaches the browser through the table; it gets focus back once the confirm modal is gone.
+        await AppHarness.WaitForTableFocusAsync(terminal);
 
         await terminal.SendKeyAsync(ConsoleKey.Escape, '\u001b', cancellationToken: Ct);
 

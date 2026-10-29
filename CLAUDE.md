@@ -44,7 +44,8 @@ Tests use TUnit on Microsoft.Testing.Platform with Shouldly assertions; `Ct` (`t
 
 `tests/ServiceBusConsole.Tests` mounts the real `App` in RazorConsole.Testing's `HeadlessTerminal` with fake services (`Fakes.cs`); no Azure or emulator needed. `tests/ServiceBusConsole.AzureServiceBus.Tests` covers the Azure project's internals (`LockedMessages` on a fake receiver, message mapping, emulator config).
 - Start through `AppHarness.OpenQueuesAsync()` (clicks through the connection page). Navigating `NavigationManager` from the test thread does not render.
-- Pages focus their table after rendering; call `AppHarness.WaitForTableFocusAsync` before sending keys to a new page.
+- Pages focus their table after rendering; call `AppHarness.WaitForTableFocusAsync` before sending keys to a new page, and after a dialog closes.
+- Dialogs take focus one render after their text appears: `AppHarness.WaitForFocusAsync(terminal, focusOrder)` before typing into one.
 - RazorConsole bugs found by tests are fixed in the fork (`azsb`), not worked around in the app.
 - Keys go only to the focused element; they do not bubble. Page `HandleKeyDown` runs only via components that forward `OnKeyDown`.
 - `AppHarness` gives each test its own `FileCache` directory under the temp folder.
@@ -99,6 +100,8 @@ This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, que
 | `Logging/`, `Syntax/` | File logger, JSON highlighting grammar |
 
 **UI pattern:** Use `/razorconsole` for a full component and pattern reference. Namespace pages use `<FullscreenPage>`: `<Header>` (breadcrumb + count, rendered inside `ConnectionHeader`), `<Content>` (table wrapped in `<Scrollable>`), `<Footer>` (action buttons). `ConnectionHeader` shows subscription › namespace with click-to-switch pickers; switching calls `ServiceBusConnection.SetNamespace`, then `NavigationState.Reload()` remounts the page when it stays on the same route (`App.razor` keys `RouteView` on `NavState.PageVersion`). Navigation uses `Nav.NavigateTo("/route")`.
+
+**Focus:** request focus once with `FocusManager.FocusAsync`; it keeps the request until the target renders. A retry loop can replace a later request (e.g. a dialog's OK) with one for an element that is gone.
 
 **Theme:** colors and icons come from `Theme` and `Icons` (`UI/`), chosen by meaning (danger, warning, muted, ...). Counts use `<CountCell>` (muted when zero). Only use emoji with default emoji presentation: ones that need U+FE0F (⚠️, 🗑️, ⬅️) are one cell wide in some terminals and break table alignment.
 
