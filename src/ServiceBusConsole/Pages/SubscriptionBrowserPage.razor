@@ -4,7 +4,7 @@
 @inject ServiceBusConnection Connection
 @inject NavigationState NavState
 
-<MessageBrowserView Entity="@(new MessageSource(SubscriptionName, IsDlq: true, TopicName, SubscriptionName))" BackPath="@BackPath">
+<MessageBrowserView Entity="@(new MessageSource.Subscription(TopicName, SubscriptionName, IsDlq: true))" BackPath="@BackPath">
     <Breadcrumb>
         <SectionCrumb Section="@(NavState.ReturnPath == "/subscriptions" ? Section.AllSubscriptions : Section.Topics)" />
         <Markup Content=" › " Foreground="@Theme.Muted" />

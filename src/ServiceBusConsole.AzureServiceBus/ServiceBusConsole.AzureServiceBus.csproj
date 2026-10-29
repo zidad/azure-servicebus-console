@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <!-- Compile assets stay private: projects referencing this one get the SDK at run time only, so they cannot use its types. -->
+    <PackageReference Include="Azure.Identity" PrivateAssets="compile;contentfiles;analyzers;build" />
+    <PackageReference Include="Azure.Messaging.ServiceBus" PrivateAssets="compile;contentfiles;analyzers;build" />
+    <PackageReference Include="Azure.ResourceManager" PrivateAssets="compile;contentfiles;analyzers;build" />
+    <PackageReference Include="Azure.ResourceManager.ServiceBus" PrivateAssets="compile;contentfiles;analyzers;build" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <ProjectReference Include="../ServiceBusConsole.Abstractions/ServiceBusConsole.Abstractions.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="ServiceBusConsole.AzureServiceBus.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="ServiceBusConsole.Abstractions" />
+    <Using Include="ServiceBusConsole.AzureServiceBus.Emulator" />
+    <Using Include="ServiceBusConsole.AzureServiceBus.Threading" />
+  </ItemGroup>
+</Project>

@@ -13,4 +13,16 @@ public sealed class NavigationState
     public string? ReturnPath { get; set; }
     public string? FocusedQueueName { get; set; }
     public AzureSubscription? AzureSubscription { get; set; }
+
+    /// <summary>Changes on <see cref="Reload"/>; the app keys the current page on it.</summary>
+    public int PageVersion { get; private set; }
+
+    public event Action? Reloaded;
+
+    /// <summary>Remounts the current page, e.g. after switching namespace on it.</summary>
+    public void Reload()
+    {
+        PageVersion++;
+        Reloaded?.Invoke();
+    }
 }

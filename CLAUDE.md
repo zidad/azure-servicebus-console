@@ -35,12 +35,12 @@ Release by pushing a version tag on a `main` commit: `git tag v1.2.3 origin/main
 ```bash
 dotnet build ServiceBusConsole.slnx        # Build everything
 dotnet run --project src/ServiceBusConsole # Run the console app
-dotnet test --project tests/ServiceBusConsole.Tests  # Headless UI tests
+dotnet test --solution ServiceBusConsole.slnx --max-parallel-test-modules 1  # All tests; one project at a time keeps the timing-sensitive UI tests stable
 ```
 
 ## Tests
 
-`tests/ServiceBusConsole.Tests` mounts the real `App` in RazorConsole.Testing's `HeadlessTerminal` with fake services (`Fakes.cs`); no Azure or emulator needed.
+`tests/ServiceBusConsole.Tests` mounts the real `App` in RazorConsole.Testing's `HeadlessTerminal` with fake services (`Fakes.cs`); no Azure or emulator needed. `tests/ServiceBusConsole.AzureServiceBus.Tests` covers the Azure project's internals (`LockedMessages` on a fake receiver, message mapping, emulator config).
 - Start through `AppHarness.OpenQueuesAsync()` (clicks through the connection page). Navigating `NavigationManager` from the test thread does not render.
 - Pages focus their table after rendering; call `AppHarness.WaitForTableFocusAsync` before sending keys to a new page.
 - RazorConsole bugs found by tests are fixed in the fork (`azsb`), not worked around in the app.
@@ -72,22 +72,28 @@ Authentication uses `AzureCliCredential` — no connection strings or keys are u
 
 This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, queues, topics, and messages. The UI runs entirely in the terminal using **RazorConsole.Core** — a library that renders Blazor-style Razor components to the terminal via Spectre.Console.
 
-**Layout:** `src/ServiceBusConsole` (the app, packed as the `azsb` tool), `tests/ServiceBusConsole.Tests`, `lib/RazorConsole` (fork submodule). Shared build settings in `Directory.Build.props`, package versions in `Directory.Packages.props` (central package management). One type per file; namespaces follow folders (`ServiceBusConsole.<Folder>`), imported globally via `<Using>` in the csproj and `_Imports.razor`.
+**Layout:** `src/ServiceBusConsole` (the UI, packed as the `azsb` tool), `src/ServiceBusConsole.Abstractions`, `src/ServiceBusConsole.AzureServiceBus`, a test project per tested project under `tests/`, `lib/RazorConsole` (fork submodule). Shared build settings in `Directory.Build.props`, package versions in `Directory.Packages.props` (central package management). One type per file; namespaces follow project and folders (`ServiceBusConsole.<Folder>`, `ServiceBusConsole.AzureServiceBus.Emulator`), imported globally via `<Using>` in the csproj and `_Imports.razor`.
 
-| Folder | Contents |
+**Projects:** the UI uses the abstractions only.
+- `ServiceBusConsole.Abstractions`, no packages: DTOs (`QueueInfo`, `MessageInfo`, `MessageSource`, ...), `I*Service`, `ILockedMessages`, `MessageLockLostException`, `ServiceBusConnection` (the namespace being browsed)
+- `ServiceBusConsole.AzureServiceBus`, the only project with Azure SDK packages: the `I*Service` implementations, `ServiceBusClients` (clients for the current namespace), `LockedMessages`, `Emulator/`, `AsyncParallel`. All internal except `AddAzureServiceBus()`
+- Its SDK packages are `PrivateAssets="compile;..."`: the UI gets them at run time only, so SDK types do not compile there (`ArchitectureTests` checks it). Add new SDK packages the same way
+- `ServiceBusMessageInfo` (Azure) derives from `MessageInfo` and keeps the received message, so Resend/Retry send exact copies (`IMessageService.SendCopiesAsync` takes only messages the service returned)
+- Abstractions are values and streams: results over time are returned, as `IAsyncEnumerable<T>` (pages, running totals of send/purge; the work runs as the stream is read) or `ChannelReader<T>` (`ILockedMessages.Held`, `LockLost`). No callbacks, events or writer parameters; `CancellationToken` on every async member
+- Variants are closed record unions with an exhaustive `Match` (`MessageSource.Queue` / `MessageSource.Subscription`), not nullable fields
+
+| UI folder | Contents |
 |---|---|
-| `Program.cs` | Generic Host with `UseRazorConsole<App>()`, service registration, file logging to `logs/` |
+| `Program.cs` | Generic Host with `UseRazorConsole<App>()`, service registration (`AddAzureServiceBus()`), file logging to `logs/` |
 | `Pages/` | One Razor component per screen, each with a `@page` route |
 | `Components/` | Shared Razor components; `App.razor` is the root router |
 | `UI/` | Non-component UI code: `Theme`/`Icons`, `TableSort`, `LiveList`, `CountChanges`, `NavigationState` (parameters that aren't URL segments), `FullscreenLayout` |
-| `Models/` | DTOs: `QueueInfo`, `MessageInfo`, `MessageSource`, ... |
-| `Services/` | `I*Service` + Azure implementations, `ServiceBusConnection`, `SubscriptionCatalog` |
+| `Services/` | `SubscriptionCatalog`, `AzureSubscriptions` (emulator first, then the account's subscriptions) |
 | `Services/Caching/` | `FileCache` and the caching decorators: cached data first, then live |
-| `Messaging/` | `MessageBrowser` (+ store), `LockedMessages`, `OperationProgress`, `RetryText` |
-| `Emulator/` | Emulator `Config.json` model and reader |
-| `Logging/`, `Threading/`, `Syntax/` | File logger, `AsyncParallel`, JSON highlighting grammar |
+| `Messaging/` | `MessageBrowser` (+ store), `OperationProgress`, `RetryText` |
+| `Logging/`, `Syntax/` | File logger, JSON highlighting grammar |
 
-**UI pattern:** Use `/razorconsole` for a full component and pattern reference. Namespace pages use `<FullscreenPage>`: `<Header>` (breadcrumb + count, rendered inside `ConnectionHeader`), `<Content>` (table wrapped in `<Scrollable>`), `<Footer>` (action buttons). `ConnectionHeader` shows subscription › namespace with click-to-switch pickers; switching calls `ServiceBusConnection.Switch`, which remounts the page (`App.razor` keys `RouteView` on `Connection.Version`). Navigation uses `Nav.NavigateTo("/route")`.
+**UI pattern:** Use `/razorconsole` for a full component and pattern reference. Namespace pages use `<FullscreenPage>`: `<Header>` (breadcrumb + count, rendered inside `ConnectionHeader`), `<Content>` (table wrapped in `<Scrollable>`), `<Footer>` (action buttons). `ConnectionHeader` shows subscription › namespace with click-to-switch pickers; switching calls `ServiceBusConnection.SetNamespace`, then `NavigationState.Reload()` remounts the page when it stays on the same route (`App.razor` keys `RouteView` on `NavState.PageVersion`). Navigation uses `Nav.NavigateTo("/route")`.
 
 **Theme:** colors and icons come from `Theme` and `Icons` (`UI/`), chosen by meaning (danger, warning, muted, ...). Counts use `<CountCell>` (muted when zero). Only use emoji with default emoji presentation: ones that need U+FE0F (⚠️, 🗑️, ⬅️) are one cell wide in some terminals and break table alignment.
 
@@ -117,6 +123,6 @@ Declare once per action and trigger via `@ref`:
 - *Peek* is read-only; on an active queue *Resend* sends copies.
 - *Receive (PeekLock)* returns `ILockedMessages`: the receiver stays open, locks auto-renew, leftovers are abandoned on dispose. Complete/abandon/dead-letter only work on these.
 - *Receive (ReceiveAndDelete)* removes messages at once; *Requeue* resends them.
-- *Retry* (DLQ, `MessageBrowser.RetryAsync`): send copies in order, then complete the originals. Peeked DLQ messages are locked first with `IMessageService.LockAsync`, which receives from the front and abandons what it passes.
+- *Retry* (DLQ, `MessageBrowser.RetryAsync`): send copies in order, then complete the originals. Peeked DLQ messages are locked first with `IMessageService.StartLocking`, which receives from the front and abandons what it passes.
 - Batch operations end in `OperationDialog` with a result (failures included) until OK; navigate in its `OnDismiss`, not in `AsyncCommand.OnCompleted`.
 - That scan is only allowed in a dead-letter queue (abandon there only bumps the delivery count). Never scan an active queue: abandon there can dead-letter unrelated messages.

@@ -15,15 +15,15 @@ public sealed class CachingTopicService(ITopicService inner, ServiceBusConnectio
     public IAsyncEnumerable<SubscriptionInfo> GetAllSubscriptionsAsync(CancellationToken ct = default) =>
         cache.CachedThenLiveAsync(AllSubscriptionsKey, () => inner.GetAllSubscriptionsAsync(ct), s => s with { IsRefreshing = true }, ct);
 
-    public async Task DeleteTopicAsync(string topicName)
+    public async Task DeleteTopicAsync(string topicName, CancellationToken ct = default)
     {
-        await inner.DeleteTopicAsync(topicName);
+        await inner.DeleteTopicAsync(topicName, ct);
         await cache.RemoveAsync<TopicInfo>(TopicsKey, t => t.Name.Equals(topicName, StringComparison.OrdinalIgnoreCase));
     }
 
-    public async Task DeleteSubscriptionAsync(string topicName, string subscriptionName)
+    public async Task DeleteSubscriptionAsync(string topicName, string subscriptionName, CancellationToken ct = default)
     {
-        await inner.DeleteSubscriptionAsync(topicName, subscriptionName);
+        await inner.DeleteSubscriptionAsync(topicName, subscriptionName, ct);
         await cache.RemoveAsync<SubscriptionInfo>(SubscriptionsKey(topicName),
             s => s.Name.Equals(subscriptionName, StringComparison.OrdinalIgnoreCase));
         await cache.RemoveAsync<SubscriptionInfo>(AllSubscriptionsKey,

@@ -22,7 +22,7 @@ public static class RetryText
         [
             mode == BrowseMode.Peek ? ["Messages ahead of them in the dead-letter queue are", "locked briefly and released (delivery count +1)."] : [],
             mode == BrowseMode.Received ? ["Receive-and-delete already removed the originals."] : [],
-            source.IsSubscription ? ["Every subscription of the topic gets a copy."] : [],
+            source is MessageSource.Subscription ? ["Every subscription of the topic gets a copy."] : [],
         ];
         return string.Join('\n', [
             $"{Label(source.IsDlq)} {what}?", "", string.Join(" → ", steps),

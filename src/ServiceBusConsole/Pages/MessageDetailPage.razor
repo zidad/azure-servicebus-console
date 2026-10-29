@@ -115,7 +115,7 @@ else
     private int PreviewHeight => Math.Max(6, Viewport.Height - 5);
 
     private string SourceLabel => NavState.MessageSource is { } source
-        ? $"{(source.TopicName is null ? Icons.Queue : Icons.Subscription)} {source.DisplayName}"
+        ? $"{source.Match(_ => Icons.Queue, _ => Icons.Subscription)} {source.DisplayName}"
         : "";
 
     private AsyncCommand<MessageInfo>?[] Commands => [_complete, _abandon, _deadLetter, _retry, _resend];
@@ -140,12 +140,19 @@ else
 
     private void GoBack()
     {
-        var src = NavState.MessageSource;
-        if (src is null) { Nav.NavigateTo("/"); return; }
-        if (src.IsSubscription)
-            { NavState.TopicName = src.TopicName; NavState.SubscriptionName = src.SubscriptionName; Nav.NavigateTo("/subscription-browser"); }
-        else
-            Nav.NavigateTo($"/queues/{Uri.EscapeDataString(src.EntityName)}");
+        switch (NavState.MessageSource)
+        {
+            case MessageSource.Queue q:
+                Nav.NavigateTo($"/queues/{Uri.EscapeDataString(q.Name)}");
+                break;
+            case MessageSource.Subscription s:
+                (NavState.TopicName, NavState.SubscriptionName) = (s.Topic, s.Name);
+                Nav.NavigateTo("/subscription-browser");
+                break;
+            default:
+                Nav.NavigateTo("/");
+                break;
+        }
     }
 
     private void HandleKeyDown(KeyboardEventArgs e)

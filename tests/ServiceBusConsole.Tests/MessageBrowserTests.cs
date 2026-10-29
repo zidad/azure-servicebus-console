@@ -1,4 +1,4 @@
-using Azure.Messaging.ServiceBus;
+using System.Text;
 
 namespace ServiceBusConsole.Tests;
 
@@ -6,14 +6,15 @@ public sealed class MessageBrowserTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private static MessageInfo Message(long sequence, string subject, string body) => new(
-        ServiceBusModelFactory.ServiceBusReceivedMessage(
-            body: BinaryData.FromString(body),
-            messageId: $"msg-{sequence}",
-            subject: subject,
-            sequenceNumber: sequence,
-            enqueuedTime: DateTimeOffset.UnixEpoch),
-        MessageState.Peeked);
+    private static MessageInfo Message(long sequence, string subject, string body) => new()
+    {
+        SequenceNumber = sequence,
+        State = MessageState.Peeked,
+        MessageId = $"msg-{sequence}",
+        Subject = subject,
+        Body = Encoding.UTF8.GetBytes(body),
+        EnqueuedTime = DateTimeOffset.UnixEpoch,
+    };
 
     private static async Task<(AppHarness App, RazorConsole.Testing.HeadlessTerminal Terminal)> OpenOrdersAsync()
     {
@@ -39,7 +40,7 @@ public sealed class MessageBrowserTests
 
         frame.ContainsText("[F6] 📬 View Active").ShouldBeTrue(frame.ScreenText);
         frame.GetLine(1).ShouldContain("🧪 Local Emulator  ›  🌐 localhost  ›  📬 Queues  ›  orders 💀 DLQ");
-        app.Messages.Peeked.ShouldBe([new MessageSource("orders", IsDlq: true)]);
+        app.Messages.Peeked.ShouldBe([new MessageSource.Queue("orders", IsDlq: true)]);
     }
 
     [Fact]
@@ -125,7 +126,7 @@ public sealed class MessageBrowserTests
 
         var frame = await terminal.WaitUntilAsync(f => !f.ContainsText("first") && !f.ContainsText("third") && f.ContainsText("second"), AppHarness.Timeout, cancellationToken: Ct);
         frame.ContainsText("selected").ShouldBeFalse(frame.ScreenText);
-        app.Messages.Sent.ShouldBe([(new MessageSource("orders", IsDlq: true), 1L), (new MessageSource("orders", IsDlq: true), 3L)]);
+        app.Messages.Sent.ShouldBe([(new MessageSource.Queue("orders", IsDlq: true), 1L), (new MessageSource.Queue("orders", IsDlq: true), 3L)]);
         app.Messages.Completed.ShouldBe([1L, 3L], ignoreOrder: true);
     }
 
@@ -225,7 +226,7 @@ public sealed class MessageBrowserTests
 
         await ClickOkAsync(terminal, "Purged 2 message(s).");
         await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
-        app.Messages.Purged.ShouldBe([new MessageSource("orders", IsDlq: true)]);
+        app.Messages.Purged.ShouldBe([new MessageSource.Queue("orders", IsDlq: true)]);
     }
 
     [Fact]

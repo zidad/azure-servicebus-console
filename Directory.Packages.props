@@ -7,6 +7,8 @@
     <PackageVersion Include="Azure.Messaging.ServiceBus" Version="7.21.0" />
     <PackageVersion Include="Azure.ResourceManager" Version="1.14.0" />
     <PackageVersion Include="Azure.ResourceManager.ServiceBus" Version="1.2.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
     <PackageVersion Include="Scrutor" Version="7.0.0" />
     <!-- Pinned to what lib/RazorConsole builds against; 0.55 made Style a struct. -->
     <PackageVersion Include="Spectre.Console" Version="0.54.0" />

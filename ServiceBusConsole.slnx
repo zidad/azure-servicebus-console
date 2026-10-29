@@ -1,9 +1,12 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/ServiceBusConsole/ServiceBusConsole.csproj" />
+    <Project Path="src/ServiceBusConsole.Abstractions/ServiceBusConsole.Abstractions.csproj" />
+    <Project Path="src/ServiceBusConsole.AzureServiceBus/ServiceBusConsole.AzureServiceBus.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ServiceBusConsole.Tests/ServiceBusConsole.Tests.csproj" />
+    <Project Path="tests/ServiceBusConsole.AzureServiceBus.Tests/ServiceBusConsole.AzureServiceBus.Tests.csproj" />
   </Folder>
   <Folder Name="/lib/">
     <Project Path="lib/RazorConsole/src/RazorConsole.Core/RazorConsole.Core.csproj" />

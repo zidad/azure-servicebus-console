@@ -3,7 +3,7 @@
 @inject NavigationManager Nav
 @inject ServiceBusConnection Connection
 
-<MessageBrowserView Entity="@(new MessageSource(QueueName, IsDlq: true))" BackPath="/queues">
+<MessageBrowserView Entity="@(new MessageSource.Queue(QueueName, IsDlq: true))" BackPath="/queues">
     <Breadcrumb>
         <SectionCrumb Section="@Section.Queues" />
         <Markup Content=" › " Foreground="@Theme.Muted" />

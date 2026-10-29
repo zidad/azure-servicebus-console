@@ -190,7 +190,7 @@
 
 @code {
     /// <summary>The entity to browse; <see cref="MessageSource.IsDlq"/> is the initial view.</summary>
-    [Parameter, EditorRequired] public MessageSource Entity { get; set; } = new("", true);
+    [Parameter, EditorRequired] public required MessageSource Entity { get; set; }
     [Parameter, EditorRequired] public RenderFragment Breadcrumb { get; set; } = _ => { };
     [Parameter, EditorRequired] public string BackPath { get; set; } = "/";
 
@@ -221,7 +221,7 @@
 
     // A short list leaves rows unused; the preview takes them.
     private int PreviewHeight(MessageBrowser browser) => Split.Preview + Math.Max(0, Split.Rows - browser.Messages.Count);
-    private string TopicNote => Source.IsSubscription ? " Every subscription of the topic gets a copy." : "";
+    private string TopicNote => Source is MessageSource.Subscription ? " Every subscription of the topic gets a copy." : "";
 
     private IEnumerable<AsyncCommand<IReadOnlyList<MessageInfo>>?> ListCommands => [_complete, _abandon, _deadLetter, _retry, _resend];
     private bool IsBusy => _loading is not null || ListCommands.Any(c => c?.IsBusy == true) || _purge?.IsBusy == true;

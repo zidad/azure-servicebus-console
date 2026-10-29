@@ -96,7 +96,7 @@
 
 <AsyncCommand @ref="_purgeDlq" TItem="SubscriptionInfo"
               ConfirmMessage="@(s => $"Purge ALL messages from DLQ of '{s.TopicName}/{s.Name}'? This cannot be undone.")"
-              Execute="@(s => MessageService.PurgeMessagesAsync(new MessageSource(s.Name, IsDlq: true, s.TopicName, s.Name), _ => { }))"
+              Execute="@(s => MessageService.PurgeAsync(new MessageSource.Subscription(s.TopicName, s.Name, IsDlq: true)).LastOrDefaultAsync().AsTask())"
               OnCompleted="@(s => { List.Update(Key(s), x => x with { DeadLetterMessageCount = 0 }); SortAndUpdateFilterState(); StateHasChanged(); return Task.CompletedTask; })" />
 
 @code {

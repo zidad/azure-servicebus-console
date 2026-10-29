@@ -14,24 +14,20 @@
     <None Include="../../README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Azure.Identity" />
-    <PackageReference Include="Azure.Messaging.ServiceBus" />
-    <PackageReference Include="Azure.ResourceManager" />
-    <PackageReference Include="Azure.ResourceManager.ServiceBus" />
     <PackageReference Include="Scrutor" />
     <PackageReference Include="Spectre.Console" />
+    <ProjectReference Include="../ServiceBusConsole.Abstractions/ServiceBusConsole.Abstractions.csproj" />
+    <ProjectReference Include="../ServiceBusConsole.AzureServiceBus/ServiceBusConsole.AzureServiceBus.csproj" />
     <ProjectReference Include="../../lib/RazorConsole/src/RazorConsole.Core/RazorConsole.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Using Include="ServiceBusConsole.Emulator" />
+    <Using Include="ServiceBusConsole.Abstractions" />
     <Using Include="ServiceBusConsole.Extensions" />
     <Using Include="ServiceBusConsole.Logging" />
     <Using Include="ServiceBusConsole.Messaging" />
-    <Using Include="ServiceBusConsole.Models" />
     <Using Include="ServiceBusConsole.Services" />
     <Using Include="ServiceBusConsole.Services.Caching" />
     <Using Include="ServiceBusConsole.Syntax" />
-    <Using Include="ServiceBusConsole.Threading" />
     <Using Include="ServiceBusConsole.UI" />
     <Using Include="Spectre.Console" />
   </ItemGroup>

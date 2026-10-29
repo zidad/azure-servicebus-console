@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Threading.Channels;
-using Azure.Messaging.ServiceBus;
 
 namespace ServiceBusConsole.Messaging;
 
@@ -101,13 +100,18 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
         await RunAsync(new($"Receiving {count:N0} with PeekLock", [new("Receive", count)], modal: false), async op =>
         {
             var step = Start(op, 0);
-            var received = Channel.CreateUnbounded<ServiceBusReceivedMessage>();
-            var locked = service.StartReceiving(Source, count, received.Writer, op.Token);
-            locked.LockLost += _ => Changed?.Invoke();
+            var locked = service.StartReceiving(Source, count, op.Token);
             _locked = locked;
-            while (await received.Reader.WaitToReadAsync())
-                Append(Drain(received.Reader).Select(m => new MessageInfo(m, MessageState.Locked)).ToList(), step);
+            _ = RedrawOnLockLossAsync(locked);
+            while (await locked.Held.WaitToReadAsync())
+                Append(Drain(locked.Held).ToList(), step);
         });
+    }
+
+    private async Task RedrawOnLockLossAsync(ILockedMessages locked)
+    {
+        await foreach (var _ in locked.LockLost.ReadAllAsync())
+            Changed?.Invoke();
     }
 
     private static IEnumerable<T> Drain<T>(ChannelReader<T> reader)
@@ -158,9 +162,9 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
 
     private Task RetryHeldAsync(OperationProgress op, IReadOnlyList<MessageInfo> targets, ILockedMessages? locked, string notHeldReason)
     {
-        var held = Channel.CreateUnbounded<ServiceBusReceivedMessage>();
+        var held = Channel.CreateUnbounded<MessageInfo>();
         foreach (var m in targets.OrderBy(m => m.SequenceNumber).Where(m => locked?.IsHeld(m.SequenceNumber) ?? true))
-            held.Writer.TryWrite(m.Raw);
+            held.Writer.TryWrite(m);
         held.Writer.Complete();
         return PipelineAsync(op, targets, held.Reader, locked, notHeldReason, lockStep: null);
     }
@@ -173,14 +177,12 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
         var lockStep = op.Steps[0];
         lockStep.State = StepState.Running;
         Changed?.Invoke();
-        // Bounded, so a slow send holds the scan back instead of locking far ahead of it.
-        var found = Channel.CreateBounded<ServiceBusReceivedMessage>(SendChunk * 2);
-        await using var locked = service.StartLocking(Source, [.. targets.Select(m => m.SequenceNumber)], found.Writer, op.Token);
-        await PipelineAsync(op, targets, found.Reader, locked, "not found in the dead-letter queue (gone, or locked elsewhere)", lockStep);
+        await using var locked = service.StartLocking(Source, [.. targets.Select(m => m.SequenceNumber)], op.Token);
+        await PipelineAsync(op, targets, locked.Held, locked, "not found in the dead-letter queue (gone, or locked elsewhere)", lockStep);
     }
 
     /// <summary>Send stage (chunks, in order, one at a time) feeding the complete stage (parallel).</summary>
-    private async Task PipelineAsync(OperationProgress op, IReadOnlyList<MessageInfo> targets, ChannelReader<ServiceBusReceivedMessage> held, ILockedMessages? locked, string notHeldReason, OperationStep? lockStep)
+    private async Task PipelineAsync(OperationProgress op, IReadOnlyList<MessageInfo> targets, ChannelReader<MessageInfo> held, ILockedMessages? locked, string notHeldReason, OperationStep? lockStep)
     {
         var token = op.Token;
         var steps = op.Steps;
@@ -244,7 +246,12 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
             var count = 0;
             try
             {
-                await service.SendCopiesAsync(Source, chunk, n => { count = n; sendStep.Report(before + n); Notify(sendStep); }, token);
+                await foreach (var n in service.SendCopiesAsync(Source, chunk, token))
+                {
+                    count = n;
+                    sendStep.Report(before + n);
+                    Notify(sendStep);
+                }
             }
             catch (Exception ex)
             {
@@ -304,7 +311,12 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
             var step = Start(op, 0);
             try
             {
-                count = await service.PurgeMessagesAsync(Source, n => { count = n; step.Report(n); Notify(step); }, op.Token);
+                await foreach (var n in service.PurgeAsync(Source, op.Token))
+                {
+                    count = n;
+                    step.Report(n);
+                    Notify(step);
+                }
                 op.Finish($"Purged {count:N0} message(s).", OperationOutcome.Succeeded);
             }
             catch (OperationCanceledException) when (op.Cancelled)
@@ -348,7 +360,12 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
         var sent = 0;
         try
         {
-            await service.SendCopiesAsync(Source, messages, n => { sent = n; step.Report(n); Notify(step); }, token);
+            await foreach (var n in service.SendCopiesAsync(Source, messages, token))
+            {
+                sent = n;
+                step.Report(n);
+                Notify(step);
+            }
             return ([.. messages], []);
         }
         catch (Exception ex)
@@ -466,7 +483,7 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
     private static string Describe(Exception ex) => ex switch
     {
         OperationCanceledException => Failure.CancelledReason,
-        ServiceBusException { Reason: ServiceBusFailureReason.MessageLockLost } => "lock lost",
+        MessageLockLostException => "lock lost",
         _ => ex.Message.Split('\n')[0],
     };
 

@@ -2,11 +2,6 @@ namespace ServiceBusConsole.Services;
 
 public static class AzureSubscriptions
 {
-    public static NamespaceInfo EmulatorNamespace { get; } = new()
-    {
-        Name = "localhost", FullyQualifiedNamespace = "localhost", ResourceGroup = "", Location = "",
-    };
-
     /// <summary>
     /// The emulator, then the signed-in account's subscriptions by name. Yields the whole list each time
     /// it grows (cached entries first, then live ones).
@@ -30,5 +25,5 @@ public static class AzureSubscriptions
         this INamespaceService service, AzureSubscription subscription, CancellationToken ct = default) =>
         subscription.Id is { } id
             ? service.GetNamespacesAsync(id, ct)
-            : new[] { EmulatorNamespace }.ToAsyncEnumerable();
+            : new[] { NamespaceInfo.Emulator }.ToAsyncEnumerable();
 }

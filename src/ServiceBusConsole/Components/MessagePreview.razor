@@ -64,13 +64,13 @@ else
     private RenderFragment BodyPanel(int width, int height) =>
         @<Panel Title="@($"{Icons.Body} Body")" BorderColor="@Theme.Border" Width="@width" Height="@height" Padding="@(new(1, 0, 1, 0))">
             <ViewHeightScrollable LinesToRender="@Inner(height)" Scrollbar="new()" FocusOrder="@BodyFocusOrder" OnKeyDown="@OnKeyDown">
-                @if (FormatJson(Message.Body) is { } json)
+                @if (FormatJson(Message.BodyText) is { } json)
                 {
                     <SyntaxHighlighter Code="@json" Language="json" />
                 }
                 else
                 {
-                    <Markup Content="@Message.Body" />
+                    <Markup Content="@Message.BodyText" />
                 }
             </ViewHeightScrollable>
         </Panel>;
@@ -86,7 +86,7 @@ else
         yield return ("Delivery Count", m.DeliveryCount.ToString(), m.DeliveryCount > 1 ? Theme.Warning : Color.Default);
         yield return ("State", StateText(m), StateColor(m));
         if (m.DeadLetterReason is { } reason) yield return ("Dead-letter reason", reason, Theme.Danger);
-        foreach (var (key, value) in m.Properties.Where(p => p.Key != "DeadLetterReason"))
+        foreach (var (key, value) in m.Properties)
             yield return (key, value, Color.Default);
     }
 
