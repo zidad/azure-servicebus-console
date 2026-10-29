@@ -2,7 +2,7 @@ namespace ServiceBusConsole.Tests;
 
 public sealed class MessageSourceTests
 {
-    [Fact]
+    [Test]
     public void ASubscription_SendsToItsTopic()
     {
         MessageSource source = new MessageSource.Subscription("orders", "billing", IsDlq: true);
@@ -12,7 +12,7 @@ public sealed class MessageSourceTests
         source.Match(_ => "queue", s => s.Name).ShouldBe("billing");
     }
 
-    [Fact]
+    [Test]
     public void SwitchingToTheActiveQueue_KeepsTheKindOfSource()
     {
         MessageSource dlq = new MessageSource.Subscription("orders", "billing", IsDlq: true);

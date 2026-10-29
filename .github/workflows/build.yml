@@ -16,12 +16,16 @@ jobs:
 
       - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.x'
+          global-json-file: global.json
 
       - run: dotnet build ServiceBusConsole.slnx --configuration Release
 
   test:
     runs-on: ubuntu-latest
+    # A hung test run would otherwise hold the job until GitHub's 6-hour limit.
+    timeout-minutes: 20
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
         with:
@@ -29,9 +33,32 @@ jobs:
 
       - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.x'
+          global-json-file: global.json
+          dotnet-version: '10.0.x' # runtime for the net10.0 tests
 
-      - run: dotnet test --solution ServiceBusConsole.slnx --configuration Release --max-parallel-test-modules 1
+      # TUnit uploads its HTML report as an artifact itself, with the runner's artifact token.
+      - name: Enable TUnit HTML report upload
+        uses: actions/github-script@v9
+        with:
+          script: |
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env['ACTIONS_RUNTIME_TOKEN']);
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env['ACTIONS_RESULTS_URL']);
+
+      - run: dotnet test --solution ServiceBusConsole.slnx --configuration Release --max-parallel-test-modules 1 --report-trx
+
+      - name: Test report
+        uses: dorny/test-reporter@v3
+        if: success() || failure()
+        with:
+          name: Tests
+          path: 'TestResults/*.trx'
+          reporter: dotnet-trx
+          fail-on-error: false
+          fail-on-empty: false
+          use-actions-summary: 'true'
+          badge-title: tests
+          list-tests: failed
+          list-suites: all
 
       - uses: actions/upload-artifact@v4
         if: failure()

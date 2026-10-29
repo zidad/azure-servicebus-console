@@ -5,9 +5,7 @@ namespace ServiceBusConsole.AzureServiceBus.Tests;
 
 public sealed class LockedMessagesTests
 {
-    private static CancellationToken Ct => TestContext.Current.CancellationToken;
-
-    [Fact]
+    [Test]
     public async Task StartScan_StreamsEachWantedMessage_AndReleasesThePassedOnes()
     {
         var receiver = new FakeReceiver(count: 10, batchSize: 4);
@@ -23,7 +21,7 @@ public sealed class LockedMessagesTests
         await locked.DisposeAsync();
     }
 
-    [Fact]
+    [Test]
     public async Task StartScan_WantedMissing_StopsWhenEmptyOrAtMaxScan()
     {
         var empty = new FakeReceiver(count: 5, batchSize: 4);
@@ -38,7 +36,7 @@ public sealed class LockedMessagesTests
         await limited.DisposeAsync();
     }
 
-    [Fact]
+    [Test]
     public async Task ALostLock_ArrivesOnLockLost_AndTheMessageIsNoLongerHeld()
     {
         var receiver = new FakeReceiver(count: 1, batchSize: 1) { LockFor = TimeSpan.FromSeconds(1), LocksLost = true };
@@ -53,7 +51,7 @@ public sealed class LockedMessagesTests
         locked.LockLost.Completion.IsCompleted.ShouldBeTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task SettlingWhenTheLockIsGone_ThrowsMessageLockLost()
     {
         var receiver = new FakeReceiver(count: 1, batchSize: 1) { LocksLost = true };

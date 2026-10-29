@@ -5,7 +5,7 @@ namespace ServiceBusConsole.AzureServiceBus.Tests;
 
 public sealed class ServiceBusMessageInfoTests
 {
-    [Fact]
+    [Test]
     public void From_ShowsTheDeadLetterReasonApartFromTheProperties()
     {
         var raw = ServiceBusModelFactory.ServiceBusReceivedMessage(
@@ -23,7 +23,7 @@ public sealed class ServiceBusMessageInfoTests
         ServiceBusMessageInfo.RawOf(message).ShouldBeSameAs(raw);
     }
 
-    [Fact]
+    [Test]
     public void From_ShowsAnAmqpValueBodyAsText()
     {
         // ServiceBusReceivedMessage.Body throws for these, e.g. a JMS text message.
@@ -33,7 +33,7 @@ public sealed class ServiceBusMessageInfoTests
         ServiceBusMessageInfo.From(raw, MessageState.Peeked).BodyText.ShouldBe("hello");
     }
 
-    [Fact]
+    [Test]
     public void RawOf_RejectsAMessageThatDidNotComeFromServiceBus() =>
         Should.Throw<ArgumentException>(() => ServiceBusMessageInfo.RawOf(new MessageInfo { SequenceNumber = 1, State = MessageState.Peeked }));
 }

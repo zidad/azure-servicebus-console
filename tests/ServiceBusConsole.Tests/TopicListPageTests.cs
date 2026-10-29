@@ -2,14 +2,13 @@ using RazorConsole.Testing;
 
 namespace ServiceBusConsole.Tests;
 
+[NotInParallel(nameof(TopicListPageTests))]
 public sealed class TopicListPageTests
 {
-    private static CancellationToken Ct => TestContext.Current.CancellationToken;
-
     private static int RowOf(TerminalFrame frame, string text)
         => Enumerable.Range(0, frame.Height).First(y => frame.GetLine(y).Contains(text));
 
-    [Fact]
+    [Test]
     public async Task SortingOff_RestoresLoadOrder()
     {
         var app = new AppHarness();
@@ -36,7 +35,7 @@ public sealed class TopicListPageTests
         RowOf(frame, "alpha").ShouldBeLessThan(RowOf(frame, "mid"));
     }
 
-    [Fact]
+    [Test]
     public async Task Poll_UpdatesCounts_AndDropsDeletedTopics()
     {
         var app = new AppHarness();

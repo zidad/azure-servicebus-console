@@ -2,9 +2,7 @@ namespace ServiceBusConsole.Tests;
 
 public sealed class RetryPipelineTests
 {
-    private static CancellationToken Ct => TestContext.Current.CancellationToken;
-
-    [Fact]
+    [Test]
     public async Task Retry_CompletesTheFirstChunk_WhileTheScanIsStillRunning()
     {
         var service = new FakeMessageService { PauseScan = new TaskCompletionSource(), PauseScanAfter = 100 };
@@ -29,7 +27,7 @@ public sealed class RetryPipelineTests
         op.Outcome.ShouldBe(OperationOutcome.Succeeded);
     }
 
-    [Fact]
+    [Test]
     public async Task CancellingRetry_CompletesWhatWasSent_AndKeepsTheRestSelected()
     {
         var service = new FakeMessageService { PauseScan = new TaskCompletionSource(), PauseScanAfter = 100 };

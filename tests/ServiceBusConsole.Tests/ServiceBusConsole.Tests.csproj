@@ -1,18 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <IsPackable>false</IsPackable>
-    <OutputType>Exe</OutputType>
-    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
-  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/ServiceBusConsole/ServiceBusConsole.csproj" />
     <ProjectReference Include="../../lib/RazorConsole/src/RazorConsole.Testing/RazorConsole.Testing.csproj" />
-    <PackageReference Include="xunit.v3" />
-    <PackageReference Include="Shouldly" />
   </ItemGroup>
   <ItemGroup>
-    <Using Include="Xunit" />
-    <Using Include="Shouldly" />
     <Using Include="ServiceBusConsole.Abstractions" />
     <Using Include="ServiceBusConsole.Messaging" />
     <Using Include="ServiceBusConsole.Services" />

@@ -3,10 +3,9 @@ using Spectre.Console;
 
 namespace ServiceBusConsole.Tests;
 
+[NotInParallel(nameof(QueueListPageTests))]
 public sealed class QueueListPageTests
 {
-    private static CancellationToken Ct => TestContext.Current.CancellationToken;
-
     // Already in display order: the page keeps the first-loaded queue selected across re-sorts.
     private static AppHarness WithQueues()
     {
@@ -23,7 +22,7 @@ public sealed class QueueListPageTests
     private static int RowOf(TerminalFrame frame, string text)
         => Enumerable.Range(0, frame.Height).First(y => frame.GetLine(y).Contains(text));
 
-    [Fact]
+    [Test]
     public async Task ChangedCounts_ShowUpWithoutRefresh_HighlightedUntilTheyFade()
     {
         var app = WithQueues();
@@ -44,7 +43,7 @@ public sealed class QueueListPageTests
         await terminal.WaitUntilAsync(f => Background(f, x, y) == Color.Default, AppHarness.Timeout, cancellationToken: Ct);
     }
 
-    [Fact]
+    [Test]
     public async Task FailedPoll_KeepsTheListAndShowsNoError_ThenRecovers()
     {
         var app = WithQueues();
@@ -73,7 +72,7 @@ public sealed class QueueListPageTests
         return (frame.GetLine(y).IndexOf($" {count} ", StringComparison.Ordinal) + 1, y);
     }
 
-    [Fact]
+    [Test]
     public async Task ShowsQueues_WithDeadLetteredFirst()
     {
         var app = new AppHarness();
@@ -95,7 +94,7 @@ public sealed class QueueListPageTests
         RowOf(frame, "emails").ShouldBeLessThan(RowOf(frame, "orders"));
     }
 
-    [Fact]
+    [Test]
     public async Task TypingFiltersTheList()
     {
         await using var terminal = await WithQueues().OpenQueuesAsync();
@@ -109,7 +108,7 @@ public sealed class QueueListPageTests
         frame.ContainsText("orders").ShouldBeFalse();
     }
 
-    [Fact]
+    [Test]
     public async Task DeleteAsksForConfirmation_ThenDeletesSelectedQueue()
     {
         var app = WithQueues();
@@ -126,7 +125,7 @@ public sealed class QueueListPageTests
         app.Queues.Deleted.ShouldBe(["payments"]);
     }
 
-    [Fact]
+    [Test]
     public async Task DeclinedDelete_KeepsQueue()
     {
         var app = WithQueues();
@@ -141,7 +140,7 @@ public sealed class QueueListPageTests
         app.Queues.Deleted.ShouldBeEmpty();
     }
 
-    [Fact]
+    [Test]
     public async Task LoadFailure_ShowsRetryHint()
     {
         var app = new AppHarness();
@@ -151,7 +150,7 @@ public sealed class QueueListPageTests
         await terminal.WaitForTextAsync("Failed to load. Press [F5] to retry.", AppHarness.Timeout, Ct);
     }
 
-    [Fact]
+    [Test]
     public async Task EnterOpensSelectedQueue()
     {
         await using var terminal = await WithQueues().OpenQueuesAsync();
@@ -162,7 +161,7 @@ public sealed class QueueListPageTests
         await terminal.WaitUntilAsync(f => !f.ContainsText("Queues (") && f.ContainsText("payments"), AppHarness.Timeout, cancellationToken: Ct);
     }
 
-    [Fact]
+    [Test]
     public async Task ClickingHeader_CyclesAscendingDescendingOff()
     {
         await using var terminal = await WithQueues().OpenQueuesAsync();
@@ -185,7 +184,7 @@ public sealed class QueueListPageTests
         RowOf(frame, "orders").ShouldBeLessThan(RowOf(frame, "payments"));
     }
 
-    [Fact]
+    [Test]
     public async Task DefaultDlqSort_ShowsInHeader_AndClickTurnsItOff()
     {
         await using var terminal = await WithQueues().OpenQueuesAsync();
@@ -199,7 +198,7 @@ public sealed class QueueListPageTests
         RowOf(frame, "orders").ShouldBeLessThan(RowOf(frame, "payments"));
     }
 
-    [Fact]
+    [Test]
     public async Task ClickingAnotherHeader_StartsAscendingOnThatColumn()
     {
         await using var terminal = await WithQueues().OpenQueuesAsync();
@@ -215,7 +214,7 @@ public sealed class QueueListPageTests
         RowOf(frame, "orders").ShouldBeLessThan(RowOf(frame, "payments"));
     }
 
-    [Fact]
+    [Test]
     public async Task Sorting_KeepsSelectedQueue()
     {
         await using var terminal = await WithQueues().OpenQueuesAsync();

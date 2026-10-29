@@ -162,6 +162,8 @@ Authentication uses `AzureCliCredential` — no connection strings or API keys a
 
 ## Running from source
 
+Requires the [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0) (`global.json`): RazorConsole also builds for `net11.0`.
+
 ```bash
 git clone --recurse-submodules https://github.com/zidad/azure-servicebus-console
 cd azure-servicebus-console

@@ -13,7 +13,7 @@ public sealed class CountChangesTests
     private CountChanges<QueueInfo> Changes() => new(q => q.Name,
         ("Active", q => q.ActiveMessageCount), ("DLQ", q => q.DeadLetterMessageCount)) { Time = _time };
 
-    [Fact]
+    [Test]
     public void HighlightsOnlyChangedColumns_ThenFades()
     {
         var changes = Changes();
@@ -37,7 +37,7 @@ public sealed class CountChangesTests
         changes.IsFading().ShouldBeFalse();
     }
 
-    [Fact]
+    [Test]
     public void ANewChange_RestartsTheFade()
     {
         var changes = Changes();
