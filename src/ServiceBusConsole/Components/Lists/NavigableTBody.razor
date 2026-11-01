@@ -34,7 +34,7 @@
     public string FocusKey { get; } = Guid.NewGuid().ToString("N");
 
     private static readonly HashSet<string> NavigationKeys =
-        ["ArrowDown", "DownArrow", "ArrowUp", "UpArrow", "PageDown", "PageUp", "Home", "End", " ", "Enter", "Return"];
+        ["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End", " ", "Enter"];
 
     private bool _focused;
     private readonly Func<int, Task> _rowClick;
