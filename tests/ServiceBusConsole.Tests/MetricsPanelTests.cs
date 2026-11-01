@@ -15,7 +15,7 @@ public sealed class MetricsPanelTests
         => Enumerable.Range(0, frame.Height).FirstOrDefault(y => frame.GetLine(y).Contains(text, StringComparison.Ordinal), -1);
 
     private static Task Key(HeadlessTerminal terminal, char key)
-        => terminal.SendKeyAsync(key == '+' ? ConsoleKey.OemPlus : ConsoleKey.OemMinus, key, cancellationToken: Ct);
+        => terminal.SendKeyAsync(key is '+' or '=' ? ConsoleKey.OemPlus : ConsoleKey.OemMinus, key, cancellationToken: Ct);
 
     [Test]
     public async Task QueueList_ChartsTheSelectedQueue()
@@ -179,7 +179,7 @@ public sealed class MetricsPanelTests
     }
 
     [Test]
-    public async Task PlusAndMinus_StepTheRange_AndLoadItsWindow()
+    public async Task ZoomKeys_StepTheRange_AndLoadItsWindow()
     {
         var app = new AppHarness();
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
@@ -187,14 +187,15 @@ public sealed class MetricsPanelTests
         await terminal.WaitUntilAsync(f => ChartsShown(f, "📬 queue orders"), AppHarness.Timeout, cancellationToken: Ct);
         app.Metrics.Windows.Last().Interval.ShouldBe(TimeSpan.FromMinutes(30));
 
-        await Key(terminal, '+');
+        await Key(terminal, '_');
 
         await terminal.WaitUntilAsync(f => f.ContainsText("last 3 d") && ChartsShown(f, "📬 queue orders", "-3d"), AppHarness.Timeout, cancellationToken: Ct);
         app.Metrics.Windows.Last().ShouldSatisfyAllConditions(
             w => (w.To - w.From).ShouldBe(TimeSpan.FromDays(3)),
             w => w.Interval.ShouldBe(TimeSpan.FromHours(1)));
 
-        for (var i = 0; i < 6; i++) await Key(terminal, '-');
+        for (var i = 0; i < 3; i++) await Key(terminal, '+');
+        for (var i = 0; i < 3; i++) await Key(terminal, '=');
 
         await terminal.WaitUntilAsync(f => f.ContainsText("last 1 h") && ChartsShown(f, "📬 queue orders", "-60m"), AppHarness.Timeout, cancellationToken: Ct);
         app.Metrics.Windows.Last().ShouldSatisfyAllConditions(
@@ -204,17 +205,17 @@ public sealed class MetricsPanelTests
     }
 
     [Test]
-    public async Task AtTheNarrowestRange_Minus_LoadsNothing()
+    public async Task AtTheNarrowestRange_ZoomingIn_LoadsNothing()
     {
         var app = new AppHarness();
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
         await using var terminal = await app.OpenAzureAsync(ConsoleKey.F1);
         await terminal.WaitUntilAsync(f => ChartsShown(f, "📬 queue orders"), AppHarness.Timeout, cancellationToken: Ct);
-        for (var i = 0; i < 4; i++) await Key(terminal, '-');
+        for (var i = 0; i < 4; i++) await Key(terminal, '+');
         await terminal.WaitUntilAsync(f => ChartsShown(f, "📬 queue orders", "-60m"), AppHarness.Timeout, cancellationToken: Ct);
         var loads = app.Metrics.Windows.Count;
 
-        await Key(terminal, '-');
+        await Key(terminal, '=');
         await Task.Delay(app.MetricsOptions.RangeDebounce * 3, Ct);
 
         app.Metrics.Windows.Count.ShouldBe(loads);
@@ -222,7 +223,7 @@ public sealed class MetricsPanelTests
     }
 
     [Test]
-    public async Task Minus_GoesIntoAFilterThatHoldsText_Plus_StillWidens()
+    public async Task Minus_GoesIntoAFilterThatHoldsText_Plus_StillZoomsIn()
     {
         var app = new AppHarness();
         app.Queues.Queues.AddRange([new QueueInfo { Name = "order-events" }, new QueueInfo { Name = "orders" }]);
@@ -233,7 +234,7 @@ public sealed class MetricsPanelTests
         await Key(terminal, '-');
         await Key(terminal, '+');
 
-        var frame = await terminal.WaitUntilAsync(f => f.ContainsText("🔍 order-") && f.ContainsText("last 3 d"), AppHarness.Timeout, cancellationToken: Ct);
+        var frame = await terminal.WaitUntilAsync(f => f.ContainsText("🔍 order-") && f.ContainsText("last 12 h"), AppHarness.Timeout, cancellationToken: Ct);
         frame.ContainsText("🔍 order-+").ShouldBeFalse(frame.ScreenText);
         frame.ContainsText("(1 of 2)").ShouldBeTrue(frame.ScreenText);
     }
@@ -250,7 +251,7 @@ public sealed class MetricsPanelTests
         await terminal.SendKeyAsync(ConsoleKey.Tab, '\t', cancellationToken: Ct);
         await AppHarness.WaitForFocusAsync(terminal, "2", table);
         await terminal.SendKeyAsync(ConsoleKey.Spacebar, ' ', cancellationToken: Ct);
-        await terminal.WaitUntilAsync(f => f.ContainsText("last 12 h") && ChartsShown(f, "📬 queue orders", "-12h"), AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => f.ContainsText("last 3 d") && ChartsShown(f, "📬 queue orders", "-3d"), AppHarness.Timeout, cancellationToken: Ct);
 
         var minus = terminal.FocusKey;
         await terminal.SendKeyAsync(ConsoleKey.Tab, '\t', cancellationToken: Ct);
@@ -259,7 +260,7 @@ public sealed class MetricsPanelTests
         await terminal.WaitUntilAsync(f => ChartsShown(f, "📬 queue orders"), AppHarness.Timeout, cancellationToken: Ct);
 
         await AppHarness.ClickTextAsync(terminal, "[+]");
-        await terminal.WaitUntilAsync(f => ChartsShown(f, "📬 queue orders", "-3d"), AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => ChartsShown(f, "📬 queue orders", "-12h"), AppHarness.Timeout, cancellationToken: Ct);
         await AppHarness.ClickTextAsync(terminal, "[-]");
         await terminal.WaitUntilAsync(f => ChartsShown(f, "📬 queue orders"), AppHarness.Timeout, cancellationToken: Ct);
         terminal.CurrentFrame.ContainsText("🔍 type to filter").ShouldBeTrue(terminal.CurrentFrame.ScreenText);
@@ -313,7 +314,7 @@ public sealed class MetricsPanelTests
     }
 
     [Test]
-    public async Task ConnectionPage_PlusStepsTheRange_NotTheSubscriptionFilter()
+    public async Task ConnectionPage_PlusZoomsIn_NotIntoTheSubscriptionFilter()
     {
         var app = new AppHarness();
         app.Namespaces.Subscriptions.Add(AppHarness.AzureSubscription);
@@ -326,9 +327,9 @@ public sealed class MetricsPanelTests
 
         await Key(terminal, '+');
 
-        var frame = await terminal.WaitUntilAsync(f => ChartsShown(f, "🌐 namespace sb-orders-dev", "-3d"), AppHarness.Timeout, cancellationToken: Ct);
+        var frame = await terminal.WaitUntilAsync(f => ChartsShown(f, "🌐 namespace sb-orders-dev", "-12h"), AppHarness.Timeout, cancellationToken: Ct);
         frame.ContainsText("🔍 type to filter").ShouldBeTrue(frame.ScreenText);
-        app.Metrics.Windows.Last().Interval.ShouldBe(TimeSpan.FromHours(1));
+        app.Metrics.Windows.Last().Interval.ShouldBe(TimeSpan.FromMinutes(15));
     }
 
     [Test]

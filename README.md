@@ -75,7 +75,7 @@ azsb help                                                            # all flags
 
 ![Queue list](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/queues.png)
 
-**Metrics over a week**: `+` widened the range to 7 days
+**Metrics over a week**: zoomed out to 7 days with `-`
 
 ![Queue list with 7 days of metrics](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/queues-7d.png)
 
@@ -155,7 +155,8 @@ Connection screen and lists, Azure namespaces only.
 | Key | Action |
 |-----|--------|
 | `F12` | Show or hide the panel |
-| `+` / `-` | Longer / shorter time range; `-` only while the filter is empty, since names can contain `-` |
+| `+` or `=` | Zoom in: shorter time range |
+| `-` or `_` | Zoom out: longer time range; only while the filter is empty, since names can contain `-` and `_` |
 | `[-]` / `[+]` in the panel header | The same, by click or `Tab` |
 
 ### Queue browser / Subscription browser

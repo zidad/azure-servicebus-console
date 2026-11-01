@@ -36,11 +36,11 @@
                 </Columns>
                 <Columns>
                     @if (_metrics?.IsRefreshing == true) { <Spinner /> } else { <Markup Content=" " /> }
-                    <KeyButton Content="[-]" OnClick="@(() => { StepRange(-1); })" FocusOrder="@FocusOrder" OnKeyDown="@OnKeyDown"
-                               FocusedColor="@Theme.Accent" ForegroundColor="@(Range.CanNarrow ? Color.Default : Theme.Muted)" />
-                    <Markup Content="@MetricsRange.Label(Range.Span)" Foreground="@Theme.Muted" />
-                    <KeyButton Content="[+]" OnClick="@(() => { StepRange(1); })" FocusOrder="@FocusOrder" OnKeyDown="@OnKeyDown"
+                    <KeyButton Content="[-]" OnClick="@(() => { StepRange(1); })" FocusOrder="@FocusOrder" OnKeyDown="@OnKeyDown"
                                FocusedColor="@Theme.Accent" ForegroundColor="@(Range.CanWiden ? Color.Default : Theme.Muted)" />
+                    <Markup Content="@MetricsRange.Label(Range.Span)" Foreground="@Theme.Muted" />
+                    <KeyButton Content="[+]" OnClick="@(() => { StepRange(-1); })" FocusOrder="@FocusOrder" OnKeyDown="@OnKeyDown"
+                               FocusedColor="@Theme.Accent" ForegroundColor="@(Range.CanNarrow ? Color.Default : Theme.Muted)" />
                 </Columns>
             </Flex>
         </Flex>
