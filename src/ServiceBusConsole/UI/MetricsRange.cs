@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Components.Web;
 
 namespace ServiceBusConsole.UI;
 
-/// <summary>How far back the metrics charts go: a day until + or - steps it, then that choice, kept across runs.</summary>
+/// <summary>How far back the metrics charts go: a day until zooming in (+) or out (-) steps it, then that choice, kept across runs.</summary>
 public sealed class MetricsRange(FileCache cache)
 {
     private const string Key = "settings/metrics-range.json";
@@ -26,13 +26,14 @@ public sealed class MetricsRange(FileCache cache)
         All[Math.Clamp(Array.IndexOf(All, span) + steps, 0, All.Length - 1)];
 
     /// <summary>
-    /// + widens, - narrows, or null for other keys. Entity names start with a letter or digit but can hold a '-',
-    /// so - only steps while <paramref name="filter"/> is empty and goes into the filter otherwise.
+    /// Zoom in (+ or =, shorter range) is -1, zoom out (- or _, longer range) +1, other keys null; = and _ work without
+    /// Shift. Entity names hold '-' and '_' but never '+' or '=', so - and _ only step while <paramref name="filter"/> is
+    /// empty and go into the filter otherwise.
     /// </summary>
     public static int? StepOf(KeyboardEventArgs e, string? filter) => e.Key switch
     {
-        "+" => 1,
-        "-" when string.IsNullOrEmpty(filter) => -1,
+        "+" or "=" => -1,
+        "-" or "_" when string.IsNullOrEmpty(filter) => 1,
         _ => null,
     };
 

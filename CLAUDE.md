@@ -114,7 +114,7 @@ This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, que
 
 **Metrics:** `MetricsPanel` (bottom of the list pages and of the connection page, below the lists) charts Azure Monitor metrics from `IMetricsService` (`Azure.ResourceManager.Monitor` on the shared `ArmClient`, `EntityName` filter; subscriptions show their topic, Azure has no per-subscription dimension). It loads after the selection settles, cached first (keyed by span and interval).
 - Always `FullscreenLayout.MetricsPanel` lines, whatever it shows, so nothing around it moves. The connection page reserves it by terminal height and subscription count only, with a placeholder for the emulator
-- `+`/`-` (or its `[+]`/`[-]` buttons) step `MetricsRange` from 1 h to 30 d; `-` goes into a non-empty list filter instead. The interval is the finest Azure Monitor grain with at most one point per plot column (`MetricsChart.Interval`)
+- `+`/`=` zoom in, `-`/`_` zoom out (or the `[+]`/`[-]` buttons), stepping `MetricsRange` between 1 h and 30 d; `-` and `_` go into a non-empty list filter instead. The interval is the finest Azure Monitor grain with at most 1.5 points per plot column (`MetricsChart.Interval`)
 - F12 toggles it; range and F12 choice are remembered in the file cache. No panel for the emulator on list pages, or on short terminals
 
 **Async commands:** Confirm-then-execute flows (delete, purge, requeue, etc.) use the `<AsyncCommand<TItem>>` component (`Components/AsyncCommand.razor`). It owns the pending-item, busy, and error state — pages should NOT reintroduce `_pending*` bool/field patterns or inline `ConfirmModal` + `ErrorModal` pairs per action.

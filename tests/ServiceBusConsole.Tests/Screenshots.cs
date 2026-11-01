@@ -148,12 +148,12 @@ public sealed class Screenshots
         await Key(terminal, ConsoleKey.F1);
         await AppHarness.WaitForTableFocusAsync(terminal, connectionFocus);
         await WaitForChartsAsync(terminal, "📬 queue payments");
-        await Key(terminal, ConsoleKey.OemPlus, '+');
-        await Key(terminal, ConsoleKey.OemPlus, '+');
+        await Key(terminal, ConsoleKey.OemMinus, '-');
+        await Key(terminal, ConsoleKey.OemMinus, '-');
         await terminal.WaitUntilAsync(f => f.ContainsText("last 7 d") && f.ContainsText("-7d"), AppHarness.Timeout, cancellationToken: Ct);
         await Save(terminal, dir, "queues-7d");
 
-        for (var i = 0; i < 6; i++) await Key(terminal, ConsoleKey.OemMinus, '-');
+        for (var i = 0; i < 6; i++) await Key(terminal, ConsoleKey.OemPlus, '+');
         await terminal.WaitUntilAsync(f => f.ContainsText("last 1 h") && f.ContainsText("-60m"), AppHarness.Timeout, cancellationToken: Ct);
         await Save(terminal, dir, "queues-1h");
     }
