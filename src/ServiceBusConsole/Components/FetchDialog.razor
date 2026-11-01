@@ -115,6 +115,8 @@
     {
         if (!IsOpened) return;
         IsOpened = false;
+        // Escape on a KeyButton arrives through its OnKeyDown action, which doesn't re-render this dialog.
+        StateHasChanged();
         await OnCancel.InvokeAsync();
     }
 }
