@@ -142,18 +142,21 @@
                                         FocusOrder="4"
                                         OnKeyDown="@HandleKeyDown" />
                             <Markup Content="  " />
-                            <KeyButton Content="@($"[F2] {Icons.Topic} Topics")"
-                                        OnClick="@(() => Nav.NavigateTo("/topics"))"
-                                        FocusedColor="@Theme.Accent"
-                                        FocusOrder="5"
-                                        OnKeyDown="@HandleKeyDown" />
-                            <Markup Content="  " />
-                            <KeyButton Content="@($"[F3] {Icons.Subscription} All Subscriptions")"
-                                        OnClick="@(() => Nav.NavigateTo("/subscriptions"))"
-                                        FocusedColor="@Theme.Accent"
-                                        FocusOrder="6"
-                                        OnKeyDown="@HandleKeyDown" />
-                            <Markup Content="  " />
+                            @if (Connection.Current is IHasTopics)
+                            {
+                                <KeyButton Content="@($"[F2] {Icons.Topic} Topics")"
+                                            OnClick="@(() => Nav.NavigateTo("/topics"))"
+                                            FocusedColor="@Theme.Accent"
+                                            FocusOrder="5"
+                                            OnKeyDown="@HandleKeyDown" />
+                                <Markup Content="  " />
+                                <KeyButton Content="@($"[F3] {Icons.Subscription} All Subscriptions")"
+                                            OnClick="@(() => Nav.NavigateTo("/subscriptions"))"
+                                            FocusedColor="@Theme.Accent"
+                                            FocusOrder="6"
+                                            OnKeyDown="@HandleKeyDown" />
+                                <Markup Content="  " />
+                            }
                             <KeyButton Content="@($"[F12] {Icons.Metrics} Metrics")"
                                         OnClick="ToggleMetrics"
                                         FocusedColor="@Theme.Accent"
@@ -184,9 +187,10 @@
     @if (ShowMetrics)
     {
         <MetricsPanel @ref="_metricsPanel"
-                      Label="@($"{Icons.Namespace} namespace {ChartedNamespace?.Name}")"
-                      Scope="@(ChartedNamespace is null ? null : new MetricsScope.Namespace())"
-                      Placeholder="@(_chosen.IsEmulator ? "Azure Monitor metrics aren't available for the local emulator." : "Choose a namespace to chart its Azure Monitor metrics.")"
+                      Label="@($"{Icons.Namespace} namespace {ChosenNamespace?.Name}")"
+                      Metrics="@ChartedMetrics"
+                      Scope="@(ChartedMetrics is null ? null : new MetricsScope.Namespace())"
+                      Placeholder="@(ChosenNamespace is { } chosen ? $"Azure Monitor metrics aren't available for {chosen.Name}." : "Choose a namespace to chart its Azure Monitor metrics.")"
                       FocusOrder="9"
                       OnKeyDown="@HandleKeyDown" />
     }
@@ -240,8 +244,9 @@
     // Rows the subscription list can show whatever the filter: ones known to have no namespaces are hidden.
     private int ListedSubscriptions => _subscriptions.Count(s => s.IsEmulator || Catalog.HasNamespaces(s) != false);
 
-    // By the chosen subscription, not the connection: that keeps the previous namespace until the new ones are listed.
-    private NamespaceInfo? ChartedNamespace => _chosen.IsEmulator ? null : ChosenNamespace;
+    // Only once the chosen namespace is open: the connection keeps the previous one until the new ones are listed.
+    private IMetricsService? ChartedMetrics =>
+        Connection.Current is { Info: var open } and IHasMetrics { Metrics: var metrics } && open == ChosenNamespace ? metrics : null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -312,8 +317,8 @@
         switch (e.Key)
         {
             case "F1": Nav.NavigateTo("/queues"); return;
-            case "F2": Nav.NavigateTo("/topics"); return;
-            case "F3": Nav.NavigateTo("/subscriptions"); return;
+            case "F2" when Connection.Current is IHasTopics: Nav.NavigateTo("/topics"); return;
+            case "F3" when Connection.Current is IHasTopics: Nav.NavigateTo("/subscriptions"); return;
         }
     }
 

@@ -111,7 +111,7 @@ public sealed class QueueListPageTests
     [Test]
     public async Task SpaceOnFooterButton_ClicksIt_AndLeavesTheFilterAlone()
     {
-        await using var terminal = await WithQueues().OpenQueuesAsync();
+        await using var terminal = await WithQueues().OpenAzureAsync(ConsoleKey.F1, height: 30);
         await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
         for (var i = 0; i < 10 && AppHarness.FocusedAttribute(terminal, "data-focus-order") != "4"; i++) // the Delete button
         {
@@ -133,7 +133,7 @@ public sealed class QueueListPageTests
     public async Task DeleteAsksForConfirmation_ThenDeletesSelectedQueue()
     {
         var app = WithQueues();
-        await using var terminal = await app.OpenQueuesAsync();
+        await using var terminal = await app.OpenAzureAsync(ConsoleKey.F1, height: 30);
         await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
 
         await terminal.SendKeyAsync(ConsoleKey.F9, '\0', cancellationToken: Ct);
@@ -150,7 +150,7 @@ public sealed class QueueListPageTests
     public async Task DeclinedDelete_KeepsQueue()
     {
         var app = WithQueues();
-        await using var terminal = await app.OpenQueuesAsync();
+        await using var terminal = await app.OpenAzureAsync(ConsoleKey.F1, height: 30);
         await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
 
         await terminal.SendKeyAsync(ConsoleKey.F9, '\0', cancellationToken: Ct);
@@ -250,7 +250,7 @@ public sealed class QueueListPageTests
     [Test]
     public async Task Sorting_KeepsSelectedQueue()
     {
-        await using var terminal = await WithQueues().OpenQueuesAsync();
+        await using var terminal = await WithQueues().OpenAzureAsync(ConsoleKey.F1, height: 30);
         await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
 
         await AppHarness.ClickTextAsync(terminal, "Active");

@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ServiceBusConsole.AzureServiceBus;
 
-internal sealed class MessageService(ServiceBusClients clients, ILoggerFactory loggerFactory) : IMessageService
+internal sealed class MessageService(ServiceBusClient bus, ILoggerFactory loggerFactory) : IMessageService
 {
     private const int MaxBatch = 250;
     private readonly ILogger _logger = loggerFactory.CreateLogger<MessageService>();
@@ -67,7 +67,18 @@ internal sealed class MessageService(ServiceBusClients clients, ILoggerFactory l
     public async IAsyncEnumerable<int> SendCopiesAsync(MessageSource source, IReadOnlyList<MessageInfo> messages,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        await using var sender = clients.Bus.CreateSender(source.SendTarget);
+        await using var sender = bus.CreateSender(source.SendTarget);
+        await foreach (var sent in SendInBatchesAsync(sender, messages, ct))
+        {
+            _logger.LogInformation("Sent {Sent}/{Total} copies to {Target}", sent, messages.Count, source.SendTarget);
+            yield return sent;
+        }
+    }
+
+    /// <summary>Sends copies of messages this service returned, in order and in as few batches as fit; yields the running total.</summary>
+    public static async IAsyncEnumerable<int> SendInBatchesAsync(ServiceBusSender sender, IReadOnlyList<MessageInfo> messages,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
         var sent = 0;
         while (sent < messages.Count)
         {
@@ -79,7 +90,6 @@ internal sealed class MessageService(ServiceBusClients clients, ILoggerFactory l
                 throw new InvalidOperationException($"Message #{messages[sent].SequenceNumber} is too large to send");
             await sender.SendMessagesAsync(batch, ct);
             sent += added;
-            _logger.LogInformation("Sent {Sent}/{Total} copies to {Target}", sent, messages.Count, source.SendTarget);
             yield return sent;
         }
     }
@@ -118,7 +128,7 @@ internal sealed class MessageService(ServiceBusClients clients, ILoggerFactory l
             SubQueue = source.IsDlq ? SubQueue.DeadLetter : SubQueue.None,
         };
         return source.Match(
-            q => clients.Bus.CreateReceiver(q.Name, options),
-            s => clients.Bus.CreateReceiver(s.Topic, s.Name, options));
+            q => bus.CreateReceiver(q.Name, options),
+            s => bus.CreateReceiver(s.Topic, s.Name, options));
     }
 }

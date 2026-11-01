@@ -9,12 +9,15 @@ namespace ServiceBusConsole.Messaging;
 /// can act on the same locks. List mutations happen on the caller's (dispatcher) thread;
 /// <see cref="Changed"/> may fire from background threads.
 /// </summary>
-public sealed class MessageBrowser(MessageSource source, IMessageService service) : IAsyncDisposable
+public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns) : IAsyncDisposable
 {
     private const string DeadLetterReason = "Dead-lettered manually";
+    private readonly IMessageService _service = ns.Messages;
     private ILockedMessages? _locked;
     private readonly RenderThrottle _progressThrottle = new(100);
 
+    /// <summary>The namespace this browser reads and its locks belong to.</summary>
+    public IServiceBusNamespace Namespace { get; } = ns;
     public MessageSource Source { get; } = source;
     public BrowseMode Mode { get; private set; } = BrowseMode.Peek;
     public IReadOnlyList<MessageInfo> Messages { get; private set; } = [];
@@ -75,7 +78,7 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
         await RunAsync(new($"Peeking {count:N0}", [new("Peek", count)], modal: false), async op =>
         {
             var step = Start(op, 0);
-            await foreach (var page in service.PeekAsync(Source, count, fromSequenceNumber, op.Token))
+            await foreach (var page in _service.PeekAsync(Source, count, fromSequenceNumber, op.Token))
                 Append(page, step);
         });
     }
@@ -90,7 +93,7 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
             await RunAsync(new($"Receiving and deleting {count:N0}", [new("Receive", count)], modal: false), async op =>
             {
                 var step = Start(op, 0);
-                await foreach (var page in service.ReceiveAndDeleteAsync(Source, count, op.Token))
+                await foreach (var page in _service.ReceiveAndDeleteAsync(Source, count, op.Token))
                     Append(page, step);
             });
             return;
@@ -100,7 +103,7 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
         await RunAsync(new($"Receiving {count:N0} with PeekLock", [new("Receive", count)], modal: false), async op =>
         {
             var step = Start(op, 0);
-            var locked = service.StartReceiving(Source, count, op.Token);
+            var locked = _service.StartReceiving(Source, count, op.Token);
             _locked = locked;
             _ = RedrawOnLockLossAsync(locked);
             while (await locked.Held.WaitToReadAsync())
@@ -136,40 +139,56 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
         SettleAsync("Dead-lettering", "Dead-letter", "Dead-lettered", targets, (l, m, ct) => l.DeadLetterAsync(m, DeadLetterReason, ct));
 
     /// <summary>
-    /// Sends copies to the queue/topic in order and removes the originals, as a pipeline: messages are
-    /// sent in chunks as soon as they are held, and completed as soon as their chunk is sent. Peeked
-    /// dead-lettered messages are locked first by a scan (<see cref="IMessageService.StartLocking"/>) and
-    /// sent in the order it finds them; received-and-deleted ones are only sent.
+    /// Sends copies to the queue/topic in order and removes the originals, as a pipeline: messages go in chunks as soon as
+    /// they are held. With transactions (<see cref="IHasTransactions"/>) each chunk moves in one transaction, sent and
+    /// completed together or not at all; without, a chunk's originals are completed once it is sent (at least once). Peeked
+    /// dead-lettered messages are locked first by a scan (<see cref="IMessageService.StartLocking"/>) and sent in the order
+    /// it finds them; received-and-deleted ones are only sent.
     /// </summary>
     public Task RetryAsync(IReadOnlyList<MessageInfo> targets)
     {
         var title = $"{(Source.IsDlq ? "Retrying" : "Requeuing")} {What(targets)}";
         var requeue = $"Requeue to {Source.SendTarget}";
+        var move = $"Move to {Source.SendTarget}";
         var n = targets.Count;
-        return Mode switch
+        return (Mode, Namespace) switch
         {
-            BrowseMode.Locked => RunAsync(new(title, [new(requeue, n), new("Mark complete", n)]),
-                op => RetryHeldAsync(op, targets, _locked, "lock lost")),
-            BrowseMode.Received => RunAsync(new(title, [new(requeue, n)]),
+            (BrowseMode.Received, _) => RunAsync(new(title, [new(requeue, n)]),
                 op => RetryHeldAsync(op, targets, locked: null, "")),
+            (BrowseMode.Locked, IHasTransactions { Transactions: var tx }) => RunAsync(new(title, [new(move, n)]),
+                op => MoveHeldAsync(op, targets, tx)),
+            (BrowseMode.Locked, _) => RunAsync(new(title, [new(requeue, n), new("Mark complete", n)]),
+                op => RetryHeldAsync(op, targets, _locked, "lock lost")),
+            (_, IHasTransactions { Transactions: var tx }) => RunAsync(new(title, [new("PeekLock", n), new(move, n)]),
+                op => LockFirstAsync(op, targets, (run, locked, lockStep) => MoveAsync(op, run, tx, locked, lockStep))),
             _ => RunAsync(new(title, [new("PeekLock", n), new(requeue, n), new("Mark complete", n)]),
-                op => RetryPeekedAsync(op, targets)),
+                op => LockFirstAsync(op, targets, (run, locked, lockStep) => PipelineAsync(op, run, locked, lockStep))),
         };
     }
 
     private const int SendChunk = 100;
     private const int CompleteParallelism = 32;
 
-    private Task RetryHeldAsync(OperationProgress op, IReadOnlyList<MessageInfo> targets, ILockedMessages? locked, string notHeldReason)
+    private Task RetryHeldAsync(OperationProgress op, IReadOnlyList<MessageInfo> targets, ILockedMessages? locked, string notHeldReason) =>
+        PipelineAsync(op, new RetryRun(targets, HeldInOrder(targets, locked), lockStep: null, notHeldReason, Notify, op.Token), locked, lockStep: null);
+
+    private Task MoveHeldAsync(OperationProgress op, IReadOnlyList<MessageInfo> targets, ITransactionService tx)
+    {
+        var locked = _locked ?? throw new InvalidOperationException("No locked messages. Receive in PeekLock mode first.");
+        return MoveAsync(op, new RetryRun(targets, HeldInOrder(targets, locked), lockStep: null, "lock lost", Notify, op.Token), tx, locked, lockStep: null);
+    }
+
+    // Locked ones only while still held.
+    private static ChannelReader<MessageInfo> HeldInOrder(IReadOnlyList<MessageInfo> targets, ILockedMessages? locked)
     {
         var held = Channel.CreateUnbounded<MessageInfo>();
         foreach (var m in targets.OrderBy(m => m.SequenceNumber).Where(m => locked?.IsHeld(m.SequenceNumber) ?? true))
             held.Writer.TryWrite(m);
         held.Writer.Complete();
-        return PipelineAsync(op, targets, held.Reader, locked, notHeldReason, lockStep: null);
+        return held.Reader;
     }
 
-    private async Task RetryPeekedAsync(OperationProgress op, IReadOnlyList<MessageInfo> targets)
+    private async Task LockFirstAsync(OperationProgress op, IReadOnlyList<MessageInfo> targets, Func<RetryRun, ILockedMessages, OperationStep, Task> pipeline)
     {
         // Scanning releases the messages it passes, which bumps their delivery count. Only the dead-letter
         // queue can afford that: in an active queue it would dead-letter unrelated messages.
@@ -177,61 +196,30 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
         var lockStep = op.Steps[0];
         lockStep.State = StepState.Running;
         Changed?.Invoke();
-        await using var locked = service.StartLocking(Source, [.. targets.Select(m => m.SequenceNumber)], op.Token);
-        await PipelineAsync(op, targets, locked.Held, locked, "not found in the dead-letter queue (gone, or locked elsewhere)", lockStep);
+        await using var locked = _service.StartLocking(Source, [.. targets.Select(m => m.SequenceNumber)], op.Token);
+        // The scan is done once its channel completes, even while later steps are still busy.
+        _ = locked.Held.Completion.ContinueWith(_ =>
+        {
+            lockStep.State = StepState.Done;
+            Changed?.Invoke();
+        }, TaskScheduler.Default);
+        var run = new RetryRun(targets, locked.Held, lockStep, "not found in the dead-letter queue (gone, or locked elsewhere)", Notify, op.Token);
+        await pipeline(run, locked, lockStep);
     }
 
     /// <summary>Send stage (chunks, in order, one at a time) feeding the complete stage (parallel).</summary>
-    private async Task PipelineAsync(OperationProgress op, IReadOnlyList<MessageInfo> targets, ChannelReader<MessageInfo> held, ILockedMessages? locked, string notHeldReason, OperationStep? lockStep)
+    private async Task PipelineAsync(OperationProgress op, RetryRun run, ILockedMessages? locked, OperationStep? lockStep)
     {
         var token = op.Token;
-        var steps = op.Steps;
-        var sendStep = steps[lockStep is null ? 0 : 1];
-        var completeStep = locked is null ? null : steps[lockStep is null ? 1 : 2];
-        var bySequence = targets.ToDictionary(m => m.SequenceNumber);
-        var failures = new ConcurrentQueue<Failure>();
-        var removed = new ConcurrentQueue<MessageInfo>();
-        var seen = new HashSet<long>();
-        var unseenReason = notHeldReason;
+        var sendStep = op.Steps[lockStep is null ? 0 : 1];
+        var completeStep = locked is null ? null : op.Steps[lockStep is null ? 1 : 2];
         var sent = Channel.CreateBounded<MessageInfo>(SendChunk * 2);
-        if (lockStep is not null)
-        {
-            // The scan is done once its channel completes, even while the send stage is still busy.
-            _ = held.Completion.ContinueWith(_ =>
-            {
-                lockStep.State = StepState.Done;
-                Changed?.Invoke();
-            }, TaskScheduler.Default);
-        }
 
         async Task SendStageAsync()
         {
-            var chunk = new List<MessageInfo>(SendChunk);
             try
             {
-                while (await held.WaitToReadAsync())
-                {
-                    while (chunk.Count < SendChunk && held.TryRead(out var message))
-                    {
-                        seen.Add(message.SequenceNumber);
-                        chunk.Add(bySequence[message.SequenceNumber]);
-                    }
-                    if (lockStep is not null) { lockStep.Report(seen.Count); Notify(lockStep); }
-                    if (token.IsCancellationRequested)
-                    {
-                        // Stop taking new messages; held ones are released when the locks are disposed.
-                        foreach (var m in chunk) failures.Enqueue(new(m, Failure.CancelledReason));
-                        unseenReason = Failure.CancelledReason;
-                        break;
-                    }
-                    await SendChunkAsync(chunk);
-                    chunk.Clear();
-                }
-            }
-            catch (Exception ex)
-            {
-                // The scan failed or was cancelled; whatever it did not lock is reported below.
-                unseenReason = token.IsCancellationRequested ? Failure.CancelledReason : $"not locked: {Describe(ex)}";
+                await run.ChunksAsync(SendChunk, SendChunkAsync);
             }
             finally
             {
@@ -239,14 +227,14 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
             }
         }
 
-        async Task SendChunkAsync(List<MessageInfo> chunk)
+        async Task SendChunkAsync(IReadOnlyList<MessageInfo> chunk)
         {
             sendStep.State = StepState.Running;
             var before = sendStep.Done;
             var count = 0;
             try
             {
-                await foreach (var n in service.SendCopiesAsync(Source, chunk, token))
+                await foreach (var n in _service.SendCopiesAsync(Source, chunk, token))
                 {
                     count = n;
                     sendStep.Report(before + n);
@@ -255,12 +243,11 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
             }
             catch (Exception ex)
             {
-                var reason = token.IsCancellationRequested ? Failure.CancelledReason : $"not sent: {Describe(ex)}";
-                foreach (var m in chunk.Skip(count)) failures.Enqueue(new(m, reason));
+                run.Fail(chunk.Skip(count), token.IsCancellationRequested ? Failure.CancelledReason : $"not sent: {Describe(ex)}");
             }
             foreach (var m in chunk.Take(count))
             {
-                if (completeStep is null) removed.Enqueue(m);
+                if (completeStep is null) run.Removed.Enqueue(m);
                 else await sent.Writer.WriteAsync(m);
             }
         }
@@ -274,11 +261,11 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
                 try
                 {
                     await locked.CompleteAsync(m, ct);
-                    removed.Enqueue(m);
+                    run.Removed.Enqueue(m);
                 }
                 catch (Exception ex)
                 {
-                    failures.Enqueue(new(m, $"sent, but original not completed: {Describe(ex)}"));
+                    run.Fail([m], $"sent, but original not completed: {Describe(ex)}");
                 }
                 completeStep.Increment();
                 Notify(completeStep);
@@ -286,11 +273,89 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
         }
 
         await Task.WhenAll(SendStageAsync(), CompleteStageAsync());
+        Conclude(op, run);
+    }
 
-        foreach (var m in targets.Where(m => !seen.Contains(m.SequenceNumber)))
-            failures.Enqueue(new(m, unseenReason));
-        foreach (var step in steps) step.State = StepState.Done;
-        Finish(op, "Retried", targets, [.. removed], [.. failures]);
+    /// <summary>Chunks, in order, one at a time, each in one transaction; a failed chunk stays where it was, still held.</summary>
+    private async Task MoveAsync(OperationProgress op, RetryRun run, ITransactionService tx, ILockedMessages locked, OperationStep? lockStep)
+    {
+        var token = op.Token;
+        var moveStep = op.Steps[lockStep is null ? 0 : 1];
+        await run.ChunksAsync(Math.Min(SendChunk, tx.MaxMessages), async chunk =>
+        {
+            moveStep.State = StepState.Running;
+            try
+            {
+                await tx.MoveAsync(Source, locked, chunk, token);
+                foreach (var m in chunk) run.Removed.Enqueue(m);
+                moveStep.Report(moveStep.Done + chunk.Count);
+                Notify(moveStep);
+            }
+            catch (Exception ex)
+            {
+                run.Fail(chunk, token.IsCancellationRequested ? Failure.CancelledReason : $"not moved: {Describe(ex)}");
+            }
+        });
+        Conclude(op, run);
+    }
+
+    private void Conclude(OperationProgress op, RetryRun run)
+    {
+        run.FailUnseen();
+        foreach (var step in op.Steps) step.State = StepState.Done;
+        Finish(op, "Retried", run.Targets, [.. run.Removed], [.. run.Failures]);
+    }
+
+    /// <summary>What a retry pipeline has seen held, removed and failed.</summary>
+    private sealed class RetryRun(
+        IReadOnlyList<MessageInfo> targets, ChannelReader<MessageInfo> held, OperationStep? lockStep, string notHeldReason,
+        Action<OperationStep> notify, CancellationToken token)
+    {
+        private readonly Dictionary<long, MessageInfo> _bySequence = targets.ToDictionary(m => m.SequenceNumber);
+        private readonly HashSet<long> _seen = [];
+        private string _unseenReason = notHeldReason;
+
+        public IReadOnlyList<MessageInfo> Targets => targets;
+        public ConcurrentQueue<MessageInfo> Removed { get; } = [];
+        public ConcurrentQueue<Failure> Failures { get; } = [];
+
+        /// <summary>Hands held messages to <paramref name="handle"/> in order, in chunks of up to <paramref name="size"/>, each as soon as there are any.</summary>
+        public async Task ChunksAsync(int size, Func<IReadOnlyList<MessageInfo>, Task> handle)
+        {
+            try
+            {
+                while (await held.WaitToReadAsync())
+                {
+                    var chunk = new List<MessageInfo>(size);
+                    while (chunk.Count < size && held.TryRead(out var message))
+                    {
+                        _seen.Add(message.SequenceNumber);
+                        chunk.Add(_bySequence[message.SequenceNumber]);
+                    }
+                    if (lockStep is not null) { lockStep.Report(_seen.Count); notify(lockStep); }
+                    if (token.IsCancellationRequested)
+                    {
+                        // Stop taking new messages; held ones are released when the locks are disposed.
+                        Fail(chunk, Failure.CancelledReason);
+                        _unseenReason = Failure.CancelledReason;
+                        return;
+                    }
+                    await handle(chunk);
+                }
+            }
+            catch (Exception ex)
+            {
+                // The scan failed or was cancelled; whatever it did not lock is failed by FailUnseen.
+                _unseenReason = token.IsCancellationRequested ? Failure.CancelledReason : $"not locked: {Describe(ex)}";
+            }
+        }
+
+        public void Fail(IEnumerable<MessageInfo> messages, string reason)
+        {
+            foreach (var m in messages) Failures.Enqueue(new(m, reason));
+        }
+
+        public void FailUnseen() => Fail(targets.Where(m => !_seen.Contains(m.SequenceNumber)), _unseenReason);
     }
 
     /// <summary>Sends copies to the queue/topic and leaves the originals where they are.</summary>
@@ -311,7 +376,7 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
             var step = Start(op, 0);
             try
             {
-                await foreach (var n in service.PurgeAsync(Source, op.Token))
+                await foreach (var n in _service.PurgeAsync(Source, op.Token))
                 {
                     count = n;
                     step.Report(n);
@@ -360,7 +425,7 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
         var sent = 0;
         try
         {
-            await foreach (var n in service.SendCopiesAsync(Source, messages, token))
+            await foreach (var n in _service.SendCopiesAsync(Source, messages, token))
             {
                 sent = n;
                 step.Report(n);

@@ -21,7 +21,7 @@ internal static class EmulatorCounts
                     : client.CreateReceiver(entity, subscription, options);
                 return (await receiver.PeekMessagesAsync(MaxPeek, cancellationToken: ct)).Count;
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (ex is not (OperationCanceledException or ObjectDisposedException))
             {
                 logger.LogDebug("Peek {SubQueue} of {Entity}/{Subscription}: {Error}", subQueue, entity, subscription, ex.Message);
                 return 0;
@@ -31,7 +31,7 @@ internal static class EmulatorCounts
         return (await CountAsync(SubQueue.None), await CountAsync(SubQueue.DeadLetter));
     }
 
-    public static EmulatorNamespace Config() =>
+    public static EmulatorNamespaceDef Config() =>
         EmulatorConfigReader.TryLoad()
             ?? throw new InvalidOperationException("emulator/Config.json not found. Run from the project directory.");
 }

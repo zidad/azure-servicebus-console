@@ -171,11 +171,9 @@ public sealed class MetricsTests
     [Test]
     public async Task Caching_ShowsCachedMetricsInTheWindowFirst_ThenLive()
     {
-        var connection = new ServiceBusConnection();
-        connection.SetNamespace(AppHarness.AzureNamespace);
         var cache = NewCache();
         var live = new FakeMetricsService();
-        var service = new CachingMetricsService(live, connection, cache);
+        var service = new CachingMetricsService(live, AppHarness.AzureNamespace, cache);
         var scope = new MetricsScope.Entity("orders");
         var earlier = MetricsWindow.Last(TimeSpan.FromHours(24), Quarter, Now.AddHours(-1));
 
@@ -194,10 +192,8 @@ public sealed class MetricsTests
     [Test]
     public async Task Caching_SkipsCachedMetricsOlderThanTheWindow()
     {
-        var connection = new ServiceBusConnection();
-        connection.SetNamespace(AppHarness.AzureNamespace);
         var cache = NewCache();
-        var service = new CachingMetricsService(new FakeMetricsService(), connection, cache);
+        var service = new CachingMetricsService(new FakeMetricsService(), AppHarness.AzureNamespace, cache);
         var lastWeek = MetricsWindow.Last(TimeSpan.FromHours(24), Quarter, Now.AddDays(-7));
 
         await service.GetMetricsAsync(new MetricsScope.Namespace(), lastWeek, Ct).ToListAsync(Ct);
@@ -209,10 +205,8 @@ public sealed class MetricsTests
     [Test]
     public async Task Caching_KeepsEachSpanAndIntervalApart()
     {
-        var connection = new ServiceBusConnection();
-        connection.SetNamespace(AppHarness.AzureNamespace);
         var cache = NewCache();
-        var service = new CachingMetricsService(new FakeMetricsService(), connection, cache);
+        var service = new CachingMetricsService(new FakeMetricsService(), AppHarness.AzureNamespace, cache);
         var scope = new MetricsScope.Entity("orders");
         var halfHours = MetricsWindow.Last(TimeSpan.FromHours(24), TimeSpan.FromMinutes(30), Now);
         var week = MetricsWindow.Last(TimeSpan.FromDays(7), TimeSpan.FromHours(6), Now);

@@ -94,7 +94,7 @@ else
     private bool CanRetry => _browser is not null && Mode is { } mode && RetryText.CanRetry(mode, IsDlq);
 
     private string RetryConfirm(MessageInfo message) => Mode is { } mode && NavState.MessageSource is { } source
-        ? RetryText.Confirm(mode, source, $"message #{message.SequenceNumber}")
+        ? RetryText.Confirm(mode, source, $"message #{message.SequenceNumber}", _browser?.Namespace is IHasTransactions)
         : "";
 
     protected override void OnInitialized()

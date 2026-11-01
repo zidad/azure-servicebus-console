@@ -3,7 +3,7 @@
 
 <Panel BorderColor="@Theme.Border" FillWidth="true" Padding="@(new(0, 0, 0, 0))">
     <Columns>
-        @if (Connection.Namespace is { } ns)
+        @if (Connection.Current is { Info: var ns })
         {
             <div class="pick-subscription" @onclick="OpenSubscriptions"><Markup Content="@SubscriptionLabel" Foreground="@Theme.Muted" Decoration="@Decoration.Underline" /></div>
             <Markup Content=" › " Foreground="@Theme.Muted" />
@@ -24,7 +24,7 @@
 
     private string SubscriptionName => NavState.AzureSubscription?.Name ?? "";
 
-    private string SubscriptionIcon => Connection.IsEmulator ? Icons.Emulator : Icons.AzureSubscription;
+    private string SubscriptionIcon => NavState.AzureSubscription?.IsEmulator == true ? Icons.Emulator : Icons.AzureSubscription;
 
     private string SubscriptionLabel => $"{SubscriptionIcon} {SubscriptionName}";
 

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Threading.Channels;
+using System.Transactions;
 using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Logging;
 
@@ -126,6 +127,37 @@ internal sealed class LockedMessages : ILockedMessages
 
     public Task DeadLetterAsync(MessageInfo message, string reason, CancellationToken ct = default) =>
         SettleAsync(message, m => _receiver.DeadLetterMessageAsync(m, reason, cancellationToken: ct));
+
+    /// <summary>
+    /// Runs <paramref name="first"/> and completes these held messages in one transaction: all of it commits, or none of
+    /// it does and the messages stay held. A lost lock throws <see cref="MessageLockLostException"/>.
+    /// </summary>
+    public async Task CompleteInTransactionAsync(IReadOnlyList<MessageInfo> messages, Func<CancellationToken, Task> first, CancellationToken ct)
+    {
+        var held = messages.Select(m => _held.TryGetValue(m.SequenceNumber, out var h)
+            ? h.Message
+            : throw new InvalidOperationException($"Message #{m.SequenceNumber} is no longer locked")).ToList();
+        using (var scope = new TransactionScope(TransactionScopeOption.RequiresNew, TransactionScopeAsyncFlowOption.Enabled))
+        {
+            await first(ct);
+            await Parallel.ForEachAsync(held, new ParallelOptions { MaxDegreeOfParallelism = 16, CancellationToken = ct }, CompleteInScopeAsync);
+            scope.Complete();
+        }
+        foreach (var m in messages) _held.TryRemove(m.SequenceNumber, out _);
+    }
+
+    private async ValueTask CompleteInScopeAsync(ServiceBusReceivedMessage message, CancellationToken ct)
+    {
+        try
+        {
+            await _receiver.CompleteMessageAsync(message, ct);
+        }
+        catch (ServiceBusException ex) when (ex.Reason == ServiceBusFailureReason.MessageLockLost)
+        {
+            _held.TryRemove(message.SequenceNumber, out _);
+            throw new MessageLockLostException(message.SequenceNumber, ex);
+        }
+    }
 
     private async Task SettleAsync(MessageInfo message, Func<ServiceBusReceivedMessage, Task> settle)
     {

@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ServiceBusConsole.Tests;
@@ -11,7 +12,7 @@ public sealed class LiveListTests
         var seenAtChanged = new List<int>();
         Exception? failure = null;
 
-        async IAsyncEnumerable<string> CachedThenFirewall(CancellationToken ct)
+        async IAsyncEnumerable<string> CachedThenFirewall([EnumeratorCancellation] CancellationToken ct)
         {
             foreach (var name in new[] { "audit", "billing", "orders" })
             {

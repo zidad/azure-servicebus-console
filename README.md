@@ -48,6 +48,7 @@ azsb help                                                            # all flags
 - Starts in the Azure CLI's current subscription, or in the subscription and namespace given on the [command line](#command-line)
 - Namespace details (resource group, location, SKU, status) on the connection page
 - Switch subscription, namespace or section (Queues, Topics, All Subscriptions) from dropdowns in the header
+- Offers what the namespace supports: Basic tier namespaces have no topics, so their Topics and All Subscriptions sections are hidden; the local emulator can't delete entities, so its lists have no Delete
 - Queues, topics and subscriptions with live message counts (active, DLQ, scheduled, transfer): everything loads from a local cache first, then polls every 15 seconds; changed counts flash briefly. When the live listing fails, the cached rows stay
 - Sort any list by clicking a column header (ascending, descending, off); the default sort shows in the header (DLQ for queues and all subscriptions, name for a topic's subscriptions)
 - Filter queues, topics, subscriptions and Azure subscriptions by typing
@@ -57,7 +58,7 @@ azsb help                                                            # all flags
 - Locked messages: complete, abandon, dead-letter or requeue; locks renew automatically and are released when you leave
 - Split message browser: the list on top, a preview of the message under the cursor below (properties left, JSON-highlighted body right); `Enter` opens it full screen
 - Dead-letter queue browsing per queue and per subscription; requeue dead-lettered messages to their origin
-- Delete queues, topics or subscriptions; purge (dead-letter) queues
+- Delete queues, topics or subscriptions (Azure namespaces); purge (dead-letter) queues
 - Metrics panel: Azure Monitor charts of throughput and backlog for the selected namespace, queue or topic, over 1 hour to 30 days; see [Metrics](#metrics)
 - A namespace firewall that blocks your IP is explained in one line instead of a raw 401 response
 - The connection page shows the cache's path and a button to clear it
@@ -133,8 +134,8 @@ azsb help                                                            # all flags
 | Type / `Backspace` | Filter Azure subscriptions by name or ID (in the subscription list) |
 | `Enter` | Subscriptions: go to namespaces; namespaces: open queues |
 | `F1` | Open the queue list |
-| `F2` | Open the topic list |
-| `F3` | Open the all-subscriptions list |
+| `F2` | Open the topic list *(not on Basic tier)* |
+| `F3` | Open the all-subscriptions list *(not on Basic tier)* |
 
 ### Queue list / Topic list / Subscription list
 
@@ -145,7 +146,7 @@ azsb help                                                            # all flags
 | `↑` / `↓` | Scroll list |
 | `Enter` | Open selected item |
 | `F5` | Refresh (also the metrics charts) |
-| `F9` / `Del` | Delete focused item |
+| `F9` / `Del` | Delete focused item *(not on the local emulator)* |
 | `F11` | Purge the focused queue's or subscription's dead-letter queue |
 
 ### Metrics panel
@@ -221,14 +222,14 @@ Logs are written to `logs/session-<timestamp>.log` next to the app's binaries (`
 docker compose up -d
 ```
 
-Starts the [Service Bus emulator](https://learn.microsoft.com/azure/service-bus-messaging/overview-emulator) on `localhost:5672` with the queues and topics of `emulator/Config.json`, and seeds them with sample messages. The emulator has no management API: the app reads its entities from `emulator/Config.json` in the current directory, so run it from the repository root, and counts come from peeking (up to 1,000 messages).
+Starts the [Service Bus emulator](https://learn.microsoft.com/azure/service-bus-messaging/overview-emulator) on `localhost:5672` with the queues and topics of `emulator/Config.json`, and seeds them with sample messages. The emulator has no management API: the app reads its entities from `emulator/Config.json` in the current directory, so run it from the repository root, and counts come from peeking (up to 1,000 messages). Without a management API it can't delete entities either, so Delete is hidden there.
 
 ## How message operations work
 
 The browser follows the Service Bus Explorer in the Azure portal:
 
 - **Peek** is read-only.
-- **Retry** (dead-letter queue): peek, select the messages to retry, press `F10`. The selected messages are locked, sent to the origin queue (or the topic, for subscriptions: every subscription gets a copy) in order, then removed from the dead-letter queue. Service Bus can only lock from the front of a queue, so dead-lettered messages ahead of them are locked briefly and released; their delivery count goes up by one and they stay in the dead-letter queue. Already locked or received messages are retried the same way, without the extra lock step.
+- **Retry** (dead-letter queue): peek, select the messages to retry, press `F10`. The selected messages are locked, sent to the origin queue (or the topic, for subscriptions: every subscription gets a copy) in order, then removed from the dead-letter queue. Service Bus can only lock from the front of a queue, so dead-lettered messages ahead of them are locked briefly and released; their delivery count goes up by one and they stay in the dead-letter queue. Already locked or received messages are retried the same way, without the extra lock step. On Standard and Premium namespaces each chunk of up to 100 messages moves in one transaction: the copies are sent and the originals completed together, or not at all, so a failure (or `Esc`) leaves the chunk in the dead-letter queue instead of duplicating it. Basic tier namespaces and the local emulator have no transactions: there a failure between sending and completing can leave a copy in the queue while the original stays dead-lettered.
 - **Receive (PeekLock)** locks the messages on a receiver that stays open. Locks are renewed in the background and abandoned when you leave the page or load something else, so messages come back right away instead of after lock expiry.
 - **Receive (ReceiveAndDelete)** removes messages immediately; requeue them before leaving or they are gone.
 - **Resend** (active queue, peeked) sends copies; the originals stay.

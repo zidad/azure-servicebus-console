@@ -13,8 +13,8 @@
         <Panel Title="@Title" BorderColor="@Theme.Accent" Padding="@(new(0, 0, 0, 0))">
             @if (_mode == PickerMode.Sections)
             {
-                <SelectableList Items="@Section.All"
-                            PageSize="@Section.All.Count"
+                <SelectableList Items="@_sections"
+                            PageSize="@_sections.Count"
                             SelectedIndex="@_index"
                             SelectedIndexChanged="@(i => _index = i)"
                             ActivateOnClick="true"
@@ -96,6 +96,7 @@
     private enum PickerMode { Closed, Sections, Subscriptions, Namespaces }
 
     private PickerMode _mode;
+    private IReadOnlyList<Section> _sections = [];
     private int _left;
     private int _top;
     private int _index;
@@ -158,14 +159,15 @@
         Open(left, top);
         _cts.Cancel();
         _mode = PickerMode.Sections;
+        _sections = Section.Of(Connection.Current);
         var root = SectionRoot();
-        _index = Math.Max(0, Section.All.ToList().FindIndex(s => s.Route == root));
+        _index = Math.Max(0, _sections.ToList().FindIndex(s => s.Route == root));
         StateHasChanged();
     }
 
     private void PickSection()
     {
-        var section = Section.All[_index];
+        var section = _sections[_index];
         var onIt = "/" + Nav.ToBaseRelativePath(Nav.Uri) == section.Route;
         _returnFocusKey = onIt ? _returnFocusKey : null;
         Close();
@@ -259,8 +261,10 @@
         // The store keys browsers by queue name only; a same-named queue elsewhere must not reuse its locks.
         await Store.CloseAsync();
         NavState.AzureSubscription = subscription;
-        var section = SectionRoot();
+        var root = SectionRoot();
         Connection.SetNamespace(ns);
+        // The new namespace may lack the section, e.g. a Basic tier one has no topics.
+        var section = Section.Of(Connection.Current).FirstOrDefault(s => s.Route == root)?.Route ?? Section.Queues.Route;
         if (Nav.ToBaseRelativePath(Nav.Uri) == section.TrimStart('/')) NavState.Reload();
         else Nav.NavigateTo(section);
     }

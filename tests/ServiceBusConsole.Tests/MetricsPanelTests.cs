@@ -295,13 +295,13 @@ public sealed class MetricsPanelTests
         await AppHarness.WaitForTableFocusAsync(terminal);
         var emulator = await terminal.WaitUntilAsync(
             f => f.ContainsText(AppHarness.AzureSubscription.Name) && !f.ContainsText("Listing Azure subscriptions")
-                && f.ContainsText("aren't available for the local emulator"),
+                && f.ContainsText("aren't available for localhost"),
             AppHarness.Timeout, cancellationToken: Ct);
 
         await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
         var azure = await terminal.WaitUntilAsync(f => ChartsShown(f, "🌐 namespace sb-orders-dev"), AppHarness.Timeout, cancellationToken: Ct);
         await terminal.SendKeyAsync(ConsoleKey.UpArrow, '\0', cancellationToken: Ct);
-        await terminal.WaitUntilAsync(f => f.ContainsText("aren't available for the local emulator"), AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => f.ContainsText("aren't available for localhost"), AppHarness.Timeout, cancellationToken: Ct);
 
         azure.ContainsText("Work In Progress").ShouldBeTrue(azure.ScreenText);
         app.Metrics.Requested.ShouldBe([new MetricsScope.Namespace()]);
@@ -309,7 +309,7 @@ public sealed class MetricsPanelTests
         choosing.ShouldContain(azure);
         choosing.Select(f => (LineOf(f, "🧪 Local Emulator"), LineOf(f, AppHarness.AzureSubscription.Name))).Distinct().ShouldHaveSingleItem();
         choosing.Where(f => f.ContainsText("│ Namespace")).Select(f => LineOf(f, "│ Namespace")).Distinct().ShouldHaveSingleItem();
-        LineOf(azure, "🌐 namespace sb-orders-dev").ShouldBe(LineOf(emulator, "aren't available for the local emulator"));
+        LineOf(azure, "🌐 namespace sb-orders-dev").ShouldBe(LineOf(emulator, "aren't available for localhost"));
         LineOf(azure, "🌐 namespace sb-orders-dev").ShouldBeGreaterThan(LineOf(azure, "[F1] 📬 Queues") + 1);
     }
 

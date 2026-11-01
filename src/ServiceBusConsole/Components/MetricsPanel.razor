@@ -1,13 +1,11 @@
 @implements IDisposable
-@inject IMetricsService MetricsService
-@inject ServiceBusConnection Connection
 @inject ITerminalViewport Viewport
 @inject MetricsOptions Options
 @inject MetricsRange Range
 @inject ILogger<MetricsPanel> Logger
 
 <Flex Direction="FlexDirection.Column" Height="@FullscreenLayout.MetricsPanel" FillWidth="true">
-    @if (Scope is null)
+    @if (Metrics is null || Scope is null)
     {
         @if (Placeholder is { } placeholder)
         {
@@ -73,17 +71,20 @@
 
 @code {
     /// <summary>
-    /// Azure Monitor charts of <see cref="Scope"/> in the current namespace over <see cref="MetricsRange"/>: throughput
+    /// Azure Monitor charts of <see cref="Scope"/> from <see cref="Metrics"/> over <see cref="MetricsRange"/>: throughput
     /// on the left, backlog on the right, one point per plot column at most. Loads once the scope has stayed the same
     /// for <see cref="MetricsOptions.Debounce"/>, cached first; a failure shows as a line in the panel. Always
     /// <see cref="FullscreenLayout.MetricsPanel"/> lines, whatever it shows.
     /// </summary>
     [Parameter, EditorRequired] public required string Label { get; set; }
 
+    /// <summary>Of the namespace charted; null when it has none, so the <see cref="Placeholder"/> shows.</summary>
+    [Parameter] public IMetricsService? Metrics { get; set; }
+
     /// <summary>Null while nothing is selected.</summary>
     [Parameter] public MetricsScope? Scope { get; set; }
 
-    /// <summary>Shown while <see cref="Scope"/> is null.</summary>
+    /// <summary>Shown while <see cref="Metrics"/> or <see cref="Scope"/> is null.</summary>
     [Parameter] public string? Placeholder { get; set; }
 
     /// <summary>Of the [-] and [+] buttons.</summary>
@@ -100,7 +101,7 @@
     // "── active ── dead-lettered" and " [-] last 24 h [+]", a space apart.
     private const int FullBacklogLegendWidth = 26 + 1 + 19;
 
-    private (NamespaceInfo? Namespace, MetricsScope? Scope, TimeSpan Span, TimeSpan Interval) _target;
+    private (IMetricsService? Metrics, MetricsScope? Scope, TimeSpan Span, TimeSpan Interval) _target;
     private CancellationTokenSource? _cts;
     private MessageMetrics? _metrics;
     private string? _error;
@@ -115,7 +116,7 @@
     /// <summary>Loads again, e.g. on F5; the charts stay until the new metrics arrive.</summary>
     public void Reload()
     {
-        if (_target.Scope is null) return;
+        if (_target is not ({ }, { }, _, _)) return;
         _metrics = _metrics is { } shown ? shown with { IsRefreshing = true } : null;
         Load(Options.Debounce);
         StateHasChanged();
@@ -127,7 +128,7 @@
     /// </summary>
     public bool StepRange(int steps)
     {
-        if (_target.Scope is null) return false;
+        if (_target is not ({ }, { }, _, _)) return false;
         _ = Range.StepAsync(steps);
         Retarget();
         StateHasChanged();
@@ -140,12 +141,11 @@
         _target = default;
     }
 
-    // The namespace record changes when its live listing replaces a cached one without a resource ID.
     private void Retarget()
     {
-        var target = (Connection.Namespace, Scope, Range.Span, MetricsChart.Interval(Range.Span, MetricsChart.PlotColumns(ChartWidth)));
+        var target = (Metrics, Scope, Range.Span, MetricsChart.Interval(Range.Span, MetricsChart.PlotColumns(ChartWidth)));
         if (target == _target) return;
-        var sameScope = (target.Namespace, target.Scope) == (_target.Namespace, _target.Scope);
+        var sameScope = (target.Metrics, target.Scope) == (_target.Metrics, _target.Scope);
         _target = target;
         if (sameScope)
         {
@@ -163,7 +163,7 @@
     {
         Cancel();
         _error = null;
-        if (_target is (_, { } scope, var span, var interval)) _ = LoadAsync(scope, span, interval, delay, (_cts = new()).Token);
+        if (_target is ({ } metrics, { } scope, var span, var interval)) _ = LoadAsync(metrics, scope, span, interval, delay, (_cts = new()).Token);
     }
 
     private void Cancel()
@@ -173,14 +173,14 @@
         _cts = null;
     }
 
-    private async Task LoadAsync(MetricsScope scope, TimeSpan span, TimeSpan interval, TimeSpan delay, CancellationToken ct)
+    private async Task LoadAsync(IMetricsService metrics, MetricsScope scope, TimeSpan span, TimeSpan interval, TimeSpan delay, CancellationToken ct)
     {
         try
         {
             await Task.Delay(delay, ct);
             var window = MetricsWindow.Last(span, interval, DateTimeOffset.UtcNow);
-            await foreach (var metrics in MetricsService.GetMetricsAsync(scope, window, ct))
-                await InvokeAsync(() => Show(ct, metrics, null));
+            await foreach (var loaded in metrics.GetMetricsAsync(scope, window, ct))
+                await InvokeAsync(() => Show(ct, loaded, null));
         }
         catch (Exception) when (ct.IsCancellationRequested) { }
         catch (Exception ex)

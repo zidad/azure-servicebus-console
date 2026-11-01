@@ -6,12 +6,10 @@ using Microsoft.Extensions.Logging;
 
 namespace ServiceBusConsole.AzureServiceBus;
 
-internal sealed class MetricsService(ServiceBusConnection connection, ArmClient armClient, ILogger<MetricsService> logger) : IMetricsService
+internal sealed class MetricsService(NamespaceInfo ns, ArmClient armClient, ILogger<MetricsService> logger) : IMetricsService
 {
     public async IAsyncEnumerable<MessageMetrics> GetMetricsAsync(MetricsScope scope, MetricsWindow window, [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var ns = connection.Namespace ?? throw new InvalidOperationException("No namespace selected.");
-        if (connection.IsEmulator) throw new NotSupportedException("The local emulator has no Azure Monitor metrics.");
         var resource = new ResourceIdentifier(ns.ResourceId
             ?? throw new InvalidOperationException("Resource ID of the namespace unknown; reopen it from the connection page."));
 

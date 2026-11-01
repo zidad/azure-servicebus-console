@@ -1,33 +1,13 @@
 namespace ServiceBusConsole.Services.Caching;
 
-public sealed class CachingTopicService(ITopicService inner, ServiceBusConnection connection, FileCache cache) : ITopicService
+public sealed class CachingTopicService(ITopicService inner, NamespaceInfo ns, FileCache cache) : ITopicService
 {
-    private string TopicsKey => $"{connection.CurrentNamespace}/topics.json";
-    private string AllSubscriptionsKey => $"{connection.CurrentNamespace}/all-subscriptions.json";
-    private string SubscriptionsKey(string topicName) => $"{connection.CurrentNamespace}/topics/{topicName}/subscriptions.json";
-
     public IAsyncEnumerable<TopicInfo> GetTopicsAsync(CancellationToken ct = default) =>
-        cache.CachedThenLiveAsync(TopicsKey, () => inner.GetTopicsAsync(ct), t => t with { IsRefreshing = true }, ct);
+        cache.CachedThenLiveAsync(CacheKeys.Topics(ns), () => inner.GetTopicsAsync(ct), t => t with { IsRefreshing = true }, ct);
 
     public IAsyncEnumerable<SubscriptionInfo> GetSubscriptionsAsync(string topicName, CancellationToken ct = default) =>
-        cache.CachedThenLiveAsync(SubscriptionsKey(topicName), () => inner.GetSubscriptionsAsync(topicName, ct), s => s with { IsRefreshing = true }, ct);
+        cache.CachedThenLiveAsync(CacheKeys.Subscriptions(ns, topicName), () => inner.GetSubscriptionsAsync(topicName, ct), s => s with { IsRefreshing = true }, ct);
 
     public IAsyncEnumerable<SubscriptionInfo> GetAllSubscriptionsAsync(CancellationToken ct = default) =>
-        cache.CachedThenLiveAsync(AllSubscriptionsKey, () => inner.GetAllSubscriptionsAsync(ct), s => s with { IsRefreshing = true }, ct);
-
-    public async Task DeleteTopicAsync(string topicName, CancellationToken ct = default)
-    {
-        await inner.DeleteTopicAsync(topicName, ct);
-        await cache.RemoveAsync<TopicInfo>(TopicsKey, t => t.Name.Equals(topicName, StringComparison.OrdinalIgnoreCase));
-    }
-
-    public async Task DeleteSubscriptionAsync(string topicName, string subscriptionName, CancellationToken ct = default)
-    {
-        await inner.DeleteSubscriptionAsync(topicName, subscriptionName, ct);
-        await cache.RemoveAsync<SubscriptionInfo>(SubscriptionsKey(topicName),
-            s => s.Name.Equals(subscriptionName, StringComparison.OrdinalIgnoreCase));
-        await cache.RemoveAsync<SubscriptionInfo>(AllSubscriptionsKey,
-            s => s.TopicName.Equals(topicName, StringComparison.OrdinalIgnoreCase)
-                 && s.Name.Equals(subscriptionName, StringComparison.OrdinalIgnoreCase));
-    }
+        cache.CachedThenLiveAsync(CacheKeys.AllSubscriptions(ns), () => inner.GetAllSubscriptionsAsync(ct), s => s with { IsRefreshing = true }, ct);
 }

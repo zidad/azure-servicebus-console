@@ -1,3 +1,4 @@
+using System.Transactions;
 using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -64,6 +65,57 @@ public sealed class LockedMessagesTests
         await locked.DisposeAsync();
     }
 
+    [Test]
+    public async Task CompleteInTransaction_CompletesInsideOneTransaction_AfterTheFirstStep_ThenReleases()
+    {
+        var receiver = new FakeReceiver(count: 40, batchSize: 40);
+        var locked = LockedMessages.StartReceive(receiver, 40, NullLogger.Instance, Ct);
+        var messages = await locked.Held.ReadAllAsync(Ct).ToListAsync(Ct);
+        string? firstIn = null;
+
+        await locked.CompleteInTransactionAsync(messages, _ =>
+        {
+            firstIn = Transaction.Current?.TransactionInformation.LocalIdentifier;
+            return Task.CompletedTask;
+        }, Ct);
+
+        firstIn.ShouldNotBeNull();
+        receiver.CompletedIn.Select(c => c.Transaction).Distinct().ShouldBe([firstIn]);
+        receiver.CompletedIn.Select(c => c.SequenceNumber).Order().ShouldBe(messages.Select(m => m.SequenceNumber));
+        messages.ShouldAllBe(m => !locked.IsHeld(m.SequenceNumber));
+        await locked.DisposeAsync();
+        receiver.Abandoned.ShouldBeEmpty();
+    }
+
+    [Test]
+    public async Task CompleteInTransaction_AFailedFirstStep_KeepsTheMessagesHeld()
+    {
+        var receiver = new FakeReceiver(count: 3, batchSize: 3);
+        var locked = LockedMessages.StartReceive(receiver, 3, NullLogger.Instance, Ct);
+        var messages = await locked.Held.ReadAllAsync(Ct).ToListAsync(Ct);
+
+        await Should.ThrowAsync<InvalidOperationException>(() =>
+            locked.CompleteInTransactionAsync(messages, _ => throw new InvalidOperationException("send failed"), Ct));
+
+        receiver.CompletedIn.ShouldBeEmpty();
+        messages.ShouldAllBe(m => locked.IsHeld(m.SequenceNumber));
+        await locked.DisposeAsync();
+        receiver.Abandoned.Order().ShouldBe([1L, 2L, 3L]);
+    }
+
+    [Test]
+    public async Task CompleteInTransaction_ALostLock_Throws()
+    {
+        var receiver = new FakeReceiver(count: 1, batchSize: 1) { LocksLost = true };
+        var locked = LockedMessages.StartReceive(receiver, 1, NullLogger.Instance, Ct);
+        var message = await locked.Held.ReadAsync(Ct);
+
+        await Should.ThrowAsync<MessageLockLostException>(() => locked.CompleteInTransactionAsync([message], _ => Task.CompletedTask, Ct));
+
+        locked.IsHeld(message.SequenceNumber).ShouldBeFalse();
+        await locked.DisposeAsync();
+    }
+
     private static async Task<(LockedMessages Locked, List<long> Found)> ScanAsync(FakeReceiver receiver, long[] wanted, int maxScan)
     {
         var locked = LockedMessages.StartScan(receiver, wanted, maxScan, NullLogger.Instance, Ct);
@@ -107,8 +159,15 @@ public sealed class LockedMessagesTests
         public override Task RenewMessageLockAsync(ServiceBusReceivedMessage message, CancellationToken cancellationToken = default) =>
             LocksLost ? throw LockLost() : Task.CompletedTask;
 
-        public override Task CompleteMessageAsync(ServiceBusReceivedMessage message, CancellationToken cancellationToken = default) =>
-            LocksLost ? throw LockLost() : Task.CompletedTask;
+        /// <summary>Each completed message, with the local id of the transaction it was completed in.</summary>
+        public System.Collections.Concurrent.ConcurrentBag<(long SequenceNumber, string? Transaction)> CompletedIn { get; } = [];
+
+        public override Task CompleteMessageAsync(ServiceBusReceivedMessage message, CancellationToken cancellationToken = default)
+        {
+            if (LocksLost) throw LockLost();
+            CompletedIn.Add((message.SequenceNumber, Transaction.Current?.TransactionInformation.LocalIdentifier));
+            return Task.CompletedTask;
+        }
 
         public override ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
