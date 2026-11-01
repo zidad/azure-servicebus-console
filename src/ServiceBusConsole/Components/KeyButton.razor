@@ -7,7 +7,7 @@
      @key="FocusKey"
      data-focus-key="@FocusKey">
     <Markup Content="@Content" Background="@(_focused ? FocusedColor : Hovered ? HoverColor : BackgroundColor)"
-            Foreground="@(Hovered && !_focused ? HoverForegroundColor : Color.Default)" />
+            Foreground="@(Hovered && !_focused ? HoverForegroundColor : ForegroundColor)" />
 </div>
 
 @code {
@@ -21,6 +21,7 @@
     [Parameter] public int? FocusOrder { get; set; }
     [Parameter] public Color FocusedColor { get; set; } = Color.DeepSkyBlue1;
     [Parameter] public Color BackgroundColor { get; set; } = Color.Default;
+    [Parameter] public Color ForegroundColor { get; set; } = Color.Default;
     [Parameter] public Color HoverColor { get; set; } = Color.Grey70;
     [Parameter] public Color HoverForegroundColor { get; set; } = Color.Black;
 

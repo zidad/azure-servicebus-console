@@ -12,6 +12,14 @@ public sealed class FakeNamespaceService : INamespaceService
     /// <summary>When set, the listing waits on it after the last subscription, like a slow live refresh.</summary>
     public TaskCompletionSource? HoldListing { get; set; }
 
+    /// <summary>When set, namespace listings wait on it after the last namespace, like a slow live refresh.</summary>
+    public TaskCompletionSource? HoldNamespaces { get; set; }
+
+    /// <summary>The Azure CLI's current subscription; null like a machine without a profile.</summary>
+    public string? CurrentSubscriptionId { get; set; }
+
+    public Task<string?> GetCurrentSubscriptionIdAsync(CancellationToken ct = default) => Task.FromResult(CurrentSubscriptionId);
+
     /// <summary>Subscription IDs that report no Service Bus namespaces.</summary>
     public HashSet<string> WithoutNamespaces { get; } = [];
 
@@ -40,6 +48,7 @@ public sealed class FakeNamespaceService : INamespaceService
             await Task.Yield();
             yield return ns;
         }
+        if (HoldNamespaces is { } hold) await hold.Task.WaitAsync(ct);
     }
 }
 
@@ -47,21 +56,29 @@ public sealed class FakeMetricsService : IMetricsService
 {
     /// <summary>Every scope loaded, in order.</summary>
     public System.Collections.Concurrent.ConcurrentQueue<MetricsScope> Requested { get; } = [];
+
+    /// <summary>The window of each load, in order.</summary>
+    public System.Collections.Concurrent.ConcurrentQueue<MetricsWindow> Windows { get; } = [];
     public Exception? LoadError { get; set; }
 
     public async IAsyncEnumerable<MessageMetrics> GetMetricsAsync(MetricsScope scope, MetricsWindow window, [EnumeratorCancellation] CancellationToken ct = default)
     {
         Requested.Enqueue(scope);
+        Windows.Enqueue(window);
         await Task.Yield();
         if (LoadError is not null) throw LoadError;
         yield return Sample(window, scope.Match(_ => 12, e => 1 + e.Name.Length % 4));
     }
 
-    /// <summary>A day of traffic: a busy daytime, a backlog that builds while consumers lag, then drains, and a few dead letters.</summary>
+    /// <summary>
+    /// Traffic over 96 steps, whatever the window's intervals: a busy daytime, a backlog that builds while consumers lag,
+    /// then drains, and a few dead letters.
+    /// </summary>
     public static MessageMetrics Sample(MetricsWindow window, double scale)
     {
         var starts = window.IntervalStarts().ToList();
-        List<MetricPoint> Series(Func<int, double> value) => [.. starts.Select((t, i) => new MetricPoint(t, Math.Round(Math.Max(0, value(i)) * scale)))];
+        List<MetricPoint> Series(Func<int, double> value) =>
+            [.. starts.Select((t, i) => new MetricPoint(t, Math.Round(Math.Max(0, value(i * 96 / starts.Count)) * scale)))];
         static double Day(int i) => 20 + 140 * Math.Max(0, Math.Sin(Math.PI * (i - 20) / 56));
         return new()
         {
@@ -82,6 +99,9 @@ public sealed class FakeQueueService : IQueueService
 
     public int Loads { get; private set; }
 
+    /// <summary>When set, listings wait on it before the first queue, like a slow namespace.</summary>
+    public TaskCompletionSource? HoldLoads { get; set; }
+
     /// <summary>Changes a queue while a page may be polling.</summary>
     public void Update(string name, Func<QueueInfo, QueueInfo> change)
     {
@@ -97,6 +117,7 @@ public sealed class FakeQueueService : IQueueService
     {
         Loads++;
         await Task.Yield();
+        if (HoldLoads is { } hold) await hold.Task.WaitAsync(ct);
         if (LoadError is not null) throw LoadError;
         List<QueueInfo> queues;
         lock (Queues) queues = [.. Queues];

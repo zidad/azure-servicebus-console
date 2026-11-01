@@ -76,7 +76,7 @@
     <Footer>
         @if (ShowMetrics)
         {
-            <MetricsPanel @ref="_metricsPanel" Label="@($"{Icons.Topic} topic {_focusedItem?.TopicName}")" Scope="@(_focusedItem is { } s ? new MetricsScope.Entity(s.TopicName) : null)" />
+            <MetricsPanel @ref="_metricsPanel" Label="@($"{Icons.Topic} topic {_focusedItem?.TopicName}")" Scope="@(_focusedItem is { } s ? new MetricsScope.Entity(s.TopicName) : null)" OnKeyDown="@HandleKeyDown" />
         }
         <Padder Padding="@(new(1, 0, 0, 0))">
             <Columns>
@@ -221,6 +221,7 @@
         if (e.CtrlKey || e.AltKey || e.MetaKey) return;
         if (_deleteSub?.HandleKey(e) == true) return;
         if (_purgeDlq?.HandleKey(e) == true) return;
+        if (MetricsRange.StepOf(e, _filter) is { } step && _metricsPanel?.StepRange(step) == true) return;
         switch (e.Key)
         {
             case "Escape": Nav.NavigateTo("/"); return;

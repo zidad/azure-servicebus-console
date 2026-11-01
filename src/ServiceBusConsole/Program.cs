@@ -9,7 +9,7 @@ var logFile = Path.Combine(
     Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "logs")).FullName,
     $"session-{DateTime.Now:yyyyMMdd-HHmmss}.log");
 
-var host = Host.CreateDefaultBuilder(args)
+var builder = Host.CreateDefaultBuilder(args)
     .UseRazorConsole<App>()
     .ConfigureLogging(logging => logging
         .ClearProviders()
@@ -27,6 +27,7 @@ var host = Host.CreateDefaultBuilder(args)
         .AddSingleton<LiveCountsOptions>()
         .AddSingleton<MetricsOptions>()
         .AddSingleton<MetricsVisibility>()
+        .AddSingleton<MetricsRange>()
         .AddSyntaxLanguages()
         .Decorate<INamespaceService, CachingNamespaceService>()
         .Decorate<IQueueService, CachingQueueService>()
@@ -36,8 +37,6 @@ var host = Host.CreateDefaultBuilder(args)
         {
             options.AutoClearConsole = true;
             options.ConsoleLiveDisplayOptions.EnableMouseEvents = true;
-        }))
-    .Build();
+        }));
 
-await host.Services.GetRequiredService<MetricsVisibility>().LoadAsync();
-await host.RunAsync();
+return await AppCommands.ExecuteAsync(builder, args);

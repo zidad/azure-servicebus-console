@@ -25,7 +25,6 @@ public sealed class Screenshots
         await terminal.WaitForTextAsync("Contoso Development", AppHarness.Timeout, Ct);
         await Key(terminal, ConsoleKey.DownArrow);
         await terminal.WaitForTextAsync("sb-orders-dev", AppHarness.Timeout, Ct);
-        await WaitForChartsAsync(terminal, "🌐 namespace sb-orders-dev");
         await Save(terminal, dir, "connection");
 
         var connectionFocus = terminal.FocusKey;
@@ -127,6 +126,36 @@ public sealed class Screenshots
         await terminal.WaitForTextAsync("All Subscriptions (5)", AppHarness.Timeout, Ct);
         await WaitForChartsAsync(terminal, "📢 topic order-events");
         await Save(terminal, dir, "all-subscriptions");
+    }
+
+    [Test]
+    public async Task MetricsPanel()
+    {
+        if (Environment.GetEnvironmentVariable("SCREENSHOT_DIR") is not { Length: > 0 } dir) return;
+        Directory.CreateDirectory(dir);
+
+        var app = SampleApp();
+        await using var terminal = await app.StartAsync(width: 120, height: 50);
+        await AppHarness.WaitForTableFocusAsync(terminal);
+        await terminal.WaitUntilAsync(f => f.ContainsText("Contoso Development") && f.ContainsText("local emulator"), AppHarness.Timeout, cancellationToken: Ct);
+        await Save(terminal, dir, "connection-emulator");
+
+        await Key(terminal, ConsoleKey.DownArrow);
+        await WaitForChartsAsync(terminal, "🌐 namespace sb-orders-dev");
+        await Save(terminal, dir, "connection-metrics");
+
+        var connectionFocus = terminal.FocusKey;
+        await Key(terminal, ConsoleKey.F1);
+        await AppHarness.WaitForTableFocusAsync(terminal, connectionFocus);
+        await WaitForChartsAsync(terminal, "📬 queue payments");
+        await Key(terminal, ConsoleKey.OemPlus, '+');
+        await Key(terminal, ConsoleKey.OemPlus, '+');
+        await terminal.WaitUntilAsync(f => f.ContainsText("last 7 d") && f.ContainsText("-7d"), AppHarness.Timeout, cancellationToken: Ct);
+        await Save(terminal, dir, "queues-7d");
+
+        for (var i = 0; i < 6; i++) await Key(terminal, ConsoleKey.OemMinus, '-');
+        await terminal.WaitUntilAsync(f => f.ContainsText("last 1 h") && f.ContainsText("-60m"), AppHarness.Timeout, cancellationToken: Ct);
+        await Save(terminal, dir, "queues-1h");
     }
 
     private static AppHarness SampleApp()

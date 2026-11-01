@@ -76,7 +76,7 @@
     <Footer>
         @if (ShowMetrics)
         {
-            <MetricsPanel @ref="_metricsPanel" Label="@($"{Icons.Queue} queue {_focusedItem}")" Scope="@(_focusedItem is { } q ? new MetricsScope.Entity(q) : null)" />
+            <MetricsPanel @ref="_metricsPanel" Label="@($"{Icons.Queue} queue {_focusedItem}")" Scope="@(_focusedItem is { } q ? new MetricsScope.Entity(q) : null)" OnKeyDown="@HandleKeyDown" />
         }
         <Padder Padding="@(new(1, 0, 0, 0))">
             <Columns>
@@ -153,9 +153,9 @@
         if (Connection.CurrentNamespace is null)
             Nav.NavigateTo("/");
         _focusedItem = NavState.FocusedQueueName;
+        // Not awaited: a startup target opens this page during the app's first render, which waits for lifecycle tasks.
+        _ = LoadQueues();
     }
-
-    protected override async Task OnInitializedAsync() => await LoadQueues();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -213,6 +213,7 @@
         if (e.CtrlKey || e.AltKey || e.MetaKey) return;
         if (_deleteQueue?.HandleKey(e) == true) return;
         if (_purgeDlq?.HandleKey(e) == true) return;
+        if (MetricsRange.StepOf(e, _filter) is { } step && _metricsPanel?.StepRange(step) == true) return;
         switch (e.Key)
         {
             case "Escape": Nav.NavigateTo("/"); return;

@@ -8,8 +8,14 @@ public sealed class MetricsPanelTests
     private static int Rows(TerminalFrame frame, string prefix)
         => Enumerable.Range(0, frame.Height).Count(y => frame.GetLine(y).StartsWith($"│ {prefix}", StringComparison.Ordinal));
 
-    private static bool ChartsShown(TerminalFrame frame, string label)
-        => frame.ContainsText(label) && frame.ContainsText("-24h") && frame.ContainsText("now") && !frame.ContainsText("Loading metrics");
+    private static bool ChartsShown(TerminalFrame frame, string label, string from = "-24h")
+        => frame.ContainsText(label) && frame.ContainsText(from) && frame.ContainsText("now") && !frame.ContainsText("Loading metrics");
+
+    private static int LineOf(TerminalFrame frame, string text)
+        => Enumerable.Range(0, frame.Height).FirstOrDefault(y => frame.GetLine(y).Contains(text, StringComparison.Ordinal), -1);
+
+    private static Task Key(HeadlessTerminal terminal, char key)
+        => terminal.SendKeyAsync(key == '+' ? ConsoleKey.OemPlus : ConsoleKey.OemMinus, key, cancellationToken: Ct);
 
     [Test]
     public async Task QueueList_ChartsTheSelectedQueue()
@@ -173,24 +179,182 @@ public sealed class MetricsPanelTests
     }
 
     [Test]
-    public async Task ConnectionPage_ChartsAnAzureNamespace_InPlaceOfTheLogo()
+    public async Task PlusAndMinus_StepTheRange_AndLoadItsWindow()
+    {
+        var app = new AppHarness();
+        app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
+        await using var terminal = await app.OpenAzureAsync(ConsoleKey.F1);
+        await terminal.WaitUntilAsync(f => ChartsShown(f, "📬 queue orders"), AppHarness.Timeout, cancellationToken: Ct);
+        app.Metrics.Windows.Last().Interval.ShouldBe(TimeSpan.FromMinutes(30));
+
+        await Key(terminal, '+');
+
+        await terminal.WaitUntilAsync(f => f.ContainsText("last 3 d") && ChartsShown(f, "📬 queue orders", "-3d"), AppHarness.Timeout, cancellationToken: Ct);
+        app.Metrics.Windows.Last().ShouldSatisfyAllConditions(
+            w => (w.To - w.From).ShouldBe(TimeSpan.FromDays(3)),
+            w => w.Interval.ShouldBe(TimeSpan.FromHours(1)));
+
+        for (var i = 0; i < 6; i++) await Key(terminal, '-');
+
+        await terminal.WaitUntilAsync(f => f.ContainsText("last 1 h") && ChartsShown(f, "📬 queue orders", "-60m"), AppHarness.Timeout, cancellationToken: Ct);
+        app.Metrics.Windows.Last().ShouldSatisfyAllConditions(
+            w => (w.To - w.From).ShouldBe(TimeSpan.FromHours(1)),
+            w => w.Interval.ShouldBe(TimeSpan.FromMinutes(1)));
+        app.Metrics.Requested.ShouldAllBe(s => s == new MetricsScope.Entity("orders"));
+    }
+
+    [Test]
+    public async Task AtTheNarrowestRange_Minus_LoadsNothing()
+    {
+        var app = new AppHarness();
+        app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
+        await using var terminal = await app.OpenAzureAsync(ConsoleKey.F1);
+        await terminal.WaitUntilAsync(f => ChartsShown(f, "📬 queue orders"), AppHarness.Timeout, cancellationToken: Ct);
+        for (var i = 0; i < 4; i++) await Key(terminal, '-');
+        await terminal.WaitUntilAsync(f => ChartsShown(f, "📬 queue orders", "-60m"), AppHarness.Timeout, cancellationToken: Ct);
+        var loads = app.Metrics.Windows.Count;
+
+        await Key(terminal, '-');
+        await Task.Delay(app.MetricsOptions.RangeDebounce * 3, Ct);
+
+        app.Metrics.Windows.Count.ShouldBe(loads);
+        terminal.CurrentFrame.ContainsText("last 1 h").ShouldBeTrue(terminal.CurrentFrame.ScreenText);
+    }
+
+    [Test]
+    public async Task Minus_GoesIntoAFilterThatHoldsText_Plus_StillWidens()
+    {
+        var app = new AppHarness();
+        app.Queues.Queues.AddRange([new QueueInfo { Name = "order-events" }, new QueueInfo { Name = "orders" }]);
+        await using var terminal = await app.OpenAzureAsync(ConsoleKey.F1);
+        await terminal.WaitUntilAsync(f => ChartsShown(f, "📬 queue order-events"), AppHarness.Timeout, cancellationToken: Ct);
+
+        await terminal.TypeAsync("order", Ct);
+        await Key(terminal, '-');
+        await Key(terminal, '+');
+
+        var frame = await terminal.WaitUntilAsync(f => f.ContainsText("🔍 order-") && f.ContainsText("last 3 d"), AppHarness.Timeout, cancellationToken: Ct);
+        frame.ContainsText("🔍 order-+").ShouldBeFalse(frame.ScreenText);
+        frame.ContainsText("(1 of 2)").ShouldBeTrue(frame.ScreenText);
+    }
+
+    [Test]
+    public async Task RangeButtons_StepOnSpaceOrEnterAfterTab_AndOnClick()
+    {
+        var app = new AppHarness();
+        app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
+        await using var terminal = await app.OpenAzureAsync(ConsoleKey.F1);
+        await terminal.WaitUntilAsync(f => ChartsShown(f, "📬 queue orders"), AppHarness.Timeout, cancellationToken: Ct);
+
+        var table = terminal.FocusKey;
+        await terminal.SendKeyAsync(ConsoleKey.Tab, '\t', cancellationToken: Ct);
+        await AppHarness.WaitForFocusAsync(terminal, "2", table);
+        await terminal.SendKeyAsync(ConsoleKey.Spacebar, ' ', cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => f.ContainsText("last 12 h") && ChartsShown(f, "📬 queue orders", "-12h"), AppHarness.Timeout, cancellationToken: Ct);
+
+        var minus = terminal.FocusKey;
+        await terminal.SendKeyAsync(ConsoleKey.Tab, '\t', cancellationToken: Ct);
+        await AppHarness.WaitForFocusAsync(terminal, "2", minus);
+        await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => ChartsShown(f, "📬 queue orders"), AppHarness.Timeout, cancellationToken: Ct);
+
+        await AppHarness.ClickTextAsync(terminal, "[+]");
+        await terminal.WaitUntilAsync(f => ChartsShown(f, "📬 queue orders", "-3d"), AppHarness.Timeout, cancellationToken: Ct);
+        await AppHarness.ClickTextAsync(terminal, "[-]");
+        await terminal.WaitUntilAsync(f => ChartsShown(f, "📬 queue orders"), AppHarness.Timeout, cancellationToken: Ct);
+        terminal.CurrentFrame.ContainsText("🔍 type to filter").ShouldBeTrue(terminal.CurrentFrame.ScreenText);
+    }
+
+    [Test]
+    public async Task LoadingChartsAndErrors_KeepTheTableAndButtonsInPlace()
+    {
+        var app = new AppHarness();
+        app.MetricsOptions.Debounce = TimeSpan.FromSeconds(1);
+        app.Queues.Queues.AddRange(Enumerable.Range(0, 40).Select(i => new QueueInfo { Name = $"q{i:00}" }));
+        await using var terminal = await app.OpenAzureAsync(ConsoleKey.F1);
+
+        var loading = await terminal.WaitUntilAsync(f => f.ContainsText("Loading metrics"), AppHarness.Timeout, cancellationToken: Ct);
+        var charts = await terminal.WaitUntilAsync(f => ChartsShown(f, "📬 queue q00"), AppHarness.Timeout, cancellationToken: Ct);
+        app.Metrics.LoadError = new InvalidOperationException("Forbidden");
+        await terminal.SendKeyAsync(ConsoleKey.F5, '\0', cancellationToken: Ct);
+        var error = await terminal.WaitForTextAsync("Metrics unavailable: Forbidden", AppHarness.Timeout, Ct);
+
+        TerminalFrame[] frames = [loading, charts, error];
+        frames.Select(f => (Rows(f, "q"), LineOf(f, "q00"), LineOf(f, "📬 queue q00"), LineOf(f, "[F5] 🔄 Refresh")))
+            .Distinct().ShouldHaveSingleItem();
+    }
+
+    [Test]
+    public async Task ConnectionPage_ChartsTheNamespaceBelowTheLists_WhichNeverMove()
     {
         var app = new AppHarness();
         app.Namespaces.Subscriptions.Add(AppHarness.AzureSubscription);
         app.Namespaces.Namespaces.Add(AppHarness.AzureNamespace);
+        await using var terminal = await app.StartAsync(height: 50);
+        await AppHarness.WaitForTableFocusAsync(terminal);
+        var emulator = await terminal.WaitUntilAsync(
+            f => f.ContainsText(AppHarness.AzureSubscription.Name) && !f.ContainsText("Listing Azure subscriptions")
+                && f.ContainsText("aren't available for the local emulator"),
+            AppHarness.Timeout, cancellationToken: Ct);
+
+        await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
+        var azure = await terminal.WaitUntilAsync(f => ChartsShown(f, "🌐 namespace sb-orders-dev"), AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.SendKeyAsync(ConsoleKey.UpArrow, '\0', cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => f.ContainsText("aren't available for the local emulator"), AppHarness.Timeout, cancellationToken: Ct);
+
+        azure.ContainsText("Work In Progress").ShouldBeTrue(azure.ScreenText);
+        app.Metrics.Requested.ShouldBe([new MetricsScope.Namespace()]);
+        var choosing = terminal.Frames.SkipWhile(f => !ReferenceEquals(f, emulator)).ToList();
+        choosing.ShouldContain(azure);
+        choosing.Select(f => (LineOf(f, "🧪 Local Emulator"), LineOf(f, AppHarness.AzureSubscription.Name))).Distinct().ShouldHaveSingleItem();
+        choosing.Where(f => f.ContainsText("│ Namespace")).Select(f => LineOf(f, "│ Namespace")).Distinct().ShouldHaveSingleItem();
+        LineOf(azure, "🌐 namespace sb-orders-dev").ShouldBe(LineOf(emulator, "aren't available for the local emulator"));
+        LineOf(azure, "🌐 namespace sb-orders-dev").ShouldBeGreaterThan(LineOf(azure, "[F1] 📬 Queues") + 1);
+    }
+
+    [Test]
+    public async Task ConnectionPage_PlusStepsTheRange_NotTheSubscriptionFilter()
+    {
+        var app = new AppHarness();
+        app.Namespaces.Subscriptions.Add(AppHarness.AzureSubscription);
+        app.Namespaces.Namespaces.Add(AppHarness.AzureNamespace);
+        await using var terminal = await app.StartAsync(height: 50);
+        await AppHarness.WaitForTableFocusAsync(terminal);
+        await terminal.WaitForTextAsync(AppHarness.AzureSubscription.Name, AppHarness.Timeout, Ct);
+        await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => ChartsShown(f, "🌐 namespace sb-orders-dev"), AppHarness.Timeout, cancellationToken: Ct);
+
+        await Key(terminal, '+');
+
+        var frame = await terminal.WaitUntilAsync(f => ChartsShown(f, "🌐 namespace sb-orders-dev", "-3d"), AppHarness.Timeout, cancellationToken: Ct);
+        frame.ContainsText("🔍 type to filter").ShouldBeTrue(frame.ScreenText);
+        app.Metrics.Windows.Last().Interval.ShouldBe(TimeSpan.FromHours(1));
+    }
+
+    [Test]
+    public async Task ConnectionPage_TooShortForThePanel_StillTogglesItWithF12()
+    {
+        var app = new AppHarness();
+        app.Namespaces.Subscriptions.Add(AppHarness.AzureSubscription);
+        app.Namespaces.Namespaces.Add(AppHarness.AzureNamespace);
+        app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
         await using var terminal = await app.StartAsync(height: 40);
         await AppHarness.WaitForTableFocusAsync(terminal);
         await terminal.WaitForTextAsync(AppHarness.AzureSubscription.Name, AppHarness.Timeout, Ct);
-        terminal.CurrentFrame.ContainsText("Work In Progress").ShouldBeTrue(terminal.CurrentFrame.ScreenText);
-
         await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
+        await terminal.WaitForTextAsync("sb-orders-dev", AppHarness.Timeout, Ct);
+        await Task.Delay(app.MetricsOptions.Debounce * 2, Ct);
+        terminal.CurrentFrame.ContainsText("🌐 namespace sb-orders-dev").ShouldBeFalse(terminal.CurrentFrame.ScreenText);
+        terminal.CurrentFrame.ContainsText("[F12] 📈 Metrics").ShouldBeTrue(terminal.CurrentFrame.ScreenText);
 
-        var frame = await terminal.WaitUntilAsync(f => ChartsShown(f, "🌐 namespace sb-orders-dev"), AppHarness.Timeout, cancellationToken: Ct);
-        frame.ContainsText("Work In Progress").ShouldBeFalse(frame.ScreenText);
-        app.Metrics.Requested.ShouldBe([new MetricsScope.Namespace()]);
+        await terminal.SendKeyAsync(ConsoleKey.F12, '\0', cancellationToken: Ct);
+        var connection = terminal.FocusKey;
+        await terminal.SendKeyAsync(ConsoleKey.F1, '\0', cancellationToken: Ct);
+        await AppHarness.WaitForTableFocusAsync(terminal, connection);
+        await terminal.WaitForTextAsync("[F12] 📈 Metrics", AppHarness.Timeout, Ct);
+        await Task.Delay(app.MetricsOptions.Debounce * 2, Ct);
 
-        await terminal.SendKeyAsync(ConsoleKey.UpArrow, '\0', cancellationToken: Ct);
-
-        await terminal.WaitUntilAsync(f => f.ContainsText("Work In Progress") && !f.ContainsText("last 24 h"), AppHarness.Timeout, cancellationToken: Ct);
+        terminal.CurrentFrame.ContainsText("last 24 h").ShouldBeFalse(terminal.CurrentFrame.ScreenText);
+        app.Metrics.Requested.ShouldBeEmpty();
     }
 }

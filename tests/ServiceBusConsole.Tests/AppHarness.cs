@@ -55,6 +55,7 @@ public sealed class AppHarness
                     services.AddSingleton<IMetricsService>(Metrics);
                     services.AddSingleton(MetricsOptions);
                     services.AddSingleton<MetricsVisibility>();
+                    services.AddSingleton<MetricsRange>();
                 },
             },
             Ct);

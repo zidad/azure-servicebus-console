@@ -7,6 +7,9 @@ public sealed class CachingNamespaceService(INamespaceService inner, FileCache c
     public IAsyncEnumerable<AzureSubscription> GetSubscriptionsAsync(CancellationToken ct = default) =>
         cache.CachedThenLiveAsync("subscriptions.json", () => inner.GetSubscriptionsAsync(ct), s => s, ct);
 
+    // Local and changed by `az account set` at any time: never cached.
+    public Task<string?> GetCurrentSubscriptionIdAsync(CancellationToken ct = default) => inner.GetCurrentSubscriptionIdAsync(ct);
+
     public IAsyncEnumerable<NamespaceInfo> GetNamespacesAsync(string subscriptionId, CancellationToken ct = default) =>
         cache.CachedThenLiveAsync($"{subscriptionId}/namespaces.json", () => inner.GetNamespacesAsync(subscriptionId, ct), ns => ns, ct);
 
