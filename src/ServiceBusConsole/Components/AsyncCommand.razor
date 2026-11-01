@@ -47,7 +47,7 @@
         if (_pending is null) return false;
         switch (e.Key)
         {
-            case "Y" or "y" or "Enter" or "Return": ExecuteConfirmed(); return true;
+            case "Y" or "y" or "Enter": ExecuteConfirmed(); return true;
             case "N" or "n" or "Escape": Cancel(); return true;
             default: return false;
         }
