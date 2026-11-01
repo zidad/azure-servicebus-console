@@ -11,189 +11,201 @@
 @inject ITerminalViewport Viewport
 @inject MetricsVisibility MetricsVisibility
 
-@if (ShowMetrics)
-{
-    <MetricsPanel Label="@($"{Icons.Namespace} namespace {ChosenNamespace?.Name}")" Scope="@(ChosenNamespace is null ? null : new MetricsScope.Namespace())" />
-}
-else
-{
-    <Figlet Content="SB Console" Color="@Theme.Accent" Justify="Justify.Left" />
+@* With the metrics panel, a column of the terminal's height keeps it at the bottom, wherever the lists end. *@
+<Flex Direction="FlexDirection.Column" Height="@(ShowMetrics ? Viewport.Height - 1 : null)" Justify="FlexJustify.SpaceBetween" FillWidth="true">
+    <Rows FillWidth="true">
+        <Figlet Content="SB Console" Color="@Theme.Accent" Justify="Justify.Left" />
 
-    <Panel Title="⚠ Work In Progress" BorderColor="@Theme.Warning" FillWidth="true" Padding="@(new(1, 0, 1, 0))">
-        <Rows>
-            <Markup Content="This application is still in early development. Many features are unstable or incomplete." Foreground="@Theme.Warning" Decoration="@Decoration.Bold" />
-            <Markup Content="Use with caution — especially destructive operations (delete, receive)." Foreground="@Theme.Muted" />
-        </Rows>
-    </Panel>
-}
+        <Panel Title="⚠ Work In Progress" BorderColor="@Theme.Warning" FillWidth="true" Padding="@(new(1, 0, 1, 0))">
+            <Rows>
+                <Markup Content="This application is still in early development. Many features are unstable or incomplete." Foreground="@Theme.Warning" Decoration="@Decoration.Bold" />
+                <Markup Content="Use with caution — especially destructive operations (delete, receive)." Foreground="@Theme.Muted" />
+            </Rows>
+        </Panel>
 
-<Panel Title="@($"{Icons.Connection} Connection")" BorderColor="@Theme.Border" FillWidth="true" Padding="@(new(1, 0, 1, 0))">
-    <Rows>
-        <SelectableList Items="@_visible"
-                    PageSize="@SubscriptionPageSize"
-                    Scrollbar="new()"
-                    SelectedIndex="@_subscriptionIndex"
-                    SelectedIndexChanged="@(i => { _subscriptionIndex = i; _ = SelectSubscription(_visible[i]); })"
-                    OnActivate="FocusNamespaces">
-            <SpectreTable Expand="true" Border="TableBorder.Rounded">
-                <SpectreTHead>
-                    <SpectreTR>
-                        <SpectreTH Align="Justify.Left"><Columns><Markup Content="Azure subscription" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
-                        <SpectreTH Align="Justify.Left">ID</SpectreTH>
-                    </SpectreTR>
-                </SpectreTHead>
-                <NavigableTBody @ref="_subscriptionBody"
-                              FocusOrder="1"
-                              OnKeyDown="@HandleSubscriptionKeyDown">
-                    @{ var i = 0; }
-                    @foreach (var sub in context.Items)
-                    {
-                        var idx = i++;
-                        <SelectableRow @key="@(sub.Id ?? "")" RowIndex="@idx">
-                            <SpectreTD>@($"{(sub.IsEmulator ? Icons.Emulator : Icons.AzureSubscription)} {sub.Name}")</SpectreTD>
-                            <SpectreTD><Markup Content="@(sub.Id is { } id ? (id == _azDefaultId ? $"{id}  (az default)" : id) : "localhost:5672")" Foreground="@Theme.Muted" /></SpectreTD>
-                        </SelectableRow>
-                    }
-                </NavigableTBody>
-            </SpectreTable>
-        </SelectableList>
+        <Panel Title="@($"{Icons.Connection} Connection")" BorderColor="@Theme.Border" FillWidth="true" Padding="@(new(1, 0, 1, 0))">
+            <Rows>
+                <SelectableList Items="@_visible"
+                            PageSize="@SubscriptionPageSize"
+                            Scrollbar="new()"
+                            SelectedIndex="@_subscriptionIndex"
+                            SelectedIndexChanged="@(i => { _subscriptionIndex = i; _ = SelectSubscription(_visible[i]); })"
+                            OnActivate="FocusNamespaces">
+                    <SpectreTable Expand="true" Border="TableBorder.Rounded">
+                        <SpectreTHead>
+                            <SpectreTR>
+                                <SpectreTH Align="Justify.Left"><Columns><Markup Content="Azure subscription" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
+                                <SpectreTH Align="Justify.Left">ID</SpectreTH>
+                            </SpectreTR>
+                        </SpectreTHead>
+                        <NavigableTBody @ref="_subscriptionBody"
+                                      FocusOrder="1"
+                                      OnKeyDown="@HandleSubscriptionKeyDown">
+                            @{ var i = 0; }
+                            @foreach (var sub in context.Items)
+                            {
+                                var idx = i++;
+                                <SelectableRow @key="@(sub.Id ?? "")" RowIndex="@idx">
+                                    <SpectreTD>@($"{(sub.IsEmulator ? Icons.Emulator : Icons.AzureSubscription)} {sub.Name}")</SpectreTD>
+                                    <SpectreTD><Markup Content="@(sub.Id is { } id ? (id == _azDefaultId ? $"{id}  (az default)" : id) : "localhost:5672")" Foreground="@Theme.Muted" /></SpectreTD>
+                                </SelectableRow>
+                            }
+                        </NavigableTBody>
+                    </SpectreTable>
+                </SelectableList>
 
-        @if (_startupError is { } startupError)
-        {
-            <Markup Content="@startupError" Foreground="@Theme.Danger" />
-        }
+                @if (_startupError is { } startupError)
+                {
+                    <Markup Content="@startupError" Foreground="@Theme.Danger" />
+                }
 
-        @if (Catalog.Error is { } listError)
-        {
-            <Markup Content="@($"Could not list Azure subscriptions (az login?): {listError}")" Foreground="@Theme.Danger" />
-        }
-        else if (Catalog.Loading)
-        {
+                @if (Catalog.Error is { } listError)
+                {
+                    <Markup Content="@($"Could not list Azure subscriptions (az login?): {listError}")" Foreground="@Theme.Danger" />
+                }
+                else if (Catalog.Loading)
+                {
+                    <Columns>
+                        <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                        <Markup Content="Listing Azure subscriptions..." Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+                    </Columns>
+                }
+
+                @if (_namespacesLoading)
+                {
+                    <Padder Padding="@(new(0, 1, 0, 0))">
+                        <Columns>
+                            <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                            <Markup Content="Discovering namespaces..." Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+                        </Columns>
+                    </Padder>
+                }
+                else if (_connectionFailed)
+                {
+                    <Padder Padding="@(new(0, 1, 0, 0))">
+                        <Columns>
+                            <Markup Content="Could not connect.  " Foreground="@Theme.Danger" />
+                            <KeyButton Content="@($"{Icons.Refresh} Retry")" OnClick="RetryConnection" FocusedColor="@Theme.Warning" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
+                        </Columns>
+                    </Padder>
+                }
+                else if (_namespaces.Count > 0)
+                {
+                    <SelectableList Items="@_namespaces"
+                                PageSize="@NamespacePageSize"
+                                Scrollbar="new()"
+                                SelectedIndex="@_namespaceIndex"
+                                SelectedIndexChanged="@(i => SelectNamespace(i))"
+                                OnActivate="@(() => Nav.NavigateTo("/queues"))">
+                        <SpectreTable Expand="true" Border="TableBorder.Rounded">
+                            <SpectreTHead>
+                                <SpectreTR>
+                                    <SpectreTH Align="Justify.Left">Namespace</SpectreTH>
+                                    <SpectreTH Align="Justify.Left">Resource group</SpectreTH>
+                                    <SpectreTH Align="Justify.Left">Location</SpectreTH>
+                                    <SpectreTH Align="Justify.Left">SKU</SpectreTH>
+                                    <SpectreTH Align="Justify.Left">Status</SpectreTH>
+                                </SpectreTR>
+                            </SpectreTHead>
+                            <NavigableTBody @ref="_namespaceBody"
+                                          FocusOrder="3"
+                                          OnKeyDown="@HandleKeyDown">
+                                @{ var i = 0; }
+                                @foreach (var ns in context.Items)
+                                {
+                                    var idx = i++;
+                                    <SelectableRow @key="ns.Name" RowIndex="@idx">
+                                        <SpectreTD>@($"{Icons.Namespace} {ns.Name}")</SpectreTD>
+                                        <SpectreTD><Markup Content="@ns.ResourceGroup" Foreground="@Theme.Muted" /></SpectreTD>
+                                        <SpectreTD><Markup Content="@ns.Location" Foreground="@Theme.Muted" /></SpectreTD>
+                                        <SpectreTD>@ns.Sku</SpectreTD>
+                                        <SpectreTD>
+                                            @if (!string.IsNullOrEmpty(ns.Status))
+                                            {
+                                                <Markup Content="@($"{Icons.NamespaceStatus(ns.Status)} {ns.Status}")" Foreground="@Theme.NamespaceStatus(ns.Status)" />
+                                            }
+                                        </SpectreTD>
+                                    </SelectableRow>
+                                }
+                            </NavigableTBody>
+                        </SpectreTable>
+                    </SelectableList>
+                }
+
+                @if (ChosenNamespace is not null)
+                {
+                    <Padder Padding="@(new(0, 1, 0, 0))">
+                        <Columns>
+                            <KeyButton Content="@($"[F1] {Icons.Queue} Queues")"
+                                        OnClick="@(() => Nav.NavigateTo("/queues"))"
+                                        FocusedColor="@Theme.Accent"
+                                        FocusOrder="4"
+                                        OnKeyDown="@HandleKeyDown" />
+                            <Markup Content="  " />
+                            <KeyButton Content="@($"[F2] {Icons.Topic} Topics")"
+                                        OnClick="@(() => Nav.NavigateTo("/topics"))"
+                                        FocusedColor="@Theme.Accent"
+                                        FocusOrder="5"
+                                        OnKeyDown="@HandleKeyDown" />
+                            <Markup Content="  " />
+                            <KeyButton Content="@($"[F3] {Icons.Subscription} All Subscriptions")"
+                                        OnClick="@(() => Nav.NavigateTo("/subscriptions"))"
+                                        FocusedColor="@Theme.Accent"
+                                        FocusOrder="6"
+                                        OnKeyDown="@HandleKeyDown" />
+                            <Markup Content="  " />
+                            <KeyButton Content="@($"[F12] {Icons.Metrics} Metrics")"
+                                        OnClick="ToggleMetrics"
+                                        FocusedColor="@Theme.Accent"
+                                        FocusOrder="7"
+                                        OnKeyDown="@HandleKeyDown" />
+                        </Columns>
+                    </Padder>
+                }
+            </Rows>
+        </Panel>
+
+        <Padder Padding="@(new(0, 1, 0, 0))">
             <Columns>
-                <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
-                <Markup Content="Listing Azure subscriptions..." Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+                <Markup Content="@($"Cache: {FileCache.CacheDirectory}")" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+                <Markup Content="   " />
+                @if (_cacheStatus is null)
+                {
+                    <KeyButton Content="@($"{Icons.Purge} Clear cache")" OnClick="ClearCache" FocusedColor="@Theme.Danger" FocusOrder="8" OnKeyDown="@HandleKeyDown" />
+                }
+                else
+                {
+                    <Markup Content="@_cacheStatus" Foreground="@(_cacheClearFailed ? Theme.Danger : Theme.Success)" />
+                }
             </Columns>
-        }
-
-        @if (_namespacesLoading)
-        {
-            <Padder Padding="@(new(0, 1, 0, 0))">
-                <Columns>
-                    <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
-                    <Markup Content="Discovering namespaces..." Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
-                </Columns>
-            </Padder>
-        }
-        else if (_connectionFailed)
-        {
-            <Padder Padding="@(new(0, 1, 0, 0))">
-                <Columns>
-                    <Markup Content="Could not connect.  " Foreground="@Theme.Danger" />
-                    <KeyButton Content="@($"{Icons.Refresh} Retry")" OnClick="RetryConnection" FocusedColor="@Theme.Warning" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
-                </Columns>
-            </Padder>
-        }
-        else if (_namespaces.Count > 0)
-        {
-            <SelectableList Items="@_namespaces"
-                        PageSize="@NamespacePageSize"
-                        Scrollbar="new()"
-                        SelectedIndex="@_namespaceIndex"
-                        SelectedIndexChanged="@(i => SelectNamespace(i))"
-                        OnActivate="@(() => Nav.NavigateTo("/queues"))">
-                <SpectreTable Expand="true" Border="TableBorder.Rounded">
-                    <SpectreTHead>
-                        <SpectreTR>
-                            <SpectreTH Align="Justify.Left">Namespace</SpectreTH>
-                            <SpectreTH Align="Justify.Left">Resource group</SpectreTH>
-                            <SpectreTH Align="Justify.Left">Location</SpectreTH>
-                            <SpectreTH Align="Justify.Left">SKU</SpectreTH>
-                            <SpectreTH Align="Justify.Left">Status</SpectreTH>
-                        </SpectreTR>
-                    </SpectreTHead>
-                    <NavigableTBody @ref="_namespaceBody"
-                                  FocusOrder="3"
-                                  OnKeyDown="@HandleKeyDown">
-                        @{ var i = 0; }
-                        @foreach (var ns in context.Items)
-                        {
-                            var idx = i++;
-                            <SelectableRow @key="ns.Name" RowIndex="@idx">
-                                <SpectreTD>@($"{Icons.Namespace} {ns.Name}")</SpectreTD>
-                                <SpectreTD><Markup Content="@ns.ResourceGroup" Foreground="@Theme.Muted" /></SpectreTD>
-                                <SpectreTD><Markup Content="@ns.Location" Foreground="@Theme.Muted" /></SpectreTD>
-                                <SpectreTD>@ns.Sku</SpectreTD>
-                                <SpectreTD>
-                                    @if (!string.IsNullOrEmpty(ns.Status))
-                                    {
-                                        <Markup Content="@($"{Icons.NamespaceStatus(ns.Status)} {ns.Status}")" Foreground="@Theme.NamespaceStatus(ns.Status)" />
-                                    }
-                                </SpectreTD>
-                            </SelectableRow>
-                        }
-                    </NavigableTBody>
-                </SpectreTable>
-            </SelectableList>
-        }
-
-        @if (ChosenNamespace is not null)
-        {
-            <Padder Padding="@(new(0, 1, 0, 0))">
-                <Columns>
-                    <KeyButton Content="@($"[F1] {Icons.Queue} Queues")"
-                                OnClick="@(() => Nav.NavigateTo("/queues"))"
-                                FocusedColor="@Theme.Accent"
-                                FocusOrder="4"
-                                OnKeyDown="@HandleKeyDown" />
-                    <Markup Content="  " />
-                    <KeyButton Content="@($"[F2] {Icons.Topic} Topics")"
-                                OnClick="@(() => Nav.NavigateTo("/topics"))"
-                                FocusedColor="@Theme.Accent"
-                                FocusOrder="5"
-                                OnKeyDown="@HandleKeyDown" />
-                    <Markup Content="  " />
-                    <KeyButton Content="@($"[F3] {Icons.Subscription} All Subscriptions")"
-                                OnClick="@(() => Nav.NavigateTo("/subscriptions"))"
-                                FocusedColor="@Theme.Accent"
-                                FocusOrder="6"
-                                OnKeyDown="@HandleKeyDown" />
-                    @if (!_chosen.IsEmulator)
-                    {
-                        <Markup Content="  " />
-                        <KeyButton Content="@($"[F12] {Icons.Metrics} Metrics")"
-                                    OnClick="ToggleMetrics"
-                                    FocusedColor="@Theme.Accent"
-                                    FocusOrder="7"
-                                    OnKeyDown="@HandleKeyDown" />
-                    }
-                </Columns>
-            </Padder>
-        }
+        </Padder>
     </Rows>
-</Panel>
 
-<Padder Padding="@(new(0, 1, 0, 0))">
-    <Columns>
-        <Markup Content="@($"Cache: {FileCache.CacheDirectory}")" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
-        <Markup Content="   " />
-        @if (_cacheStatus is null)
-        {
-            <KeyButton Content="@($"{Icons.Purge} Clear cache")" OnClick="ClearCache" FocusedColor="@Theme.Danger" FocusOrder="8" OnKeyDown="@HandleKeyDown" />
-        }
-        else
-        {
-            <Markup Content="@_cacheStatus" Foreground="@(_cacheClearFailed ? Theme.Danger : Theme.Success)" />
-        }
-    </Columns>
-</Padder>
+    @if (ShowMetrics)
+    {
+        <MetricsPanel @ref="_metricsPanel"
+                      Label="@($"{Icons.Namespace} namespace {ChartedNamespace?.Name}")"
+                      Scope="@(ChartedNamespace is null ? null : new MetricsScope.Namespace())"
+                      Placeholder="@(_chosen.IsEmulator ? "Azure Monitor metrics aren't available for the local emulator." : "Choose a namespace to chart its Azure Monitor metrics.")"
+                      FocusOrder="9"
+                      OnKeyDown="@HandleKeyDown" />
+    }
+</Flex>
 
 <ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
 
 @code {
-    // Figlet 6 + banner 4, or the metrics panel; then panel 2 + subscription table chrome 4 + namespace chrome 4 + buttons 2 + cache row 2.
+    // Figlet 6 + banner 4; panel 2 + subscription table chrome 4 + namespace chrome 4 + buttons 2 + cache row 2.
     private const int LogoLines = 10;
-    private int FixedLines => (ShowMetrics ? FullscreenLayout.MetricsPanel : LogoLines) + 14 + (_startupError is null ? 0 : 1);
-    private int SubscriptionPageSize => Math.Clamp(_visible.Count, 1, 8);
+    private const int ChromeLines = 14;
+    private const int MaxSubscriptionRows = 8;
+
+    // The metrics panel, and the line the terminal-high column leaves free.
+    private const int MetricsLines = FullscreenLayout.MetricsPanel + 1;
+
+    private int FixedLines => LogoLines + ChromeLines + (ShowMetrics ? MetricsLines : 0)
+        + (_startupError is null ? 0 : 1) + (Catalog.Error is not null || Catalog.Loading ? 1 : 0);
+    private int SubscriptionPageSize => Math.Clamp(_visible.Count, 1, MaxSubscriptionRows);
     private int NamespacePageSize => Math.Clamp(Viewport.Height - FixedLines - SubscriptionPageSize, 1, 10);
     private static readonly TimeSpan SubscriptionDebounce = TimeSpan.FromMilliseconds(250);
 
@@ -210,6 +222,7 @@ else
     private CancellationTokenSource _cts = new();
     private NavigableTBody? _subscriptionBody;
     private NavigableTBody? _namespaceBody;
+    private MetricsPanel? _metricsPanel;
     private bool _subscriptionsFocused;
     private bool _focusNamespaces;
     private string? _restoreNamespace;
@@ -219,8 +232,16 @@ else
 
     private NamespaceInfo? ChosenNamespace => _namespacesLoading ? null : _namespaces.ElementAtOrDefault(_namespaceIndex);
 
+    // When every subscription row and three namespaces fit next to it: by the terminal and the account's subscriptions,
+    // never by the selection or the filter, so choosing moves nothing.
+    private bool ShowMetrics => MetricsVisibility.IsVisible(Viewport.Height,
+        LogoLines + ChromeLines + Math.Clamp(ListedSubscriptions, 1, MaxSubscriptionRows) + 3 + MetricsLines);
+
+    // Rows the subscription list can show whatever the filter: ones known to have no namespaces are hidden.
+    private int ListedSubscriptions => _subscriptions.Count(s => s.IsEmulator || Catalog.HasNamespaces(s) != false);
+
     // By the chosen subscription, not the connection: that keeps the previous namespace until the new ones are listed.
-    private bool ShowMetrics => !_chosen.IsEmulator && MetricsVisibility.IsVisible(Viewport.Height);
+    private NamespaceInfo? ChartedNamespace => _chosen.IsEmulator ? null : ChosenNamespace;
 
     protected override async Task OnInitializedAsync()
     {
@@ -275,14 +296,17 @@ else
 
     private void ToggleMetrics()
     {
-        if (_chosen.IsEmulator) return;
         _ = MetricsVisibility.ToggleAsync(Viewport.Height);
         StateHasChanged();
     }
 
+    private bool StepRange(KeyboardEventArgs e, string? filter) =>
+        MetricsRange.StepOf(e, filter) is { } step && _metricsPanel?.StepRange(step) == true;
+
     private void HandleKeyDown(KeyboardEventArgs e)
     {
         if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        if (StepRange(e, filter: null)) return;
         if (e.Key == "F12") { ToggleMetrics(); return; }
         if (ChosenNamespace is null) return;
         switch (e.Key)
@@ -323,6 +347,7 @@ else
     private void HandleSubscriptionKeyDown(KeyboardEventArgs e)
     {
         if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        if (StepRange(e, _filter)) return;
         if (FilterEdit.From(_filter, e) is { } edit) ApplyFilter(edit.Filter);
         else HandleKeyDown(e);
     }

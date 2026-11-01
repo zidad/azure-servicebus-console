@@ -18,6 +18,7 @@ public sealed class RunCommand : JasperFxAsyncCommand<RunInput>
         var host = input.BuildHost();
         host.Services.GetRequiredService<NavigationState>().Startup = input.StartupTarget;
         await host.Services.GetRequiredService<MetricsVisibility>().LoadAsync();
+        await host.Services.GetRequiredService<MetricsRange>().LoadAsync();
         await host.RunAsync();
         return true;
     }

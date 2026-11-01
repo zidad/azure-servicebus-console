@@ -15,9 +15,6 @@ public sealed class FakeNamespaceService : INamespaceService
     /// <summary>When set, namespace listings wait on it after the last namespace, like a slow live refresh.</summary>
     public TaskCompletionSource? HoldNamespaces { get; set; }
 
-    /// <summary>When set, namespace listings start once it completes.</summary>
-    public TaskCompletionSource? NamespacesGate { get; set; }
-
     /// <summary>The Azure CLI's current subscription; null like a machine without a profile.</summary>
     public string? CurrentSubscriptionId { get; set; }
 
@@ -46,7 +43,6 @@ public sealed class FakeNamespaceService : INamespaceService
 
     public async IAsyncEnumerable<NamespaceInfo> GetNamespacesAsync(string subscriptionId, [EnumeratorCancellation] CancellationToken ct = default)
     {
-        if (NamespacesGate is { } gate) await gate.Task.WaitAsync(ct);
         foreach (var ns in Namespaces)
         {
             await Task.Yield();
@@ -60,21 +56,29 @@ public sealed class FakeMetricsService : IMetricsService
 {
     /// <summary>Every scope loaded, in order.</summary>
     public System.Collections.Concurrent.ConcurrentQueue<MetricsScope> Requested { get; } = [];
+
+    /// <summary>The window of each load, in order.</summary>
+    public System.Collections.Concurrent.ConcurrentQueue<MetricsWindow> Windows { get; } = [];
     public Exception? LoadError { get; set; }
 
     public async IAsyncEnumerable<MessageMetrics> GetMetricsAsync(MetricsScope scope, MetricsWindow window, [EnumeratorCancellation] CancellationToken ct = default)
     {
         Requested.Enqueue(scope);
+        Windows.Enqueue(window);
         await Task.Yield();
         if (LoadError is not null) throw LoadError;
         yield return Sample(window, scope.Match(_ => 12, e => 1 + e.Name.Length % 4));
     }
 
-    /// <summary>A day of traffic: a busy daytime, a backlog that builds while consumers lag, then drains, and a few dead letters.</summary>
+    /// <summary>
+    /// Traffic over 96 steps, whatever the window's intervals: a busy daytime, a backlog that builds while consumers lag,
+    /// then drains, and a few dead letters.
+    /// </summary>
     public static MessageMetrics Sample(MetricsWindow window, double scale)
     {
         var starts = window.IntervalStarts().ToList();
-        List<MetricPoint> Series(Func<int, double> value) => [.. starts.Select((t, i) => new MetricPoint(t, Math.Round(Math.Max(0, value(i)) * scale)))];
+        List<MetricPoint> Series(Func<int, double> value) =>
+            [.. starts.Select((t, i) => new MetricPoint(t, Math.Round(Math.Max(0, value(i * 96 / starts.Count)) * scale)))];
         static double Day(int i) => 20 + 140 * Math.Max(0, Math.Sin(Math.PI * (i - 20) / 56));
         return new()
         {

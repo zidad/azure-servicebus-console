@@ -3,10 +3,18 @@
 @inject ServiceBusConnection Connection
 @inject ITerminalViewport Viewport
 @inject MetricsOptions Options
+@inject MetricsRange Range
 @inject ILogger<MetricsPanel> Logger
 
 <Flex Direction="FlexDirection.Column" Height="@FullscreenLayout.MetricsPanel" FillWidth="true">
-    @if (Scope is not null)
+    @if (Scope is null)
+    {
+        @if (Placeholder is { } placeholder)
+        {
+            <Markup Content="@placeholder" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+        }
+    }
+    else
     {
         <Flex Direction="FlexDirection.Row" Gap="@Gap">
             <Flex Direction="FlexDirection.Row" Width="@HalfWidth">
@@ -24,11 +32,15 @@
                     <Markup Content="──" Foreground="@Theme.Backlog" />
                     <Markup Content="active" Foreground="@Theme.Muted" />
                     <Markup Content="──" Foreground="@Theme.Danger" />
-                    <Markup Content="dead-lettered" Foreground="@Theme.Muted" />
+                    <Markup Content="@(HalfWidth >= FullBacklogLegendWidth ? "dead-lettered" : "DLQ")" Foreground="@Theme.Muted" />
                 </Columns>
                 <Columns>
-                    @if (_metrics?.IsRefreshing == true) { <Spinner /> }
-                    <Markup Content="@($"last {Options.Span.TotalHours:0} h")" Foreground="@Theme.Muted" />
+                    @if (_metrics?.IsRefreshing == true) { <Spinner /> } else { <Markup Content=" " /> }
+                    <KeyButton Content="[-]" OnClick="@(() => { StepRange(-1); })" FocusOrder="@FocusOrder" OnKeyDown="@OnKeyDown"
+                               FocusedColor="@Theme.Accent" ForegroundColor="@(Range.CanNarrow ? Color.Default : Theme.Muted)" />
+                    <Markup Content="@MetricsRange.Label(Range.Span)" Foreground="@Theme.Muted" />
+                    <KeyButton Content="[+]" OnClick="@(() => { StepRange(1); })" FocusOrder="@FocusOrder" OnKeyDown="@OnKeyDown"
+                               FocusedColor="@Theme.Accent" ForegroundColor="@(Range.CanWiden ? Color.Default : Theme.Muted)" />
                 </Columns>
             </Flex>
         </Flex>
@@ -41,11 +53,11 @@
             <Flex Direction="FlexDirection.Row" Gap="@Gap">
                 <StepChart Width="@ChartWidth" Height="@FullscreenLayout.MetricsChartHeight"
                            AxesColor="@Theme.Border" LabelsColor="@Theme.Muted"
-                           XAxisFormat="@MetricsChart.XAxisFormat" YAxisFormat="@MetricsChart.YAxisFormat([m.Incoming, m.Outgoing])"
+                           XAxisFormat="@MetricsChart.XAxisFormat(m.Window)" YAxisFormat="@MetricsChart.YAxisFormat([m.Incoming, m.Outgoing])"
                            Series="@MetricsChart.Series(m.Window, (Theme.Outgoing, m.Outgoing), (Theme.Incoming, m.Incoming))" />
                 <StepChart Width="@ChartWidth" Height="@FullscreenLayout.MetricsChartHeight"
                            AxesColor="@Theme.Border" LabelsColor="@Theme.Muted"
-                           XAxisFormat="@MetricsChart.XAxisFormat" YAxisFormat="@MetricsChart.YAxisFormat([m.Active, m.DeadLettered])"
+                           XAxisFormat="@MetricsChart.XAxisFormat(m.Window)" YAxisFormat="@MetricsChart.YAxisFormat([m.Active, m.DeadLettered])"
                            Series="@MetricsChart.Series(m.Window, (Theme.Backlog, m.Active), (Theme.Danger, m.DeadLettered))" />
             </Flex>
         }
@@ -61,21 +73,34 @@
 
 @code {
     /// <summary>
-    /// Azure Monitor charts of the last day for <see cref="Scope"/> in the current namespace: throughput on the left,
-    /// backlog on the right. Loads once the scope has stayed the same for <see cref="MetricsOptions.Debounce"/>,
-    /// cached first; a failure shows as a line in the panel. Always <see cref="FullscreenLayout.MetricsPanel"/> lines.
+    /// Azure Monitor charts of <see cref="Scope"/> in the current namespace over <see cref="MetricsRange"/>: throughput
+    /// on the left, backlog on the right, one point per plot column at most. Loads once the scope has stayed the same
+    /// for <see cref="MetricsOptions.Debounce"/>, cached first; a failure shows as a line in the panel. Always
+    /// <see cref="FullscreenLayout.MetricsPanel"/> lines, whatever it shows.
     /// </summary>
     [Parameter, EditorRequired] public required string Label { get; set; }
 
     /// <summary>Null while nothing is selected.</summary>
     [Parameter] public MetricsScope? Scope { get; set; }
 
+    /// <summary>Shown while <see cref="Scope"/> is null.</summary>
+    [Parameter] public string? Placeholder { get; set; }
+
+    /// <summary>Of the [-] and [+] buttons.</summary>
+    [Parameter] public int FocusOrder { get; set; } = 2;
+
+    /// <summary>The page's keys, for while a range button has focus.</summary>
+    [Parameter] public Action<KeyboardEventArgs>? OnKeyDown { get; set; }
+
     private const int Gap = 2;
 
     // "── incoming ── outgoing": Columns put a space between items.
     private const int ThroughputLegendWidth = 23;
 
-    private (NamespaceInfo? Namespace, MetricsScope? Scope) _target;
+    // "── active ── dead-lettered" and " [-] last 24 h [+]", a space apart.
+    private const int FullBacklogLegendWidth = 26 + 1 + 19;
+
+    private (NamespaceInfo? Namespace, MetricsScope? Scope, TimeSpan Span, TimeSpan Interval) _target;
     private CancellationTokenSource? _cts;
     private MessageMetrics? _metrics;
     private string? _error;
@@ -85,23 +110,28 @@
     // The axes take two columns beyond Width.
     private int ChartWidth => HalfWidth - 2;
 
-    protected override void OnParametersSet()
-    {
-        // The namespace record changes when its live listing replaces a cached one without a resource ID.
-        var target = (Connection.Namespace, Scope);
-        if (target == _target) return;
-        _target = target;
-        _metrics = null;
-        Load();
-    }
+    protected override void OnParametersSet() => Retarget();
 
     /// <summary>Loads again, e.g. on F5; the charts stay until the new metrics arrive.</summary>
     public void Reload()
     {
         if (_target.Scope is null) return;
         _metrics = _metrics is { } shown ? shown with { IsRefreshing = true } : null;
-        Load();
+        Load(Options.Debounce);
         StateHasChanged();
+    }
+
+    /// <summary>
+    /// Widens (positive) or narrows (negative) the charts' range, keeping them until the new range arrives.
+    /// False while nothing is charted, so the page can use the key otherwise.
+    /// </summary>
+    public bool StepRange(int steps)
+    {
+        if (_target.Scope is null) return false;
+        _ = Range.StepAsync(steps);
+        Retarget();
+        StateHasChanged();
+        return true;
     }
 
     public void Dispose()
@@ -110,11 +140,30 @@
         _target = default;
     }
 
-    private void Load()
+    // The namespace record changes when its live listing replaces a cached one without a resource ID.
+    private void Retarget()
+    {
+        var target = (Connection.Namespace, Scope, Range.Span, MetricsChart.Interval(Range.Span, MetricsChart.PlotColumns(ChartWidth)));
+        if (target == _target) return;
+        var sameScope = (target.Namespace, target.Scope) == (_target.Namespace, _target.Scope);
+        _target = target;
+        if (sameScope)
+        {
+            _metrics = _metrics is { } shown ? shown with { IsRefreshing = true } : null;
+            Load(Options.RangeDebounce);
+        }
+        else
+        {
+            _metrics = null;
+            Load(Options.Debounce);
+        }
+    }
+
+    private void Load(TimeSpan delay)
     {
         Cancel();
         _error = null;
-        if (_target.Scope is { } scope) _ = LoadAsync(scope, (_cts = new()).Token);
+        if (_target is (_, { } scope, var span, var interval)) _ = LoadAsync(scope, span, interval, delay, (_cts = new()).Token);
     }
 
     private void Cancel()
@@ -124,12 +173,12 @@
         _cts = null;
     }
 
-    private async Task LoadAsync(MetricsScope scope, CancellationToken ct)
+    private async Task LoadAsync(MetricsScope scope, TimeSpan span, TimeSpan interval, TimeSpan delay, CancellationToken ct)
     {
         try
         {
-            await Task.Delay(Options.Debounce, ct);
-            var window = MetricsWindow.Last(Options.Span, Options.Interval, DateTimeOffset.UtcNow);
+            await Task.Delay(delay, ct);
+            var window = MetricsWindow.Last(span, interval, DateTimeOffset.UtcNow);
             await foreach (var metrics in MetricsService.GetMetricsAsync(scope, window, ct))
                 await InvokeAsync(() => Show(ct, metrics, null));
         }

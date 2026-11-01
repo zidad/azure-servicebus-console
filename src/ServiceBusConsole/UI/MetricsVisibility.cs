@@ -7,13 +7,15 @@ namespace ServiceBusConsole.UI;
 public sealed class MetricsVisibility(FileCache cache, MetricsOptions options)
 {
     private const string Key = "settings/metrics-panel.json";
-    private const int MinHeight = FullscreenLayout.Header + FullscreenLayout.RoundedTableChrome + 5
+
+    /// <summary>A list page's header, table with 5 rows, the panel and the buttons.</summary>
+    public const int MinHeight = FullscreenLayout.Header + FullscreenLayout.RoundedTableChrome + 5
         + FullscreenLayout.MetricsPanel + FullscreenLayout.FooterButtons + 1;
 
     private bool? _shown;
 
-    public bool IsVisible(int terminalHeight) =>
-        terminalHeight >= MinHeight && (_shown ?? terminalHeight >= options.AutoShowHeight);
+    public bool IsVisible(int terminalHeight, int minHeight = MinHeight) =>
+        terminalHeight >= minHeight && IsChosen(terminalHeight);
 
     /// <summary>Reads the remembered choice; call once at startup.</summary>
     public async Task LoadAsync()
@@ -21,11 +23,13 @@ public sealed class MetricsVisibility(FileCache cache, MetricsOptions options)
         if (await cache.LoadAsync<bool>(Key) is [var shown]) _shown = shown;
     }
 
-    /// <summary>Shows or hides the panel at once; the returned task saves the choice.</summary>
+    /// <summary>Flips the choice at once, also where the panel doesn't fit; the returned task saves it.</summary>
     public Task ToggleAsync(int terminalHeight)
     {
-        var shown = !IsVisible(terminalHeight);
+        var shown = !IsChosen(terminalHeight);
         _shown = shown;
         return cache.SaveAsync(Key, [shown]);
     }
+
+    private bool IsChosen(int terminalHeight) => _shown ?? terminalHeight >= options.AutoShowHeight;
 }

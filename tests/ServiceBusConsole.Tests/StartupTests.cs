@@ -72,10 +72,7 @@ public sealed class StartupTests
     public async Task SubscriptionAlone_SelectsIt_AndFocusesItsNamespaces()
     {
         var app = WithAzure(new("contoso development"));
-        // Listed once the focus session runs: FocusManager.BeginSession drops a request made after the first frame, before it.
-        app.Namespaces.NamespacesGate = new TaskCompletionSource();
         await using var terminal = await app.StartAsync(height: 40);
-        app.Namespaces.NamespacesGate.SetResult();
 
         await AppHarness.WaitForFocusAsync(terminal, focusOrder: "3");
         var frame = await terminal.WaitForTextAsync("[F1] 📬 Queues", AppHarness.Timeout, Ct);
@@ -92,10 +89,7 @@ public sealed class StartupTests
     {
         var app = WithAzure();
         app.Namespaces.CurrentSubscriptionId = AppHarness.AzureSubscription.Id;
-        // As in SubscriptionAlone_SelectsIt_AndFocusesItsNamespaces: FocusManager.BeginSession drops an earlier request.
-        app.Namespaces.NamespacesGate = new TaskCompletionSource();
         await using var terminal = await app.StartAsync(height: 40);
-        app.Namespaces.NamespacesGate.SetResult();
 
         await AppHarness.WaitForFocusAsync(terminal, focusOrder: "3");
         var frame = await terminal.WaitForTextAsync("(az default)", AppHarness.Timeout, Ct);
