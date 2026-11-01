@@ -13,7 +13,7 @@
 @code {
     /// <summary>
     /// A text button like RazorConsole's <c>TextButton</c>, plus <see cref="OnKeyDown"/> (so page shortcuts keep
-    /// working while it has focus) and <see cref="FocusKey"/> (to focus it from code).
+    /// working while it has focus) and <see cref="FocusKey"/> (to focus it from code). Enter and Space click it.
     /// </summary>
     [Parameter, EditorRequired] public required string Content { get; set; }
     [Parameter] public EventCallback OnClick { get; set; }
@@ -33,8 +33,11 @@
 
     private void SetFocused(bool focused) => _focused = focused;
 
-    private void OnKeyDownHandler(KeyboardEventArgs e)
+    private Task OnKeyDownHandler(KeyboardEventArgs e)
     {
+        // Not forwarded: a page's type-to-filter would take it as text.
+        if (e.Key == " ") return OnClick.InvokeAsync();
         if (OnKeyDown is { } forward) _ = InvokeAsync(() => forward(e));
+        return Task.CompletedTask;
     }
 }

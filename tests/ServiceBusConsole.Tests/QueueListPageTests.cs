@@ -109,6 +109,27 @@ public sealed class QueueListPageTests
     }
 
     [Test]
+    public async Task SpaceOnFooterButton_ClicksIt_AndLeavesTheFilterAlone()
+    {
+        await using var terminal = await WithQueues().OpenQueuesAsync();
+        await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
+        for (var i = 0; i < 10 && AppHarness.FocusedAttribute(terminal, "data-focus-order") != "4"; i++) // the Delete button
+        {
+            var previous = terminal.FocusKey;
+            await terminal.SendKeyAsync(ConsoleKey.Tab, '\t', cancellationToken: Ct);
+            await terminal.WaitUntilAsync(f => terminal.FocusKey != previous, AppHarness.Timeout, cancellationToken: Ct);
+        }
+
+        await terminal.SendKeyAsync(ConsoleKey.Spacebar, ' ', cancellationToken: Ct);
+
+        await terminal.WaitForTextAsync("Delete queue 'payments'?", AppHarness.Timeout, Ct);
+        await terminal.SendKeyAsync(ConsoleKey.N, 'n', cancellationToken: Ct);
+        var frame = await terminal.WaitUntilAsync(f => !f.ContainsText("Delete queue"), AppHarness.Timeout, cancellationToken: Ct);
+        frame.ContainsText("Queues (3)").ShouldBeTrue(frame.ScreenText);
+        frame.ContainsText("type to filter").ShouldBeTrue(frame.ScreenText);
+    }
+
+    [Test]
     public async Task DeleteAsksForConfirmation_ThenDeletesSelectedQueue()
     {
         var app = WithQueues();
