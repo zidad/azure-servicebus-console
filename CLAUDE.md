@@ -111,6 +111,8 @@ This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, que
 
 **Azure subscriptions** are listed from Azure with the signed-in `az` account (`INamespaceService.GetSubscriptionsAsync`, cached like namespaces) and shown by display name; the local emulator is always the first entry (`AzureSubscription.Emulator`).
 
+**Metrics:** `MetricsPanel` (bottom of the list pages; on the connection page in place of the logo) shows 24 h of Azure Monitor metrics from `IMetricsService` (`Azure.ResourceManager.Monitor` on the shared `ArmClient`, `EntityName` filter; subscriptions show their topic, Azure has no per-subscription dimension). It loads after the selection settles, cached first; F12 toggles it (remembered in the file cache); no panel for the emulator or on short terminals.
+
 **Async commands:** Confirm-then-execute flows (delete, purge, requeue, etc.) use the `<AsyncCommand<TItem>>` component (`Components/AsyncCommand.razor`). It owns the pending-item, busy, and error state — pages should NOT reintroduce `_pending*` bool/field patterns or inline `ConfirmModal` + `ErrorModal` pairs per action.
 
 Declare once per action and trigger via `@ref`:

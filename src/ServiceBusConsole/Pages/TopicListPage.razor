@@ -8,6 +8,7 @@
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 @inject ITerminalViewport Viewport
 @inject LiveCountsOptions LiveCounts
+@inject MetricsVisibility MetricsVisibility
 @inject Microsoft.Extensions.Logging.ILogger<TopicListPage> Logger
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
@@ -34,7 +35,7 @@
         else
         {
             <SelectableList Items="@_filtered"
-                        PageSize="@FullscreenLayout.PageSizeRoundedTable(Viewport.Height)"
+                        PageSize="@FullscreenLayout.PageSizeRoundedTable(Viewport.Height, ShowMetrics)"
                         Scrollbar="new()"
                         SelectedIndex="@_selectedIndex"
                         SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _filtered.ElementAtOrDefault(i)?.Name; })"
@@ -68,13 +69,22 @@
         }
     </Content>
     <Footer>
+        @if (ShowMetrics)
+        {
+            <MetricsPanel @ref="_metricsPanel" Label="@($"{Icons.Topic} topic {_focusedItem}")" Scope="@(_focusedItem is { } t ? new MetricsScope.Entity(t) : null)" />
+        }
         <Padder Padding="@(new(1, 0, 0, 0))">
             <Columns>
                 <KeyButton Content="[F5] 🔄 Refresh" OnClick="LoadTopics" FocusedColor="@Theme.Success" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
                 <KeyButton Content="[F9] ❌ Delete" OnClick="@(() => OnFocused(_deleteTopic))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <KeyButton Content="[Esc] 🔙 Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Theme.Accent" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
+                @if (!Connection.IsEmulator)
+                {
+                    <KeyButton Content="@($"[F12] {Icons.Metrics} Metrics")" OnClick="ToggleMetrics" FocusedColor="@Theme.Accent" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
+                    <Markup Content="   " />
+                }
+                <KeyButton Content="[Esc] 🔙 Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Theme.Accent" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
     </Footer>
@@ -105,6 +115,9 @@
         .Add("Subscriptions", t => t.SubscriptionCount)
         .Add("Scheduled", t => t.ScheduledMessageCount);
 
+    private MetricsPanel? _metricsPanel;
+    private bool ShowMetrics => !Connection.IsEmulator && MetricsVisibility.IsVisible(Viewport.Height);
+
     public void Dispose() => _live?.Dispose();
 
 
@@ -116,7 +129,7 @@
         {
             Changed = () => { UpdateFilterState(_filter); return InvokeAsync(StateHasChanged); },
             Render = StateHasChanged,
-            LoadFailed = ex => { _loadFailed = true; _error = ex.Message; return InvokeAsync(StateHasChanged); },
+            LoadFailed = ex => { _loadFailed = true; _error = ErrorText.Of(ex); return InvokeAsync(StateHasChanged); },
         };
         if (Connection.CurrentNamespace is null)
             Nav.NavigateTo("/");
@@ -138,6 +151,7 @@
     {
         _error = string.Empty;
         _loadFailed = false;
+        _metricsPanel?.Reload();
         return List.LoadAsync();
     }
 
@@ -168,6 +182,13 @@
         if (_focusedItem is { } item) command?.Invoke(item);
     }
 
+    private void ToggleMetrics()
+    {
+        if (Connection.IsEmulator) return;
+        _ = MetricsVisibility.ToggleAsync(Viewport.Height);
+        StateHasChanged();
+    }
+
     private void HandleKeyDown(KeyboardEventArgs e)
     {
         if (e.CtrlKey || e.AltKey || e.MetaKey) return;
@@ -179,6 +200,7 @@
             case "F9": case "Delete": case "\\":
                 OnFocused(_deleteTopic);
                 return;
+            case "F12": ToggleMetrics(); return;
             default:
                 if (FilterEdit.From(_filter, e) is { } edit) ApplyFilter(edit.Filter);
                 return;

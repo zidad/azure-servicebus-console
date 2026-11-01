@@ -41,6 +41,7 @@ internal sealed class NamespaceService(ArmClient armClient, ILogger<NamespaceSer
             Location = ns.Data.Location.DisplayName ?? ns.Data.Location.Name,
             Sku = ns.Data.Sku?.Name.ToString(),
             Status = ns.Data.Status,
+            ResourceId = ns.Id?.ToString(),
         });
     }
 

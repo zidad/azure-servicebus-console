@@ -238,7 +238,7 @@
             }
         }
         catch (OperationCanceledException) { return; }
-        catch (Exception ex) { _error = ex.Message; }
+        catch (Exception ex) { _error = ErrorText.Of(ex); }
 
         _loading = false;
         StateHasChanged();

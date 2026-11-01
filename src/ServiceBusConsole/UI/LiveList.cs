@@ -110,6 +110,8 @@ public sealed class LiveList<T>(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Loading {Rows} failed", typeof(T).Name);
+            // The throttle may have skipped the cached rows that arrived before the failure; they stay.
+            await Changed();
             await LoadFailed(ex);
             return false;
         }

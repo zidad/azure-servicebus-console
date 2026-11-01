@@ -25,12 +25,14 @@ public sealed class Screenshots
         await terminal.WaitForTextAsync("Contoso Development", AppHarness.Timeout, Ct);
         await Key(terminal, ConsoleKey.DownArrow);
         await terminal.WaitForTextAsync("sb-orders-dev", AppHarness.Timeout, Ct);
+        await WaitForChartsAsync(terminal, "🌐 namespace sb-orders-dev");
         await Save(terminal, dir, "connection");
 
         var connectionFocus = terminal.FocusKey;
         await AppHarness.ClickTextAsync(terminal, "[F1] 📬 Queues");
         await AppHarness.WaitForTableFocusAsync(terminal, connectionFocus);
         await terminal.WaitForTextAsync("Queues (5)", AppHarness.Timeout, Ct);
+        await WaitForChartsAsync(terminal, "📬 queue payments");
         await Save(terminal, dir, "queues");
 
         app.Queues.Update("emails", q => q with { ActiveMessageCount = 12 });
@@ -104,12 +106,14 @@ public sealed class Screenshots
         await AppHarness.ClickTextAsync(terminal, "[F2] 📢 Topics");
         await AppHarness.WaitForTableFocusAsync(terminal, connectionFocus);
         await terminal.WaitForTextAsync("Topics (3)", AppHarness.Timeout, Ct);
+        await WaitForChartsAsync(terminal, "📢 topic order-events");
         await Save(terminal, dir, "topics");
 
         var topicTable = terminal.FocusKey;
         await Key(terminal, ConsoleKey.Enter, '\r');
         await terminal.WaitForTextAsync("shipping", AppHarness.Timeout, Ct);
         await AppHarness.WaitForTableFocusAsync(terminal, topicTable);
+        await WaitForChartsAsync(terminal, "📢 topic order-events");
         await Save(terminal, dir, "topic-subscriptions");
         await Key(terminal, ConsoleKey.Escape, '\u001b');
         await terminal.WaitForTextAsync("Topics (3)", AppHarness.Timeout, Ct);
@@ -121,6 +125,7 @@ public sealed class Screenshots
         await AppHarness.ClickTextAsync(terminal, "[F3] 📥 All Subscriptions");
         await AppHarness.WaitForTableFocusAsync(terminal, connectionFocus);
         await terminal.WaitForTextAsync("All Subscriptions (5)", AppHarness.Timeout, Ct);
+        await WaitForChartsAsync(terminal, "📢 topic order-events");
         await Save(terminal, dir, "all-subscriptions");
     }
 
@@ -128,6 +133,7 @@ public sealed class Screenshots
     {
         // Shown on the connection page; keep the real home folder out of published screenshots.
         var app = new AppHarness { CacheDirectory = "/home/you/.local/share/sb-console" };
+        app.MetricsOptions.Debounce = TimeSpan.FromMilliseconds(50);
         app.Namespaces.Subscriptions.AddRange(
         [
             new AzureSubscription("Contoso Production", "6f1d2c3b-0000-4000-8000-000000000002"),
@@ -185,6 +191,9 @@ public sealed class Screenshots
         DeadLetterReason = reason,
         Properties = [KeyValuePair.Create("source", "checkout-api")],
     };
+
+    private static Task WaitForChartsAsync(HeadlessTerminal terminal, string label)
+        => terminal.WaitUntilAsync(f => f.ContainsText(label) && f.ContainsText("now") && !f.ContainsText("Loading metrics"), AppHarness.Timeout, cancellationToken: Ct);
 
     private static Task Key(HeadlessTerminal terminal, ConsoleKey key, char ch = '\0')
         => terminal.SendKeyAsync(key, ch, cancellationToken: Ct);

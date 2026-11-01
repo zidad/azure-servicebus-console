@@ -172,6 +172,18 @@ public sealed class QueueListPageTests
     }
 
     [Test]
+    public async Task FirewallBlock_IsExplained_InsteadOfTheRawResponse()
+    {
+        var app = new AppHarness();
+        app.Queues.LoadError = new InvalidOperationException(ErrorTextTests.FirewallResponse);
+        await using var terminal = await app.OpenQueuesAsync();
+
+        var frame = await terminal.WaitForTextAsync("firewall blocks", AppHarness.Timeout, Ct);
+        frame.ContainsText("<Error>").ShouldBeFalse(frame.ScreenText);
+        frame.ContainsText("Status: 401").ShouldBeFalse(frame.ScreenText);
+    }
+
+    [Test]
     public async Task EnterOpensSelectedQueue()
     {
         await using var terminal = await WithQueues().OpenQueuesAsync();

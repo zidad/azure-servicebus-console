@@ -42,6 +42,7 @@ dotnet tool update -g Net.Azure.ServiceBusConsole
 - Split message browser: the list on top, a preview of the message under the cursor below (properties left, JSON-highlighted body right); `Enter` opens it full screen
 - Dead-letter queue browsing per queue and per subscription; requeue dead-lettered messages to their origin
 - Delete queues, topics or subscriptions; purge (dead-letter) queues
+- Azure Monitor charts of the last 24 hours for the selected namespace, queue or topic (a subscription shows its topic's): messages in and out, active and dead-lettered backlog; shown on terminals of 35+ lines, `F12` toggles them. Needs `microsoft.insights/metrics/read` (e.g. Monitoring Reader)
 - Mouse support: buttons, rows, column headers, header dropdowns, wheel scrolling
 
 ## Screenshots
@@ -109,6 +110,7 @@ dotnet tool update -g Net.Azure.ServiceBusConsole
 | `F1` | Open queue browser |
 | `F2` | Open topic browser |
 | `F3` | Open all-subscriptions view |
+| `F12` | Show or hide the namespace's metrics charts (Azure namespaces) |
 
 ### Queue list / Topic list / Subscription list
 
@@ -118,8 +120,9 @@ dotnet tool update -g Net.Azure.ServiceBusConsole
 | `Backspace` | Remove last filter character |
 | `↑` / `↓` | Scroll list |
 | `Enter` | Open selected item |
-| `F5` | Refresh |
+| `F5` | Refresh (also the metrics charts) |
 | `F9` / `Del` | Delete focused item |
+| `F12` | Show or hide the metrics charts (Azure namespaces) |
 
 ### Queue browser / Subscription browser
 
