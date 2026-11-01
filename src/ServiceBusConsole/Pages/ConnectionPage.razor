@@ -58,6 +58,11 @@ else
             </SpectreTable>
         </SelectableList>
 
+        @if (_startupError is { } startupError)
+        {
+            <Markup Content="@startupError" Foreground="@Theme.Danger" />
+        }
+
         @if (Catalog.Error is { } listError)
         {
             <Markup Content="@($"Could not list Azure subscriptions (az login?): {listError}")" Foreground="@Theme.Danger" />
@@ -187,7 +192,7 @@ else
 @code {
     // Figlet 6 + banner 4, or the metrics panel; then panel 2 + subscription table chrome 4 + namespace chrome 4 + buttons 2 + cache row 2.
     private const int LogoLines = 10;
-    private int FixedLines => (ShowMetrics ? FullscreenLayout.MetricsPanel : LogoLines) + 14;
+    private int FixedLines => (ShowMetrics ? FullscreenLayout.MetricsPanel : LogoLines) + 14 + (_startupError is null ? 0 : 1);
     private int SubscriptionPageSize => Math.Clamp(_visible.Count, 1, 8);
     private int NamespacePageSize => Math.Clamp(Viewport.Height - FixedLines - SubscriptionPageSize, 1, 10);
     private static readonly TimeSpan SubscriptionDebounce = TimeSpan.FromMilliseconds(250);
@@ -208,6 +213,8 @@ else
     private bool _subscriptionsFocused;
     private bool _focusNamespaces;
     private string? _restoreNamespace;
+    private StartupTarget? _startup;
+    private string? _startupError;
 
     private NamespaceInfo? ChosenNamespace => _namespacesLoading ? null : _namespaces.ElementAtOrDefault(_namespaceIndex);
 
@@ -221,7 +228,10 @@ else
         if (NavState.AzureSubscription is { IsEmulator: false } previous && !_subscriptions.Contains(previous)) _subscriptions.Add(previous);
         UpdateVisible();
         _ = Catalog.EnsureLoadedAsync();
-        await SelectSubscription(NavState.AzureSubscription ?? AzureSubscription.Emulator, debounce: false);
+        _startup = NavState.Startup;
+        NavState.Startup = null;
+        if (_startup is null) await SelectSubscription(NavState.AzureSubscription ?? AzureSubscription.Emulator, debounce: false);
+        else await ApplyStartup();
     }
 
     public void Dispose() => Catalog.Changed -= OnCatalogChanged;
@@ -231,7 +241,19 @@ else
         _subscriptions = [.. Catalog.Subscriptions];
         UpdateVisible();
         StateHasChanged();
+        return ApplyStartup();
     });
+
+    // Waits for the command line's subscription in the listing, cached entries first; nothing is selected meanwhile.
+    private Task ApplyStartup()
+    {
+        if (_startup is not { } startup) return Task.CompletedTask;
+        if (Catalog.Subscriptions.FirstOrDefault(startup.Matches) is { } subscription)
+            return SelectSubscription(subscription, debounce: false, startup);
+        if (Catalog.Loading) return Task.CompletedTask;
+        _startupError = $"Azure subscription \"{startup.Subscription}\" not found.";
+        return SelectSubscription(AzureSubscription.Emulator, debounce: false);
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -327,11 +349,13 @@ else
         StateHasChanged();
     }
 
-    private async Task SelectSubscription(AzureSubscription subscription, bool debounce = true)
+    /// <param name="startup">From the command line: open its namespace once listed, or focus the namespaces when it names none.</param>
+    private async Task SelectSubscription(AzureSubscription subscription, bool debounce = true, StartupTarget? startup = null)
     {
         // Take the token for *this* run: a newer selection replaces the field.
         _cts.Cancel();
         var token = (_cts = new CancellationTokenSource()).Token;
+        _startup = null;
         _error = string.Empty;
         _connectionFailed = false;
         _namespaces = [];
@@ -339,11 +363,14 @@ else
         _restoreNamespace = Connection.CurrentNamespace;
         _chosen = subscription;
         NavState.AzureSubscription = subscription;
+        UpdateVisible();
+        if (startup is { Namespace: null }) FocusNamespaces();
 
         if (subscription.IsEmulator)
         {
             _namespaces = [NamespaceInfo.Emulator];
             SelectNamespace(0);
+            if (startup is not null && !OpenStartupNamespace(startup, NamespaceInfo.Emulator, 0)) ReportMissingNamespace(startup, subscription);
             return;
         }
 
@@ -365,13 +392,28 @@ else
                     _namespaceIndex = idx;
                 }
                 SelectNamespace(_namespaceIndex);
+                if (startup is not null && OpenStartupNamespace(startup, ns, idx)) startup = null;
             }
+            if (startup is not null) ReportMissingNamespace(startup, subscription);
         }
         catch (OperationCanceledException) { return; }
         catch (Exception ex) { _connectionFailed = true; _error = ErrorText.Of(ex); }
 
         _namespacesLoading = false;
         StateHasChanged();
+    }
+
+    private bool OpenStartupNamespace(StartupTarget startup, NamespaceInfo ns, int index)
+    {
+        if (!startup.Matches(ns)) return false;
+        SelectNamespace(index);
+        Nav.NavigateTo("/queues");
+        return true;
+    }
+
+    private void ReportMissingNamespace(StartupTarget startup, AzureSubscription subscription)
+    {
+        if (startup.Namespace is { } name) _startupError = $"Namespace \"{name}\" not found in {subscription.Name}.";
     }
 
     private void SelectNamespace(int index)

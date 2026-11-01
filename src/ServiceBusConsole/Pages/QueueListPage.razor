@@ -153,9 +153,9 @@
         if (Connection.CurrentNamespace is null)
             Nav.NavigateTo("/");
         _focusedItem = NavState.FocusedQueueName;
+        // Not awaited: a startup target opens this page during the app's first render, which waits for lifecycle tasks.
+        _ = LoadQueues();
     }
-
-    protected override async Task OnInitializedAsync() => await LoadQueues();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

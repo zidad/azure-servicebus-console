@@ -90,7 +90,8 @@ This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, que
 
 | UI folder | Contents |
 |---|---|
-| `Program.cs` | Generic Host with `UseRazorConsole<App>()`, service registration (`AddAzureServiceBus()`), file logging to `logs/` |
+| `Program.cs` | Generic Host with `UseRazorConsole<App>()`, service registration (`AddAzureServiceBus()`), file logging to `logs/`; runs the command line through `AppCommands` |
+| `CommandLine/` | JasperFx commands: `AppCommands` (`run` by default, `help`), `RunCommand`/`RunInput` (`--subscription`, `--namespace`), `StartupTarget` (taken once by the connection page via `NavigationState.Startup`) |
 | `Pages/` | One Razor component per screen, each with a `@page` route |
 | `Components/` | Shared Razor components; `App.razor` is the root router |
 | `UI/` | Non-component UI code: `Theme`/`Icons`, `TableSort`, `LiveList`, `CountChanges`, `NavigationState` (parameters that aren't URL segments), `FullscreenLayout` |

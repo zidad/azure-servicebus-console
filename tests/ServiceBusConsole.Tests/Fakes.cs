@@ -12,6 +12,12 @@ public sealed class FakeNamespaceService : INamespaceService
     /// <summary>When set, the listing waits on it after the last subscription, like a slow live refresh.</summary>
     public TaskCompletionSource? HoldListing { get; set; }
 
+    /// <summary>When set, namespace listings wait on it after the last namespace, like a slow live refresh.</summary>
+    public TaskCompletionSource? HoldNamespaces { get; set; }
+
+    /// <summary>When set, namespace listings start once it completes.</summary>
+    public TaskCompletionSource? NamespacesGate { get; set; }
+
     /// <summary>Subscription IDs that report no Service Bus namespaces.</summary>
     public HashSet<string> WithoutNamespaces { get; } = [];
 
@@ -35,11 +41,13 @@ public sealed class FakeNamespaceService : INamespaceService
 
     public async IAsyncEnumerable<NamespaceInfo> GetNamespacesAsync(string subscriptionId, [EnumeratorCancellation] CancellationToken ct = default)
     {
+        if (NamespacesGate is { } gate) await gate.Task.WaitAsync(ct);
         foreach (var ns in Namespaces)
         {
             await Task.Yield();
             yield return ns;
         }
+        if (HoldNamespaces is { } hold) await hold.Task.WaitAsync(ct);
     }
 }
 
@@ -82,6 +90,9 @@ public sealed class FakeQueueService : IQueueService
 
     public int Loads { get; private set; }
 
+    /// <summary>When set, listings wait on it before the first queue, like a slow namespace.</summary>
+    public TaskCompletionSource? HoldLoads { get; set; }
+
     /// <summary>Changes a queue while a page may be polling.</summary>
     public void Update(string name, Func<QueueInfo, QueueInfo> change)
     {
@@ -97,6 +108,7 @@ public sealed class FakeQueueService : IQueueService
     {
         Loads++;
         await Task.Yield();
+        if (HoldLoads is { } hold) await hold.Task.WaitAsync(ct);
         if (LoadError is not null) throw LoadError;
         List<QueueInfo> queues;
         lock (Queues) queues = [.. Queues];

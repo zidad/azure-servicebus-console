@@ -14,6 +14,9 @@ public sealed class NavigationState
     public string? FocusedQueueName { get; set; }
     public AzureSubscription? AzureSubscription { get; set; }
 
+    /// <summary>Where the command line asked to start; the first connection page takes it, later visits start as usual.</summary>
+    public StartupTarget? Startup { get; set; }
+
     /// <summary>Changes on <see cref="Reload"/>; the app keys the current page on it.</summary>
     public int PageVersion { get; private set; }
 
