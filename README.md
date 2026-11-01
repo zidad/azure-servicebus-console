@@ -39,6 +39,7 @@ azsb help                                                            # all flags
 - `--subscription` / `-s`: Azure subscription by name or ID (case-insensitive); `emulator` or `Local Emulator` for the local emulator
 - `--namespace` / `-n`: namespace in that subscription, by name or host name (`sb-orders-dev.servicebus.windows.net`); needs `--subscription`
 - They apply at startup only: `Esc` back to the connection page works as usual. A subscription or namespace that isn't found is reported there
+- Without `--subscription`, the Azure CLI's current subscription (`az account set`) is selected and marked `(az default)`
 - Parsed by [JasperFx](https://github.com/JasperFx/jasperfx); `azsb help` also lists its generic host flags (`--config:<key> <value>`, `--environment`, `--log-level`)
 
 ## Features

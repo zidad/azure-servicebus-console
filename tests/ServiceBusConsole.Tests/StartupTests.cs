@@ -7,7 +7,7 @@ public sealed class StartupTests
 {
     private const string QueueHeader = "🔑 Contoso Development  ›  🌐 sb-orders-dev  ›  📬 Queues (1)";
 
-    private static AppHarness WithAzure(StartupTarget startup)
+    private static AppHarness WithAzure(StartupTarget? startup = null)
     {
         var app = new AppHarness();
         app.Namespaces.Subscriptions.Add(AppHarness.AzureSubscription);
@@ -85,6 +85,45 @@ public sealed class StartupTests
         await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
         frame = await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
         frame.GetLine(1).ShouldContain(QueueHeader);
+    }
+
+    [Test]
+    public async Task AzCurrentSubscription_IsSelected_AndMarked_WithoutCommandLine()
+    {
+        var app = WithAzure();
+        app.Namespaces.CurrentSubscriptionId = AppHarness.AzureSubscription.Id;
+        // As in SubscriptionAlone_SelectsIt_AndFocusesItsNamespaces: FocusManager.BeginSession drops an earlier request.
+        app.Namespaces.NamespacesGate = new TaskCompletionSource();
+        await using var terminal = await app.StartAsync(height: 40);
+        app.Namespaces.NamespacesGate.SetResult();
+
+        await AppHarness.WaitForFocusAsync(terminal, focusOrder: "3");
+        var frame = await terminal.WaitForTextAsync("(az default)", AppHarness.Timeout, Ct);
+        frame.ContainsText("sb-orders-dev").ShouldBeTrue(frame.ScreenText);
+        app.NavState.AzureSubscription.ShouldBe(AppHarness.AzureSubscription);
+    }
+
+    [Test]
+    public async Task AzCurrentSubscription_NotListed_SelectsTheEmulator_Quietly()
+    {
+        var app = WithAzure();
+        app.Namespaces.CurrentSubscriptionId = "6f1d2c3b-0000-4000-8000-0000000000ff";
+        await using var terminal = await app.StartAsync(height: 40);
+
+        await terminal.WaitUntilAsync(_ => app.NavState.AzureSubscription == AzureSubscription.Emulator, AppHarness.Timeout, cancellationToken: Ct);
+        var frame = await terminal.WaitForTextAsync("localhost", AppHarness.Timeout, Ct);
+        frame.ContainsText("not found").ShouldBeFalse(frame.ScreenText);
+    }
+
+    [Test]
+    public async Task CommandLineSubscription_WinsOverTheAzCurrentOne()
+    {
+        var app = WithAzure(new("emulator"));
+        app.Namespaces.CurrentSubscriptionId = AppHarness.AzureSubscription.Id;
+        await using var terminal = await app.StartAsync(height: 40);
+
+        await terminal.WaitUntilAsync(_ => app.NavState.AzureSubscription == AzureSubscription.Emulator, AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitForTextAsync("(az default)", AppHarness.Timeout, Ct);
     }
 
     [Test]

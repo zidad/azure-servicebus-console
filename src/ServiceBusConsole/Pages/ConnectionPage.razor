@@ -51,7 +51,7 @@ else
                         var idx = i++;
                         <SelectableRow @key="@(sub.Id ?? "")" RowIndex="@idx">
                             <SpectreTD>@($"{(sub.IsEmulator ? Icons.Emulator : Icons.AzureSubscription)} {sub.Name}")</SpectreTD>
-                            <SpectreTD><Markup Content="@(sub.Id ?? "localhost:5672")" Foreground="@Theme.Muted" /></SpectreTD>
+                            <SpectreTD><Markup Content="@(sub.Id is { } id ? (id == _azDefaultId ? $"{id}  (az default)" : id) : "localhost:5672")" Foreground="@Theme.Muted" /></SpectreTD>
                         </SelectableRow>
                     }
                 </NavigableTBody>
@@ -215,6 +215,7 @@ else
     private string? _restoreNamespace;
     private StartupTarget? _startup;
     private string? _startupError;
+    private string? _azDefaultId;
 
     private NamespaceInfo? ChosenNamespace => _namespacesLoading ? null : _namespaces.ElementAtOrDefault(_namespaceIndex);
 
@@ -230,6 +231,9 @@ else
         _ = Catalog.EnsureLoadedAsync();
         _startup = NavState.Startup;
         NavState.Startup = null;
+        _azDefaultId = await NamespaceService.GetCurrentSubscriptionIdAsync();
+        if (_startup is null && NavState.AzureSubscription is null && _azDefaultId is { } current)
+            _startup = new StartupTarget(current) { IsAzureCliDefault = true };
         if (_startup is null) await SelectSubscription(NavState.AzureSubscription ?? AzureSubscription.Emulator, debounce: false);
         else await ApplyStartup();
     }
@@ -251,7 +255,7 @@ else
         if (Catalog.Subscriptions.FirstOrDefault(startup.Matches) is { } subscription)
             return SelectSubscription(subscription, debounce: false, startup);
         if (Catalog.Loading) return Task.CompletedTask;
-        _startupError = $"Azure subscription \"{startup.Subscription}\" not found.";
+        if (!startup.IsAzureCliDefault) _startupError = $"Azure subscription \"{startup.Subscription}\" not found.";
         return SelectSubscription(AzureSubscription.Emulator, debounce: false);
     }
 

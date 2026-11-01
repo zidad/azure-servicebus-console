@@ -18,6 +18,11 @@ public sealed class FakeNamespaceService : INamespaceService
     /// <summary>When set, namespace listings start once it completes.</summary>
     public TaskCompletionSource? NamespacesGate { get; set; }
 
+    /// <summary>The Azure CLI's current subscription; null like a machine without a profile.</summary>
+    public string? CurrentSubscriptionId { get; set; }
+
+    public Task<string?> GetCurrentSubscriptionIdAsync(CancellationToken ct = default) => Task.FromResult(CurrentSubscriptionId);
+
     /// <summary>Subscription IDs that report no Service Bus namespaces.</summary>
     public HashSet<string> WithoutNamespaces { get; } = [];
 

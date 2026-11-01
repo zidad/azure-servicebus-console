@@ -15,6 +15,19 @@ internal sealed class NamespaceService(ArmClient armClient, ILogger<NamespaceSer
         armClient.GetSubscriptions().GetAllAsync(ct)
             .Select(sub => new AzureSubscription(sub.Data.DisplayName, sub.Data.SubscriptionId));
 
+    public async Task<string?> GetCurrentSubscriptionIdAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            return await AzureCliProfile.CurrentSubscriptionIdAsync(AzureCliProfile.DefaultPath, ct);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+            logger.LogWarning(ex, "Reading the Azure CLI profile failed");
+            return null;
+        }
+    }
+
     public async IAsyncEnumerable<bool> HasNamespacesAsync(string subscriptionId, [EnumeratorCancellation] CancellationToken ct = default)
     {
         bool has;

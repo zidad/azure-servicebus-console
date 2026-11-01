@@ -3,6 +3,9 @@ namespace ServiceBusConsole.CommandLine;
 /// <summary>Where the command line asks the app to start: a subscription, and optionally one of its namespaces.</summary>
 public sealed record StartupTarget(string Subscription, string? Namespace = null)
 {
+    /// <summary>The Azure CLI's current subscription, used when the command line names none: missing it is no error.</summary>
+    public bool IsAzureCliDefault { get; init; }
+
     private const string EmulatorAlias = "emulator";
 
     /// <summary>By ID or display name, ignoring case; <c>emulator</c> also names the local emulator.</summary>
