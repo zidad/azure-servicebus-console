@@ -68,6 +68,17 @@ internal sealed class MessageService(ServiceBusClient bus, ILoggerFactory logger
         [EnumeratorCancellation] CancellationToken ct = default)
     {
         await using var sender = bus.CreateSender(source.SendTarget);
+        await foreach (var sent in SendInBatchesAsync(sender, messages, ct))
+        {
+            _logger.LogInformation("Sent {Sent}/{Total} copies to {Target}", sent, messages.Count, source.SendTarget);
+            yield return sent;
+        }
+    }
+
+    /// <summary>Sends copies of messages this service returned, in order and in as few batches as fit; yields the running total.</summary>
+    public static async IAsyncEnumerable<int> SendInBatchesAsync(ServiceBusSender sender, IReadOnlyList<MessageInfo> messages,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
         var sent = 0;
         while (sent < messages.Count)
         {
@@ -79,7 +90,6 @@ internal sealed class MessageService(ServiceBusClient bus, ILoggerFactory logger
                 throw new InvalidOperationException($"Message #{messages[sent].SequenceNumber} is too large to send");
             await sender.SendMessagesAsync(batch, ct);
             sent += added;
-            _logger.LogInformation("Sent {Sent}/{Total} copies to {Target}", sent, messages.Count, source.SendTarget);
             yield return sent;
         }
     }

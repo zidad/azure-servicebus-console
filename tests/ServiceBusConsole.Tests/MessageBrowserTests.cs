@@ -91,13 +91,15 @@ public sealed class MessageBrowserTests
         app.Messages.Sent.Select(s => s.SequenceNumber).ShouldBe([3L]);
     }
 
-    private static async Task<(AppHarness App, RazorConsole.Testing.HeadlessTerminal Terminal)> PeekDlqAndSelectFirstAndThirdAsync(Action<AppHarness>? arrange = null)
+    /// <param name="azure">An Azure Standard namespace, with transactions, instead of the emulator.</param>
+    private static async Task<(AppHarness App, RazorConsole.Testing.HeadlessTerminal Terminal)> PeekDlqAndSelectFirstAndThirdAsync(
+        Action<AppHarness>? arrange = null, bool azure = false)
     {
         var app = new AppHarness();
         app.Queues.Queues.Add(new QueueInfo { Name = "orders", DeadLetterMessageCount = 3 });
         app.Messages.Messages.AddRange([Message(1, "first", "{}"), Message(2, "second", "{}"), Message(3, "third", "{}")]);
         arrange?.Invoke(app);
-        var terminal = await app.OpenQueuesAsync();
+        var terminal = azure ? await app.OpenAzureAsync(ConsoleKey.F1, height: 30) : await app.OpenQueuesAsync();
         await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
         var queueTable = terminal.FocusKey;
         await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
@@ -127,6 +129,24 @@ public sealed class MessageBrowserTests
         frame.ContainsText("selected").ShouldBeFalse(frame.ScreenText);
         app.Messages.Sent.ShouldBe([(new MessageSource.Queue("orders", IsDlq: true), 1L), (new MessageSource.Queue("orders", IsDlq: true), 3L)]);
         app.Messages.Completed.ShouldBe([1L, 3L], ignoreOrder: true);
+        app.Services.Transactions.Moved.ShouldBeEmpty();
+    }
+
+    [Test]
+    public async Task RetryWithTransactions_ConfirmsTheMove_AndMovesThroughThem()
+    {
+        var (app, terminal) = await PeekDlqAndSelectFirstAndThirdAsync(azure: true);
+        await using var _ = terminal;
+
+        await terminal.SendKeyAsync(ConsoleKey.F10, '\0', cancellationToken: Ct);
+        var frame = await terminal.WaitForTextAsync("2 messages → PeekLock → Move to orders", AppHarness.Timeout, Ct);
+        frame.ContainsText("move in one transaction").ShouldBeTrue(frame.ScreenText);
+        frame.ContainsText("Mark complete").ShouldBeFalse(frame.ScreenText);
+        await terminal.SendKeyAsync(ConsoleKey.Y, 'y', cancellationToken: Ct);
+
+        await terminal.WaitForTextAsync("Retried 2 of 2.", AppHarness.Timeout, Ct);
+        app.Services.Transactions.Moved.ShouldBe([[1L, 3L]]);
+        app.Messages.Sent.ShouldBeEmpty();
     }
 
     [Test]

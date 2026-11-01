@@ -16,12 +16,16 @@ public sealed class NamespaceOpenerTests
 
     private static string[] Features(IServiceBusNamespace ns) =>
     [
-        .. new (bool Has, string Name)[] { (ns is IHasTopics, "topics"), (ns is IHasMetrics, "metrics"), (ns is IHasDeletion, "deletion") }
+        .. new (bool Has, string Name)[]
+            {
+                (ns is IHasTopics, "topics"), (ns is IHasMetrics, "metrics"),
+                (ns is IHasDeletion, "deletion"), (ns is IHasTransactions, "transactions"),
+            }
             .Where(f => f.Has).Select(f => f.Name),
     ];
 
     [Test]
-    public async Task Emulator_HasTopics_ButNoMetricsOrDeletion()
+    public async Task Emulator_HasTopics_ButNoMetricsDeletionOrTransactions()
     {
         await using var ns = Opener().Open(NamespaceInfo.Emulator);
 
@@ -32,7 +36,7 @@ public sealed class NamespaceOpenerTests
     [Test]
     [Arguments("Basic")]
     [Arguments("basic")]
-    public async Task Basic_HasMetricsAndDeletion_ButNoTopics(string sku)
+    public async Task Basic_HasMetricsAndDeletion_ButNoTopicsOrTransactions(string sku)
     {
         await using var ns = Opener().Open(Azure(sku));
 
@@ -49,7 +53,7 @@ public sealed class NamespaceOpenerTests
         await using var ns = Opener().Open(Azure(sku));
 
         ns.ShouldBeOfType<StandardNamespace>();
-        Features(ns).ShouldBe(["topics", "metrics", "deletion"]);
+        Features(ns).ShouldBe(["topics", "metrics", "deletion", "transactions"]);
         ns.Info.ShouldBe(Azure(sku));
     }
 

@@ -319,6 +319,37 @@ public sealed class FakeLockedMessages(FakeMessageService service, IEnumerable<M
     }
 }
 
+/// <summary>Moves a chunk like a transaction: all of it, or none when <see cref="Fails"/> matches it.</summary>
+public sealed class FakeTransactionService : ITransactionService
+{
+    public int MaxMessages { get; set; } = 100;
+
+    /// <summary>Committed chunks, in order.</summary>
+    public List<IReadOnlyList<long>> Moved { get; } = [];
+
+    /// <summary>Chunks that rolled back.</summary>
+    public List<IReadOnlyList<long>> RolledBack { get; } = [];
+
+    public Func<IReadOnlyList<MessageInfo>, bool> Fails { get; set; } = _ => false;
+
+    /// <summary>When set, moving waits on it, so a test can see an operation in progress.</summary>
+    public TaskCompletionSource? Hold { get; set; }
+
+    public async Task MoveAsync(MessageSource source, ILockedMessages locked, IReadOnlyList<MessageInfo> messages, CancellationToken ct = default)
+    {
+        await Task.Yield();
+        if (Hold is { } hold) await hold.Task.WaitAsync(ct);
+        if (messages.Count > MaxMessages) throw new ArgumentException($"{messages.Count} messages in one transaction");
+        if (Fails(messages))
+        {
+            lock (RolledBack) RolledBack.Add([.. messages.Select(m => m.SequenceNumber)]);
+            throw new InvalidOperationException("transaction rolled back");
+        }
+        foreach (var m in messages) await locked.CompleteAsync(m, ct);
+        lock (Moved) Moved.Add([.. messages.Select(m => m.SequenceNumber)]);
+    }
+}
+
 public sealed class FakeDeletionService(FakeQueueService queues) : IDeletionService
 {
     public Task DeleteQueueAsync(string queueName, CancellationToken ct = default)
@@ -342,6 +373,7 @@ public sealed class FakeServices
     public FakeMessageService Messages { get; init; } = new();
     public FakeMetricsService Metrics { get; } = new();
     public FakeDeletionService Deletion { get; }
+    public FakeTransactionService Transactions { get; } = new();
 }
 
 public abstract class FakeNamespace(NamespaceInfo info, FakeServices services) : IServiceBusNamespace
@@ -368,13 +400,13 @@ public abstract class FakeNamespace(NamespaceInfo info, FakeServices services) :
     }
 }
 
-/// <summary>Like the local emulator: topics, but no metrics and no deletion.</summary>
+/// <summary>Like the local emulator: topics, but no metrics, deletion or transactions.</summary>
 public sealed class FakeEmulatorNamespace(FakeServices services) : FakeNamespace(NamespaceInfo.Emulator, services), IHasTopics
 {
     public ITopicService Topics => Services.Topics;
 }
 
-/// <summary>Like the Basic tier: metrics and deletion, no topics.</summary>
+/// <summary>Like the Basic tier: metrics and deletion, no topics or transactions.</summary>
 public sealed class FakeBasicNamespace(NamespaceInfo info, FakeServices services) : FakeNamespace(info, services), IHasMetrics, IHasDeletion
 {
     public IMetricsService Metrics => Services.Metrics;
@@ -383,11 +415,12 @@ public sealed class FakeBasicNamespace(NamespaceInfo info, FakeServices services
 
 /// <summary>Like the Standard and Premium tiers: every feature.</summary>
 public sealed class FakeStandardNamespace(NamespaceInfo info, FakeServices services)
-    : FakeNamespace(info, services), IHasTopics, IHasMetrics, IHasDeletion
+    : FakeNamespace(info, services), IHasTopics, IHasMetrics, IHasDeletion, IHasTransactions
 {
     public ITopicService Topics => Services.Topics;
     public IMetricsService Metrics => Services.Metrics;
     public IDeletionService Deletion => Services.Deletion;
+    public ITransactionService Transactions => Services.Transactions;
 }
 
 public sealed class FakeNamespaceOpener(Func<NamespaceInfo, IServiceBusNamespace> open) : INamespaceOpener

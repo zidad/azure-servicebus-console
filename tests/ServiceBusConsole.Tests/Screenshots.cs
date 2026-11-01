@@ -69,10 +69,10 @@ public sealed class Screenshots
         await Save(terminal, dir, "message-browser");
 
         await Key(terminal, ConsoleKey.F10);
-        await terminal.WaitForTextAsync("Mark complete", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("move in one transaction", AppHarness.Timeout, Ct);
         await Save(terminal, dir, "retry-confirm");
         await Key(terminal, ConsoleKey.N, 'n');
-        await terminal.WaitUntilAsync(f => !f.ContainsText("Mark complete"), AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => !f.ContainsText("move in one transaction"), AppHarness.Timeout, cancellationToken: Ct);
         await AppHarness.WaitForTableFocusAsync(terminal);
 
         await Key(terminal, ConsoleKey.Enter, '\r');
@@ -82,14 +82,14 @@ public sealed class Screenshots
         await terminal.WaitForTextAsync("2 selected", AppHarness.Timeout, Ct);
         await AppHarness.WaitForTableFocusAsync(terminal);
 
-        // Retry the two selected messages, holding the send so the progress dialog can be captured.
-        app.Messages.HoldSend = new TaskCompletionSource();
+        // Retry the two selected messages, holding the transaction so the progress dialog can be captured.
+        app.Services.Transactions.Hold = new TaskCompletionSource();
         await Key(terminal, ConsoleKey.F10);
-        await terminal.WaitForTextAsync("Mark complete", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("move in one transaction", AppHarness.Timeout, Ct);
         await Key(terminal, ConsoleKey.Y, 'y');
         await terminal.WaitForTextAsync("Retrying 2 messages", AppHarness.Timeout, Ct);
         await Save(terminal, dir, "retry-progress");
-        app.Messages.HoldSend.SetResult();
+        app.Services.Transactions.Hold.SetResult();
         await terminal.WaitForTextAsync("Retried 2 of 2.", AppHarness.Timeout, Ct);
         await Save(terminal, dir, "retry-result");
         await AppHarness.ClickTextAsync(terminal, "[Enter] OK");

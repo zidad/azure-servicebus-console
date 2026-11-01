@@ -52,7 +52,9 @@ internal sealed class NamespaceOpener(
             Decorate(info, new DeletionService(admin, loggers.CreateLogger<DeletionService>())));
         return tier == NamespaceTier.Basic
             ? new BasicNamespace(info, bus, services)
-            : new StandardNamespace(info, bus, services, Decorate(info, new TopicService(admin, loggers.CreateLogger<TopicService>())));
+            : new StandardNamespace(info, bus, services,
+                Decorate(info, new TopicService(admin, loggers.CreateLogger<TopicService>())),
+                new TransactionService(bus, loggers.CreateLogger<TransactionService>()));
     }
 
     private IQueueService Decorate(NamespaceInfo ns, IQueueService service) => decorators.Aggregate(service, (s, d) => d.Decorate(ns, s));
