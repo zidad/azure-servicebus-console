@@ -2,9 +2,10 @@
 
 <ModalWindow IsOpened="@IsOpened">
     <Panel Title="@(IsReceive ? $"{Icons.Subscription} Receive messages" : $"{Icons.Peek} Peek messages")" BorderColor="@(IsReceive && _deleteOnReceive ? Theme.Danger : Theme.Accent)" Padding="@(new(2, 1, 2, 1))">
-        <Flex Class="rows" Direction="FlexDirection.Column" @onkeydown="HandleKey">
+        @* Keys reach only the focused element, so each one handles Escape. *@
+        <Flex Class="rows" Direction="FlexDirection.Column">
             <TextInput @ref="_countInput" FillWidth="true" Label="Number of messages" Value="@_count" ValueChanged="@(v => _count = v ?? "")"
-                       OnSubmit="@(_ => Submit())" FocusOrder="100" />
+                       OnSubmit="@(_ => Submit())" FocusOrder="100" @onkeydown="HandleKey" />
             @if (IsReceive)
             {
                 <Padder Padding="@(new(0, 1, 0, 0))">
@@ -12,7 +13,7 @@
                         <Markup Content="Receive mode: " />
                         <KeyButton Content="@(_deleteOnReceive ? "ReceiveAndDelete" : "PeekLock")"
                                     OnClick="@(() => _deleteOnReceive = !_deleteOnReceive)"
-                                    FocusedColor="@(_deleteOnReceive ? Theme.Danger : Theme.Success)" FocusOrder="101" />
+                                    FocusedColor="@(_deleteOnReceive ? Theme.Danger : Theme.Success)" FocusOrder="101" OnKeyDown="HandleKey" />
                         <Markup Content="  (Enter/click to switch)" Foreground="@Theme.Muted" />
                     </Columns>
                 </Padder>
@@ -28,7 +29,7 @@
             else
             {
                 <TextInput FillWidth="true" Label="From sequence # (optional)" Value="@_from" ValueChanged="@(v => _from = v ?? "")"
-                           OnSubmit="@(_ => Submit())" FocusOrder="101" />
+                           OnSubmit="@(_ => Submit())" FocusOrder="101" @onkeydown="HandleKey" />
             }
             @if (_error.Length > 0)
             {
@@ -36,9 +37,9 @@
             }
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
-                    <KeyButton Content="[Enter] OK" OnClick="Submit" FocusedColor="@Theme.Success" FocusOrder="102" />
+                    <KeyButton Content="[Enter] OK" OnClick="Submit" FocusedColor="@Theme.Success" FocusOrder="102" OnKeyDown="HandleKey" />
                     <Markup Content="   " />
-                    <KeyButton Content="[Esc] Cancel" OnClick="Cancel" FocusedColor="@Theme.Muted" FocusOrder="103" />
+                    <KeyButton Content="[Esc] Cancel" OnClick="Cancel" FocusedColor="@Theme.Muted" FocusOrder="103" OnKeyDown="HandleKey" />
                 </Columns>
             </Padder>
         </Flex>

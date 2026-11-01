@@ -359,6 +359,30 @@ public sealed class MessageBrowserTests
     }
 
     [Test]
+    [Arguments(0)] // count field
+    [Arguments(1)] // from-sequence field
+    [Arguments(3)] // Cancel button
+    public async Task EscapeInPeekDialog_ClosesIt(int tabs)
+    {
+        var (_, terminal) = await OpenOrdersAsync();
+        await using var _ = terminal;
+        await terminal.SendKeyAsync(ConsoleKey.F7, '\0', cancellationToken: Ct);
+        await terminal.WaitForTextAsync("Peek messages", AppHarness.Timeout, Ct);
+        await AppHarness.WaitForFocusAsync(terminal, focusOrder: "100");
+        for (var i = 0; i < tabs; i++)
+        {
+            var previous = terminal.FocusKey;
+            await terminal.SendKeyAsync(ConsoleKey.Tab, '\t', cancellationToken: Ct);
+            await terminal.WaitUntilAsync(f => terminal.FocusKey != previous, AppHarness.Timeout, cancellationToken: Ct);
+        }
+
+        await terminal.SendKeyAsync(ConsoleKey.Escape, '\u001b', cancellationToken: Ct);
+
+        await terminal.WaitUntilAsync(f => !f.ContainsText("Peek messages"), AppHarness.Timeout, cancellationToken: Ct);
+        await AppHarness.WaitForTableFocusAsync(terminal);
+    }
+
+    [Test]
     public async Task EscapeCancelsARunningRetry()
     {
         var (app, terminal) = await PeekDlqAndSelectFirstAndThirdAsync(a => a.Messages.HoldSend = new TaskCompletionSource());
