@@ -42,7 +42,7 @@ dotnet test --solution ServiceBusConsole.slnx --max-parallel-test-modules 1  # A
 
 Tests use TUnit on Microsoft.Testing.Platform with Shouldly assertions; `Ct` (`tests/TestRun.cs`) is the running test's cancellation token. CI writes the TRX results to the job summary (failed tests listed) and uploads TUnit's HTML reports as artifacts.
 
-`tests/ServiceBusConsole.Tests` mounts the real `App` in RazorConsole.Testing's `HeadlessTerminal` with fake services (`Fakes.cs`); no Azure or emulator needed. `tests/ServiceBusConsole.AzureServiceBus.Tests` covers the Azure project's internals (`LockedMessages` on a fake receiver, message mapping, emulator config).
+`tests/ServiceBusConsole.Tests` mounts the real `App` in RazorConsole.Testing's `HeadlessTerminal` with fake services (`Fakes.cs`); no Azure or emulator needed. `AppHarness` opens fake namespaces like the real opener (`FakeEmulatorNamespace`, `FakeBasicNamespace` for SKU Basic, `FakeStandardNamespace` otherwise) over shared fake services; set `AppHarness.OpenNamespace` for another mix of features. `tests/ServiceBusConsole.AzureServiceBus.Tests` covers the Azure project's internals (`LockedMessages` on a fake receiver, message mapping, emulator config, the opener's tiers and features).
 - Start through `AppHarness.OpenQueuesAsync()` (clicks through the connection page). Navigating `NavigationManager` from the test thread does not render.
 - Pages focus their table after rendering; call `AppHarness.WaitForTableFocusAsync` before sending keys to a new page, and after a dialog closes.
 - Dialogs take focus one render after their text appears: `AppHarness.WaitForFocusAsync(terminal, focusOrder)` before typing into one.
@@ -81,8 +81,10 @@ This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, que
 **Layout:** `src/ServiceBusConsole` (the UI, packed as the `azsb` tool), `src/ServiceBusConsole.Abstractions`, `src/ServiceBusConsole.AzureServiceBus`, a test project per tested project under `tests/`, `lib/RazorConsole` (fork submodule). Shared build settings in `Directory.Build.props`, package versions in `Directory.Packages.props` (central package management). One type per file; namespaces follow project and folders (`ServiceBusConsole.<Folder>`, `ServiceBusConsole.AzureServiceBus.Emulator`), imported globally via `<Using>` in the csproj and `_Imports.razor`.
 
 **Projects:** the UI uses the abstractions only.
-- `ServiceBusConsole.Abstractions`, no packages: DTOs (`QueueInfo`, `MessageInfo`, `MessageSource`, ...), `I*Service`, `ILockedMessages`, `MessageLockLostException`, `ServiceBusConnection` (the namespace being browsed)
-- `ServiceBusConsole.AzureServiceBus`, the only project with Azure SDK packages: the `I*Service` implementations, `ServiceBusClients` (clients for the current namespace), `LockedMessages`, `Emulator/`, `AsyncParallel`. All internal except `AddAzureServiceBus()`
+- `ServiceBusConsole.Abstractions`, no packages: DTOs (`QueueInfo`, `MessageInfo`, `MessageSource`, ...), `I*Service`, `ILockedMessages`, `MessageLockLostException`, `IServiceBusNamespace` (what every namespace has: `Info`, `Queues`, `Messages`), the feature interfaces, `INamespaceOpener`, `INamespaceDecorator`
+- `ServiceBusConsole.AzureServiceBus`, the only project with Azure SDK packages: `NamespaceOpener` (`EmulatorNamespace`, or by `NamespaceInfo.Sku` `BasicNamespace` or `StandardNamespace` for Standard, Premium and an unknown SKU), the `I*Service` implementations (management API for Azure; config file and peeked counts for the emulator, in `Emulator/`), `LockedMessages`, `AsyncParallel`. Each namespace owns its `ServiceBusClient` and closes it on dispose. All internal except `AddAzureServiceBus()`
+- Capabilities are composed, not checked: a namespace implements a feature interface or not (`IHasTopics`: not Basic; `IHasMetrics`, `IHasDeletion`: not the emulator), and the UI asks `Connection.Current is IHasMetrics { Metrics: var metrics }`, hiding buttons and keys it lacks. Never branch on emulator or tier in the UI or throw `NotSupportedException` in a service; `AzureSubscription.IsEmulator` only picks the connection target and its icon
+- Decorators wrap a namespace's services, not the namespace (a wrapper can't implement exactly the inner one's features): the opener applies every registered `INamespaceDecorator` while composing it
 - Its SDK packages are `PrivateAssets="compile;..."`: the UI gets them at run time only, so SDK types do not compile there (`ArchitectureTests` checks it). Add new SDK packages the same way
 - `ServiceBusMessageInfo` (Azure) derives from `MessageInfo` and keeps the received message, so Resend/Retry send exact copies (`IMessageService.SendCopiesAsync` takes only messages the service returned)
 - Abstractions are values and streams: results over time are returned, as `IAsyncEnumerable<T>` (pages, running totals of send/purge; the work runs as the stream is read) or `ChannelReader<T>` (`ILockedMessages.Held`, `LockLost`). No callbacks, events or writer parameters; `CancellationToken` on every async member
@@ -95,8 +97,8 @@ This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, que
 | `Pages/` | One Razor component per screen, each with a `@page` route |
 | `Components/` | Shared Razor components; `App.razor` is the root router |
 | `UI/` | Non-component UI code: `Theme`/`Icons`, `TableSort`, `LiveList`, `CountChanges`, `NavigationState` (parameters that aren't URL segments), `FullscreenLayout` |
-| `Services/` | `SubscriptionCatalog`, `AzureSubscriptions` (emulator first, then the account's subscriptions) |
-| `Services/Caching/` | `FileCache` and the caching decorators: cached data first, then live |
+| `Services/` | `ServiceBusConnection` (the namespace being browsed: `SetNamespace` opens it and disposes the previous one; read `Current` each time), `SubscriptionCatalog`, `AzureSubscriptions` (emulator first, then the account's subscriptions) |
+| `Services/Caching/` | `FileCache`, `CachingNamespaceDecorator` (wraps each opened namespace's listings, metrics and deletion: cached data first, then live), `CachingNamespaceService` |
 | `Messaging/` | `MessageBrowser` (+ store), `OperationProgress`, `RetryText` |
 | `Logging/`, `Syntax/` | File logger, JSON highlighting grammar |
 

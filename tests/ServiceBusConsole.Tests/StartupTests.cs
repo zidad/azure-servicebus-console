@@ -52,7 +52,7 @@ public sealed class StartupTests
 
         await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
 
-        app.Connection.IsEmulator.ShouldBeTrue();
+        app.Connection.Current.ShouldBeOfType<FakeEmulatorNamespace>();
     }
 
     [Test]

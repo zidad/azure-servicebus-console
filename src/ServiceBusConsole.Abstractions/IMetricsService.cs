@@ -1,6 +1,6 @@
 namespace ServiceBusConsole.Abstractions;
 
-/// <summary>Azure Monitor metrics of the current namespace; the local emulator has none.</summary>
+/// <summary>Azure Monitor metrics of a namespace.</summary>
 public interface IMetricsService
 {
     /// <summary>Throughput and backlog of <paramref name="scope"/> over <paramref name="window"/>, intervals without data as 0.</summary>

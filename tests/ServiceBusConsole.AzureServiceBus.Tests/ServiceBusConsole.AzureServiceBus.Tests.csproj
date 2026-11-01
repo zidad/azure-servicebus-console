@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="../../src/ServiceBusConsole.AzureServiceBus/ServiceBusConsole.AzureServiceBus.csproj" />
+    <PackageReference Include="Azure.Identity" />
     <PackageReference Include="Azure.Messaging.ServiceBus" />
+    <PackageReference Include="Azure.ResourceManager" />
     <PackageReference Include="Azure.ResourceManager.Monitor" />
   </ItemGroup>
   <ItemGroup>

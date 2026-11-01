@@ -4,7 +4,6 @@
 @inject NavigationManager Nav
 @inject NavigationState NavState
 @inject ServiceBusConnection Connection
-@inject ITopicService TopicService
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 @inject ITerminalViewport Viewport
 @inject LiveCountsOptions LiveCounts
@@ -69,17 +68,20 @@
         }
     </Content>
     <Footer>
-        @if (ShowMetrics)
+        @if (ShowMetrics && Connection.Current is IHasMetrics { Metrics: var metrics })
         {
-            <MetricsPanel @ref="_metricsPanel" Label="@($"{Icons.Topic} topic {_focusedItem}")" Scope="@(_focusedItem is { } t ? new MetricsScope.Entity(t) : null)" OnKeyDown="@HandleKeyDown" />
+            <MetricsPanel @ref="_metricsPanel" Metrics="@metrics" Label="@($"{Icons.Topic} topic {_focusedItem}")" Scope="@(_focusedItem is { } t ? new MetricsScope.Entity(t) : null)" OnKeyDown="@HandleKeyDown" />
         }
         <Padder Padding="@(new(1, 0, 0, 0))">
             <Columns>
                 <KeyButton Content="[F5] 🔄 Refresh" OnClick="LoadTopics" FocusedColor="@Theme.Success" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="   " />
-                <KeyButton Content="[F9] ❌ Delete" OnClick="@(() => OnFocused(_deleteTopic))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
-                <Markup Content="   " />
-                @if (!Connection.IsEmulator)
+                @if (Connection.Current is IHasDeletion)
+                {
+                    <KeyButton Content="[F9] ❌ Delete" OnClick="@(() => OnFocused(_deleteTopic))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
+                    <Markup Content="   " />
+                }
+                @if (Connection.Current is IHasMetrics)
                 {
                     <KeyButton Content="@($"[F12] {Icons.Metrics} Metrics")" OnClick="ToggleMetrics" FocusedColor="@Theme.Accent" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="   " />
@@ -92,12 +94,17 @@
 
 <ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
 
-<AsyncCommand @ref="_deleteTopic" TItem="string"
-              ConfirmMessage="@(n => $"Delete topic '{n}' and all its subscriptions? This cannot be undone.")"
-              Execute="@(n => TopicService.DeleteTopicAsync(n))"
-              OnCompleted="@(n => { _all.RemoveAll(t => t.Name == n); UpdateFilterState(_filter); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1)); _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex)?.Name; StateHasChanged(); return Task.CompletedTask; })" />
+@if (Connection.Current is IHasDeletion { Deletion: var deletion })
+{
+    <AsyncCommand @ref="_deleteTopic" TItem="string"
+                  ConfirmMessage="@(n => $"Delete topic '{n}' and all its subscriptions? This cannot be undone.")"
+                  Execute="@(n => deletion.DeleteTopicAsync(n))"
+                  OnCompleted="@(n => { _all.RemoveAll(t => t.Name == n); UpdateFilterState(_filter); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1)); _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex)?.Name; StateHasChanged(); return Task.CompletedTask; })" />
+}
 
 @code {
+    private ITopicService Topics => Connection.Current is IHasTopics { Topics: var topics } ? topics : throw new InvalidOperationException("This namespace has no topics.");
+
     private LiveList<TopicInfo>? _live;
     private LiveList<TopicInfo> List => _live ?? throw new InvalidOperationException("Topic list not initialized");
     private List<TopicInfo> _all => List.All;
@@ -116,14 +123,14 @@
         .Add("Scheduled", t => t.ScheduledMessageCount);
 
     private MetricsPanel? _metricsPanel;
-    private bool ShowMetrics => !Connection.IsEmulator && MetricsVisibility.IsVisible(Viewport.Height);
+    private bool ShowMetrics => Connection.Current is IHasMetrics && MetricsVisibility.IsVisible(Viewport.Height);
 
     public void Dispose() => _live?.Dispose();
 
 
     protected override void OnInitialized()
     {
-        _live = new LiveList<TopicInfo>(TopicService.GetTopicsAsync, t => t.Name, x => x.IsRefreshing,
+        _live = new LiveList<TopicInfo>(ct => Topics.GetTopicsAsync(ct), t => t.Name, x => x.IsRefreshing,
             new(t => t.Name, ("Subscriptions", x => x.SubscriptionCount), ("Scheduled", x => x.ScheduledMessageCount)),
             LiveCounts, Logger)
         {
@@ -131,7 +138,7 @@
             Render = StateHasChanged,
             LoadFailed = ex => { _loadFailed = true; _error = ErrorText.Of(ex); return InvokeAsync(StateHasChanged); },
         };
-        if (Connection.CurrentNamespace is null)
+        if (Connection.Current is not IHasTopics)
             Nav.NavigateTo("/");
         _focusedItem = NavState.TopicName;
     }
@@ -184,7 +191,7 @@
 
     private void ToggleMetrics()
     {
-        if (Connection.IsEmulator) return;
+        if (Connection.Current is not IHasMetrics) return;
         _ = MetricsVisibility.ToggleAsync(Viewport.Height);
         StateHasChanged();
     }

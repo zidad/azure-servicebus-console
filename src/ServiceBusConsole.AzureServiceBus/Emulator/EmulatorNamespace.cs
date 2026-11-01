@@ -1,8 +1,15 @@
+using Azure.Messaging.ServiceBus;
+
 namespace ServiceBusConsole.AzureServiceBus.Emulator;
 
-internal sealed record EmulatorNamespace
+/// <summary>The local emulator: topics, but no management API (no deletion), no metrics and no transactions.</summary>
+internal sealed class EmulatorNamespace(ServiceBusClient bus, IQueueService queues, ITopicService topics, IMessageService messages)
+    : IServiceBusNamespace, IHasTopics
 {
-    public string Name { get; init; } = "";
-    public IReadOnlyList<EmulatorQueueDef> Queues { get; init; } = [];
-    public IReadOnlyList<EmulatorTopicDef> Topics { get; init; } = [];
+    public NamespaceInfo Info => NamespaceInfo.Emulator;
+    public IQueueService Queues => queues;
+    public ITopicService Topics => topics;
+    public IMessageService Messages => messages;
+
+    public ValueTask DisposeAsync() => bus.DisposeAsync();
 }

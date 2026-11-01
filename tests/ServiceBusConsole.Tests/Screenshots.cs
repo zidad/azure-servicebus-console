@@ -137,7 +137,7 @@ public sealed class Screenshots
         var app = SampleApp();
         await using var terminal = await app.StartAsync(width: 120, height: 50);
         await AppHarness.WaitForTableFocusAsync(terminal);
-        await terminal.WaitUntilAsync(f => f.ContainsText("Contoso Development") && f.ContainsText("local emulator"), AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => f.ContainsText("Contoso Development") && f.ContainsText("available for localhost"), AppHarness.Timeout, cancellationToken: Ct);
         await Save(terminal, dir, "connection-emulator");
 
         await Key(terminal, ConsoleKey.DownArrow);

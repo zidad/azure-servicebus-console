@@ -18,8 +18,9 @@ var builder = Host.CreateDefaultBuilder(args)
         // Blazor logs every component render at Debug: hundreds of MB per session.
         .AddFilter("Microsoft.AspNetCore.Components", LogLevel.Information))
     .ConfigureServices(services => services
-        .AddSingleton<ServiceBusConnection>()
         .AddAzureServiceBus()
+        .AddSingleton<INamespaceDecorator, CachingNamespaceDecorator>()
+        .AddSingleton<ServiceBusConnection>()
         .AddSingleton<FileCache>()
         .AddSingleton<NavigationState>()
         .AddSingleton<SubscriptionCatalog>()
@@ -30,9 +31,6 @@ var builder = Host.CreateDefaultBuilder(args)
         .AddSingleton<MetricsRange>()
         .AddSyntaxLanguages()
         .Decorate<INamespaceService, CachingNamespaceService>()
-        .Decorate<IQueueService, CachingQueueService>()
-        .Decorate<ITopicService, CachingTopicService>()
-        .Decorate<IMetricsService, CachingMetricsService>()
         .Configure<ConsoleAppOptions>(options =>
         {
             options.AutoClearConsole = true;

@@ -9,12 +9,15 @@ namespace ServiceBusConsole.Messaging;
 /// can act on the same locks. List mutations happen on the caller's (dispatcher) thread;
 /// <see cref="Changed"/> may fire from background threads.
 /// </summary>
-public sealed class MessageBrowser(MessageSource source, IMessageService service) : IAsyncDisposable
+public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns) : IAsyncDisposable
 {
     private const string DeadLetterReason = "Dead-lettered manually";
+    private readonly IMessageService _service = ns.Messages;
     private ILockedMessages? _locked;
     private readonly RenderThrottle _progressThrottle = new(100);
 
+    /// <summary>The namespace this browser reads and its locks belong to.</summary>
+    public IServiceBusNamespace Namespace { get; } = ns;
     public MessageSource Source { get; } = source;
     public BrowseMode Mode { get; private set; } = BrowseMode.Peek;
     public IReadOnlyList<MessageInfo> Messages { get; private set; } = [];
@@ -75,7 +78,7 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
         await RunAsync(new($"Peeking {count:N0}", [new("Peek", count)], modal: false), async op =>
         {
             var step = Start(op, 0);
-            await foreach (var page in service.PeekAsync(Source, count, fromSequenceNumber, op.Token))
+            await foreach (var page in _service.PeekAsync(Source, count, fromSequenceNumber, op.Token))
                 Append(page, step);
         });
     }
@@ -90,7 +93,7 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
             await RunAsync(new($"Receiving and deleting {count:N0}", [new("Receive", count)], modal: false), async op =>
             {
                 var step = Start(op, 0);
-                await foreach (var page in service.ReceiveAndDeleteAsync(Source, count, op.Token))
+                await foreach (var page in _service.ReceiveAndDeleteAsync(Source, count, op.Token))
                     Append(page, step);
             });
             return;
@@ -100,7 +103,7 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
         await RunAsync(new($"Receiving {count:N0} with PeekLock", [new("Receive", count)], modal: false), async op =>
         {
             var step = Start(op, 0);
-            var locked = service.StartReceiving(Source, count, op.Token);
+            var locked = _service.StartReceiving(Source, count, op.Token);
             _locked = locked;
             _ = RedrawOnLockLossAsync(locked);
             while (await locked.Held.WaitToReadAsync())
@@ -177,7 +180,7 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
         var lockStep = op.Steps[0];
         lockStep.State = StepState.Running;
         Changed?.Invoke();
-        await using var locked = service.StartLocking(Source, [.. targets.Select(m => m.SequenceNumber)], op.Token);
+        await using var locked = _service.StartLocking(Source, [.. targets.Select(m => m.SequenceNumber)], op.Token);
         await PipelineAsync(op, targets, locked.Held, locked, "not found in the dead-letter queue (gone, or locked elsewhere)", lockStep);
     }
 
@@ -246,7 +249,7 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
             var count = 0;
             try
             {
-                await foreach (var n in service.SendCopiesAsync(Source, chunk, token))
+                await foreach (var n in _service.SendCopiesAsync(Source, chunk, token))
                 {
                     count = n;
                     sendStep.Report(before + n);
@@ -311,7 +314,7 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
             var step = Start(op, 0);
             try
             {
-                await foreach (var n in service.PurgeAsync(Source, op.Token))
+                await foreach (var n in _service.PurgeAsync(Source, op.Token))
                 {
                     count = n;
                     step.Report(n);
@@ -360,7 +363,7 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
         var sent = 0;
         try
         {
-            await foreach (var n in service.SendCopiesAsync(Source, messages, token))
+            await foreach (var n in _service.SendCopiesAsync(Source, messages, token))
             {
                 sent = n;
                 step.Report(n);

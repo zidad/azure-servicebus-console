@@ -124,11 +124,10 @@ public sealed class FakeQueueService : IQueueService
         foreach (var q in queues) yield return q;
     }
 
-    public Task DeleteQueueAsync(string queueName, CancellationToken ct = default)
+    public void Delete(string queueName)
     {
         Deleted.Add(queueName);
         lock (Queues) Queues.RemoveAll(q => q.Name == queueName);
-        return Task.CompletedTask;
     }
 }
 
@@ -162,10 +161,6 @@ public sealed class FakeTopicService : ITopicService
         await Task.Yield();
         foreach (var s in Subscriptions.ToList()) yield return s;
     }
-
-    public Task DeleteTopicAsync(string topicName, CancellationToken ct = default) => Task.CompletedTask;
-
-    public Task DeleteSubscriptionAsync(string topicName, string subscriptionName, CancellationToken ct = default) => Task.CompletedTask;
 }
 
 public sealed class FakeMessageService : IMessageService
@@ -322,4 +317,80 @@ public sealed class FakeLockedMessages(FakeMessageService service, IEnumerable<M
         if (!removed)
             throw new InvalidOperationException($"Message #{message.SequenceNumber} is no longer locked");
     }
+}
+
+public sealed class FakeDeletionService(FakeQueueService queues) : IDeletionService
+{
+    public Task DeleteQueueAsync(string queueName, CancellationToken ct = default)
+    {
+        queues.Delete(queueName);
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteTopicAsync(string topicName, CancellationToken ct = default) => Task.CompletedTask;
+
+    public Task DeleteSubscriptionAsync(string topicName, string subscriptionName, CancellationToken ct = default) => Task.CompletedTask;
+}
+
+/// <summary>The fake services of a test; every namespace it opens shares them.</summary>
+public sealed class FakeServices
+{
+    public FakeServices() => Deletion = new(Queues);
+
+    public FakeQueueService Queues { get; } = new();
+    public FakeTopicService Topics { get; } = new();
+    public FakeMessageService Messages { get; init; } = new();
+    public FakeMetricsService Metrics { get; } = new();
+    public FakeDeletionService Deletion { get; }
+}
+
+public abstract class FakeNamespace(NamespaceInfo info, FakeServices services) : IServiceBusNamespace
+{
+    protected FakeServices Services => services;
+
+    public NamespaceInfo Info => info;
+    public IQueueService Queues => services.Queues;
+    public IMessageService Messages => services.Messages;
+    public bool Disposed { get; private set; }
+
+    /// <summary>Like the real opener: the emulator, Basic by its SKU, any other namespace Standard.</summary>
+    public static FakeNamespace For(NamespaceInfo info, FakeServices services) => info switch
+    {
+        _ when info == NamespaceInfo.Emulator => new FakeEmulatorNamespace(services),
+        { Sku: "Basic" } => new FakeBasicNamespace(info, services),
+        _ => new FakeStandardNamespace(info, services),
+    };
+
+    public ValueTask DisposeAsync()
+    {
+        Disposed = true;
+        return ValueTask.CompletedTask;
+    }
+}
+
+/// <summary>Like the local emulator: topics, but no metrics and no deletion.</summary>
+public sealed class FakeEmulatorNamespace(FakeServices services) : FakeNamespace(NamespaceInfo.Emulator, services), IHasTopics
+{
+    public ITopicService Topics => Services.Topics;
+}
+
+/// <summary>Like the Basic tier: metrics and deletion, no topics.</summary>
+public sealed class FakeBasicNamespace(NamespaceInfo info, FakeServices services) : FakeNamespace(info, services), IHasMetrics, IHasDeletion
+{
+    public IMetricsService Metrics => Services.Metrics;
+    public IDeletionService Deletion => Services.Deletion;
+}
+
+/// <summary>Like the Standard and Premium tiers: every feature.</summary>
+public sealed class FakeStandardNamespace(NamespaceInfo info, FakeServices services)
+    : FakeNamespace(info, services), IHasTopics, IHasMetrics, IHasDeletion
+{
+    public ITopicService Topics => Services.Topics;
+    public IMetricsService Metrics => Services.Metrics;
+    public IDeletionService Deletion => Services.Deletion;
+}
+
+public sealed class FakeNamespaceOpener(Func<NamespaceInfo, IServiceBusNamespace> open) : INamespaceOpener
+{
+    public IServiceBusNamespace Open(NamespaceInfo info) => open(info);
 }

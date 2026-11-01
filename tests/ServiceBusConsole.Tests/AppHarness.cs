@@ -16,19 +16,30 @@ public sealed class AppHarness
     // Generous so slow CI runners pass; a hang still fails.
     public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(10);
 
+    public AppHarness()
+    {
+        OpenNamespace = info => FakeNamespace.For(info, Services);
+        Connection = new(new FakeNamespaceOpener(info => OpenNamespace(info)));
+    }
+
     public FakeNamespaceService Namespaces { get; } = new();
-    public FakeQueueService Queues { get; } = new();
+    public FakeServices Services { get; } = new();
+    public FakeQueueService Queues => Services.Queues;
     public LiveCountsOptions LiveCounts { get; } = new();
-    public FakeTopicService Topics { get; } = new();
-    public FakeMessageService Messages { get; } = new();
-    public FakeMetricsService Metrics { get; } = new();
+    public FakeTopicService Topics => Services.Topics;
+    public FakeMessageService Messages => Services.Messages;
+    public FakeMetricsService Metrics => Services.Metrics;
+
+    /// <summary>The namespace a choice opens; by default like the real opener (<see cref="FakeNamespace.For"/>).</summary>
+    public Func<NamespaceInfo, IServiceBusNamespace> OpenNamespace { get; set; }
+
     public MetricsOptions MetricsOptions { get; } = new();
     public NavigationState NavState { get; } = new();
 
     /// <summary>Per-test cache folder, so tests never touch the user's real cache.</summary>
     public string CacheDirectory { get; set; } = Path.Combine(Path.GetTempPath(), "sb-console-tests", Guid.NewGuid().ToString("N"));
     public ConsoleNavigationManager Navigation { get; } = new();
-    public ServiceBusConnection Connection { get; } = new();
+    public ServiceBusConnection Connection { get; }
 
     public Task<HeadlessTerminal> StartAsync(int width = 120, int height = 30)
     {
@@ -43,16 +54,12 @@ public sealed class AppHarness
                     services.AddSingleton<NavigationManager>(Navigation);
                     services.AddSingleton(Connection);
                     services.AddSingleton<INamespaceService>(Namespaces);
-                    services.AddSingleton<IQueueService>(Queues);
-                    services.AddSingleton<ITopicService>(Topics);
-                    services.AddSingleton<IMessageService>(Messages);
                     services.AddSingleton(NavState);
                     services.AddSingleton<MessageBrowserStore>();
                     services.AddSingleton(new FileCache(NullLogger<FileCache>.Instance, CacheDirectory));
                     services.AddSingleton<SubscriptionCatalog>();
                     services.AddSyntaxLanguages();
                     services.AddSingleton(LiveCounts);
-                    services.AddSingleton<IMetricsService>(Metrics);
                     services.AddSingleton(MetricsOptions);
                     services.AddSingleton<MetricsVisibility>();
                     services.AddSingleton<MetricsRange>();
@@ -77,18 +84,20 @@ public sealed class AppHarness
     };
 
     /// <summary>
-    /// Starts on the connection page, picks <see cref="AzureSubscription"/> and its <see cref="AzureNamespace"/>, then opens
-    /// the page of <paramref name="key"/> (F1 queues, F2 topics, F3 all subscriptions); tall enough for the metrics panel.
+    /// Starts on the connection page, picks <see cref="AzureSubscription"/> and its <paramref name="ns"/> (by default
+    /// <see cref="AzureNamespace"/>), then opens the page of <paramref name="key"/> (F1 queues, F2 topics, F3 all subscriptions);
+    /// tall enough for the metrics panel.
     /// </summary>
-    public async Task<HeadlessTerminal> OpenAzureAsync(ConsoleKey key, int height = 40)
+    public async Task<HeadlessTerminal> OpenAzureAsync(ConsoleKey key, int height = 40, NamespaceInfo? ns = null)
     {
+        var chosen = ns ?? AzureNamespace;
         Namespaces.Subscriptions.Add(AzureSubscription);
-        Namespaces.Namespaces.Add(AzureNamespace);
+        Namespaces.Namespaces.Add(chosen);
         var terminal = await StartAsync(height: height);
         await WaitForTableFocusAsync(terminal);
         await terminal.WaitForTextAsync(AzureSubscription.Name, Timeout, Ct);
         await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
-        await terminal.WaitUntilAsync(_ => Connection.CurrentNamespace == AzureNamespace.FullyQualifiedNamespace, Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(_ => Connection.CurrentNamespace == chosen.FullyQualifiedNamespace, Timeout, cancellationToken: Ct);
         var connectionFocus = terminal.FocusKey;
         await terminal.SendKeyAsync(key, '\0', cancellationToken: Ct);
         await WaitForTableFocusAsync(terminal, connectionFocus);

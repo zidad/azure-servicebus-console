@@ -7,7 +7,7 @@ public sealed class RetryPipelineTests
     {
         var service = new FakeMessageService { PauseScan = new TaskCompletionSource(), PauseScanAfter = 100 };
         service.Messages.AddRange(Enumerable.Range(1, 250).Select(i => Message(i)));
-        var browser = new MessageBrowser(new MessageSource.Queue("orders", IsDlq: true), service);
+        var browser = new MessageBrowser(new MessageSource.Queue("orders", IsDlq: true), new FakeEmulatorNamespace(new FakeServices { Messages = service }));
         await browser.PeekAsync(250, null);
         browser.SelectAll();
 
@@ -32,7 +32,7 @@ public sealed class RetryPipelineTests
     {
         var service = new FakeMessageService { PauseScan = new TaskCompletionSource(), PauseScanAfter = 100 };
         service.Messages.AddRange(Enumerable.Range(1, 250).Select(i => Message(i)));
-        var browser = new MessageBrowser(new MessageSource.Queue("orders", IsDlq: true), service);
+        var browser = new MessageBrowser(new MessageSource.Queue("orders", IsDlq: true), new FakeEmulatorNamespace(new FakeServices { Messages = service }));
         await browser.PeekAsync(250, null);
         browser.SelectAll();
 
