@@ -301,7 +301,7 @@
         StateHasChanged();
         try { await load(); }
         catch (Exception ex) when (ex.Message.Contains("auto-forwarding", StringComparison.OrdinalIgnoreCase)) { _isAutoForwarding = true; }
-        catch (Exception ex) { _error = ex.Message.Split('\n')[0]; }
+        catch (Exception ex) { _error = ErrorText.Of(ex).Split('\n')[0]; }
         _loading = null;
         FocusTable();
     }

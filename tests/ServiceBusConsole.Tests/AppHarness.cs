@@ -21,6 +21,8 @@ public sealed class AppHarness
     public LiveCountsOptions LiveCounts { get; } = new();
     public FakeTopicService Topics { get; } = new();
     public FakeMessageService Messages { get; } = new();
+    public FakeMetricsService Metrics { get; } = new();
+    public MetricsOptions MetricsOptions { get; } = new();
     public NavigationState NavState { get; } = new();
 
     /// <summary>Per-test cache folder, so tests never touch the user's real cache.</summary>
@@ -50,22 +52,53 @@ public sealed class AppHarness
                     services.AddSingleton<SubscriptionCatalog>();
                     services.AddSyntaxLanguages();
                     services.AddSingleton(LiveCounts);
+                    services.AddSingleton<IMetricsService>(Metrics);
+                    services.AddSingleton(MetricsOptions);
+                    services.AddSingleton<MetricsVisibility>();
                 },
             },
             Ct);
     }
 
     /// <summary>Starts on the connection page (local emulator is preselected) and opens its queue list, the way a user does.</summary>
-    public Task<HeadlessTerminal> OpenQueuesAsync() => OpenAsync(ConsoleKey.F1);
+    public Task<HeadlessTerminal> OpenQueuesAsync(int height = 30) => OpenAsync(ConsoleKey.F1, height);
 
     /// <summary>Same as <see cref="OpenQueuesAsync"/>, for the topic list.</summary>
     public Task<HeadlessTerminal> OpenTopicsAsync() => OpenAsync(ConsoleKey.F2);
 
+    public static readonly AzureSubscription AzureSubscription = new("Contoso Development", "6f1d2c3b-0000-4000-8000-000000000001");
+
+    public static readonly NamespaceInfo AzureNamespace = new()
+    {
+        Name = "sb-orders-dev", FullyQualifiedNamespace = "sb-orders-dev.servicebus.windows.net", ResourceGroup = "rg-messaging-dev",
+        Location = "West Europe", Sku = "Standard", Status = "Active",
+        ResourceId = "/subscriptions/6f1d2c3b-0000-4000-8000-000000000001/resourceGroups/rg-messaging-dev/providers/Microsoft.ServiceBus/namespaces/sb-orders-dev",
+    };
+
+    /// <summary>
+    /// Starts on the connection page, picks <see cref="AzureSubscription"/> and its <see cref="AzureNamespace"/>, then opens
+    /// the page of <paramref name="key"/> (F1 queues, F2 topics, F3 all subscriptions); tall enough for the metrics panel.
+    /// </summary>
+    public async Task<HeadlessTerminal> OpenAzureAsync(ConsoleKey key, int height = 40)
+    {
+        Namespaces.Subscriptions.Add(AzureSubscription);
+        Namespaces.Namespaces.Add(AzureNamespace);
+        var terminal = await StartAsync(height: height);
+        await WaitForTableFocusAsync(terminal);
+        await terminal.WaitForTextAsync(AzureSubscription.Name, Timeout, Ct);
+        await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
+        await terminal.WaitUntilAsync(_ => Connection.CurrentNamespace == AzureNamespace.FullyQualifiedNamespace, Timeout, cancellationToken: Ct);
+        var connectionFocus = terminal.FocusKey;
+        await terminal.SendKeyAsync(key, '\0', cancellationToken: Ct);
+        await WaitForTableFocusAsync(terminal, connectionFocus);
+        return terminal;
+    }
+
     // A key, not a click: the connection page can still shift its buttons (e.g. the subscription
     // spinner appears), so a click at a position read from an earlier frame may miss.
-    private async Task<HeadlessTerminal> OpenAsync(ConsoleKey key)
+    private async Task<HeadlessTerminal> OpenAsync(ConsoleKey key, int height = 30)
     {
-        var terminal = await StartAsync();
+        var terminal = await StartAsync(height: height);
         await WaitForTableFocusAsync(terminal);
         var connectionFocus = terminal.FocusKey;
         await terminal.SendKeyAsync(key, '\0', cancellationToken: Ct);

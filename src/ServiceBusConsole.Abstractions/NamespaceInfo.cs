@@ -14,4 +14,5 @@ public sealed record NamespaceInfo
     // Null for the emulator and for namespaces cached before these were recorded.
     public string? Sku { get; init; }
     public string? Status { get; init; }
+    public string? ResourceId { get; init; }
 }

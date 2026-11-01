@@ -17,5 +17,6 @@ public static class ServiceCollectionExtensions
         .AddSingleton<INamespaceService, NamespaceService>()
         .AddSingleton<IQueueService, QueueService>()
         .AddSingleton<ITopicService, TopicService>()
-        .AddSingleton<IMessageService, MessageService>();
+        .AddSingleton<IMessageService, MessageService>()
+        .AddSingleton<IMetricsService, MetricsService>();
 }

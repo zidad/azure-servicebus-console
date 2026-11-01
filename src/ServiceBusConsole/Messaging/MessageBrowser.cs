@@ -484,6 +484,7 @@ public sealed class MessageBrowser(MessageSource source, IMessageService service
     {
         OperationCanceledException => Failure.CancelledReason,
         MessageLockLostException => "lock lost",
+        _ when ErrorText.IsFirewall(ex) => "blocked by the namespace firewall",
         _ => ex.Message.Split('\n')[0],
     };
 

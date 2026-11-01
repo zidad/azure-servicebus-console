@@ -73,7 +73,7 @@
         }
         catch (Exception ex)
         {
-            _error = FormatError?.Invoke(ex) ?? ex.Message.Split('\n')[0];
+            _error = FormatError?.Invoke(ex) ?? ErrorText.Of(ex).Split('\n')[0];
         }
         _running = false;
         StateHasChanged();

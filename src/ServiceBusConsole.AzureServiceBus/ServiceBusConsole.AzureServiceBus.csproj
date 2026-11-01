@@ -4,6 +4,7 @@
     <PackageReference Include="Azure.Identity" PrivateAssets="compile;contentfiles;analyzers;build" />
     <PackageReference Include="Azure.Messaging.ServiceBus" PrivateAssets="compile;contentfiles;analyzers;build" />
     <PackageReference Include="Azure.ResourceManager" PrivateAssets="compile;contentfiles;analyzers;build" />
+    <PackageReference Include="Azure.ResourceManager.Monitor" PrivateAssets="compile;contentfiles;analyzers;build" />
     <PackageReference Include="Azure.ResourceManager.ServiceBus" PrivateAssets="compile;contentfiles;analyzers;build" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />

@@ -9,7 +9,7 @@ var logFile = Path.Combine(
     Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "logs")).FullName,
     $"session-{DateTime.Now:yyyyMMdd-HHmmss}.log");
 
-await Host.CreateDefaultBuilder(args)
+var host = Host.CreateDefaultBuilder(args)
     .UseRazorConsole<App>()
     .ConfigureLogging(logging => logging
         .ClearProviders()
@@ -25,14 +25,19 @@ await Host.CreateDefaultBuilder(args)
         .AddSingleton<SubscriptionCatalog>()
         .AddSingleton<MessageBrowserStore>()
         .AddSingleton<LiveCountsOptions>()
+        .AddSingleton<MetricsOptions>()
+        .AddSingleton<MetricsVisibility>()
         .AddSyntaxLanguages()
         .Decorate<INamespaceService, CachingNamespaceService>()
         .Decorate<IQueueService, CachingQueueService>()
         .Decorate<ITopicService, CachingTopicService>()
+        .Decorate<IMetricsService, CachingMetricsService>()
         .Configure<ConsoleAppOptions>(options =>
         {
             options.AutoClearConsole = true;
             options.ConsoleLiveDisplayOptions.EnableMouseEvents = true;
         }))
-    .Build()
-    .RunAsync();
+    .Build();
+
+await host.Services.GetRequiredService<MetricsVisibility>().LoadAsync();
+await host.RunAsync();

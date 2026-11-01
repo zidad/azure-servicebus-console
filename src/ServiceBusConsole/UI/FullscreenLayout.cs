@@ -21,6 +21,12 @@ public static class FullscreenLayout
     /// <summary>Footer button row wrapped in <c>Padder(1,0,0,0)</c> + <c>Columns</c> — 1 line.</summary>
     public const int FooterButtons = 1;
 
+    /// <summary><see cref="MetricsPanel"/>: header line + charts, which take <c>Height + 1</c> lines with axes — 12 lines.</summary>
+    public const int MetricsPanel = 1 + MetricsChartHeight + 1;
+
+    /// <summary><c>StepChart.Height</c> of the metrics charts: 8 plot rows.</summary>
+    public const int MetricsChartHeight = 10;
+
     /// <summary>
     /// Calculates <c>Scrollable.PageSize</c> so the table fills the remaining space inside
     /// a <see cref="FullscreenPage"/>. Pass the total non-table chrome in lines; the method
@@ -38,6 +44,10 @@ public static class FullscreenLayout
     /// </summary>
     public static int PageSizeRoundedTable(int terminalHeight)
         => PageSize(terminalHeight, Header + RoundedTableChrome + FooterButtons);
+
+    /// <summary><see cref="PageSizeRoundedTable(int)"/> with the metrics panel above the buttons when <paramref name="metrics"/>.</summary>
+    public static int PageSizeRoundedTable(int terminalHeight, bool metrics)
+        => PageSize(terminalHeight, Header + RoundedTableChrome + FooterButtons + (metrics ? MetricsPanel : 0));
 
     /// <summary>
     /// Message browser: list rows on top and the preview of the focused message below, about half each.

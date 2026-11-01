@@ -41,6 +41,7 @@ public static class Icons
     public const string Pending = "⬜";
     public const string Cancelled = "🛑";
     public const string Unselected = "⬜";
+    public const string Metrics = "📈";
 
     public static string NamespaceStatus(string? status) => status switch
     {

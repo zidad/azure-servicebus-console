@@ -43,6 +43,37 @@ public sealed class FakeNamespaceService : INamespaceService
     }
 }
 
+public sealed class FakeMetricsService : IMetricsService
+{
+    /// <summary>Every scope loaded, in order.</summary>
+    public System.Collections.Concurrent.ConcurrentQueue<MetricsScope> Requested { get; } = [];
+    public Exception? LoadError { get; set; }
+
+    public async IAsyncEnumerable<MessageMetrics> GetMetricsAsync(MetricsScope scope, MetricsWindow window, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        Requested.Enqueue(scope);
+        await Task.Yield();
+        if (LoadError is not null) throw LoadError;
+        yield return Sample(window, scope.Match(_ => 12, e => 1 + e.Name.Length % 4));
+    }
+
+    /// <summary>A day of traffic: a busy daytime, a backlog that builds while consumers lag, then drains, and a few dead letters.</summary>
+    public static MessageMetrics Sample(MetricsWindow window, double scale)
+    {
+        var starts = window.IntervalStarts().ToList();
+        List<MetricPoint> Series(Func<int, double> value) => [.. starts.Select((t, i) => new MetricPoint(t, Math.Round(Math.Max(0, value(i)) * scale)))];
+        static double Day(int i) => 20 + 140 * Math.Max(0, Math.Sin(Math.PI * (i - 20) / 56));
+        return new()
+        {
+            Window = window,
+            Incoming = Series(i => Day(i) + (i is >= 52 and < 58 ? 90 : 0)),
+            Outgoing = Series(i => i is >= 52 and < 64 ? Day(i) * 0.6 : Day(i - 1)),
+            Active = Series(i => i switch { < 52 => 4 + i % 3, < 58 => 60 * (i - 51), < 70 => 360 - 30 * (i - 57), _ => 6 }),
+            DeadLettered = Series(i => i < 55 ? 8 : i < 80 ? 40 : 65),
+        };
+    }
+}
+
 public sealed class FakeQueueService : IQueueService
 {
     public List<QueueInfo> Queues { get; } = [];
