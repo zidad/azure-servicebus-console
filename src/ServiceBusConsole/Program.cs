@@ -10,6 +10,7 @@ var logFile = Path.Combine(
     $"session-{DateTime.Now:yyyyMMdd-HHmmss}.log");
 
 var builder = Host.CreateDefaultBuilder(args)
+    .ConfigureAppConfiguration(config => config.AddAzsbConfiguration(AppPaths.ConfigFile))
     .UseRazorConsole<App>()
     .ConfigureLogging(logging => logging
         .ClearProviders()
