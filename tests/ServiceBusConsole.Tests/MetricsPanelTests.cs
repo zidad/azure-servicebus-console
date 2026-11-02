@@ -303,7 +303,7 @@ public sealed class MetricsPanelTests
         await terminal.SendKeyAsync(ConsoleKey.UpArrow, '\0', cancellationToken: Ct);
         await terminal.WaitUntilAsync(f => f.ContainsText("aren't available for localhost"), AppHarness.Timeout, cancellationToken: Ct);
 
-        azure.ContainsText("Work In Progress").ShouldBeTrue(azure.ScreenText);
+        azure.ContainsText("Azure subscription").ShouldBeTrue(azure.ScreenText);
         app.Metrics.Requested.ShouldBe([new MetricsScope.Namespace()]);
         var choosing = terminal.Frames.SkipWhile(f => !ReferenceEquals(f, emulator)).ToList();
         choosing.ShouldContain(azure);
@@ -339,7 +339,7 @@ public sealed class MetricsPanelTests
         app.Namespaces.Subscriptions.Add(AppHarness.AzureSubscription);
         app.Namespaces.Namespaces.Add(AppHarness.AzureNamespace);
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
-        await using var terminal = await app.StartAsync(height: 40);
+        await using var terminal = await app.StartAsync(height: 36);
         await AppHarness.WaitForTableFocusAsync(terminal);
         await terminal.WaitForTextAsync(AppHarness.AzureSubscription.Name, AppHarness.Timeout, Ct);
         await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
