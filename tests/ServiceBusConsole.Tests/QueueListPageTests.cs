@@ -221,7 +221,7 @@ public sealed class QueueListPageTests
     public async Task DefaultDlqSort_ShowsInHeader_AndClickTurnsItOff()
     {
         await using var terminal = await WithQueues().OpenQueuesAsync();
-        var frame = await terminal.WaitForTextAsync("DLQ ▼", AppHarness.Timeout, Ct);
+        var frame = await terminal.WaitUntilAsync(f => f.ContainsText("DLQ ▼") && f.ContainsText("Queues (3)"), AppHarness.Timeout, cancellationToken: Ct);
         RowOf(frame, "payments").ShouldBeLessThan(RowOf(frame, "emails"));
 
         await AppHarness.ClickTextAsync(terminal, "DLQ ▼");
