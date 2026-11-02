@@ -42,6 +42,10 @@ public static class Icons
     public const string Cancelled = "🛑";
     public const string Unselected = "⬜";
     public const string Metrics = "📈";
+    public const string Actions = "⚡";
+    public const string Link = "🔗";
+    public const string File = "📄";
+    public const string Open = "📂";
 
     public static string NamespaceStatus(string? status) => status switch
     {

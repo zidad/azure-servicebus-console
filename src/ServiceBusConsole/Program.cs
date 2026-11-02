@@ -9,6 +9,8 @@ var logFile = Path.Combine(
     Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "logs")).FullName,
     $"session-{DateTime.Now:yyyyMMdd-HHmmss}.log");
 
+var plugins = PluginCatalog.Discover(AppContext.BaseDirectory);
+
 var builder = Host.CreateDefaultBuilder(args)
     .ConfigureAppConfiguration(config => config.AddAzsbConfiguration(AppPaths.ConfigFile))
     .UseRazorConsole<App>()
@@ -39,6 +41,7 @@ var builder = Host.CreateDefaultBuilder(args)
         {
             options.AutoClearConsole = true;
             options.ConsoleLiveDisplayOptions.EnableMouseEvents = true;
-        }));
+        }))
+    .ConfigureServices((context, services) => services.AddPlugins(plugins, context.Configuration));
 
-return await AppCommands.ExecuteAsync(builder, args);
+return await AppCommands.ExecuteAsync(builder, plugins, args);

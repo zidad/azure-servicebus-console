@@ -19,10 +19,17 @@
     <PackageReference Include="Spectre.Console" />
     <ProjectReference Include="../ServiceBusConsole.Abstractions/ServiceBusConsole.Abstractions.csproj" />
     <ProjectReference Include="../ServiceBusConsole.AzureServiceBus/ServiceBusConsole.AzureServiceBus.csproj" />
+    <ProjectReference Include="../ServiceBusConsole.Plugins/ServiceBusConsole.Plugins.csproj" />
     <ProjectReference Include="../../lib/RazorConsole/src/RazorConsole.Core/RazorConsole.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Bundled plugins: referenced so they ship in the tool folder, where PluginCatalog finds them; never used in code. -->
+    <ProjectReference Include="../ServiceBusConsole.Plugins.*/ServiceBusConsole.Plugins.*.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <Using Include="ServiceBusConsole.Abstractions" />
+    <Using Include="ServiceBusConsole.PluginHost" />
+    <Using Include="ServiceBusConsole.Plugins" />
     <Using Include="ServiceBusConsole.CommandLine" />
     <Using Include="ServiceBusConsole.Configuration" />
     <Using Include="ServiceBusConsole.Extensions" />
