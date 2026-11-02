@@ -7,9 +7,10 @@
 @inject SubscriptionCatalog Catalog
 @inject ServiceBusConnection Connection
 @inject FileCache FileCache
-@inject RazorConsole.Core.Focus.FocusManager FocusManager
 @inject ITerminalViewport Viewport
 @inject MetricsVisibility MetricsVisibility
+@inject ExplorerTree Tree
+@inject MessageBrowserStore Store
 
 @* With the metrics panel, a column of the terminal's height keeps it at the bottom, wherever the lists end. *@
 <Flex Direction="FlexDirection.Column" Height="@(ShowMetrics ? Viewport.Height - 1 : null)" Justify="FlexJustify.SpaceBetween" FillWidth="true">
@@ -18,34 +19,14 @@
 
         <Panel Title="@($"{Icons.Connection} Connection")" BorderColor="@Theme.Border" FillWidth="true" Padding="@(new(1, 0, 1, 0))">
             <Rows>
-                <SelectableList Items="@_visible"
-                            PageSize="@SubscriptionPageSize"
-                            Scrollbar="new()"
-                            SelectedIndex="@_subscriptionIndex"
-                            SelectedIndexChanged="@(i => { _subscriptionIndex = i; _ = SelectSubscription(_visible[i]); })"
-                            OnActivate="FocusNamespaces">
-                    <SpectreTable Expand="true" Border="TableBorder.Rounded">
-                        <SpectreTHead>
-                            <SpectreTR>
-                                <SpectreTH Align="Justify.Left"><Columns><Markup Content="Azure subscription" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
-                                <SpectreTH Align="Justify.Left">ID</SpectreTH>
-                            </SpectreTR>
-                        </SpectreTHead>
-                        <NavigableTBody @ref="_subscriptionBody"
-                                      FocusOrder="1"
-                                      OnKeyDown="@HandleSubscriptionKeyDown">
-                            @{ var i = 0; }
-                            @foreach (var sub in context.Items)
-                            {
-                                var idx = i++;
-                                <SelectableRow @key="@(sub.Id ?? "")" RowIndex="@idx">
-                                    <SpectreTD>@($"{(sub.IsEmulator ? Icons.Emulator : Icons.AzureSubscription)} {sub.Name}")</SpectreTD>
-                                    <SpectreTD><Markup Content="@(sub.Id is { } id ? (id == _azDefaultId ? $"{id}  (az default)" : id) : "localhost:5672")" Foreground="@Theme.Muted" /></SpectreTD>
-                                </SelectableRow>
-                            }
-                        </NavigableTBody>
-                    </SpectreTable>
-                </SelectableList>
+                <ConnectionTree @ref="_tree"
+                                MaxRows="@TreeRows"
+                                FocusOrder="1"
+                                SelectKey="@_selectKey"
+                                DefaultSubscriptionId="@_azDefaultId"
+                                SelectedChanged="@Follow"
+                                TakeKey="@StepRange"
+                                OnKeyDown="@HandleKeyDown" />
 
                 @if (_startupError is { } startupError)
                 {
@@ -64,73 +45,12 @@
                     </Columns>
                 }
 
-                @if (_namespacesLoading)
-                {
-                    <Padder Padding="@(new(0, 1, 0, 0))">
-                        <Columns>
-                            <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
-                            <Markup Content="Discovering namespaces..." Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
-                        </Columns>
-                    </Padder>
-                }
-                else if (_connectionFailed)
-                {
-                    <Padder Padding="@(new(0, 1, 0, 0))">
-                        <Columns>
-                            <Markup Content="Could not connect.  " Foreground="@Theme.Danger" />
-                            <KeyButton Content="@($"{Icons.Refresh} Retry")" OnClick="RetryConnection" FocusedColor="@Theme.Warning" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
-                        </Columns>
-                    </Padder>
-                }
-                else if (_namespaces.Count > 0)
-                {
-                    <SelectableList Items="@_namespaces"
-                                PageSize="@NamespacePageSize"
-                                Scrollbar="new()"
-                                SelectedIndex="@_namespaceIndex"
-                                SelectedIndexChanged="@(i => SelectNamespace(i))"
-                                OnActivate="@(() => Nav.NavigateTo("/queues"))">
-                        <SpectreTable Expand="true" Border="TableBorder.Rounded">
-                            <SpectreTHead>
-                                <SpectreTR>
-                                    <SpectreTH Align="Justify.Left">Namespace</SpectreTH>
-                                    <SpectreTH Align="Justify.Left">Resource group</SpectreTH>
-                                    <SpectreTH Align="Justify.Left">Location</SpectreTH>
-                                    <SpectreTH Align="Justify.Left">SKU</SpectreTH>
-                                    <SpectreTH Align="Justify.Left">Status</SpectreTH>
-                                </SpectreTR>
-                            </SpectreTHead>
-                            <NavigableTBody @ref="_namespaceBody"
-                                          FocusOrder="3"
-                                          OnKeyDown="@HandleKeyDown">
-                                @{ var i = 0; }
-                                @foreach (var ns in context.Items)
-                                {
-                                    var idx = i++;
-                                    <SelectableRow @key="ns.Name" RowIndex="@idx">
-                                        <SpectreTD>@($"{Icons.Namespace} {ns.Name}")</SpectreTD>
-                                        <SpectreTD><Markup Content="@ns.ResourceGroup" Foreground="@Theme.Muted" /></SpectreTD>
-                                        <SpectreTD><Markup Content="@ns.Location" Foreground="@Theme.Muted" /></SpectreTD>
-                                        <SpectreTD>@ns.Sku</SpectreTD>
-                                        <SpectreTD>
-                                            @if (!string.IsNullOrEmpty(ns.Status))
-                                            {
-                                                <Markup Content="@($"{Icons.NamespaceStatus(ns.Status)} {ns.Status}")" Foreground="@Theme.NamespaceStatus(ns.Status)" />
-                                            }
-                                        </SpectreTD>
-                                    </SelectableRow>
-                                }
-                            </NavigableTBody>
-                        </SpectreTable>
-                    </SelectableList>
-                }
-
-                @if (ChosenNamespace is not null)
-                {
-                    <Padder Padding="@(new(0, 1, 0, 0))">
-                        <Columns>
+                <Padder Padding="@(new(0, 1, 0, 0))">
+                    <Columns>
+                        @if (ChosenNamespace is not null)
+                        {
                             <KeyButton Content="@($"[F1] {Icons.Queue} Queues")"
-                                        OnClick="@(() => Nav.NavigateTo("/queues"))"
+                                        OnClick="@(() => Open(Section.Queues))"
                                         FocusedColor="@Theme.Accent"
                                         FocusOrder="4"
                                         OnKeyDown="@HandleKeyDown" />
@@ -138,26 +58,26 @@
                             @if (Connection.Current is IHasTopics)
                             {
                                 <KeyButton Content="@($"[F2] {Icons.Topic} Topics")"
-                                            OnClick="@(() => Nav.NavigateTo("/topics"))"
+                                            OnClick="@(() => Open(Section.Topics))"
                                             FocusedColor="@Theme.Accent"
                                             FocusOrder="5"
                                             OnKeyDown="@HandleKeyDown" />
                                 <Markup Content="  " />
                                 <KeyButton Content="@($"[F3] {Icons.Subscription} All Subscriptions")"
-                                            OnClick="@(() => Nav.NavigateTo("/subscriptions"))"
+                                            OnClick="@(() => Open(Section.AllSubscriptions))"
                                             FocusedColor="@Theme.Accent"
                                             FocusOrder="6"
                                             OnKeyDown="@HandleKeyDown" />
                                 <Markup Content="  " />
                             }
-                            <KeyButton Content="@($"[F12] {Icons.Metrics} Metrics")"
-                                        OnClick="ToggleMetrics"
-                                        FocusedColor="@Theme.Accent"
-                                        FocusOrder="7"
-                                        OnKeyDown="@HandleKeyDown" />
-                        </Columns>
-                    </Padder>
-                }
+                        }
+                        <KeyButton Content="@($"[F12] {Icons.Metrics} Metrics")"
+                                    OnClick="ToggleMetrics"
+                                    FocusedColor="@Theme.Accent"
+                                    FocusOrder="7"
+                                    OnKeyDown="@HandleKeyDown" />
+                    </Columns>
+                </Padder>
             </Rows>
         </Panel>
 
@@ -189,107 +109,130 @@
     }
 </Flex>
 
-<ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
-
 @code {
-    // Figlet 6; panel 2 + subscription table chrome 4 + namespace chrome 4 + buttons 2 + cache row 2.
+    // Figlet 6; panel 2 + tree table chrome 4 + buttons 2 + cache row 2.
     private const int LogoLines = 6;
-    private const int ChromeLines = 14;
-    private const int MaxSubscriptionRows = 8;
+    private const int ChromeLines = 10;
+    private const int MinTreeRows = 8;
 
     // The metrics panel, and the line the terminal-high column leaves free.
     private const int MetricsLines = FullscreenLayout.MetricsPanel + 1;
 
-    private int FixedLines => LogoLines + ChromeLines + (ShowMetrics ? MetricsLines : 0)
-        + (_startupError is null ? 0 : 1) + (Catalog.Error is not null || Catalog.Loading ? 1 : 0);
-    private int SubscriptionPageSize => Math.Clamp(_visible.Count, 1, MaxSubscriptionRows);
-    private int NamespacePageSize => Math.Clamp(Viewport.Height - FixedLines - SubscriptionPageSize, 1, 10);
-    private static readonly TimeSpan SubscriptionDebounce = TimeSpan.FromMilliseconds(250);
+    private int TreeRows => Math.Max(3, Viewport.Height - LogoLines - ChromeLines - (ShowMetrics ? MetricsLines : 0)
+        - (_startupError is null ? 0 : 1) - (Catalog.Error is not null || Catalog.Loading ? 1 : 0));
 
-    private List<AzureSubscription> _subscriptions = [AzureSubscription.Emulator];
-    private List<AzureSubscription> _visible = [AzureSubscription.Emulator];
-    private string? _filter;
-    private AzureSubscription _chosen = AzureSubscription.Emulator;
-    private int _subscriptionIndex;
-    private int _namespaceIndex;
-    private List<NamespaceInfo> _namespaces = [];
-    private bool _namespacesLoading;
-    private bool _connectionFailed;
-    private string _error = string.Empty;
-    private CancellationTokenSource _cts = new();
-    private NavigableTBody? _subscriptionBody;
-    private NavigableTBody? _namespaceBody;
+    private ConnectionTree? _tree;
+    private string? _selectKey;
+    private ExplorerNode? _selected;
     private MetricsPanel? _metricsPanel;
-    private bool _subscriptionsFocused;
-    private bool _focusNamespaces;
-    private string? _restoreNamespace;
     private StartupTarget? _startup;
     private string? _startupError;
     private string? _azDefaultId;
 
-    private NamespaceInfo? ChosenNamespace => _namespacesLoading ? null : _namespaces.ElementAtOrDefault(_namespaceIndex);
+    private NamespaceInfo? ChosenNamespace => _selected?.InNamespace?.Info;
 
-    // When every subscription row and three namespaces fit next to it: by the terminal and the account's subscriptions,
-    // never by the selection or the filter, so choosing moves nothing.
-    private bool ShowMetrics => MetricsVisibility.IsVisible(Viewport.Height,
-        LogoLines + ChromeLines + Math.Clamp(ListedSubscriptions, 1, MaxSubscriptionRows) + 3 + MetricsLines);
+    // When the tree keeps a few rows next to it: by the terminal only, never by the selection, so choosing moves nothing.
+    private bool ShowMetrics => MetricsVisibility.IsVisible(Viewport.Height, LogoLines + ChromeLines + MinTreeRows + MetricsLines);
 
-    // Rows the subscription list can show whatever the filter: ones known to have no namespaces are hidden.
-    private int ListedSubscriptions => _subscriptions.Count(s => s.IsEmulator || Catalog.HasNamespaces(s) != false);
-
-    // Only once the chosen namespace is open: the connection keeps the previous one until the new ones are listed.
+    // Only once the chosen namespace is open.
     private IMetricsService? ChartedMetrics =>
         Connection.Current is { Info: var open } and IHasMetrics { Metrics: var metrics } && open == ChosenNamespace ? metrics : null;
 
     protected override async Task OnInitializedAsync()
     {
-        Catalog.Changed += OnCatalogChanged;
-        _subscriptions = [.. Catalog.Subscriptions];
-        if (NavState.AzureSubscription is { IsEmulator: false } previous && !_subscriptions.Contains(previous)) _subscriptions.Add(previous);
-        UpdateVisible();
-        _ = Catalog.EnsureLoadedAsync();
+        Catalog.Changed += OnChanged;
+        Tree.Changed += OnChanged;
         _startup = NavState.Startup;
         NavState.Startup = null;
+        var fromCommandLine = _startup is not null;
+        var returning = NavState.AzureSubscription is not null;
+        var subscription = NavState.AzureSubscription ?? AzureSubscription.Emulator;
+        var ns = returning ? Connection.Current?.Info : NamespaceInfo.Emulator;
+        Tree.Reveal(subscription, null);
+        _selectKey = KeyOf(subscription, ns);
+        _ = Catalog.EnsureLoadedAsync();
         _azDefaultId = await NamespaceService.GetCurrentSubscriptionIdAsync();
-        if (_startup is null && NavState.AzureSubscription is null && _azDefaultId is { } current)
+        if (!returning && !fromCommandLine && _azDefaultId is { } current)
             _startup = new StartupTarget(current) { IsAzureCliDefault = true };
-        if (_startup is null) await SelectSubscription(NavState.AzureSubscription ?? AzureSubscription.Emulator, debounce: false);
-        else await ApplyStartup();
+        ApplyStartup();
     }
 
-    public void Dispose() => Catalog.Changed -= OnCatalogChanged;
-
-    private void OnCatalogChanged() => _ = InvokeAsync(() =>
+    public void Dispose()
     {
-        _subscriptions = [.. Catalog.Subscriptions];
-        UpdateVisible();
+        Catalog.Changed -= OnChanged;
+        Tree.Changed -= OnChanged;
+    }
+
+    private void OnChanged() => _ = InvokeAsync(() =>
+    {
+        ApplyStartup();
         StateHasChanged();
-        return ApplyStartup();
     });
 
-    // Waits for the command line's subscription in the listing, cached entries first; nothing is selected meanwhile.
-    private Task ApplyStartup()
+    private static string KeyOf(AzureSubscription subscription, NamespaceInfo? ns)
     {
-        if (_startup is not { } startup) return Task.CompletedTask;
-        if (Catalog.Subscriptions.FirstOrDefault(startup.Matches) is { } subscription)
-            return SelectSubscription(subscription, debounce: false, startup);
-        if (Catalog.Loading) return Task.CompletedTask;
-        if (!startup.IsAzureCliDefault) _startupError = $"Azure subscription \"{startup.Subscription}\" not found.";
-        return SelectSubscription(AzureSubscription.Emulator, debounce: false);
+        var node = new ExplorerNode.Subscription(subscription);
+        return ns is null ? node.Key : new ExplorerNode.Namespace(node, ns).Key;
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private void SelectNode(AzureSubscription subscription, NamespaceInfo? ns)
     {
-        if (!_subscriptionsFocused && _subscriptionBody is not null)
+        Tree.Reveal(subscription, null);
+        _selectKey = KeyOf(subscription, ns);
+        _tree?.SelectNode(_selectKey);
+    }
+
+    // The command line's (or az's) subscription and namespace, once listed, cached entries first.
+    private void ApplyStartup()
+    {
+        if (_startup is not { } startup) return;
+        if (Catalog.Subscriptions.FirstOrDefault(startup.Matches) is not { } subscription)
         {
-            _subscriptionsFocused = true;
-            await FocusManager.FocusAsync(_subscriptionBody.FocusKey);
+            if (Catalog.Loading) return;
+            _startup = null;
+            if (!startup.IsAzureCliDefault) _startupError = $"Azure subscription \"{startup.Subscription}\" not found.";
+            SelectNode(AzureSubscription.Emulator, NamespaceInfo.Emulator);
+            return;
         }
-        if (_focusNamespaces && _namespaceBody is not null)
+        Tree.Reveal(subscription, null);
+        var (namespaces, done) = Tree.NamespacesOf(subscription);
+        if (startup.Namespace is not null && namespaces.FirstOrDefault(startup.Matches) is { } ns)
         {
-            _focusNamespaces = false;
-            await FocusManager.FocusAsync(_namespaceBody.FocusKey);
+            _startup = null;
+            NavState.AzureSubscription = subscription;
+            Connection.SetNamespace(ns);
+            Nav.NavigateTo(Section.Queues.Route);
+            return;
         }
+        // Without a namespace, its first one is selected, ready for F1.
+        if (startup.Namespace is null && namespaces is [var first, ..])
+        {
+            _startup = null;
+            SelectNode(subscription, first);
+            return;
+        }
+        if (!done) return;
+        _startup = null;
+        if (startup.Namespace is { } missing) _startupError = $"Namespace \"{missing}\" not found in {subscription.Name}.";
+        SelectNode(subscription, namespaces.FirstOrDefault());
+    }
+
+    // The selection is the connection: its namespace opens (without connecting), so metrics and F1-F3 act on it.
+    private async Task Follow(ExplorerNode? node)
+    {
+        _selected = node;
+        if (node is ExplorerNode.Subscription s) NavState.AzureSubscription = s.Value;
+        if (node?.InNamespace is { } ns)
+        {
+            NavState.AzureSubscription = ns.Parent.Value;
+            if (Connection.CurrentNamespace != ns.Info.FullyQualifiedNamespace)
+            {
+                // The store keys browsers by queue name only; a same-named queue elsewhere must not reuse its locks.
+                await Store.CloseAsync();
+                Connection.SetNamespace(ns.Info);
+            }
+        }
+        StateHasChanged();
     }
 
     private void ToggleMetrics()
@@ -298,6 +241,8 @@
         StateHasChanged();
     }
 
+    private Task Open(Section section) => _tree?.OpenSelectedAsync(section) ?? Task.CompletedTask;
+
     private bool StepRange(KeyboardEventArgs e, string? filter) =>
         MetricsRange.StepOf(e, filter) is { } step && _metricsPanel?.StepRange(step) == true;
 
@@ -305,58 +250,14 @@
     {
         if (e.CtrlKey || e.AltKey || e.MetaKey) return;
         if (StepRange(e, filter: null)) return;
-        if (e.Key == "F12") { ToggleMetrics(); return; }
-        if (ChosenNamespace is null) return;
         switch (e.Key)
         {
-            case "F1": Nav.NavigateTo("/queues"); return;
-            case "F2" when Connection.Current is IHasTopics: Nav.NavigateTo("/topics"); return;
-            case "F3" when Connection.Current is IHasTopics: Nav.NavigateTo("/subscriptions"); return;
+            case "F12": ToggleMetrics(); return;
+            case "F1": _ = Open(Section.Queues); return;
+            case "F2": _ = Open(Section.Topics); return;
+            case "F3": _ = Open(Section.AllSubscriptions); return;
         }
     }
-
-    // The emulator always stays visible. Others need a filter match, and must not be known to lack
-    // Service Bus namespaces (unknown ones show until checked; the current choice is never hidden for it).
-    private void UpdateVisible()
-    {
-        _visible = [.. _subscriptions.Where(s => s.IsEmulator
-            || (MatchesFilter(s) && (s == _chosen || Catalog.HasNamespaces(s) != false)))];
-        _subscriptionIndex = Math.Max(0, _visible.IndexOf(_chosen));
-    }
-
-    private bool MatchesFilter(AzureSubscription s) => string.IsNullOrWhiteSpace(_filter)
-        || s.Name.Contains(_filter, StringComparison.CurrentCultureIgnoreCase)
-        || (s.Id?.Contains(_filter, StringComparison.OrdinalIgnoreCase) ?? false);
-
-    private void ApplyFilter(string? value)
-    {
-        _filter = value;
-        UpdateVisible();
-        // Filtering looks for an Azure subscription: move to the first match unless the choice still matches.
-        var keep = !_chosen.IsEmulator && _visible.Contains(_chosen);
-        if (!keep && !string.IsNullOrEmpty(_filter) && _visible.FirstOrDefault(s => !s.IsEmulator) is { } match)
-        {
-            _subscriptionIndex = _visible.IndexOf(match);
-            _ = SelectSubscription(match);
-        }
-        StateHasChanged();
-    }
-
-    private void HandleSubscriptionKeyDown(KeyboardEventArgs e)
-    {
-        if (e.CtrlKey || e.AltKey || e.MetaKey) return;
-        if (StepRange(e, _filter)) return;
-        if (FilterEdit.From(_filter, e) is { } edit) ApplyFilter(edit.Filter);
-        else HandleKeyDown(e);
-    }
-
-    private void FocusNamespaces()
-    {
-        _focusNamespaces = true;
-        StateHasChanged();
-    }
-
-    private Task RetryConnection() => SelectSubscription(_chosen);
 
     private string? _cacheStatus;
     private bool _cacheClearFailed;
@@ -373,80 +274,6 @@
             _cacheClearFailed = true;
             _cacheStatus = $"Clear failed: {ex.Message}";
         }
-        StateHasChanged();
-    }
-
-    /// <param name="startup">From the command line: open its namespace once listed, or focus the namespaces when it names none.</param>
-    private async Task SelectSubscription(AzureSubscription subscription, bool debounce = true, StartupTarget? startup = null)
-    {
-        // Take the token for *this* run: a newer selection replaces the field.
-        _cts.Cancel();
-        var token = (_cts = new CancellationTokenSource()).Token;
-        _startup = null;
-        _error = string.Empty;
-        _connectionFailed = false;
-        _namespaces = [];
-        _namespaceIndex = 0;
-        _restoreNamespace = Connection.CurrentNamespace;
-        _chosen = subscription;
-        NavState.AzureSubscription = subscription;
-        UpdateVisible();
-        if (startup is { Namespace: null }) FocusNamespaces();
-
-        if (subscription.IsEmulator)
-        {
-            _namespaces = [NamespaceInfo.Emulator];
-            SelectNamespace(0);
-            if (startup is not null && !OpenStartupNamespace(startup, NamespaceInfo.Emulator, 0)) ReportMissingNamespace(startup, subscription);
-            return;
-        }
-
-        _namespacesLoading = true;
-        StateHasChanged();
-
-        try
-        {
-            // Arrowing through subscriptions should not query Azure for each one passed.
-            if (debounce) await Task.Delay(SubscriptionDebounce, token);
-            await foreach (var ns in NamespaceService.GetNamespacesAsync(subscription, token))
-            {
-                if (token.IsCancellationRequested) return;
-                _namespacesLoading = false;
-                var idx = _namespaces.Upsert(ns, x => x.Name == ns.Name);
-                if (ns.FullyQualifiedNamespace == _restoreNamespace)
-                {
-                    _restoreNamespace = null;
-                    _namespaceIndex = idx;
-                }
-                SelectNamespace(_namespaceIndex);
-                if (startup is not null && OpenStartupNamespace(startup, ns, idx)) startup = null;
-            }
-            if (startup is not null) ReportMissingNamespace(startup, subscription);
-        }
-        catch (OperationCanceledException) { return; }
-        catch (Exception ex) { _connectionFailed = true; _error = ErrorText.Of(ex); }
-
-        _namespacesLoading = false;
-        StateHasChanged();
-    }
-
-    private bool OpenStartupNamespace(StartupTarget startup, NamespaceInfo ns, int index)
-    {
-        if (!startup.Matches(ns)) return false;
-        SelectNamespace(index);
-        Nav.NavigateTo("/queues");
-        return true;
-    }
-
-    private void ReportMissingNamespace(StartupTarget startup, AzureSubscription subscription)
-    {
-        if (startup.Namespace is { } name) _startupError = $"Namespace \"{name}\" not found in {subscription.Name}.";
-    }
-
-    private void SelectNamespace(int index)
-    {
-        _namespaceIndex = index;
-        if (_namespaces.ElementAtOrDefault(index) is { } ns) Connection.SetNamespace(ns);
         StateHasChanged();
     }
 }

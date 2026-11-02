@@ -31,18 +31,10 @@ public sealed class ConnectionPageTests
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
         await using var terminal = await app.StartAsync(height: 40);
         await AppHarness.WaitForTableFocusAsync(terminal);
-        await terminal.WaitForTextAsync("Contoso Development", AppHarness.Timeout, Ct);
 
-        await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
-        var frame = await terminal.WaitForTextAsync("sb-dev-b", AppHarness.Timeout, Ct);
-        frame.ContainsText("Premium").ShouldBeTrue(frame.ScreenText);
-        frame.ContainsText("North Europe").ShouldBeTrue(frame.ScreenText);
-
-        var subscriptionsFocus = terminal.FocusKey;
-        await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
-        await terminal.WaitUntilAsync(_ => terminal.FocusKey != subscriptionsFocus, AppHarness.Timeout, cancellationToken: Ct);
-        await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
-        await terminal.WaitUntilAsync(_ => app.Connection.CurrentNamespace == "sb-dev-b.servicebus.windows.net", AppHarness.Timeout, cancellationToken: Ct);
+        await app.SelectAzureNamespaceAsync(terminal, app.Namespaces.Namespaces[1]);
+        var frame = terminal.CurrentFrame;
+        frame.ContainsText("Premium · North Europe · rg-b · Active").ShouldBeTrue(frame.ScreenText);
 
         await terminal.SendKeyAsync(ConsoleKey.F1, '\0', cancellationToken: Ct);
         frame = await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
@@ -71,7 +63,7 @@ public sealed class ConnectionPageTests
     }
 
     [Test]
-    public async Task TypingFiltersSubscriptions_AndPicksTheFirstMatch()
+    public async Task TypingFiltersTheTree_AndPicksTheFirstMatch()
     {
         var app = new AppHarness();
         app.Namespaces.Subscriptions.AddRange(
@@ -88,8 +80,8 @@ public sealed class ConnectionPageTests
 
         var frame = await terminal.WaitUntilAsync(f => !f.ContainsText("Contoso Sandbox") && !f.ContainsText("Contoso Development"), AppHarness.Timeout, cancellationToken: Ct);
         frame.ContainsText("Contoso Production").ShouldBeTrue(frame.ScreenText);
-        frame.ContainsText("Local Emulator").ShouldBeTrue(frame.ScreenText);
-        app.NavState.AzureSubscription?.Name.ShouldBe("Contoso Production");
+        frame.ContainsText("Local Emulator").ShouldBeFalse(frame.ScreenText);
+        await terminal.WaitUntilAsync(_ => app.NavState.AzureSubscription?.Name == "Contoso Production", AppHarness.Timeout, cancellationToken: Ct);
     }
 
     [Test]

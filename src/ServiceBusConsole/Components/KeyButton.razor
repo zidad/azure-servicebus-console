@@ -19,11 +19,11 @@
     [Parameter] public EventCallback OnClick { get; set; }
     [Parameter] public Action<KeyboardEventArgs>? OnKeyDown { get; set; }
     [Parameter] public int? FocusOrder { get; set; }
-    [Parameter] public Color FocusedColor { get; set; } = Color.DeepSkyBlue1;
+    [Parameter] public Color FocusedColor { get; set; } = Theme.Accent;
     [Parameter] public Color BackgroundColor { get; set; } = Color.Default;
     [Parameter] public Color ForegroundColor { get; set; } = Color.Default;
-    [Parameter] public Color HoverColor { get; set; } = Color.Grey70;
-    [Parameter] public Color HoverForegroundColor { get; set; } = Color.Black;
+    [Parameter] public Color HoverColor { get; set; } = Theme.Hover;
+    [Parameter] public Color HoverForegroundColor { get; set; } = Theme.OnHover;
 
     /// <summary>The focus manager key, for <c>FocusManager.FocusAsync</c>.</summary>
     public string FocusKey { get; } = Guid.NewGuid().ToString("N");

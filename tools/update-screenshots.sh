@@ -7,6 +7,9 @@ cd "$(dirname "$0")/.."
 json=$(mktemp -d)
 trap 'rm -rf "$json"' EXIT
 
-SCREENSHOT_DIR="$json" dotnet test --project tests/ServiceBusConsole.Tests --treenode-filter "/*/*/Screenshots/*"
-rm -f docs/screenshots/*.png
-python3 tools/render-screenshots.py "$json" docs/screenshots
+for theme in dark light; do
+  out=docs/screenshots; [ "$theme" = light ] && out=docs/screenshots/light
+  rm -rf "${json:?}"/* && mkdir -p "$out" && rm -f "$out"/*.png
+  SCREENSHOT_DIR="$json" SCREENSHOT_THEME="$theme" dotnet test --project tests/ServiceBusConsole.Tests --treenode-filter "/*/*/Screenshots/*"
+  python3 tools/render-screenshots.py "$json" "$out"
+done

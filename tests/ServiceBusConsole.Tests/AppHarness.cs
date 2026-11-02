@@ -58,6 +58,8 @@ public sealed class AppHarness
                     services.AddSingleton<MessageBrowserStore>();
                     services.AddSingleton(new FileCache(NullLogger<FileCache>.Instance, CacheDirectory));
                     services.AddSingleton<SubscriptionCatalog>();
+                    services.AddSingleton<INamespaceOpener>(new FakeNamespaceOpener(info => OpenNamespace(info)));
+                    services.AddSingleton<ExplorerTree>();
                     services.AddSyntaxLanguages();
                     services.AddSingleton(LiveCounts);
                     services.AddSingleton(MetricsOptions);
@@ -95,13 +97,26 @@ public sealed class AppHarness
         Namespaces.Namespaces.Add(chosen);
         var terminal = await StartAsync(height: height);
         await WaitForTableFocusAsync(terminal);
-        await terminal.WaitForTextAsync(AzureSubscription.Name, Timeout, Ct);
-        await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
-        await terminal.WaitUntilAsync(_ => Connection.CurrentNamespace == chosen.FullyQualifiedNamespace, Timeout, cancellationToken: Ct);
+        await SelectAzureNamespaceAsync(terminal, chosen);
         var connectionFocus = terminal.FocusKey;
         await terminal.SendKeyAsync(key, '\0', cancellationToken: Ct);
         await WaitForTableFocusAsync(terminal, connectionFocus);
         return terminal;
+    }
+
+    /// <summary>
+    /// On the connection page, moves down the tree from the emulator's namespace (selected at start) until <paramref name="ns"/>
+    /// is the connection.
+    /// </summary>
+    public async Task SelectAzureNamespaceAsync(HeadlessTerminal terminal, NamespaceInfo ns)
+    {
+        var target = $"{Icons.Namespace} {ns.Name}";
+        var frame = await terminal.WaitUntilAsync(f => f.ContainsText(target) && !f.ContainsText("Discovering"), Timeout, cancellationToken: Ct);
+        // One tree row per line.
+        var lines = Enumerable.Range(0, frame.Height).Select(frame.GetLine).ToList();
+        var rows = lines.FindIndex(l => l.Contains(target)) - lines.FindIndex(l => l.Contains($"{Icons.Namespace} localhost"));
+        foreach (var _ in Enumerable.Range(0, rows)) await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
+        await terminal.WaitUntilAsync(_ => Connection.CurrentNamespace == ns.FullyQualifiedNamespace, Timeout, cancellationToken: Ct);
     }
 
     // A key, not a click: the connection page can still shift its buttons (e.g. the subscription

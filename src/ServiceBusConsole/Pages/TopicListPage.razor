@@ -35,11 +35,11 @@
         {
             <SelectableList Items="@_filtered"
                         PageSize="@FullscreenLayout.PageSizeRoundedTable(Viewport.Height, ShowMetrics)"
-                        Scrollbar="new()"
+                        Scrollbar="@Theme.Scrollbar()"
                         SelectedIndex="@_selectedIndex"
                         SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _filtered.ElementAtOrDefault(i)?.Name; })"
                         OnActivate="@(() => { if (_filtered.ElementAtOrDefault(_selectedIndex) is {} t) { NavState.TopicName = t.Name; Nav.NavigateTo("/topic-detail"); } })">
-                <SpectreTable Expand="true" Border="TableBorder.Rounded">
+                <SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.Rounded">
                     <SpectreTHead>
                         <SpectreTR>
                             <SpectreTH Align="Justify.Left"><Columns><SortHeader Label="Topic" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>

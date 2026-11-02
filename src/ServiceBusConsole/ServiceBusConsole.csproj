@@ -31,6 +31,7 @@
     <Using Include="ServiceBusConsole.Services.Caching" />
     <Using Include="ServiceBusConsole.Syntax" />
     <Using Include="ServiceBusConsole.UI" />
+    <Using Include="ServiceBusConsole.UI.Explorer" />
     <Using Include="Spectre.Console" />
   </ItemGroup>
 </Project>
