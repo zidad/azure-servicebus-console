@@ -92,8 +92,7 @@ public sealed class StartupTests
         await using var terminal = await app.StartAsync(height: 40);
 
         await terminal.WaitUntilAsync(_ => app.Connection.CurrentNamespace == AppHarness.AzureNamespace.FullyQualifiedNamespace, AppHarness.Timeout, cancellationToken: Ct);
-        var frame = await terminal.WaitForTextAsync("(az default)", AppHarness.Timeout, Ct);
-        frame.ContainsText("sb-orders-dev").ShouldBeTrue(frame.ScreenText);
+        await terminal.WaitUntilAsync(f => f.ContainsText("(az default)") && f.ContainsText("sb-orders-dev"), AppHarness.Timeout, cancellationToken: Ct);
         app.NavState.AzureSubscription.ShouldBe(AppHarness.AzureSubscription);
     }
 

@@ -17,8 +17,9 @@ public sealed class ConnectionHeaderTests
         var loadsBefore = app.Queues.Loads;
 
         await AppHarness.ClickTextAsync(terminal, "Local Emulator");
-        // Namespaces load in the background; rows inserted above sb-dev-a would move it under the click.
-        await terminal.WaitUntilAsync(f => f.ContainsText("Go to") && f.ContainsText("▾ 🌐 localhost") && f.ContainsText("sb-dev-a"), AppHarness.Timeout, cancellationToken: Ct);
+        // Namespaces and localhost's sections load in the background; rows inserted above sb-dev-a would move it under the click.
+        await terminal.WaitUntilAsync(f => f.ContainsText("Go to") && f.ContainsText("▾ 🌐 localhost") && f.ContainsText("📥 All Subscriptions") && f.ContainsText("sb-dev-a"),
+            AppHarness.Timeout, cancellationToken: Ct);
         await AppHarness.ClickTextAsync(terminal, "sb-dev-a");
         var frame = await terminal.WaitUntilAsync(f => QueuesRowBelow(f, "▾ 🌐 sb-dev-a") is not null, AppHarness.Timeout, cancellationToken: Ct);
         var y = QueuesRowBelow(frame, "▾ 🌐 sb-dev-a") ?? 0;
