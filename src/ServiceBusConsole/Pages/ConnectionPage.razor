@@ -16,13 +16,6 @@
     <Rows FillWidth="true">
         <Figlet Content="SB Console" Color="@Theme.Accent" Justify="Justify.Left" />
 
-        <Panel Title="⚠ Work In Progress" BorderColor="@Theme.Warning" FillWidth="true" Padding="@(new(1, 0, 1, 0))">
-            <Rows>
-                <Markup Content="This application is still in early development. Many features are unstable or incomplete." Foreground="@Theme.Warning" Decoration="@Decoration.Bold" />
-                <Markup Content="Use with caution — especially destructive operations (delete, receive)." Foreground="@Theme.Muted" />
-            </Rows>
-        </Panel>
-
         <Panel Title="@($"{Icons.Connection} Connection")" BorderColor="@Theme.Border" FillWidth="true" Padding="@(new(1, 0, 1, 0))">
             <Rows>
                 <SelectableList Items="@_visible"
@@ -199,8 +192,8 @@
 <ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
 
 @code {
-    // Figlet 6 + banner 4; panel 2 + subscription table chrome 4 + namespace chrome 4 + buttons 2 + cache row 2.
-    private const int LogoLines = 10;
+    // Figlet 6; panel 2 + subscription table chrome 4 + namespace chrome 4 + buttons 2 + cache row 2.
+    private const int LogoLines = 6;
     private const int ChromeLines = 14;
     private const int MaxSubscriptionRows = 8;
 
