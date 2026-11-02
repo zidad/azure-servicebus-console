@@ -274,7 +274,7 @@ public sealed class MetricsPanelTests
         app.Queues.Queues.AddRange(Enumerable.Range(0, 40).Select(i => new QueueInfo { Name = $"q{i:00}" }));
         await using var terminal = await app.OpenAzureAsync(ConsoleKey.F1);
 
-        var loading = await terminal.WaitUntilAsync(f => f.ContainsText("Loading metrics"), AppHarness.Timeout, cancellationToken: Ct);
+        var loading = await terminal.WaitUntilAsync(f => f.ContainsText("Loading metrics") && f.ContainsText("(40)"), AppHarness.Timeout, cancellationToken: Ct);
         var charts = await terminal.WaitUntilAsync(f => ChartsShown(f, "📬 queue q00"), AppHarness.Timeout, cancellationToken: Ct);
         app.Metrics.LoadError = new InvalidOperationException("Forbidden");
         await terminal.SendKeyAsync(ConsoleKey.F5, '\0', cancellationToken: Ct);
