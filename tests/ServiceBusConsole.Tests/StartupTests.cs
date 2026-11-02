@@ -76,12 +76,11 @@ public sealed class StartupTests
 
         await AppHarness.WaitForTableFocusAsync(terminal);
         await terminal.WaitUntilAsync(_ => app.Connection.CurrentNamespace == AppHarness.AzureNamespace.FullyQualifiedNamespace, AppHarness.Timeout, cancellationToken: Ct);
-        var frame = await terminal.WaitForTextAsync("[F1] 📬 Queues", AppHarness.Timeout, Ct);
-        frame.ContainsText("sb-orders-dev").ShouldBeTrue(frame.ScreenText);
+        await terminal.WaitUntilAsync(f => f.ContainsText("[F1] 📬 Queues") && f.ContainsText("sb-orders-dev"), AppHarness.Timeout, cancellationToken: Ct);
         app.NavState.AzureSubscription.ShouldBe(AppHarness.AzureSubscription);
 
         await terminal.SendKeyAsync(ConsoleKey.F1, '\0', cancellationToken: Ct);
-        frame = await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
+        var frame = await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
         frame.GetLine(1).ShouldContain(QueueHeader);
     }
 
