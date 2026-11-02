@@ -15,8 +15,8 @@
              @onkeydown="HandleKeyDown"
              data-track-char="@bar.TrackChar"
              data-thumb-char="@bar.ThumbChar"
-             data-track-color="@((_scrollbarFocused ? bar.TrackFocusedColor : bar.TrackColor).ToHex())"
-             data-thumb-color="@((_scrollbarFocused ? bar.ThumbFocusedColor : bar.ThumbColor).ToHex())"
+             data-track-color="@((_scrollbarFocused ? bar.TrackFocusedColor : bar.TrackColor).ToMarkup())"
+             data-thumb-color="@((_scrollbarFocused ? bar.ThumbFocusedColor : bar.ThumbColor).ToMarkup())"
              data-min-thumb-height="@bar.MinThumbHeight">
         </div>
     }

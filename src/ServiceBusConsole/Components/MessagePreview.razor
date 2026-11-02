@@ -46,8 +46,8 @@ else
 
     private RenderFragment PropertiesPanel(int width, int height) =>
         @<Panel Title="@($"{Icons.Properties} Properties")" BorderColor="@Theme.Border" Width="@width" Height="@height" Padding="@(new(1, 0, 1, 0))">
-            <ViewHeightScrollable LinesToRender="@Inner(height)" Scrollbar="new()" OnKeyDown="@OnKeyDown">
-                <SpectreTable Expand="true" Border="TableBorder.None">
+            <ViewHeightScrollable LinesToRender="@Inner(height)" Scrollbar="@Theme.Scrollbar()" OnKeyDown="@OnKeyDown">
+                <SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.None">
                     <SpectreTBody>
                         @foreach (var (name, value, color) in Properties())
                         {
@@ -63,7 +63,7 @@ else
 
     private RenderFragment BodyPanel(int width, int height) =>
         @<Panel Title="@($"{Icons.Body} Body")" BorderColor="@Theme.Border" Width="@width" Height="@height" Padding="@(new(1, 0, 1, 0))">
-            <ViewHeightScrollable LinesToRender="@Inner(height)" Scrollbar="new()" FocusOrder="@BodyFocusOrder" OnKeyDown="@OnKeyDown">
+            <ViewHeightScrollable LinesToRender="@Inner(height)" Scrollbar="@Theme.Scrollbar()" FocusOrder="@BodyFocusOrder" OnKeyDown="@OnKeyDown">
                 @if (FormatJson(Message.BodyText) is { } json)
                 {
                     <SyntaxHighlighter Code="@json" Language="json" />

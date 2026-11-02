@@ -298,17 +298,16 @@ public sealed class MetricsPanelTests
                 && f.ContainsText("aren't available for localhost"),
             AppHarness.Timeout, cancellationToken: Ct);
 
-        await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
+        await app.SelectAzureNamespaceAsync(terminal, AppHarness.AzureNamespace);
         var azure = await terminal.WaitUntilAsync(f => ChartsShown(f, "🌐 namespace sb-orders-dev"), AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.SendKeyAsync(ConsoleKey.UpArrow, '\0', cancellationToken: Ct);
         await terminal.SendKeyAsync(ConsoleKey.UpArrow, '\0', cancellationToken: Ct);
         await terminal.WaitUntilAsync(f => f.ContainsText("aren't available for localhost"), AppHarness.Timeout, cancellationToken: Ct);
 
-        azure.ContainsText("Azure subscription").ShouldBeTrue(azure.ScreenText);
         app.Metrics.Requested.ShouldBe([new MetricsScope.Namespace()]);
         var choosing = terminal.Frames.SkipWhile(f => !ReferenceEquals(f, emulator)).ToList();
         choosing.ShouldContain(azure);
-        choosing.Select(f => (LineOf(f, "🧪 Local Emulator"), LineOf(f, AppHarness.AzureSubscription.Name))).Distinct().ShouldHaveSingleItem();
-        choosing.Where(f => f.ContainsText("│ Namespace")).Select(f => LineOf(f, "│ Namespace")).Distinct().ShouldHaveSingleItem();
+        choosing.Select(f => (LineOf(f, "🧪 Local Emulator"), LineOf(f, AppHarness.AzureSubscription.Name), LineOf(f, "🌐 sb-orders-dev"))).Distinct().ShouldHaveSingleItem();
         LineOf(azure, "🌐 namespace sb-orders-dev").ShouldBe(LineOf(emulator, "aren't available for localhost"));
         LineOf(azure, "🌐 namespace sb-orders-dev").ShouldBeGreaterThan(LineOf(azure, "[F1] 📬 Queues") + 1);
     }
@@ -321,8 +320,7 @@ public sealed class MetricsPanelTests
         app.Namespaces.Namespaces.Add(AppHarness.AzureNamespace);
         await using var terminal = await app.StartAsync(height: 50);
         await AppHarness.WaitForTableFocusAsync(terminal);
-        await terminal.WaitForTextAsync(AppHarness.AzureSubscription.Name, AppHarness.Timeout, Ct);
-        await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
+        await app.SelectAzureNamespaceAsync(terminal, AppHarness.AzureNamespace);
         await terminal.WaitUntilAsync(f => ChartsShown(f, "🌐 namespace sb-orders-dev"), AppHarness.Timeout, cancellationToken: Ct);
 
         await Key(terminal, '+');
@@ -341,9 +339,7 @@ public sealed class MetricsPanelTests
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
         await using var terminal = await app.StartAsync(height: 36);
         await AppHarness.WaitForTableFocusAsync(terminal);
-        await terminal.WaitForTextAsync(AppHarness.AzureSubscription.Name, AppHarness.Timeout, Ct);
-        await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
-        await terminal.WaitForTextAsync("sb-orders-dev", AppHarness.Timeout, Ct);
+        await app.SelectAzureNamespaceAsync(terminal, AppHarness.AzureNamespace);
         await Task.Delay(app.MetricsOptions.Debounce * 2, Ct);
         terminal.CurrentFrame.ContainsText("🌐 namespace sb-orders-dev").ShouldBeFalse(terminal.CurrentFrame.ScreenText);
         terminal.CurrentFrame.ContainsText("[F12] 📈 Metrics").ShouldBeTrue(terminal.CurrentFrame.ScreenText);

@@ -69,17 +69,18 @@ public sealed class StartupTests
     }
 
     [Test]
-    public async Task SubscriptionAlone_SelectsIt_AndFocusesItsNamespaces()
+    public async Task SubscriptionAlone_SelectsItsFirstNamespace()
     {
         var app = WithAzure(new("contoso development"));
         await using var terminal = await app.StartAsync(height: 40);
 
-        await AppHarness.WaitForFocusAsync(terminal, focusOrder: "3");
+        await AppHarness.WaitForTableFocusAsync(terminal);
+        await terminal.WaitUntilAsync(_ => app.Connection.CurrentNamespace == AppHarness.AzureNamespace.FullyQualifiedNamespace, AppHarness.Timeout, cancellationToken: Ct);
         var frame = await terminal.WaitForTextAsync("[F1] 📬 Queues", AppHarness.Timeout, Ct);
         frame.ContainsText("sb-orders-dev").ShouldBeTrue(frame.ScreenText);
         app.NavState.AzureSubscription.ShouldBe(AppHarness.AzureSubscription);
 
-        await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
+        await terminal.SendKeyAsync(ConsoleKey.F1, '\0', cancellationToken: Ct);
         frame = await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
         frame.GetLine(1).ShouldContain(QueueHeader);
     }
@@ -91,7 +92,7 @@ public sealed class StartupTests
         app.Namespaces.CurrentSubscriptionId = AppHarness.AzureSubscription.Id;
         await using var terminal = await app.StartAsync(height: 40);
 
-        await AppHarness.WaitForFocusAsync(terminal, focusOrder: "3");
+        await terminal.WaitUntilAsync(_ => app.Connection.CurrentNamespace == AppHarness.AzureNamespace.FullyQualifiedNamespace, AppHarness.Timeout, cancellationToken: Ct);
         var frame = await terminal.WaitForTextAsync("(az default)", AppHarness.Timeout, Ct);
         frame.ContainsText("sb-orders-dev").ShouldBeTrue(frame.ScreenText);
         app.NavState.AzureSubscription.ShouldBe(AppHarness.AzureSubscription);

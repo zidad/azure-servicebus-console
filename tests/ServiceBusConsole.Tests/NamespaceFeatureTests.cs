@@ -48,11 +48,9 @@ public sealed class NamespaceFeatureTests
         app.Namespaces.Namespaces.Add(Basic);
         await using var terminal = await app.StartAsync();
         await AppHarness.WaitForTableFocusAsync(terminal);
-        await terminal.WaitForTextAsync(AppHarness.AzureSubscription.Name, AppHarness.Timeout, Ct);
+        await app.SelectAzureNamespaceAsync(terminal, Basic);
 
-        await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
-
-        var frame = await terminal.WaitUntilAsync(f => f.ContainsText("sb-legacy") && f.ContainsText("[F1] 📬 Queues"), AppHarness.Timeout, cancellationToken: Ct);
+        var frame = await terminal.WaitUntilAsync(f => f.ContainsText("[F1] 📬 Queues") && f.ContainsText("[F12]"), AppHarness.Timeout, cancellationToken: Ct);
         frame.ContainsText("[F2]").ShouldBeFalse(frame.ScreenText);
         frame.ContainsText("[F3]").ShouldBeFalse(frame.ScreenText);
         frame.ContainsText("[F12] 📈 Metrics").ShouldBeTrue(frame.ScreenText);
@@ -69,24 +67,26 @@ public sealed class NamespaceFeatureTests
 
         await AppHarness.ClickTextAsync(terminal, "Queues (1)");
 
-        var frame = await terminal.WaitForTextAsync("Go to", AppHarness.Timeout, Ct);
+        var frame = await terminal.WaitUntilAsync(f => f.ContainsText("Go to") && f.ContainsText("└─   📬 Queues"), AppHarness.Timeout, cancellationToken: Ct);
         frame.ContainsText("📢 Topics").ShouldBeFalse(frame.ScreenText);
         frame.ContainsText("All Subscriptions").ShouldBeFalse(frame.ScreenText);
     }
 
     [Test]
-    public async Task SwitchingFromTopicsToANamespaceWithoutThem_OpensItsQueues()
+    public async Task SwitchingFromTopicsToANamespaceWithoutThem_OffersItsQueues()
     {
         var app = new AppHarness();
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
         app.Topics.Topics.Add(new TopicInfo { Name = "order-events" });
+        app.Namespaces.Namespaces.Add(Basic);
         await using var terminal = await app.OpenAzureAsync(ConsoleKey.F2, height: 30);
         await terminal.WaitForTextAsync("Topics (1)", AppHarness.Timeout, Ct);
-        app.Namespaces.Namespaces.Add(Basic);
 
         await AppHarness.ClickTextAsync(terminal, "sb-orders-dev");
-        await terminal.WaitForTextAsync("Namespaces in Contoso Development", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("Go to", AppHarness.Timeout, Ct);
         await AppHarness.ClickTextAsync(terminal, "sb-legacy");
+        await terminal.WaitForTextAsync("│  └─   📬 Queues", AppHarness.Timeout, Ct);
+        await AppHarness.ClickTextAsync(terminal, "│  └─   📬 Queues");
 
         await terminal.WaitUntilAsync(f => f.GetLine(1).Contains("🌐 sb-legacy  ›  📬 Queues (1)"), AppHarness.Timeout, cancellationToken: Ct);
         app.Connection.Current.ShouldBeOfType<FakeBasicNamespace>();

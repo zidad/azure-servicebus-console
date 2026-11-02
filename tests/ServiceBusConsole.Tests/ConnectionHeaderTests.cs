@@ -4,7 +4,7 @@ namespace ServiceBusConsole.Tests;
 public sealed class ConnectionHeaderTests
 {
     [Test]
-    public async Task ClickingSubscriptionThenNamespace_SwitchesAndReloadsTheSection()
+    public async Task DropdownTree_SwitchesNamespace_AndReloadsTheSection()
     {
         var app = new AppHarness();
         app.Namespaces.Namespaces.Add(new NamespaceInfo { Name = "sb-dev-a", FullyQualifiedNamespace = "sb-dev-a.servicebus.windows.net", ResourceGroup = "rg-a", Location = "West Europe" });
@@ -15,11 +15,12 @@ public sealed class ConnectionHeaderTests
         var loadsBefore = app.Queues.Loads;
 
         await AppHarness.ClickTextAsync(terminal, "Local Emulator");
-        await terminal.WaitForTextAsync("Azure subscription", AppHarness.Timeout, Ct);
-        await AppHarness.ClickTextAsync(terminal, "Contoso Development");
-
-        await terminal.WaitForTextAsync("Namespaces in Contoso Development", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("Go to", AppHarness.Timeout, Ct);
         await AppHarness.ClickTextAsync(terminal, "sb-dev-a");
+        var frame = await terminal.WaitForTextAsync("▾ 🌐 sb-dev-a", AppHarness.Timeout, Ct);
+        var y = Enumerable.Range(0, frame.Height).First(i => frame.GetLine(i).Contains("▾ 🌐 sb-dev-a")) + 1;
+        frame.GetLine(y).ShouldContain("📬 Queues");
+        await terminal.ClickAsync(frame.GetLine(y).IndexOf("📬", StringComparison.Ordinal), y, Ct);
 
         await terminal.WaitUntilAsync(f => f.GetLine(1).Contains("🔑 Contoso Development  ›  🌐 sb-dev-a  ›  📬 Queues (1)"), AppHarness.Timeout, cancellationToken: Ct);
         app.Connection.CurrentNamespace.ShouldBe("sb-dev-a.servicebus.windows.net");
@@ -35,10 +36,10 @@ public sealed class ConnectionHeaderTests
         await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
 
         await AppHarness.ClickTextAsync(terminal, "localhost");
-        await terminal.WaitForTextAsync("Namespaces in Local Emulator", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("Go to", AppHarness.Timeout, Ct);
         await terminal.SendKeyAsync(ConsoleKey.Escape, '\u001b', cancellationToken: Ct);
 
-        await terminal.WaitUntilAsync(f => !f.ContainsText("Namespaces in"), AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => !f.ContainsText("Go to"), AppHarness.Timeout, cancellationToken: Ct);
         app.Connection.CurrentNamespace.ShouldBe("localhost");
     }
 
@@ -53,7 +54,7 @@ public sealed class ConnectionHeaderTests
 
         await AppHarness.ClickTextAsync(terminal, "Queues (1)");
         await terminal.WaitForTextAsync("Go to", AppHarness.Timeout, Ct);
-        await AppHarness.ClickTextAsync(terminal, "Topics");
+        await AppHarness.ClickTextAsync(terminal, "├─   📢 Topics");
 
         await terminal.WaitForTextAsync("Topics (1)", AppHarness.Timeout, Ct);
         await terminal.WaitForTextAsync("order-events", AppHarness.Timeout, Ct);

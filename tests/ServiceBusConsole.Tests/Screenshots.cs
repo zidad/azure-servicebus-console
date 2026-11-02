@@ -17,14 +17,13 @@ public sealed class Screenshots
     {
         if (Environment.GetEnvironmentVariable("SCREENSHOT_DIR") is not { Length: > 0 } dir) return;
         Directory.CreateDirectory(dir);
+        using var theme = UseScreenshotTheme();
 
         var app = SampleApp();
         app.LiveCounts.Interval = TimeSpan.FromMilliseconds(200);
         await using var terminal = await app.StartAsync(width: 120, height: 36);
         await AppHarness.WaitForTableFocusAsync(terminal);
-        await terminal.WaitForTextAsync("Contoso Development", AppHarness.Timeout, Ct);
-        await Key(terminal, ConsoleKey.DownArrow);
-        await terminal.WaitForTextAsync("sb-orders-dev", AppHarness.Timeout, Ct);
+        await app.SelectAzureNamespaceAsync(terminal, AppHarness.AzureNamespace);
         await Save(terminal, dir, "connection");
 
         var connectionFocus = terminal.FocusKey;
@@ -39,11 +38,11 @@ public sealed class Screenshots
         await Save(terminal, dir, "queues-live");
 
         await AppHarness.ClickTextAsync(terminal, "sb-orders-dev");
-        await terminal.WaitForTextAsync("Namespaces in Contoso Development", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("Go to", AppHarness.Timeout, Ct);
         await terminal.WaitForTextAsync("sb-orders-prd", AppHarness.Timeout, Ct);
         await Save(terminal, dir, "namespace-dropdown");
         await Key(terminal, ConsoleKey.Escape, '\u001b');
-        await terminal.WaitUntilAsync(f => !f.ContainsText("Namespaces in"), AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => !f.ContainsText("Go to"), AppHarness.Timeout, cancellationToken: Ct);
 
         await AppHarness.ClickTextAsync(terminal, "Queues (5)");
         await terminal.WaitForTextAsync("Go to", AppHarness.Timeout, Ct);
@@ -133,6 +132,7 @@ public sealed class Screenshots
     {
         if (Environment.GetEnvironmentVariable("SCREENSHOT_DIR") is not { Length: > 0 } dir) return;
         Directory.CreateDirectory(dir);
+        using var theme = UseScreenshotTheme();
 
         var app = SampleApp();
         await using var terminal = await app.StartAsync(width: 120, height: 50);
@@ -140,7 +140,7 @@ public sealed class Screenshots
         await terminal.WaitUntilAsync(f => f.ContainsText("Contoso Development") && f.ContainsText("available for localhost"), AppHarness.Timeout, cancellationToken: Ct);
         await Save(terminal, dir, "connection-emulator");
 
-        await Key(terminal, ConsoleKey.DownArrow);
+        await app.SelectAzureNamespaceAsync(terminal, AppHarness.AzureNamespace);
         await WaitForChartsAsync(terminal, "🌐 namespace sb-orders-dev");
         await Save(terminal, dir, "connection-metrics");
 
@@ -244,8 +244,27 @@ public sealed class Screenshots
             }
             rows.Add(row);
         }
-        await File.WriteAllTextAsync(Path.Combine(dir, $"{name}.json"), JsonSerializer.Serialize(new { frame.Width, frame.Height, rows }), Ct);
+        var theme = Theme.Palette == Palette.Light ? "light" : "dark";
+        await File.WriteAllTextAsync(Path.Combine(dir, $"{name}.json"), JsonSerializer.Serialize(new { frame.Width, frame.Height, Theme = theme, rows }), Ct);
     }
 
-    private static string? Hex(Color? color) => color is { } c && c != Color.Default ? c.ToHex() : null;
+    // The terminal's 16 palette colors by name, which the renderer resolves with its color scheme; others as hex.
+    private static readonly string[] PaletteNames =
+        ["black", "maroon", "green", "olive", "navy", "purple", "teal", "silver", "grey", "red", "lime", "yellow", "blue", "fuchsia", "aqua", "white"];
+
+    private static string? Hex(Color? color) => color is { } c && c != Color.Default
+        ? PaletteNames.Contains(c.ToMarkup()) ? c.ToMarkup() : c.ToHex()
+        : null;
+
+    // SCREENSHOT_THEME=light dumps the light palette; the default is dark.
+    private static IDisposable UseScreenshotTheme()
+    {
+        Theme.Use(Palette.For(Environment.GetEnvironmentVariable("SCREENSHOT_THEME"), null) ?? Palette.Dark);
+        return new ResetTheme();
+    }
+
+    private sealed class ResetTheme : IDisposable
+    {
+        public void Dispose() => Theme.Use(Palette.Dark);
+    }
 }

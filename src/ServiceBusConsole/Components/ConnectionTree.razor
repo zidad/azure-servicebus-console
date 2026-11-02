@@ -1,0 +1,285 @@
+@implements IDisposable
+@using static ServiceBusConsole.UI.Explorer.ExplorerNode
+
+@inject NavigationManager Nav
+@inject NavigationState NavState
+@inject ServiceBusConnection Connection
+@inject INamespaceOpener Opener
+@inject MessageBrowserStore Store
+@inject ExplorerTree Tree
+@inject RazorConsole.Core.Focus.FocusManager FocusManager
+
+<SelectableList Items="@_rows"
+                PageSize="@PageSize"
+                Scrollbar="@Theme.Scrollbar()"
+                SelectedIndex="@_index"
+                SelectedIndexChanged="@Select"
+                ActivateOnClick="@Compact"
+                OnActivate="Activate">
+    <SpectreTable BorderColor="@Theme.Border" Expand="@(!Compact)" Border="@(Compact ? TableBorder.None : TableBorder.Rounded)">
+        @if (!Compact)
+        {
+            <SpectreTHead>
+                <SpectreTR>
+                    <SpectreTH Align="Justify.Left"><Columns><Markup Content="Name" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
+                    <SpectreTH Align="Justify.Left">Details</SpectreTH>
+                </SpectreTR>
+            </SpectreTHead>
+        }
+        <NavigableTBody @ref="_body" FocusOrder="@FocusOrder" OnKeyDown="@HandleKeyDown">
+            @{ var i = 0; }
+            @foreach (var row in context.Items)
+            {
+                var idx = i++;
+                <SelectableRow @key="row.Key" RowIndex="@idx">
+                    @switch (row)
+                    {
+                        case ExplorerRow.Item item:
+                            <SpectreTD><Markup Content="@Label(item)" Foreground="@(IsHere(item.Node) ? Theme.Accent : Color.Default)" Decoration="@(IsHere(item.Node) ? Decoration.Bold : Decoration.None)" /></SpectreTD>
+                            @if (!Compact)
+                            {
+                                <SpectreTD><Markup Content="@Details(item.Node)" Foreground="@Theme.Muted" /></SpectreTD>
+                            }
+                            break;
+                        case ExplorerRow.Note note:
+                            <SpectreTD><Markup Content="@(note.Prefix + note.Text)" Foreground="@(note.IsError ? Theme.Danger : Theme.Muted)" Decoration="@Decoration.Italic" /></SpectreTD>
+                            @if (!Compact)
+                            {
+                                <SpectreTD></SpectreTD>
+                            }
+                            break;
+                    }
+                </SelectableRow>
+            }
+        </NavigableTBody>
+    </SpectreTable>
+</SelectableList>
+
+@code {
+    /// <summary>
+    /// The connection tree: Azure subscriptions › namespaces › their sections. Branches open with → or Enter (a click in
+    /// <see cref="Compact"/> mode), a section opens its list page in that namespace. Typing filters. Open branches are
+    /// shared by every tree (the connection page's and the header dropdown's).
+    /// </summary>
+    [Parameter] public int MaxRows { get; set; } = 10;
+
+    /// <summary>Dropdown style: no border, header or details (the host shows <see cref="FilterChanged"/>); rows shrink to fit; one click picks.</summary>
+    [Parameter] public bool Compact { get; set; }
+
+    [Parameter] public int? FocusOrder { get; set; }
+
+    /// <summary>The node selected at first, e.g. the breadcrumb that was clicked.</summary>
+    [Parameter] public string? SelectKey { get; set; }
+
+    /// <summary>Keys the tree does not use, e.g. Escape with an empty filter.</summary>
+    [Parameter] public Action<KeyboardEventArgs>? OnKeyDown { get; set; }
+
+    /// <summary>Sees keys before the tree, with its filter; true takes the key (e.g. metrics zoom).</summary>
+    [Parameter] public Func<KeyboardEventArgs, string?, bool>? TakeKey { get; set; }
+
+    /// <summary>The selected node once it is on screen; null on a note.</summary>
+    [Parameter] public EventCallback<ExplorerNode?> SelectedChanged { get; set; }
+
+    /// <summary>Marked "(az default)".</summary>
+    [Parameter] public string? DefaultSubscriptionId { get; set; }
+
+    [Parameter] public EventCallback<string?> FilterChanged { get; set; }
+
+    /// <summary>A section was picked; true when that navigates, false when it is the page already shown.</summary>
+    [Parameter] public EventCallback<bool> OnPicked { get; set; }
+
+    private IReadOnlyList<ExplorerRow> _rows = [];
+    private string? _filter;
+    private int _index;
+    private string? _selectedKey;
+    private NavigableTBody? _body;
+    private bool _focused;
+    private string? _reportedKey;
+
+    private int PageSize => Compact ? Math.Clamp(_rows.Count, 1, MaxRows) : MaxRows;
+
+    private ExplorerNode? Selected => _rows.ElementAtOrDefault(_index) is ExplorerRow.Item item ? item.Node : null;
+
+    protected override void OnInitialized()
+    {
+        _selectedKey = SelectKey;
+        Tree.Changed += OnTreeChanged;
+        Tree.EnsureStarted();
+        Rebuild();
+    }
+
+    public void Dispose() => Tree.Changed -= OnTreeChanged;
+
+    private void OnTreeChanged() => _ = InvokeAsync(() => { Rebuild(); StateHasChanged(); });
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focused || _body is null) return;
+        _focused = true;
+        await FocusManager.FocusAsync(_body.FocusKey);
+    }
+
+    // Keeps the selected node selected as rows come and go.
+    private void Rebuild()
+    {
+        _rows = Tree.Rows(_filter);
+        var found = _selectedKey is null ? -1 : IndexOf(_selectedKey);
+        _index = found >= 0 ? found : Math.Clamp(_index, 0, Math.Max(0, _rows.Count - 1));
+        if (found >= 0 || _selectedKey is null) _selectedKey = _rows.ElementAtOrDefault(_index)?.Key;
+        ReportSelection();
+    }
+
+    // Only a settled selection: while the wanted node still loads, the row at its index is another one.
+    private void ReportSelection()
+    {
+        if (_selectedKey is not { } key || IndexOf(key) != _index || key == _reportedKey) return;
+        _reportedKey = key;
+        _ = SelectedChanged.InvokeAsync(Selected);
+    }
+
+    /// <summary>Selects <paramref name="key"/>, now or once it is listed.</summary>
+    public void SelectNode(string key)
+    {
+        _selectedKey = key;
+        Rebuild();
+        StateHasChanged();
+    }
+
+    /// <summary>Opens <paramref name="section"/> of the selected namespace, when it has one.</summary>
+    public Task OpenSelectedAsync(Section section) =>
+        Selected?.InNamespace is { } ns ? OpenSectionAsync(ns, section) : Task.CompletedTask;
+
+    private int IndexOf(string key) => _rows.Select(r => r.Key).ToList().IndexOf(key);
+
+    private void Select(int index)
+    {
+        _index = index;
+        _selectedKey = _rows.ElementAtOrDefault(index)?.Key;
+        ReportSelection();
+    }
+
+    private void SelectKeyNow(string key)
+    {
+        if (IndexOf(key) is >= 0 and var index) Select(index);
+        StateHasChanged();
+    }
+
+    private static string Label(ExplorerRow.Item item) =>
+        $"{item.Prefix}{(item.Node.IsBranch ? item.Open ? "▾ " : "▸ " : "  ")}{item.Node.Icon} {item.Node.Name}";
+
+    private string Details(ExplorerNode node) => node switch
+    {
+        Subscription { Value.Id: { } id } => id == DefaultSubscriptionId ? $"{id}  (az default)" : id,
+        Subscription => "localhost:5672",
+        Namespace { Info: var ns } => string.Join(" · ", new[] { ns.Sku, ns.Location, ns.ResourceGroup, ns.Status }.Where(s => !string.IsNullOrEmpty(s))),
+        _ => "",
+    };
+
+    // Where the app is: the open subscription, namespace and section are highlighted.
+    private bool IsHere(ExplorerNode node) => node switch
+    {
+        Subscription s => s.Value == NavState.AzureSubscription && Connection.Current is not null,
+        Namespace ns => ns.Parent.Value == NavState.AzureSubscription && ns.Info.FullyQualifiedNamespace == Connection.CurrentNamespace,
+        Page p => IsHere(p.Parent) && Nav.ToBaseRelativePath(Nav.Uri).StartsWith(p.Section.Route.TrimStart('/')),
+        _ => false,
+    };
+
+    private static ExplorerNode? ParentOf(ExplorerNode node) => node switch
+    {
+        Namespace ns => ns.Parent,
+        Page p => p.Parent,
+        _ => null,
+    };
+
+    private async Task OpenAsync(Namespace ns, Section section)
+    {
+        var sameNamespace = ns.Info.FullyQualifiedNamespace == Connection.CurrentNamespace && ns.Parent.Value == NavState.AzureSubscription;
+        var onSection = "/" + Nav.ToBaseRelativePath(Nav.Uri) == section.Route;
+        if (sameNamespace && onSection)
+        {
+            await OnPicked.InvokeAsync(false);
+            return;
+        }
+        if (!sameNamespace)
+        {
+            // The store keys browsers by queue name only; a same-named queue elsewhere must not reuse its locks.
+            await Store.CloseAsync();
+            NavState.AzureSubscription = ns.Parent.Value;
+            Connection.SetNamespace(ns.Info);
+        }
+        await OnPicked.InvokeAsync(true);
+        if (onSection) NavState.Reload();
+        else Nav.NavigateTo(section.Route);
+    }
+
+    private async Task Activate()
+    {
+        if (_rows.ElementAtOrDefault(_index) is ExplorerRow.Note { IsError: true } failed)
+        {
+            Tree.Retry(failed.ParentKey);
+            return;
+        }
+        switch (Selected)
+        {
+            case Page p:
+                await OpenAsync(p.Parent, p.Section);
+                return;
+            case { IsBranch: true } branch:
+                Tree.SetOpen(branch, !Tree.IsOpen(branch));
+                return;
+        }
+    }
+
+    // F1-F3 open a section of the selected namespace, when it has that section.
+    private async Task OpenSectionAsync(Namespace ns, Section section)
+    {
+        if (Connection.Current is { } current && current.Info == ns.Info)
+        {
+            if (Section.Of(current).Contains(section)) await OpenAsync(ns, section);
+            return;
+        }
+        await using var probe = Opener.Open(ns.Info);
+        if (Section.Of(probe).Contains(section)) await OpenAsync(ns, section);
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        if (TakeKey?.Invoke(e, _filter) == true) return;
+        var node = Selected;
+        switch (e.Key)
+        {
+            case "ArrowRight" when node is { IsBranch: true }:
+                if (!Tree.IsOpen(node)) Tree.SetOpen(node, true);
+                else if (_index + 1 < _rows.Count) SelectKeyNow(_rows[_index + 1].Key);
+                return;
+            case "ArrowLeft" when node is not null:
+                if (Tree.IsOpen(node)) Tree.SetOpen(node, false);
+                else if (ParentOf(node) is { } parent) SelectKeyNow(parent.Key);
+                return;
+            case "F1" or "F2" or "F3" when node?.InNamespace is { } ns:
+                _ = OpenSectionAsync(ns, e.Key switch { "F1" => Section.Queues, "F2" => Section.Topics, _ => Section.AllSubscriptions });
+                return;
+            case "Escape" when !string.IsNullOrEmpty(_filter):
+                ApplyFilter(null);
+                return;
+        }
+        if (FilterEdit.From(_filter, e) is { } edit) ApplyFilter(edit.Filter);
+        else OnKeyDown?.Invoke(e);
+    }
+
+    private void ApplyFilter(string? filter)
+    {
+        _filter = filter;
+        _ = FilterChanged.InvokeAsync(filter);
+        Rebuild();
+        // Typing looks for something: jump to the first match unless the selection is still shown and matches.
+        var shown = _selectedKey is { } key && IndexOf(key) == _index;
+        if (filter is { } f && !string.IsNullOrWhiteSpace(f) && !(shown && Selected?.Matches(f) == true)
+            && _rows.OfType<ExplorerRow.Item>().FirstOrDefault(r => r.Node.Matches(f)) is { } match)
+            Select(IndexOf(match.Key));
+        else if (!shown && _rows.Count > 0)
+            Select(_index);
+        StateHasChanged();
+    }
+}

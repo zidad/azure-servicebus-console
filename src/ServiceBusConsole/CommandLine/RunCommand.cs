@@ -15,6 +15,13 @@ public sealed class RunCommand : JasperFxAsyncCommand<RunInput>
             return false;
         }
 
+        if (Palette.For(input.ThemeFlag, Environment.GetEnvironmentVariable("COLORFGBG")) is not { } palette)
+        {
+            AnsiConsole.MarkupLine("[red]Invalid usage:[/] --theme is auto, dark or light.");
+            return false;
+        }
+        Theme.Use(palette);
+
         var host = input.BuildHost();
         host.Services.GetRequiredService<NavigationState>().Startup = input.StartupTarget;
         await host.Services.GetRequiredService<MetricsVisibility>().LoadAsync();

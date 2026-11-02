@@ -52,12 +52,12 @@
 
             <SelectableList Items="@browser.Messages"
                         PageSize="@Split.Rows"
-                        Scrollbar="new()"
+                        Scrollbar="@Theme.Scrollbar()"
                         SelectedIndex="@browser.Cursor"
                         SelectedIndexChanged="@(i => browser.Cursor = i)"
                         OnToggle="@(i => ToggleAt(i))"
                         OnActivate="@(() => { if (browser.Operation is not { Modal: true } && browser.Focused is { } m) ViewMessage(m); })">
-                <SpectreTable Expand="true" Border="TableBorder.Simple">
+                <SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.Simple">
                     <SpectreTHead>
                         <SpectreTR>
                             <SpectreTH Width="4"><div class="check-all" @onclick="ToggleAll">@(browser.AllSelected ? Icons.Selected : Icons.Unselected)</div></SpectreTH>

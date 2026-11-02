@@ -10,6 +10,9 @@ public sealed class RunInput : NetCoreInput
     [Description("Namespace of that subscription to open, by name or host name; needs --subscription")]
     public string? NamespaceFlag { get; set; }
 
+    [Description("Colors for a dark or light terminal background: auto (default; COLORFGBG, else dark), dark or light")]
+    public string? ThemeFlag { get; set; }
+
     /// <summary>Where the app starts; null for the connection page as usual.</summary>
     public StartupTarget? StartupTarget => SubscriptionFlag is { } subscription ? new(subscription, NamespaceFlag) : null;
 }
