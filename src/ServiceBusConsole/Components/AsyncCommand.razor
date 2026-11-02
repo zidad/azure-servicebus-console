@@ -1,4 +1,5 @@
 @typeparam TItem where TItem : notnull
+@inject ActivityLog ActivityLog
 
 <ConfirmModal IsOpened="@(_pending is not null)"
               Message="@(_pending?.Text ?? "")"
@@ -13,6 +14,8 @@
     [Parameter, EditorRequired] public required Func<TItem, Task> Execute { get; set; }
     [Parameter] public Func<TItem, Task>? OnCompleted { get; set; }
     [Parameter] public Func<Exception, string>? FormatError { get; set; }
+    /// <summary>What a successful run did, for the session's activity log; commands that record their own outcome omit it.</summary>
+    [Parameter] public Func<TItem, string>? Activity { get; set; }
 
     private sealed record Pending(TItem Item, string Text);
 
@@ -69,6 +72,7 @@
         try
         {
             await Execute(item);
+            if (Activity is not null) ActivityLog.Record(ActivityKind.Operation, Activity(item));
             if (OnCompleted is not null) await OnCompleted(item);
         }
         catch (Exception ex)

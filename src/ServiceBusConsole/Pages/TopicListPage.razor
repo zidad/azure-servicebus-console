@@ -99,6 +99,7 @@
     <AsyncCommand @ref="_deleteTopic" TItem="string"
                   ConfirmMessage="@(n => $"Delete topic '{n}' and all its subscriptions? This cannot be undone.")"
                   Execute="@(n => deletion.DeleteTopicAsync(n))"
+                  Activity="@(n => $"Deleted topic '{n}' and its subscriptions")"
                   OnCompleted="@(n => { _all.RemoveAll(t => t.Name == n); UpdateFilterState(_filter); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1)); _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex)?.Name; StateHasChanged(); return Task.CompletedTask; })" />
 }
 

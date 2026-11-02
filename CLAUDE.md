@@ -138,6 +138,10 @@ Declare once per action and trigger via `@ref`:
 - `Execute` may return any `Task`/`Task<T>`; exceptions are caught and shown in the component's own `ErrorModal`.
 - A page may still keep its own `_error`/`_loading` + `ErrorModal` for non-command paths like initial load (`PeekMessages`, streaming list loads) — those aren't async commands.
 
+**Session context:** `SessionContext` (`Services/`) builds a `SessionSnapshot` (Abstractions) for plugins and LLM prompts: Azure subscription, namespace, source, browse mode, the message in view (open on the detail page, else under the list cursor) and the recent activity. `ToMarkdown()`/`ToJson()` format it (`MessageMarkdown`/`MessageJson` for a message alone), culture invariant with ISO 8601 times.
+- `ActivityLog` keeps the last 200 `ActivityEntry`s, thread-safe. Recorded centrally: navigation (`App.razor`), message loads and batch operations (`MessageBrowserStore`, from `MessageBrowser.Ended`), every `ErrorModal` shown, and `AsyncCommand`s with an `Activity` text
+- A new user-visible operation must record its outcome: run it through `MessageBrowser`, give its `AsyncCommand` an `Activity`, or call `ActivityLog.Record`
+
 **Message operations:** `Components/MessageBrowserView.razor` is the shared queue/subscription browser. State lives in `MessageBrowser` (list, selection, locked receiver), kept by the singleton `MessageBrowserStore` so the detail page acts on the same locks.
 - *Peek* is read-only; on an active queue *Resend* sends copies.
 - *Receive (PeekLock)* returns `ILockedMessages`: the receiver stays open, locks auto-renew, leftovers are abandoned on dispose. Complete/abandon/dead-letter only work on these.

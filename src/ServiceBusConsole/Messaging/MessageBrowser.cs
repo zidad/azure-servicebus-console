@@ -28,6 +28,9 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
 
     public event Action? Changed;
 
+    /// <summary>A load or batch operation ended without throwing: finished with a result, or (a load) done or cancelled.</summary>
+    public event Action<OperationProgress>? Ended;
+
     /// <summary>Closes a finished operation's dialog.</summary>
     public void Dismiss()
     {
@@ -493,6 +496,7 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
             if (!operation.Modal && Operation == operation) Operation = null;
             Changed?.Invoke();
         }
+        Ended?.Invoke(operation);
     }
 
     private OperationStep Start(OperationProgress op, int step)

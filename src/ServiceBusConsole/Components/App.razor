@@ -2,6 +2,8 @@
 @using RazorConsole.Components
 @implements IDisposable
 @inject NavigationState NavState
+@inject NavigationManager Nav
+@inject SessionContext Session
 
 <Router AppAssembly="@typeof(App).Assembly">
     <Found Context="routeData">
@@ -13,9 +15,23 @@
 </Router>
 
 @code {
-    protected override void OnInitialized() => NavState.Reloaded += OnReloaded;
+    protected override void OnInitialized()
+    {
+        NavState.Reloaded += OnReloaded;
+        Nav.LocationChanged += OnLocationChanged;
+    }
 
-    public void Dispose() => NavState.Reloaded -= OnReloaded;
+    public void Dispose()
+    {
+        NavState.Reloaded -= OnReloaded;
+        Nav.LocationChanged -= OnLocationChanged;
+    }
 
-    private void OnReloaded() => _ = InvokeAsync(StateHasChanged);
+    private void OnReloaded()
+    {
+        Session.Navigated(Nav.ToBaseRelativePath(Nav.Uri));
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => Session.Navigated(Nav.ToBaseRelativePath(e.Location));
 }

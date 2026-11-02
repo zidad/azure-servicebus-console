@@ -105,12 +105,14 @@
     <AsyncCommand @ref="_deleteSub" TItem="SubscriptionInfo"
                   ConfirmMessage="@(s => $"Delete subscription '{s.Name}' from topic '{s.TopicName}'? This cannot be undone.")"
                   Execute="@(s => deletion.DeleteSubscriptionAsync(s.TopicName, s.Name))"
+                  Activity="@(s => $"Deleted subscription '{s.Name}' of topic '{s.TopicName}'")"
                   OnCompleted="@(s => { _all.RemoveAll(x => x.TopicName == s.TopicName && x.Name == s.Name); _focusedItem = null; SortAndUpdateFilterState(); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1)); _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex); StateHasChanged(); return Task.CompletedTask; })" />
 }
 
 <AsyncCommand @ref="_purgeDlq" TItem="SubscriptionInfo"
               ConfirmMessage="@(s => $"Purge ALL messages from DLQ of '{s.TopicName}/{s.Name}'? This cannot be undone.")"
               Execute="@(s => Connection.Namespace.Messages.PurgeAsync(new MessageSource.Subscription(s.TopicName, s.Name, IsDlq: true)).LastOrDefaultAsync().AsTask())"
+              Activity="@(s => $"Purged the dead-letter queue of '{s.TopicName}/{s.Name}'")"
               OnCompleted="@(s => { List.Update(Key(s), x => x with { DeadLetterMessageCount = 0 }); SortAndUpdateFilterState(); StateHasChanged(); return Task.CompletedTask; })" />
 
 @code {
