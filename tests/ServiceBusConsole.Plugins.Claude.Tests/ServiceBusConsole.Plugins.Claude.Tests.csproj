@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../../src/ServiceBusConsole.Plugins.Claude/ServiceBusConsole.Plugins.Claude.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="ServiceBusConsole.Abstractions" />
+    <Using Include="ServiceBusConsole.Plugins" />
+  </ItemGroup>
+</Project>
