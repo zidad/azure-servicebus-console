@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Diagnostics;
 using System.Reflection;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Configuration;
@@ -194,13 +195,38 @@ public sealed class AppHarness
     private sealed record FocusTarget(string Key, IReadOnlyDictionary<string, string?> Attributes);
 
     /// <summary>Waits for <paramref name="text"/> to appear, then clicks its first character.</summary>
-    public static async Task ClickTextAsync(HeadlessTerminal terminal, string text, bool exactLine = false)
+    public static Task ClickTextAsync(HeadlessTerminal terminal, string text, bool exactLine = false) =>
+        ClickSettledAsync(terminal, f => Find(f, text, exactLine));
+
+    /// <summary>
+    /// Clicks where <paramref name="locate"/> points once it has pointed at the same cell for <see cref="SettleTime"/>:
+    /// rows that load in the background move what a click would hit.
+    /// </summary>
+    public static async Task ClickSettledAsync(HeadlessTerminal terminal, Func<TerminalFrame, (int X, int Y)?> locate)
     {
         var ct = Ct;
-        var frame = await terminal.WaitUntilAsync(f => Find(f, text, exactLine) is not null, Timeout, cancellationToken: ct);
-        if (Find(frame, text, exactLine) is not var (x, y)) throw new InvalidOperationException($"'{text}' not on screen");
-        await terminal.ClickAsync(x, y, ct);
+        var limit = Stopwatch.StartNew();
+        var still = Stopwatch.StartNew();
+        (int X, int Y)? last = null;
+        while (limit.Elapsed < Timeout)
+        {
+            var at = locate(terminal.CurrentFrame);
+            if (at != last)
+            {
+                last = at;
+                still.Restart();
+            }
+            else if (at is var (x, y) && still.Elapsed >= SettleTime)
+            {
+                await terminal.ClickAsync(x, y, ct);
+                return;
+            }
+            await Task.Delay(10, ct);
+        }
+        throw new TimeoutException($"No settled click target within {Timeout}; last at {last?.ToString() ?? "none"}.{Environment.NewLine}{terminal.CurrentFrame.ScreenText}");
     }
+
+    public static readonly TimeSpan SettleTime = TimeSpan.FromMilliseconds(250);
 
     private static (int X, int Y)? Find(TerminalFrame frame, string text, bool exactLine)
     {

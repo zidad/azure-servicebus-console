@@ -21,9 +21,7 @@ public sealed class ConnectionHeaderTests
         await terminal.WaitUntilAsync(f => f.ContainsText("Go to") && f.ContainsText("▾ 🌐 localhost") && f.ContainsText("📥 All Subscriptions") && f.ContainsText("sb-dev-a"),
             AppHarness.Timeout, cancellationToken: Ct);
         await AppHarness.ClickTextAsync(terminal, "sb-dev-a");
-        var frame = await terminal.WaitUntilAsync(f => QueuesRowBelow(f, "▾ 🌐 sb-dev-a") is not null, AppHarness.Timeout, cancellationToken: Ct);
-        var y = QueuesRowBelow(frame, "▾ 🌐 sb-dev-a") ?? 0;
-        await terminal.ClickAsync(frame.GetLine(y).IndexOf("📬", StringComparison.Ordinal), y, Ct);
+        await AppHarness.ClickSettledAsync(terminal, f => QueuesRowBelow(f, "▾ 🌐 sb-dev-a") is { } y ? (f.GetLine(y).IndexOf("📬", StringComparison.Ordinal), y) : null);
 
         await terminal.WaitUntilAsync(f => f.GetLine(1).Contains("🔑 Contoso Development  ›  🌐 sb-dev-a  ›  📬 Queues (1)"), AppHarness.Timeout, cancellationToken: Ct);
         app.Connection.CurrentNamespace.ShouldBe("sb-dev-a.servicebus.windows.net");

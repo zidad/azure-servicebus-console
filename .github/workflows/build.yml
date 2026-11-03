@@ -65,3 +65,25 @@ jobs:
         with:
           name: test-results
           path: tests/*/bin/Release/net10.0/TestResults/
+
+  # UI races show on slow machines: repeat the UI tests on 2 cores, so a racy test fails on its PR, not later on main.
+  ui-stress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      DOTNET_PROCESSOR_COUNT: 2
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          dotnet-version: '10.0.x'
+
+      - run: dotnet build tests/ServiceBusConsole.Tests --configuration Release
+
+      - run: for i in 1 2 3 4 5; do dotnet test --project tests/ServiceBusConsole.Tests --configuration Release --no-build || exit 1; done
