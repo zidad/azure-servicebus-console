@@ -226,6 +226,27 @@ public sealed class AppHarness
         throw new TimeoutException($"No settled click target within {Timeout}; last at {last?.ToString() ?? "none"}.{Environment.NewLine}{terminal.CurrentFrame.ScreenText}");
     }
 
+    /// <summary>
+    /// Waits until <paramref name="predicate"/> holds and neither the screen nor the focus has changed for <see cref="SettleTime"/>:
+    /// before keys to a page that is still reloading, where a key can land on the list being replaced.
+    /// </summary>
+    public static Task<HeadlessTerminalFrame> WaitForSettledAsync(HeadlessTerminal terminal, Func<TerminalFrame, bool> predicate)
+    {
+        var still = Stopwatch.StartNew();
+        (string Screen, string? Focus)? last = null;
+        return terminal.WaitUntilAsync(frame =>
+        {
+            (string, string?)? now = predicate(frame) ? (frame.ScreenText, terminal.FocusKey) : null;
+            if (now is null || now != last)
+            {
+                last = now;
+                still.Restart();
+                return false;
+            }
+            return still.Elapsed >= SettleTime;
+        }, Timeout, cancellationToken: Ct);
+    }
+
     public static readonly TimeSpan SettleTime = TimeSpan.FromMilliseconds(250);
 
     private static (int X, int Y)? Find(TerminalFrame frame, string text, bool exactLine)

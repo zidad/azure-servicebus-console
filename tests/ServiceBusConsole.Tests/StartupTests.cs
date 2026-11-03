@@ -125,10 +125,10 @@ public sealed class StartupTests
         var app = WithAzure(new("Contoso Development", "sb-missing"));
         await using var terminal = await app.StartAsync(height: 40);
 
-        var frame = await terminal.WaitForTextAsync("Namespace \"sb-missing\" not found in Contoso Development.", AppHarness.Timeout, Ct);
-
-        frame.ContainsText("sb-orders-dev").ShouldBeTrue(frame.ScreenText);
-        frame.ContainsText("[F1] 📬 Queues").ShouldBeTrue(frame.ScreenText);
+        // The error, the listed namespace and its buttons render separately.
+        await terminal.WaitUntilAsync(
+            f => f.ContainsText("Namespace \"sb-missing\" not found in Contoso Development.") && f.ContainsText("sb-orders-dev") && f.ContainsText("[F1] 📬 Queues"),
+            AppHarness.Timeout, cancellationToken: Ct);
         app.NavState.AzureSubscription.ShouldBe(AppHarness.AzureSubscription);
     }
 
@@ -138,9 +138,9 @@ public sealed class StartupTests
         var app = WithAzure(new("Contoso Production", "sb-orders-dev"));
         await using var terminal = await app.StartAsync(height: 40);
 
-        var frame = await terminal.WaitForTextAsync("Azure subscription \"Contoso Production\" not found.", AppHarness.Timeout, Ct);
-
-        frame.ContainsText("[F1] 📬 Queues").ShouldBeTrue(frame.ScreenText);
+        await terminal.WaitUntilAsync(
+            f => f.ContainsText("Azure subscription \"Contoso Production\" not found.") && f.ContainsText("[F1] 📬 Queues"),
+            AppHarness.Timeout, cancellationToken: Ct);
         app.NavState.AzureSubscription.ShouldBe(AzureSubscription.Emulator);
     }
 
