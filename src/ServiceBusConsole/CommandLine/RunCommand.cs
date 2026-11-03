@@ -1,4 +1,5 @@
 using JasperFx.CommandLine;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -15,14 +16,16 @@ public sealed class RunCommand : JasperFxAsyncCommand<RunInput>
             return false;
         }
 
-        if (Palette.For(input.ThemeFlag, Environment.GetEnvironmentVariable("COLORFGBG")) is not { } palette)
+        var host = input.BuildHost();
+        var theme = input.ThemeSetting(host.Services.GetRequiredService<IConfiguration>());
+        if (Palette.For(theme, Environment.GetEnvironmentVariable("COLORFGBG")) is not { } palette)
         {
-            AnsiConsole.MarkupLine("[red]Invalid usage:[/] --theme is auto, dark or light.");
+            AnsiConsole.MarkupLine($"[red]Invalid usage:[/] theme '{Markup.Escape(theme ?? "")}' is not auto, dark or light (--theme, else {ConfigKeys.Theme.Key}).");
+            host.Dispose();
             return false;
         }
         Theme.Use(palette);
 
-        var host = input.BuildHost();
         host.Services.GetRequiredService<NavigationState>().Startup = input.StartupTarget;
         await host.Services.GetRequiredService<MetricsVisibility>().LoadAsync();
         await host.Services.GetRequiredService<MetricsRange>().LoadAsync();

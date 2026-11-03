@@ -24,6 +24,7 @@
   <ItemGroup>
     <Using Include="ServiceBusConsole.Abstractions" />
     <Using Include="ServiceBusConsole.CommandLine" />
+    <Using Include="ServiceBusConsole.Configuration" />
     <Using Include="ServiceBusConsole.Extensions" />
     <Using Include="ServiceBusConsole.Logging" />
     <Using Include="ServiceBusConsole.Messaging" />

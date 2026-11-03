@@ -39,9 +39,30 @@ azsb help                                                            # all flags
 - `--subscription` / `-s`: Azure subscription by name or ID (case-insensitive); `emulator` or `Local Emulator` for the local emulator
 - `--namespace` / `-n`: namespace in that subscription, by name or host name (`sb-orders-dev.servicebus.windows.net`); needs `--subscription`
 - They apply at startup only: `Esc` back to the connection page works as usual. A subscription or namespace that isn't found is reported there
-- `--theme` / `-t`: `dark` or `light` terminal background; `auto` (default) reads `COLORFGBG` where the terminal sets it, else dark. Colors are the terminal's 16 palette colors, so its color scheme sets their shade
+- `--theme` / `-t`: `dark` or `light` terminal background; `auto` (default) reads `COLORFGBG` where the terminal sets it, else dark; overrides the `ui.theme` setting. Colors are the terminal's 16 palette colors, so its color scheme sets their shade
 - Without `--subscription`, the Azure CLI's current subscription (`az account set`) is preselected; the subscription list marks it `(az default)`
 - Parsed by [JasperFx](https://github.com/JasperFx/jasperfx); `azsb help` also lists its generic host flags (`--config:<key> <value>`, `--environment`, `--log-level`)
+
+## Configuration
+
+Settings live in a JSON file, read and written like `git config`:
+
+```bash
+azsb config set ui.theme light   # true/false and integers are stored as such, the rest as text
+azsb config get ui.theme         # prints the value; exit code 1 when unset
+azsb config unset ui.theme       # also removes sections it leaves empty
+azsb config list                 # key=value lines; --all adds unset known keys with default and description
+azsb config path                 # the file's location
+```
+
+- File: `$AZSB_CONFIG` if set, else `$XDG_CONFIG_HOME/azsb/config.json`, else `~/.config/azsb/config.json` (Windows: `%APPDATA%\azsb\config.json`)
+- Dotted keys are nested objects (`{"ui": {"theme": "light"}}`); keys ignore case. Hand edits are kept: every command reads the file first
+- Environment variables override the file: `AZSB_` plus the key with `__` for dots (`AZSB_UI__THEME=dark`); a command-line flag overrides both
+- `set` warns about unknown keys but sets them; keys under `plugins.` are never unknown
+
+| Key | Default | Description |
+|---|---|---|
+| `ui.theme` | `auto` | Colors for a dark or light terminal background: `auto` (`COLORFGBG`, else dark), `dark` or `light`; `--theme` overrides it |
 
 ## Features
 
