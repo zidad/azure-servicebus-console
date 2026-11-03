@@ -1,4 +1,5 @@
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
+@inject ActivityLog Activity
 
 <ModalWindow IsOpened="@IsOpened">
     <Panel Title="@($"{Icons.Error} Error")" BorderColor="@Theme.Danger" Padding="@(new(2, 1, 2, 1))">
@@ -26,8 +27,10 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (IsOpened && !_wasOpened && _dismissButton is not null)
-            await FocusManager.FocusAsync(_dismissButton.FocusKey);
+        var opened = IsOpened && !_wasOpened;
         _wasOpened = IsOpened;
+        if (!opened) return;
+        Activity.Record(ActivityKind.Error, Message);
+        if (_dismissButton is not null) await FocusManager.FocusAsync(_dismissButton.FocusKey);
     }
 }

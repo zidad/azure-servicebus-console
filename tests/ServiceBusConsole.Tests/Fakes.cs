@@ -174,9 +174,13 @@ public sealed class FakeMessageService : IMessageService
     /// <summary>When set, peeking pauses after the first page until it completes.</summary>
     public TaskCompletionSource? PausePeek { get; set; }
 
+    /// <summary>When set, peeking throws it.</summary>
+    public Exception? PeekError { get; set; }
+
     public async IAsyncEnumerable<IReadOnlyList<MessageInfo>> PeekAsync(MessageSource source, int count, long? fromSequenceNumber = null, [EnumeratorCancellation] CancellationToken ct = default)
     {
         Peeked.Add(source);
+        if (PeekError is { } error) throw error;
         var pages = Messages.Where(m => fromSequenceNumber is null || m.SequenceNumber >= fromSequenceNumber).Take(count).Chunk(PageSize);
         var first = true;
         foreach (var page in pages)

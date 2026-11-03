@@ -1,7 +1,10 @@
 namespace ServiceBusConsole.Messaging;
 
-/// <summary>Keeps the one message browser in use, so its locks survive a trip to the detail page.</summary>
-public sealed class MessageBrowserStore(ServiceBusConnection connection) : IAsyncDisposable
+/// <summary>
+/// Keeps the one message browser in use, so its locks survive a trip to the detail page. Records each browser's loads
+/// and operations in the <see cref="ActivityLog"/>.
+/// </summary>
+public sealed class MessageBrowserStore(ServiceBusConnection connection, ActivityLog activity) : IAsyncDisposable
 {
     public MessageBrowser? Current { get; private set; }
 
@@ -12,9 +15,28 @@ public sealed class MessageBrowserStore(ServiceBusConnection connection) : IAsyn
         var ns = connection.Namespace;
         if (Current is { } current && current.Source == source && current.Namespace == ns) return (current, false);
         _ = CloseAsync();
-        Current = new MessageBrowser(source, ns);
-        return (Current, true);
+        var browser = new MessageBrowser(source, ns);
+        browser.Ended += op => Record(browser, op);
+        Current = browser;
+        return (browser, true);
     }
+
+    private void Record(MessageBrowser browser, OperationProgress op)
+    {
+        var (kind, text) = op switch
+        {
+            { Result: { } result } => (op.Outcome == OperationOutcome.Failed ? ActivityKind.Error : ActivityKind.Operation, $"{op.Title}: {result}"),
+            _ => (ActivityKind.Loaded, Loaded(browser.Mode, browser.Messages.Count) + (op.Cancelled ? " (cancelled)" : "")),
+        };
+        activity.Record(kind, text, browser.Source);
+    }
+
+    private static string Loaded(BrowseMode mode, int count) => mode switch
+    {
+        BrowseMode.Locked => $"Received {count:N0} message(s) with PeekLock",
+        BrowseMode.Received => $"Received and deleted {count:N0} message(s)",
+        _ => $"Peeked {count:N0} message(s)",
+    };
 
     public async Task CloseAsync()
     {

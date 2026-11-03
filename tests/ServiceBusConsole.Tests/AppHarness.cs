@@ -59,6 +59,8 @@ public sealed class AppHarness
                     services.AddSingleton(NamespaceService ?? Namespaces);
                     services.AddSingleton(NavState);
                     services.AddSingleton<MessageBrowserStore>();
+                    services.AddSingleton<ActivityLog>();
+                    services.AddSingleton<SessionContext>();
                     services.AddSingleton(new FileCache(NullLogger<FileCache>.Instance, CacheDirectory));
                     services.AddSingleton<SubscriptionCatalog>();
                     services.AddSingleton<INamespaceOpener>(new FakeNamespaceOpener(info => OpenNamespace(info)));
