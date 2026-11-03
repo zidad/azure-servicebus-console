@@ -64,6 +64,26 @@ azsb config path                 # the file's location
 |---|---|---|
 | `ui.theme` | `auto` | Colors for a dark or light terminal background: `auto` (`COLORFGBG`, else dark), `dark` or `light`; `--theme` overrides it |
 
+`azsb config list --all` also shows the plugins' keys; `list` masks secret ones (tokens).
+
+## Plugins
+
+Plugins add actions on a message: press `F2` (or click `[F2] ⚡ Actions…`) in the message browser or on the message detail page, pick one with `↑`/`↓` and `Enter`. While it runs it shows its progress (`Esc` cancels); when done, its result with a link or file you can open (`O`). Failures show as errors. Each outcome is recorded in the session's activity.
+
+They ship with the tool. Each is on when what it needs is found, e.g. its command-line tool on the `PATH`; `enabled` overrides that:
+
+```bash
+azsb plugins                               # each plugin: id, name, enabled or disabled (and why), its settings and defaults
+azsb config set plugins.<id>.enabled false # turn one off; it offers no actions then
+azsb config set plugins.<id>.enabled true  # turn one on, found or not
+azsb config unset plugins.<id>.enabled     # back to auto
+azsb config set plugins.<id>.<key> <value> # a plugin setting, e.g. a repository or a token
+```
+
+- Settings live under `plugins.<id>.` in the [config file](#configuration), or in `AZSB_PLUGINS__<ID>__<KEY>` environment variables
+- Secret settings are masked by `azsb plugins` and `azsb config list`
+- Files plugins write (message exports and the like) go to the state directory: `$XDG_STATE_HOME/azsb`, else `~/.local/state/azsb` (Windows: `%LOCALAPPDATA%\azsb\state`)
+
 ## Features
 
 - Lists the Azure subscriptions of your `az` login by name, hides the ones without Service Bus namespaces, and lets you filter them; the local emulator is always available
@@ -200,6 +220,7 @@ Connection screen and lists, Azure namespaces only.
 | `↑` / `↓` | Move through message list |
 | `Tab` | Move into the preview body (`↑` / `↓` scroll it; page keys keep working) |
 | `Enter` | Open the message full screen |
+| `F2` | Plugin actions on the message under the cursor *(when a plugin offers one)* |
 
 Actions apply to the selected messages, or to the focused one when nothing is selected.
 
@@ -209,6 +230,7 @@ Actions apply to the selected messages, or to the focused one when nothing is se
 |-----|--------|
 | `↑` / `↓` | Scroll message body |
 | `F9` `F4` `F3` `F10` | Same actions as the browser, for this message |
+| `F2` | Plugin actions on this message *(when a plugin offers one)* |
 
 ## Prerequisites
 

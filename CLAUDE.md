@@ -78,9 +78,9 @@ Authentication uses `AzureCliCredential` — no connection strings or keys are u
 
 This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, queues, topics, and messages. The UI runs entirely in the terminal using **RazorConsole.Core** — a library that renders Blazor-style Razor components to the terminal via Spectre.Console.
 
-**Layout:** `src/ServiceBusConsole` (the UI, packed as the `azsb` tool), `src/ServiceBusConsole.Abstractions`, `src/ServiceBusConsole.AzureServiceBus`, a test project per tested project under `tests/`, `lib/RazorConsole` (fork submodule). Shared build settings in `Directory.Build.props`, package versions in `Directory.Packages.props` (central package management). One type per file; namespaces follow project and folders (`ServiceBusConsole.<Folder>`, `ServiceBusConsole.AzureServiceBus.Emulator`), imported globally via `<Using>` in the csproj and `_Imports.razor`.
+**Layout:** `src/ServiceBusConsole` (the UI, packed as the `azsb` tool), `src/ServiceBusConsole.Abstractions`, `src/ServiceBusConsole.AzureServiceBus`, `src/ServiceBusConsole.Plugins` (plugin contracts), bundled plugins `src/ServiceBusConsole.Plugins.<Name>`, a test project per tested project under `tests/`, `lib/RazorConsole` (fork submodule). Shared build settings in `Directory.Build.props`, package versions in `Directory.Packages.props` (central package management). One type per file; namespaces follow project and folders (`ServiceBusConsole.<Folder>`, `ServiceBusConsole.AzureServiceBus.Emulator`), imported globally via `<Using>` in the csproj and `_Imports.razor`.
 
-**Projects:** the UI uses the abstractions only.
+**Projects:** the UI uses the abstractions and the plugin contracts only.
 - `ServiceBusConsole.Abstractions`, no packages: DTOs (`QueueInfo`, `MessageInfo`, `MessageSource`, ...), `I*Service`, `ILockedMessages`, `MessageLockLostException`, `IServiceBusNamespace` (what every namespace has: `Info`, `Queues`, `Messages`), the feature interfaces, `INamespaceOpener`, `INamespaceDecorator`
 - `ServiceBusConsole.AzureServiceBus`, the only project with Azure SDK packages: `NamespaceOpener` (`EmulatorNamespace`, or by `NamespaceInfo.Sku` `BasicNamespace` or `StandardNamespace` for Standard, Premium and an unknown SKU), the `I*Service` implementations (management API for Azure; config file and peeked counts for the emulator, in `Emulator/`), `LockedMessages`, `AsyncParallel`. Each namespace owns its `ServiceBusClient` and closes it on dispose. All internal except `AddAzureServiceBus()`
 - Capabilities are composed, not checked: a namespace implements a feature interface or not (`IHasTopics`: not Basic; `IHasMetrics`, `IHasDeletion`: not the emulator; `IHasTransactions`: Standard and Premium only), and the UI asks `Connection.Current is IHasMetrics { Metrics: var metrics }`, hiding buttons and keys it lacks. Never branch on emulator or tier in the UI or throw `NotSupportedException` in a service; `AzureSubscription.IsEmulator` only picks the connection target and its icon
@@ -89,14 +89,16 @@ This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, que
 - `ServiceBusMessageInfo` (Azure) derives from `MessageInfo` and keeps the received message, so Resend/Retry send exact copies (`IMessageService.SendCopiesAsync` takes only messages the service returned)
 - Abstractions are values and streams: results over time are returned, as `IAsyncEnumerable<T>` (pages, running totals of send/purge; the work runs as the stream is read) or `ChannelReader<T>` (`ILockedMessages.Held`, `LockLost`). No callbacks, events or writer parameters; `CancellationToken` on every async member
 - Variants are closed record unions with an exhaustive `Match` (`MessageSource.Queue` / `MessageSource.Subscription`), not nullable fields
+- `ServiceBusConsole.Plugins`, plugin contracts on the abstractions; packages: DI and configuration abstractions only: `IPlugin`, `IMessageAction`, `MessageActionContext`, `IPluginHost`, `ActionResult`, `ProcessSpec`/`ProcessResult`, helpers `Template`, `PluginFiles`. No Azure SDK, RazorConsole or UI (`ArchitectureTests`)
 
 | UI folder | Contents |
 |---|---|
 | `Program.cs` | Generic Host with `UseRazorConsole<App>()`, service registration (`AddAzureServiceBus()`), file logging to `logs/`; runs the command line through `AppCommands` |
-| `CommandLine/` | JasperFx commands: `AppCommands` (`run` by default, `config`, `help`), `RunCommand`/`RunInput` (`--subscription`, `--namespace`), `StartupTarget` (taken once by the connection page via `NavigationState.Startup`) |
+| `CommandLine/` | JasperFx commands: `AppCommands` (`run` by default, `config`, `plugins`, `help`), `RunCommand`/`RunInput` (`--subscription`, `--namespace`), `StartupTarget` (taken once by the connection page via `NavigationState.Startup`) |
 | `Configuration/` | `AppPaths` (config file, state directory), `ConfigFile` (dotted keys as nested JSON, read on every call), `ConfigKeys` (the known `ConfigKey`s), `AddAzsbConfiguration` (file and `AZSB_` environment variables into the host's `IConfiguration`); `azsb config` is `CommandLine/ConfigCommand` |
 | `Pages/` | One Razor component per screen, each with a `@page` route |
 | `Components/` | Shared Razor components; `App.razor` is the root router |
+| `PluginHost/` | `PluginCatalog` (discovery, enabled, config keys), `AddPlugins`, `PluginActions` (offered actions and their context), `ProcessPluginHost`; namespace `ServiceBusConsole.PluginHost`, since `ServiceBusConsole.Plugins` is the contracts' |
 | `UI/` | Non-component UI code: `Theme`/`Icons`, `TableSort`, `LiveList`, `CountChanges`, `NavigationState` (parameters that aren't URL segments), `FullscreenLayout` |
 | `Services/` | `ServiceBusConnection` (the namespace being browsed: `SetNamespace` opens it and disposes the previous one; read `Current` each time), `SubscriptionCatalog`, `AzureSubscriptions` (emulator first, then the account's subscriptions) |
 | `Services/Caching/` | `FileCache`, `CachingNamespaceDecorator` (wraps each opened namespace's listings, metrics and deletion: cached data first, then live), `CachingNamespaceService` |
@@ -141,6 +143,14 @@ Declare once per action and trigger via `@ref`:
 **Session context:** `SessionContext` (`Services/`) builds a `SessionSnapshot` (Abstractions) for plugins and LLM prompts: Azure subscription, namespace, source, browse mode, the message in view (open on the detail page, else under the list cursor) and the recent activity. `ToMarkdown()`/`ToJson()` format it (`MessageMarkdown`/`MessageJson` for a message alone), culture invariant with ISO 8601 times.
 - `ActivityLog` keeps the last 200 `ActivityEntry`s, thread-safe. Recorded centrally: navigation (`App.razor`), message loads and batch operations (`MessageBrowserStore`, from `MessageBrowser.Ended`), every `ErrorModal` shown, and `AsyncCommand`s with an `Activity` text
 - A new user-visible operation must record its outcome: run it through `MessageBrowser`, give its `AsyncCommand` an `Activity`, or call `ActivityLog.Record`
+
+**Plugins:** bundled features that act on a message, a separate axis from namespace capabilities: resolved from DI, filtered by config. Writing one:
+- Project `src/ServiceBusConsole.Plugins.<Name>` (namespace the same), referencing only `ServiceBusConsole.Plugins`; never the UI, Azure SDK or RazorConsole. The app's wildcard `ProjectReference` bundles it into the tool folder; add it and its `tests/ServiceBusConsole.Plugins.<Name>.Tests` to the slnx
+- `[assembly: ServiceBusConsolePlugin(typeof(XPlugin))]`; `XPlugin : IPlugin` with a parameterless constructor, a lower-case `Id`, its `Settings` (`plugins.<id>.<key>`, `IsSecret` for tokens) and `ConfigureServices` registering its `IMessageAction`s. Disabled (`plugins.<id>.enabled=false`) registers nothing
+- `IMessageAction.CanRun` is cheap; `RunAsync` gets a `MessageActionContext` (message, source, `SessionSnapshot`, settings with defaults, `IPluginHost`, `Progress`), throws on failure, honors the token (Esc) and returns an `ActionResult` (text, optional link and file)
+- Processes and opening files or URLs go through `IPluginHost` (fake in tests); files under its `StateDirectory` via `PluginFiles`: message exports in `messages/`, the rest in `plugins/<id>/`
+- The host shows the F2 picker, progress, result and error, and records the outcome in the activity log; plugins don't
+- UI tests: `AppHarness.Plugins`, `.Settings` (`plugins:<id>:enabled`) and `.PluginHost` (`FakePluginHost` records processes and opened paths)
 
 **Message operations:** `Components/MessageBrowserView.razor` is the shared queue/subscription browser. State lives in `MessageBrowser` (list, selection, locked receiver), kept by the singleton `MessageBrowserStore` so the detail page acts on the same locks.
 - *Peek* is read-only; on an active queue *Resend* sends copies.

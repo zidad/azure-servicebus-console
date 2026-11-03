@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Reflection;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using RazorConsole.Core.Focus;
@@ -37,6 +38,14 @@ public sealed class AppHarness
     public Func<NamespaceInfo, IServiceBusNamespace> OpenNamespace { get; set; }
 
     public MetricsOptions MetricsOptions { get; } = new();
+
+    /// <summary>The installed plugins; none by default.</summary>
+    public List<IPlugin> Plugins { get; } = [];
+
+    /// <summary>Settings as <c>IConfiguration</c> paths, e.g. <c>plugins:fake:enabled</c>.</summary>
+    public Dictionary<string, string?> Settings { get; } = [];
+
+    public FakePluginHost PluginHost { get; } = new();
     public NavigationState NavState { get; } = new();
 
     /// <summary>Per-test cache folder, so tests never touch the user's real cache.</summary>
@@ -70,6 +79,8 @@ public sealed class AppHarness
                     services.AddSingleton(MetricsOptions);
                     services.AddSingleton<MetricsVisibility>();
                     services.AddSingleton<MetricsRange>();
+                    services.AddSingleton<IPluginHost>(PluginHost);
+                    services.AddPlugins(new PluginCatalog(Plugins), new ConfigurationBuilder().AddInMemoryCollection(Settings).Build());
                 },
             },
             Ct);

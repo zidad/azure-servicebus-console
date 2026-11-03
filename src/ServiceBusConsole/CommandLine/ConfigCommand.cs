@@ -11,7 +11,7 @@ public sealed class ConfigCommand : JasperFxCommand<ConfigInput>
         // Member selectors, never evaluated: the coalescing only satisfies their object return type.
         Usage("get <key>: print a value, exit code 1 when unset; unset <key>: remove it").Arguments(x => x.Action, x => x.Key ?? "").ValidFlags();
         Usage("set <key> <value>: true/false and integers are stored as such, the rest as text").Arguments(x => x.Action, x => x.Key ?? "", x => x.Value ?? "").ValidFlags();
-        Usage("list: print key=value lines; path: print the config file's path").Arguments(x => x.Action).ValidFlags(x => x.AllFlag);
+        Usage("list: print key=value lines, secrets masked; path: print the config file's path").Arguments(x => x.Action).ValidFlags(x => x.AllFlag);
     }
 
     public override bool Execute(ConfigInput input)
@@ -48,7 +48,7 @@ public sealed class ConfigCommand : JasperFxCommand<ConfigInput>
     private static bool List(ConfigInput input)
     {
         var entries = input.File.List();
-        var lines = entries.Select(e => $"{e.Key}={e.Value}");
+        var lines = entries.Select(e => $"{e.Key}={(ConfigKeys.IsSecret(e.Key, input.Keys) ? ConfigKey.Mask : e.Value)}");
         var unset = input.AllFlag
             ? input.Keys
                 .Where(k => !entries.Any(e => string.Equals(e.Key, k.Key, StringComparison.OrdinalIgnoreCase)))

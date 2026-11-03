@@ -4,6 +4,8 @@
 @inject NavigationState NavState
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 @inject ITerminalViewport Viewport
+@inject PluginActions PluginActions
+@inject SessionContext Session
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
     <Header>
@@ -151,7 +153,12 @@
                 }
                 <KeyButton Content="@($"[F11] {Icons.Purge} Purge")" OnClick="@(() => _purge?.Invoke(Source))" FocusedColor="@Theme.Danger" FocusOrder="9" OnKeyDown="@HandleKeyDown" />
                 <Markup Content="  " />
-                <KeyButton Content="@($"[Esc] {Icons.Back} Back")" OnClick="GoBack" FocusedColor="@Theme.Accent" FocusOrder="10" OnKeyDown="@HandleKeyDown" />
+                @if (_browser?.Focused is { } actionTarget && PluginActions.Any(actionTarget, Source, Session.Snapshot))
+                {
+                    <KeyButton Content="@($"[F2] {Icons.Actions} Actions…")" OnClick="OpenActions" FocusedColor="@Theme.Accent" FocusOrder="10" OnKeyDown="@HandleKeyDown" />
+                    <Markup Content="  " />
+                }
+                <KeyButton Content="@($"[Esc] {Icons.Back} Back")" OnClick="GoBack" FocusedColor="@Theme.Accent" FocusOrder="11" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
     </Footer>
@@ -164,6 +171,8 @@
 <OperationDialog Operation="@_browser?.Operation" OnDismiss="DismissOperation" />
 
 <ErrorModal Message="@_error" OnDismiss="@(() => { _error = ""; FocusTable(); })" />
+
+<MessageActionsDialog @ref="_actions" OnClosed="StateHasChanged" />
 
 <AsyncCommand @ref="_complete" TItem="IReadOnlyList<MessageInfo>"
               ConfirmMessage="@(l => $"Complete {Count(l)}? They are removed from {Source.DisplayName}.")"
@@ -206,6 +215,7 @@
 
     private FetchDialog? _peekDialog;
     private FetchDialog? _receiveDialog;
+    private MessageActionsDialog? _actions;
     private AsyncCommand<IReadOnlyList<MessageInfo>>? _complete;
     private AsyncCommand<IReadOnlyList<MessageInfo>>? _abandon;
     private AsyncCommand<IReadOnlyList<MessageInfo>>? _deadLetter;
@@ -225,7 +235,7 @@
 
     private IEnumerable<AsyncCommand<IReadOnlyList<MessageInfo>>?> ListCommands => [_complete, _abandon, _deadLetter, _retry, _resend];
     private bool IsBusy => _loading is not null || ListCommands.Any(c => c?.IsBusy == true) || _purge?.IsBusy == true;
-    private bool IsDialogOpen => _peekDialog?.IsOpened == true || _receiveDialog?.IsOpened == true;
+    private bool IsDialogOpen => _peekDialog?.IsOpened == true || _receiveDialog?.IsOpened == true || _actions?.IsOpened == true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -346,6 +356,11 @@
         if (Browser.Messages.ElementAtOrDefault(index) is { } m) Toggle(m);
     }
 
+    private void OpenActions()
+    {
+        if (_browser?.Focused is { } message) _actions?.Open(message, Source);
+    }
+
     private void ViewMessage(MessageInfo msg)
     {
         NavState.Message = msg;
@@ -390,6 +405,7 @@
             case "F6": _ = SwitchDlq(!_isDlq); return;
             case "F7": _peekDialog?.Open(); return;
             case "F8": _receiveDialog?.Open(); return;
+            case "F2": OpenActions(); return;
             case "F9": case "Delete": if (Mode == BrowseMode.Locked) Run(_complete); return;
             case "F4": if (Mode == BrowseMode.Locked) Run(_abandon); return;
             case "F3": if (Mode == BrowseMode.Locked && !_isDlq) Run(_deadLetter); return;

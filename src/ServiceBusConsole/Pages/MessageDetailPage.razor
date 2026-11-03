@@ -6,6 +6,8 @@
 @inject NavigationState NavState
 @inject MessageBrowserStore Store
 @inject ITerminalViewport Viewport
+@inject PluginActions PluginActions
+@inject SessionContext Session
 
 @if (NavState.Message is null)
 {
@@ -53,14 +55,22 @@ else
                                 FocusedColor="@Theme.Success" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
                     <Markup Content="  " />
                 }
+                @if (NavState.MessageSource is { } actionSource && PluginActions.Any(msg, actionSource, Session.Snapshot))
+                {
+                    <KeyButton Content="@($"[F2] {Icons.Actions} Actions…")" OnClick="OpenActions"
+                                FocusedColor="@Theme.Accent" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
+                    <Markup Content="  " />
+                }
                 <KeyButton Content="@($"[Esc] {Icons.Back} Back")" OnClick="GoBack"
-                            FocusedColor="@Theme.Accent" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
+                            FocusedColor="@Theme.Accent" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
             </Columns>
         </Padder>
     </Flex>
 }
 
 <OperationDialog Operation="@_browser?.Operation" OnDismiss="DismissOperation" />
+
+<MessageActionsDialog @ref="_actions" OnClosed="StateHasChanged" />
 
 <AsyncCommand @ref="_complete" TItem="MessageInfo"
               ConfirmMessage="@(m => $"Complete message #{m.SequenceNumber}? It is removed from {NavState.MessageSource?.DisplayName}.")"
@@ -88,6 +98,7 @@ else
     private AsyncCommand<MessageInfo>? _retry;
     private AsyncCommand<MessageInfo>? _resend;
     private MessageBrowser? _browser;
+    private MessageActionsDialog? _actions;
 
     private bool IsDlq => NavState.MessageSource?.IsDlq == true;
     private BrowseMode? Mode => NavState.Message is null ? null : _browser?.Mode;
@@ -124,6 +135,11 @@ else
         _browser is { } b
             ? action(b, [message])
             : throw new InvalidOperationException("This message is no longer loaded.");
+
+    private void OpenActions()
+    {
+        if (NavState.Message is { } message && NavState.MessageSource is { } source) _actions?.Open(message, source);
+    }
 
     private void Run(AsyncCommand<MessageInfo>? command)
     {
@@ -181,6 +197,7 @@ else
                 if (CanRetry) Run(_retry);
                 else if (Mode == BrowseMode.Peek) Run(_resend);
                 return;
+            case "F2": OpenActions(); return;
         }
     }
 }

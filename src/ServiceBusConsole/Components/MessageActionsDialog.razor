@@ -1,0 +1,244 @@
+@* F2 Actions: pick a plugin action for a message, run it (progress, Esc cancels), show its result or error; records the outcome. *@
+@inject PluginActions Actions
+@inject SessionContext Session
+@inject IPluginHost PluginHost
+@inject ActivityLog ActivityLog
+@inject RazorConsole.Core.Focus.FocusManager FocusManager
+
+@switch (_state)
+{
+    case Picking picking:
+        var labelWidth = picking.Actions.Max(a => a.Action.Label.Length);
+        <ModalWindow IsOpened="true">
+            <Panel Title="@($"{Icons.Actions} Actions on message #{picking.Message.SequenceNumber}")" BorderColor="@Theme.Accent" Padding="@(new(2, 1, 2, 1))">
+                <Rows>
+                    @for (var i = 0; i < picking.Actions.Count; i++)
+                    {
+                        var index = i;
+                        var offered = picking.Actions[i];
+                        <Columns>
+                            <KeyButton @ref="_choices[index]"
+                                       Content="@($"{offered.Action.Icon} {offered.Action.Label.PadRight(labelWidth)}")"
+                                       OnClick="@(() => Run(picking, offered))"
+                                       FocusedColor="@Theme.Accent" FocusOrder="@(PickerFocusOrder + index)" OnKeyDown="@PickerKey" />
+                            <Markup Content="@($"  {offered.Plugin.Name}")" Foreground="@Theme.Muted" />
+                        </Columns>
+                    }
+                    <Padder Padding="@(new(0, 1, 0, 0))">
+                        <Markup Content="↑/↓ choose · Enter run · Esc close" Foreground="@Theme.Muted" />
+                    </Padder>
+                </Rows>
+            </Panel>
+        </ModalWindow>
+        break;
+
+    case Running running:
+        <ModalWindow IsOpened="true">
+            <Panel Title="@($"{running.Offered.Action.Icon} {running.Offered.Action.Label}")" BorderColor="@Theme.Accent" Padding="@(new(2, 1, 2, 1))">
+                <Rows>
+                    <Columns>
+                        <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                        <Markup Content="@running.Status" />
+                    </Columns>
+                    <Padder Padding="@(new(0, 1, 0, 0))">
+                        <KeyButton @ref="_cancel"
+                                   Content="@(running.Cancelled ? "Cancelling…" : "[Esc] Cancel")"
+                                   OnClick="Cancel" FocusedColor="@(running.Cancelled ? Theme.Warning : Theme.Muted)"
+                                   FocusOrder="@CancelFocusOrder" OnKeyDown="@RunningKey" />
+                    </Padder>
+                </Rows>
+            </Panel>
+        </ModalWindow>
+        break;
+
+    case Done done:
+        <ModalWindow IsOpened="true">
+            <Panel Title="@($"{Icons.Done} {done.Offered.Plugin.Name}")" BorderColor="@Theme.Success" Padding="@(new(2, 1, 2, 1))">
+                <Rows>
+                    <Markup Content="@done.Result.Text" Foreground="@Theme.Success" />
+                    @if (done.Result.Link is { } link)
+                    {
+                        <Markup Content="@($"{Icons.Link} {link}")" />
+                    }
+                    @if (done.Result.FilePath is { } path)
+                    {
+                        <Markup Content="@($"{Icons.File} {path}")" />
+                    }
+                    <Padder Padding="@(new(0, 1, 0, 0))">
+                        <Columns>
+                            <KeyButton @ref="_ok" Content="[Enter] OK" OnClick="Close"
+                                       FocusedColor="@Theme.Accent" FocusOrder="@ResultFocusOrder" OnKeyDown="@DoneKey" />
+                            @if (Target(done.Result) is not null)
+                            {
+                                <Markup Content="   " />
+                                <KeyButton Content="@($"[O] {Icons.Open} Open")" OnClick="@(() => Open(done.Result))"
+                                           FocusedColor="@Theme.Accent" FocusOrder="@(ResultFocusOrder + 1)" OnKeyDown="@DoneKey" />
+                            }
+                        </Columns>
+                    </Padder>
+                </Rows>
+            </Panel>
+        </ModalWindow>
+        break;
+}
+
+<ErrorModal Message="@_error" OnDismiss="Close" />
+
+@code {
+    // Distinct per step, so a wait for the next step's focus can't match the previous step's button.
+    public const int PickerFocusOrder = 300;
+    public const int CancelFocusOrder = 400;
+    public const int ResultFocusOrder = 500;
+
+    private abstract record State;
+    private sealed record Closed : State;
+    private sealed record Picking(MessageInfo Message, MessageSource Source, IReadOnlyList<OfferedAction> Actions) : State;
+    private sealed record Running(OfferedAction Offered, CancellationTokenSource Cancellation, string Status, bool Cancelled = false) : State;
+    private sealed record Done(OfferedAction Offered, ActionResult Result) : State;
+
+    /// <summary>After the dialog closed and focus went back.</summary>
+    [Parameter] public EventCallback OnClosed { get; set; }
+
+    private State _state = new Closed();
+    private string _error = "";
+    private KeyButton?[] _choices = [];
+    private KeyButton? _cancel;
+    private KeyButton? _ok;
+    private bool _focusPending;
+    private string? _returnFocusKey;
+
+    public bool IsOpened => _state is not Closed || _error.Length > 0;
+
+    /// <summary>Opens the picker; nothing happens when no action can run on the message.</summary>
+    public void Open(MessageInfo message, MessageSource source)
+    {
+        if (IsOpened || Offered(message, source) is not { Count: > 0 } actions) return;
+        _returnFocusKey = FocusManager.CurrentFocusKey;
+        _choices = new KeyButton?[actions.Count];
+        Show(new Picking(message, source, actions));
+    }
+
+    private IReadOnlyList<OfferedAction> Offered(MessageInfo message, MessageSource source) => Actions.For(message, source, Session.Snapshot());
+
+    private void Show(State state)
+    {
+        _state = state;
+        _focusPending = true;
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusPending) return;
+        var target = _state switch
+        {
+            Picking => _choices.FirstOrDefault(),
+            Running => _cancel,
+            Done => _ok,
+            _ => null,
+        };
+        if (target is null) return;
+        // Once, as in ConfirmModal: a retry after the dialog moved on would replace a later request.
+        _focusPending = false;
+        await FocusManager.FocusAsync(target.FocusKey);
+    }
+
+    private void PickerKey(KeyboardEventArgs e)
+    {
+        if (_state is not Picking) return;
+        var current = Array.FindIndex(_choices, b => b?.FocusKey == FocusManager.CurrentFocusKey);
+        switch (e.Key)
+        {
+            case "Escape": Close(); break;
+            case "ArrowDown": Focus(current + 1); break;
+            case "ArrowUp": Focus(current - 1); break;
+        }
+    }
+
+    private void Focus(int index)
+    {
+        if (_choices.Length == 0) return;
+        if (_choices[(index % _choices.Length + _choices.Length) % _choices.Length] is { } button) _ = FocusManager.FocusAsync(button.FocusKey);
+    }
+
+    private void RunningKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") Cancel();
+    }
+
+    private void DoneKey(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "Escape": Close(); break;
+            case "o" or "O" when _state is Done done: _ = Open(done.Result); break;
+        }
+    }
+
+    // Not awaited: the key or click that started it must not hold up input, such as Esc to cancel.
+    private void Run(Picking picking, OfferedAction offered) => _ = RunAsync(picking, offered);
+
+    private async Task RunAsync(Picking picking, OfferedAction offered)
+    {
+        using var cancellation = new CancellationTokenSource();
+        Show(new Running(offered, cancellation, "Starting…"));
+        var progress = new CallbackProgress(text => _ = InvokeAsync(() =>
+        {
+            if (_state is not Running running || running.Cancellation != cancellation) return;
+            _state = running with { Status = text };
+            StateHasChanged();
+        }));
+        var context = Actions.Context(offered.Plugin, picking.Message, picking.Source, Session.Snapshot(), progress);
+        try
+        {
+            // Off the render thread: a plugin may block before its first await.
+            var result = await Task.Run(() => offered.Action.RunAsync(context, cancellation.Token), cancellation.Token);
+            ActivityLog.Record(ActivityKind.Operation, $"{offered.Plugin.Name}: {result.Text}", picking.Source);
+            Show(new Done(offered, result));
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            ActivityLog.Record(ActivityKind.Operation, $"{offered.Plugin.Name}: {offered.Action.Label} cancelled", picking.Source);
+            Close();
+        }
+        catch (Exception ex)
+        {
+            Fail(offered, ex);
+        }
+    }
+
+    private void Cancel()
+    {
+        if (_state is not Running { Cancelled: false } running) return;
+        running.Cancellation.Cancel();
+        _state = running with { Cancelled = true };
+        StateHasChanged();
+    }
+
+    private static string? Target(ActionResult result) => result.Link?.ToString() ?? result.FilePath;
+
+    private async Task Open(ActionResult result)
+    {
+        if (_state is not Done done || Target(result) is not { } target) return;
+        try { await PluginHost.OpenAsync(target, CancellationToken.None); }
+        catch (Exception ex) { Fail(done.Offered, ex); }
+    }
+
+    // ErrorModal records the error in the activity log.
+    private void Fail(OfferedAction offered, Exception ex)
+    {
+        _state = new Closed();
+        _error = $"{offered.Plugin.Name}: {ErrorText.Of(ex).Split('\n')[0]}";
+        StateHasChanged();
+    }
+
+    private void Close()
+    {
+        _state = new Closed();
+        _error = "";
+        _focusPending = false;
+        StateHasChanged();
+        if (_returnFocusKey is { } key) _ = FocusManager.FocusAsync(key);
+        _ = OnClosed.InvokeAsync();
+    }
+}
