@@ -156,7 +156,13 @@ public sealed class AppHarness
     /// <param name="terminal">The terminal.</param>
     /// <param name="previousKey">The focus key before navigating; the previous page's table also has focus order 1.</param>
     public static Task WaitForTableFocusAsync(HeadlessTerminal terminal, string? previousKey = null)
-        => WaitForFocusAsync(terminal, focusOrder: "1", previousKey);
+        => terminal.WaitUntilAsync(
+            // Until the previous page's table unregisters, its stale focus would pass.
+            _ => terminal.FocusKey != previousKey && FocusTargets(terminal) is var targets
+                && targets.Count(t => t.Attributes.GetValueOrDefault("data-focus-order") == "1") == 1
+                && targets.Any(t => t.Key == terminal.FocusKey && t.Attributes.GetValueOrDefault("data-focus-order") == "1"),
+            Timeout,
+            cancellationToken: Ct);
 
     /// <summary>
     /// Waits until the element with <paramref name="focusOrder"/> has focus. Dialogs and pages take focus
@@ -170,21 +176,22 @@ public sealed class AppHarness
 
     // HeadlessTerminal exposes only the focus key, so read the focused element's attributes from FocusManager.
     public static string? FocusedAttribute(HeadlessTerminal terminal, string name)
+        => FocusTargets(terminal).FirstOrDefault(t => t.Key == terminal.FocusKey)?.Attributes.GetValueOrDefault(name);
+
+    private static IReadOnlyList<FocusTarget> FocusTargets(HeadlessTerminal terminal)
     {
         var focus = terminal.Services.GetRequiredService<FocusManager>();
         var field = typeof(FocusManager).GetField("_focusTargets", BindingFlags.NonPublic | BindingFlags.Instance)
             ?? throw new MissingFieldException(nameof(FocusManager), "_focusTargets");
-        if (field.GetValue(focus) is not IEnumerable targets) return null;
-        foreach (var target in targets.Cast<object>().ToList())
-        {
-            var type = target.GetType();
-            if (type.GetProperty("Key")?.GetValue(target) as string != focus.CurrentFocusKey) continue;
-            return type.GetProperty("Attributes")?.GetValue(target) is IReadOnlyDictionary<string, string?> attributes
-                ? attributes.GetValueOrDefault(name)
-                : null;
-        }
-        return null;
+        if (field.GetValue(focus) is not IEnumerable targets) return [];
+        return [.. targets.Cast<object>().ToList().Select(target => target.GetType() is var type
+                && type.GetProperty("Key")?.GetValue(target) is string key
+                && type.GetProperty("Attributes")?.GetValue(target) is IReadOnlyDictionary<string, string?> attributes
+                ? new FocusTarget(key, attributes)
+                : null).OfType<FocusTarget>()];
     }
+
+    private sealed record FocusTarget(string Key, IReadOnlyDictionary<string, string?> Attributes);
 
     /// <summary>Waits for <paramref name="text"/> to appear, then clicks its first character.</summary>
     public static async Task ClickTextAsync(HeadlessTerminal terminal, string text, bool exactLine = false)
