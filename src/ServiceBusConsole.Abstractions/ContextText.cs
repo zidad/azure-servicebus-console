@@ -17,14 +17,20 @@ internal static class ContextText
     public static string Time(DateTimeOffset time) =>
         time.ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", CultureInfo.InvariantCulture);
 
-    /// <summary>The body parsed, when it is a JSON object or array.</summary>
-    public static JsonNode? JsonBody(MessageInfo message)
+    /// <summary>The body parsed, when it is a JSON object or array, also sent as an AMQP string (JSON-encoded once), as the preview shows it.</summary>
+    public static JsonNode? JsonBody(MessageInfo message) => JsonBody(message.BodyText, unwrap: true);
+
+    private static JsonNode? JsonBody(string body, bool unwrap)
     {
-        var text = message.BodyText.Trim();
-        if (text is not ['{' or '[', ..]) return null;
+        var text = body.Trim();
         try
         {
-            return JsonNode.Parse(text);
+            return text switch
+            {
+                ['{' or '[', ..] => JsonNode.Parse(text),
+                ['"', ..] when unwrap && JsonNode.Parse(text)?.GetValue<string>() is { } inner => JsonBody(inner, unwrap: false),
+                _ => null,
+            };
         }
         catch (JsonException)
         {

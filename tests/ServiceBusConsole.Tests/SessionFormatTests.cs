@@ -188,6 +188,16 @@ public sealed class SessionFormatTests
     }
 
     [Test]
+    public void MessageJson_EmbedsJsonSentAsAnAmqpString_AndKeepsAPlainString()
+    {
+        using var wrapped = JsonDocument.Parse(MessageJson.Format(Message("\"{\\\"orderId\\\":\\\"ORD-1\\\"}\"")));
+        using var plain = JsonDocument.Parse(MessageJson.Format(Message("\"just text\"")));
+
+        wrapped.RootElement.GetProperty("body").GetProperty("orderId").GetString().ShouldBe("ORD-1");
+        plain.RootElement.GetProperty("body").GetString().ShouldBe("\"just text\"");
+    }
+
+    [Test]
     public void SessionJson_IsIndentedWithUnescapedText()
     {
         var json = new SessionSnapshot { At = At, Activity = [new(At, ActivityKind.Error, "Can't reach <café>")] }.ToJson();
