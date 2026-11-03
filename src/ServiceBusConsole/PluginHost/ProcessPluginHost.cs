@@ -10,7 +10,7 @@ public sealed class ProcessPluginHost(string stateDirectory) : IPluginHost
 
     public async Task<ProcessResult> RunProcessAsync(ProcessSpec spec, CancellationToken ct)
     {
-        var info = new ProcessStartInfo(spec.FileName)
+        var info = new ProcessStartInfo(CommandSearch.Find(spec.FileName) ?? spec.FileName)
         {
             RedirectStandardInput = spec.StandardInput is not null,
             RedirectStandardOutput = true,
@@ -20,6 +20,8 @@ public sealed class ProcessPluginHost(string stateDirectory) : IPluginHost
             WorkingDirectory = spec.WorkingDirectory ?? "",
         };
         foreach (var argument in spec.Arguments) info.ArgumentList.Add(argument);
+        // What the command runs in turn (gh runs git) is found where the command was.
+        info.Environment["PATH"] = CommandSearch.SearchPath();
         foreach (var (name, value) in spec.Environment)
         {
             if (value is null) info.Environment.Remove(name);
