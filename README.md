@@ -98,6 +98,24 @@ azsb config set plugins.<id>.<key> <value> # a plugin setting, e.g. a repository
 azsb config set plugins.editor.command idea
 ```
 
+### GitHub (`github`)
+
+**🐙 Create GitHub issue** files the message as an issue with the [GitHub CLI](https://cli.github.com), signed in as your `gh auth login`. The body has the message (fields, application properties, body) and, unless turned off, where it came from and the session's recent activity; bodies over GitHub's 65,536 characters are truncated with a note. The result links to the new issue. On by default when `gh` is found.
+
+```bash
+azsb config set plugins.github.repo owner/name
+azsb config set plugins.github.labels bug,dead-letter
+```
+
+| Setting | Default | |
+|---|---|---|
+| `plugins.github.repo` | | Repository to create issues in, `owner/name` (required) |
+| `plugins.github.labels` | | Labels, comma-separated |
+| `plugins.github.assignees` | | Assignees, comma-separated; `@me` is you |
+| `plugins.github.titleTemplate` | `{entity}: {subject}` | Placeholders `{entity}`, `{subject}`, `{messageId}`, `{sequenceNumber}`, `{namespace}`, `{deadLetterReason}`; a message without a subject uses its id |
+| `plugins.github.cli` | `gh` | The GitHub CLI, on the `PATH` or a full path |
+| `plugins.github.includeContext` | `true` | Add the session context and recent activity |
+
 ## Features
 
 - Lists the Azure subscriptions of your `az` login by name, hides the ones without Service Bus namespaces, and lets you filter them; the local emulator is always available
