@@ -126,6 +126,7 @@
     private ExplorerNode? _selected;
     private MetricsPanel? _metricsPanel;
     private StartupTarget? _startup;
+    private bool _leaving;
     private string? _startupError;
     private string? _azDefaultId;
 
@@ -199,6 +200,7 @@
         if (startup.Namespace is not null && namespaces.FirstOrDefault(startup.Matches) is { } ns)
         {
             _startup = null;
+            _leaving = true;
             NavState.AzureSubscription = subscription;
             Connection.SetNamespace(ns);
             Nav.NavigateTo(Section.Queues.Route);
@@ -220,15 +222,19 @@
     // The selection is the connection: its namespace opens (without connecting), so metrics and F1-F3 act on it.
     private async Task Follow(ExplorerNode? node)
     {
+        // The tree may first report its initial row after the startup target opened.
+        if (_leaving) return;
         _selected = node;
         if (node is ExplorerNode.Subscription s) NavState.AzureSubscription = s.Value;
         if (node?.InNamespace is { } ns)
         {
             NavState.AzureSubscription = ns.Parent.Value;
-            if (Connection.CurrentNamespace != ns.Info.FullyQualifiedNamespace)
+            if (Connection.CurrentNamespace is var before && before != ns.Info.FullyQualifiedNamespace)
             {
                 // The store keys browsers by queue name only; a same-named queue elsewhere must not reuse its locks.
                 await Store.CloseAsync();
+                // A later selection, or the startup target, switched while closing: that one wins.
+                if (_selected != node || Connection.CurrentNamespace != before) return;
                 Connection.SetNamespace(ns.Info);
             }
         }
