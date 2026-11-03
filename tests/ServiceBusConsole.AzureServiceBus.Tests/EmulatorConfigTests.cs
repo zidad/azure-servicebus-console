@@ -21,6 +21,22 @@ public sealed class EmulatorConfigTests
         config.Topics.ShouldBeEmpty();
     }
 
+    [Test]
+    public void Find_LooksUpFromTheWorkingDirectory_ThenFromTheAppsFolder()
+    {
+        var root = Directory.CreateTempSubdirectory("azsb-emulator-");
+        var repo = Directory.CreateDirectory(Path.Combine(root.FullName, "repo"));
+        var config = Path.Combine(Directory.CreateDirectory(Path.Combine(repo.FullName, "emulator")).FullName, "Config.json");
+        File.WriteAllText(config, "{}");
+        var app = Directory.CreateDirectory(Path.Combine(repo.FullName, "src", "bin")).FullName;
+        var elsewhere = Directory.CreateDirectory(Path.Combine(root.FullName, "other", "project")).FullName;
+
+        EmulatorConfigReader.Find(Path.Combine(repo.FullName, "src"), elsewhere).ShouldBe(config);
+        EmulatorConfigReader.Find(elsewhere, app).ShouldBe(config);
+        EmulatorConfigReader.Find(elsewhere, elsewhere).ShouldBeNull();
+        root.Delete(recursive: true);
+    }
+
     private static string RepositoryFile(params string[] parts)
     {
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)

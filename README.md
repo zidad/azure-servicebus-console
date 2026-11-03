@@ -280,7 +280,7 @@ Logs are written to `logs/session-<timestamp>.log` next to the app's binaries (`
 docker compose up -d
 ```
 
-Starts the [Service Bus emulator](https://learn.microsoft.com/azure/service-bus-messaging/overview-emulator) on `localhost:5672` with the queues and topics of `emulator/Config.json`, and seeds them with sample messages. The emulator has no management API: the app reads its entities from `emulator/Config.json` in the current directory, so run it from the repository root, and counts come from peeking (up to 1,000 messages). Without a management API it can't delete entities either, so Delete is hidden there.
+Starts the [Service Bus emulator](https://learn.microsoft.com/azure/service-bus-messaging/overview-emulator) on `localhost:5672` with the queues and topics of `emulator/Config.json`, and seeds them with sample messages. The emulator has no management API: the app reads its entities from the nearest `emulator/Config.json`, looking up from the current directory, then from the app's own folder (so `dotnet run --project` works from anywhere), and counts come from peeking (up to 1,000 messages). Without a management API it can't delete entities either, so Delete is hidden there.
 
 ## How message operations work
 

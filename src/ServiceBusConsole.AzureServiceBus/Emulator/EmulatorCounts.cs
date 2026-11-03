@@ -33,5 +33,5 @@ internal static class EmulatorCounts
 
     public static EmulatorNamespaceDef Config() =>
         EmulatorConfigReader.TryLoad()
-            ?? throw new InvalidOperationException("emulator/Config.json not found. Run from the project directory.");
+            ?? throw new InvalidOperationException("emulator/Config.json not found in the working directory, the app's folder or their parents.");
 }
