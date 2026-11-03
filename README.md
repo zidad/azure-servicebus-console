@@ -116,6 +116,25 @@ azsb config set plugins.github.labels bug,dead-letter
 | `plugins.github.cli` | `gh` | The GitHub CLI, on the `PATH` or a full path |
 | `plugins.github.includeContext` | `true` | Add the session context and recent activity |
 
+### Linear (`linear`)
+
+`📋 Create Linear issue` files the message as an issue in a Linear team: the title from a template, the description in Markdown with the message's fields, application properties and body, and (unless turned off) where it came from and the session's recent activity. The result links to the issue. On by default when an API key is set.
+
+Create a personal API key in Linear under *Settings › Security & access › Personal API keys*, then:
+
+```bash
+azsb config set plugins.linear.apiKey lin_api_...   # or export LINEAR_API_KEY
+azsb config set plugins.linear.team ENG
+```
+
+| Setting | Default | |
+|---|---|---|
+| `plugins.linear.apiKey` | `LINEAR_API_KEY` | Personal API key; secret |
+| `plugins.linear.team` | | Key of the team, e.g. `ENG`; required |
+| `plugins.linear.labels` | | Comma-separated label names of the team or workspace, e.g. `bug,servicebus`; an unknown one is an error |
+| `plugins.linear.titleTemplate` | `{entity}: {subject}` | Placeholders `{entity}`, `{subject}` (`Message #42` when empty), `{messageId}`, `{sequenceNumber}`, `{namespace}`, `{deadLetterReason}` |
+| `plugins.linear.includeContext` | `true` | Adds the session context to the description |
+
 ## Features
 
 - Lists the Azure subscriptions of your `az` login by name, hides the ones without Service Bus namespaces, and lets you filter them; the local emulator is always available

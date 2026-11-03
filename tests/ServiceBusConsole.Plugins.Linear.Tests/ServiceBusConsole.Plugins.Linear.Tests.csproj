@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../../src/ServiceBusConsole.Plugins.Linear/ServiceBusConsole.Plugins.Linear.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="ServiceBusConsole.Abstractions" />
+    <Using Include="ServiceBusConsole.Plugins" />
+    <Using Include="ServiceBusConsole.Plugins.Linear" />
+  </ItemGroup>
+</Project>
