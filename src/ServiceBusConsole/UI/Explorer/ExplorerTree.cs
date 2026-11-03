@@ -107,7 +107,8 @@ public sealed class ExplorerTree(
 
             var childIndent = depth == 0 ? "" : indent + (last ? "   " : "│  ");
             foreach (var row in RowsOf(node.Key, childIndent, filter, matched, depth + 1)) yield return row;
-            if (_notes.TryGetValue(node.Key, out var note) && (filter is null || matched))
+            // "Discovering" only until the first (cached) namespace shows; errors always.
+            if (_notes.TryGetValue(node.Key, out var note) && (note.IsError || !Children(node.Key).Any()) && (filter is null || matched))
                 yield return new ExplorerRow.Note(node.Key, childIndent + "   ", note.Text, note.IsError);
         }
     }
@@ -135,22 +136,26 @@ public sealed class ExplorerTree(
     private void Load(ExplorerNode node)
     {
         lock (_sync)
+        {
             if (!_loaded.Add(node.Key)) return;
-        _ = node switch
+            // Marked before the task starts, so NamespacesOf never reports a listing that hasn't begun as done.
+            if (node is Subscription)
+            {
+                _listing.Add(node.Key);
+                _notes[node.Key] = ("Discovering namespaces…", false);
+            }
+        }
+        // Off the renderer's context, like the catalog's loading.
+        _ = Task.Run(() => node switch
         {
             Subscription s => LoadNamespacesAsync(s),
             Namespace ns => AddPagesAsync(ns),
             _ => Task.CompletedTask,
-        };
+        });
     }
 
     private async Task LoadNamespacesAsync(Subscription node)
     {
-        lock (_sync)
-        {
-            _listing.Add(node.Key);
-            _notes[node.Key] = ("Discovering namespaces…", false);
-        }
         Changed?.Invoke();
         try
         {

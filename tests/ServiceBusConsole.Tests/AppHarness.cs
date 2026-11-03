@@ -23,6 +23,9 @@ public sealed class AppHarness
     }
 
     public FakeNamespaceService Namespaces { get; } = new();
+
+    /// <summary>What the app lists subscriptions and namespaces with; <see cref="Namespaces"/> unless set, e.g. to a caching one.</summary>
+    public INamespaceService? NamespaceService { get; set; }
     public FakeServices Services { get; } = new();
     public FakeQueueService Queues => Services.Queues;
     public LiveCountsOptions LiveCounts { get; } = new();
@@ -53,7 +56,7 @@ public sealed class AppHarness
                     services.AddLogging();
                     services.AddSingleton<NavigationManager>(Navigation);
                     services.AddSingleton(Connection);
-                    services.AddSingleton<INamespaceService>(Namespaces);
+                    services.AddSingleton(NamespaceService ?? Namespaces);
                     services.AddSingleton(NavState);
                     services.AddSingleton<MessageBrowserStore>();
                     services.AddSingleton(new FileCache(NullLogger<FileCache>.Instance, CacheDirectory));

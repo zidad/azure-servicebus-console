@@ -31,9 +31,10 @@ public sealed class SubscriptionCatalog(INamespaceService service, ILogger<Subsc
         lock (_sync) return _hasNamespaces.TryGetValue(id, out var has) ? has : null;
     }
 
+    // Off the caller's (the renderer's) context: there every cached answer would wait behind a page render.
     public Task EnsureLoadedAsync()
     {
-        lock (_sync) return _load ??= LoadAsync();
+        lock (_sync) return _load ??= Task.Run(LoadAsync);
     }
 
     private async Task LoadAsync()
