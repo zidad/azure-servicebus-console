@@ -69,8 +69,8 @@ public sealed class MessageBrowserTests
         await terminal.WaitForTextAsync("first", AppHarness.Timeout, Ct);
         await AppHarness.WaitForTableFocusAsync(terminal, queueTable);
         await terminal.SendKeyAsync(ConsoleKey.F6, '\0', cancellationToken: Ct);
-        // The button flips before the active queue is peeked; wait for the reloaded list.
-        await terminal.WaitUntilAsync(f => f.ContainsText("View DLQ") && f.ContainsText("3 message(s)"), AppHarness.Timeout, cancellationToken: Ct);
+        // The button flips before the active queue is peeked, and the list re-renders as it loads: wait until it stops.
+        await AppHarness.WaitForSettledAsync(terminal, f => f.ContainsText("View DLQ") && f.ContainsText("3 message(s)"));
         await AppHarness.WaitForTableFocusAsync(terminal);
 
         await terminal.SendKeyAsync(ConsoleKey.Spacebar, ' ', cancellationToken: Ct);
