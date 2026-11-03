@@ -125,10 +125,12 @@ public sealed class ExplorerTree(
     // Subscriptions known to have no namespaces are left out, as on the connection page.
     private void SyncRoots()
     {
-        List<ExplorerNode> roots = [.. catalog.Subscriptions
-            .Where(s => s.IsEmulator || catalog.HasNamespaces(s) != false)
-            .Select(s => new Subscription(s))];
-        lock (_sync) _children[Root] = roots;
+        List<ExplorerNode> roots;
+        // Read under the lock: a sync that read an older list must not write after one that read a newer list.
+        lock (_sync)
+            _children[Root] = roots = [.. catalog.Subscriptions
+                .Where(s => s.IsEmulator || catalog.HasNamespaces(s) != false)
+                .Select(s => new Subscription(s))];
         foreach (var root in roots.Where(IsOpen)) Load(root);
         Changed?.Invoke();
     }
