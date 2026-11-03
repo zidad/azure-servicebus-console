@@ -8,6 +8,7 @@
     <Project Path="src/ServiceBusConsole.Plugins.GitHub/ServiceBusConsole.Plugins.GitHub.csproj" />
     <Project Path="src/ServiceBusConsole.Plugins.Linear/ServiceBusConsole.Plugins.Linear.csproj" />
     <Project Path="src/ServiceBusConsole.Plugins.Claude/ServiceBusConsole.Plugins.Claude.csproj" />
+    <Project Path="src/ServiceBusConsole.Plugins.Trace/ServiceBusConsole.Plugins.Trace.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ServiceBusConsole.Tests/ServiceBusConsole.Tests.csproj" />
@@ -16,6 +17,7 @@
     <Project Path="tests/ServiceBusConsole.Plugins.GitHub.Tests/ServiceBusConsole.Plugins.GitHub.Tests.csproj" />
     <Project Path="tests/ServiceBusConsole.Plugins.Linear.Tests/ServiceBusConsole.Plugins.Linear.Tests.csproj" />
     <Project Path="tests/ServiceBusConsole.Plugins.Claude.Tests/ServiceBusConsole.Plugins.Claude.Tests.csproj" />
+    <Project Path="tests/ServiceBusConsole.Plugins.Trace.Tests/ServiceBusConsole.Plugins.Trace.Tests.csproj" />
   </Folder>
   <Folder Name="/lib/">
     <Project Path="lib/RazorConsole/src/RazorConsole.Core/RazorConsole.Core.csproj" />

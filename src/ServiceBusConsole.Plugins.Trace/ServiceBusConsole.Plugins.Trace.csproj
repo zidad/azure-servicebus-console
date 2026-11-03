@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../ServiceBusConsole.Plugins/ServiceBusConsole.Plugins.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Microsoft.Extensions.DependencyInjection" />
+    <Using Include="ServiceBusConsole.Abstractions" />
+  </ItemGroup>
+</Project>

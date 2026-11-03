@@ -155,6 +155,22 @@ azsb config set plugins.claude.terminal "open -a iTerm {script}"
 | `prompt` | built in | First message; `{message}` and `{context}` insert them as Markdown; also `{messageFile}`, `{contextFile}`, `{entity}`, `{subject}`, `{sequenceNumber}`, `{messageId}`, `{namespace}`, `{deadLetterReason}` |
 | `terminal` | per platform | Command that opens a window running `{script}` (the run's `start.sh`/`start.cmd`), split on spaces; `{dir}` is the working directory; `{script}` is appended when absent |
 
+### Trace (`trace`)
+
+`🔍 Open trace` opens the message's distributed trace in your browser. It is offered for messages with a W3C trace context: a `traceparent` property, or `Diagnostic-Id` as the Azure SDK sets it. By default it opens Application Insights logs in the Azure portal, querying all telemetry of the trace (`operation_Id`) from an hour before the message was enqueued to a day after. When `appInsights` is unset, it takes the only Application Insights of the namespace's subscription, found with `az`. Set `url` for another trace viewer (Jaeger, Grafana, Datadog, ...). On by default when `az` is found, or when `appInsights` holds a resource id or `url` is set.
+
+```bash
+azsb config set plugins.trace.appInsights ai-orders     # a name in the namespace's subscription, or a resource id
+azsb config set plugins.trace.url "http://localhost:16686/trace/{traceId}"
+```
+
+| Setting | Default | |
+|---|---|---|
+| `appInsights` | the only one in the subscription | Application Insights resource id (`/subscriptions/.../components/<name>`), or its name in the namespace's subscription |
+| `tenant` | your default | Tenant id or domain for the portal link |
+| `url` | Azure portal | URL template: `{traceId}`, `{spanId}`, `{start}`/`{end}` (ISO 8601), `{startMs}`/`{endMs}` (Unix ms), and `{entity}`, `{subject}`, `{messageId}`, `{sequenceNumber}`, `{namespace}`; values are URL-escaped |
+| `cli` | `az` | The Azure CLI, to find Application Insights |
+
 ## Features
 
 - Lists the Azure subscriptions of your `az` login by name, hides the ones without Service Bus namespaces, and lets you filter them; the local emulator is always available

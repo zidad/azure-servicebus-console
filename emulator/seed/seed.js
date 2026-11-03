@@ -43,10 +43,10 @@ async function dlqFromSubscription(client, topic, sub, count, reason, descriptio
 const ordersDlq = [
   { messageId: 'msg-ord-001', subject: 'OrderReceived', contentType: 'application/json',
     body: JSON.stringify({ orderId: 'ORD-2024-10041', customerId: 'C-8812', amount: 0.00, items: [], source: 'web' }),
-    applicationProperties: { region: 'eu-west', version: '2' } },
+    applicationProperties: { region: 'eu-west', version: '2', traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01' } },
   { messageId: 'msg-ord-002', subject: 'OrderReceived', contentType: 'application/json',
     body: JSON.stringify({ orderId: 'ORD-2024-10042', customerId: 'C-0023', amount: -19.99, items: ['SKU-441'], source: 'mobile' }),
-    applicationProperties: { region: 'eu-west', version: '2' } },
+    applicationProperties: { region: 'eu-west', version: '2', 'Diagnostic-Id': '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01' } },
   { messageId: 'msg-ord-003', subject: 'OrderReceived', contentType: 'application/json',
     body: JSON.stringify({ orderId: 'ORD-2024-10043', customerId: null, amount: 89.50, items: ['SKU-119', 'SKU-220'], source: 'api' }),
     applicationProperties: { region: 'us-east', version: '1' } },
