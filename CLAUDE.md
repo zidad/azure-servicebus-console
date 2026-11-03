@@ -65,7 +65,7 @@ Modern, functional C#. Apply to new code and to code you touch.
 
 ## Prerequisites
 
-Building needs the .NET 11 SDK (`global.json`): the app targets `net10.0`, the RazorConsole submodule also builds `net11.0`.
+The repo pins the .NET 11 SDK (`global.json`); the app targets `net10.0` and also builds with SDK 10 (e.g. `dotnet run --project` from a folder pinning SDK 10). The submodule adds `net11.0` only under SDK 11; keep that condition.
 
 Requires an active Azure CLI login before running:
 ```bash
