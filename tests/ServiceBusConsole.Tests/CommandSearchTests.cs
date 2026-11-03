@@ -25,6 +25,17 @@ public sealed class CommandSearchTests
     }
 
     [Test]
+    public void SearchPath_AddsTheUsualInstallFolders_AfterPath()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        var sep = Path.PathSeparator;
+
+        CommandSearch.SearchPath($"/usr/bin{sep}/usr/local/bin", "/Users/me")
+            .ShouldBe($"/usr/bin{sep}/usr/local/bin{sep}/opt/homebrew/bin{sep}/Users/me/.local/bin");
+        CommandSearch.SearchPath(null, "/Users/me").ShouldBe($"/opt/homebrew/bin{sep}/usr/local/bin{sep}/Users/me/.local/bin");
+    }
+
+    [Test]
     public void MissingCommand_NamesTheCommandNotFound()
     {
         var environment = new PluginEnvironment(command => command == "gh", _ => null);
