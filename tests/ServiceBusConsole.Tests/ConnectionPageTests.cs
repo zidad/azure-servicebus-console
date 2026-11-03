@@ -35,13 +35,14 @@ public sealed class ConnectionPageTests
         await app.SelectAzureNamespaceAsync(terminal, app.Namespaces.Namespaces[1]);
         var frame = terminal.CurrentFrame;
         frame.ContainsText("Premium · North Europe · rg-b · Active").ShouldBeTrue(frame.ScreenText);
+        var connectionFocus = terminal.FocusKey;
 
         await terminal.SendKeyAsync(ConsoleKey.F1, '\0', cancellationToken: Ct);
         frame = await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
         frame.GetLine(1).ShouldContain("🔑 Contoso Development  ›  🌐 sb-dev-b  ›  📬 Queues (1)");
         frame.GetLine(0).ShouldNotContain("rg-b");
 
-        await AppHarness.WaitForTableFocusAsync(terminal);
+        await AppHarness.WaitForTableFocusAsync(terminal, connectionFocus);
         await terminal.SendKeyAsync(ConsoleKey.Escape, '\u001b', cancellationToken: Ct);
         await terminal.WaitForTextAsync("[F1] 📬 Queues", AppHarness.Timeout, Ct);
         await terminal.WaitForTextAsync("sb-dev-b", AppHarness.Timeout, Ct);

@@ -187,9 +187,11 @@
     private void ApplyStartup()
     {
         if (_startup is not { } startup) return;
+        // Before the list: the catalog loads on another thread, and a list read first may predate the end of loading.
+        var loading = Catalog.Loading;
         if (Catalog.Subscriptions.FirstOrDefault(startup.Matches) is not { } subscription)
         {
-            if (Catalog.Loading) return;
+            if (loading) return;
             _startup = null;
             if (!startup.IsAzureCliDefault) _startupError = $"Azure subscription \"{startup.Subscription}\" not found.";
             SelectNode(AzureSubscription.Emulator, NamespaceInfo.Emulator);
