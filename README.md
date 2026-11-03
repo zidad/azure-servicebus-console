@@ -135,6 +135,26 @@ azsb config set plugins.linear.team ENG
 | `plugins.linear.titleTemplate` | `{entity}: {subject}` | Placeholders `{entity}`, `{subject}` (`Message #42` when empty), `{messageId}`, `{sequenceNumber}`, `{namespace}`, `{deadLetterReason}` |
 | `plugins.linear.includeContext` | `true` | Adds the session context to the description |
 
+### Claude Code (`claude`)
+
+`🤖 Analyse with Claude Code` writes the message (`message.json`), the session context (`context.json`: where you are, what you did recently) and a prompt (`prompt.md`) to `plugins/claude/<entity>-<seq>-<time>/` in the state directory, then opens a new terminal window with a full, interactive [Claude Code](https://docs.claude.com/en/docs/claude-code) session in your codebase. Its first message is that prompt, with the message and the session context in it: find the producer and consumer of the entity and, for a dead-lettered message, explain the likely cause and suggest fixes. You carry on the conversation there; azsb doesn't wait for it. It uses your own Claude Code login. On by default when `claude` is found.
+
+The window is a new tmux window when azsb runs inside tmux; otherwise Terminal on macOS, a Windows Terminal tab (or a `cmd` window) on Windows, `x-terminal-emulator` on Linux. Set `terminal` for another one.
+
+```bash
+azsb config set plugins.claude.workingDirectory ~/code/orders-service
+azsb config set plugins.claude.terminal "open -a iTerm {script}"
+```
+
+| Setting | Default | |
+|---|---|---|
+| `command` | `claude` | Claude Code executable |
+| `workingDirectory` | where azsb was started | The codebase that sends or handles the messages |
+| `allowedTools` | `Read,Grep,Glob` | Tools Claude may use without asking (`--allowedTools`); empty: it asks for each |
+| `model` | Claude Code's | `--model`, e.g. `sonnet`, `opus` |
+| `prompt` | built in | First message; `{message}` and `{context}` insert them as Markdown; also `{messageFile}`, `{contextFile}`, `{entity}`, `{subject}`, `{sequenceNumber}`, `{messageId}`, `{namespace}`, `{deadLetterReason}` |
+| `terminal` | per platform | Command that opens a window running `{script}` (the run's `start.sh`/`start.cmd`), split on spaces; `{dir}` is the working directory; `{script}` is appended when absent |
+
 ## Features
 
 - Lists the Azure subscriptions of your `az` login by name, hides the ones without Service Bus namespaces, and lets you filter them; the local emulator is always available
