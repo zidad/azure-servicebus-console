@@ -1,3 +1,5 @@
+using RazorConsole.Testing;
+
 namespace ServiceBusConsole.Tests;
 
 [NotInParallel(nameof(ConnectionHeaderTests))]
@@ -15,11 +17,11 @@ public sealed class ConnectionHeaderTests
         var loadsBefore = app.Queues.Loads;
 
         await AppHarness.ClickTextAsync(terminal, "Local Emulator");
-        await terminal.WaitForTextAsync("Go to", AppHarness.Timeout, Ct);
+        // Namespaces load in the background; rows inserted above sb-dev-a would move it under the click.
+        await terminal.WaitUntilAsync(f => f.ContainsText("Go to") && f.ContainsText("▾ 🌐 localhost") && f.ContainsText("sb-dev-a"), AppHarness.Timeout, cancellationToken: Ct);
         await AppHarness.ClickTextAsync(terminal, "sb-dev-a");
-        var frame = await terminal.WaitForTextAsync("▾ 🌐 sb-dev-a", AppHarness.Timeout, Ct);
-        var y = Enumerable.Range(0, frame.Height).First(i => frame.GetLine(i).Contains("▾ 🌐 sb-dev-a")) + 1;
-        frame.GetLine(y).ShouldContain("📬 Queues");
+        var frame = await terminal.WaitUntilAsync(f => QueuesRowBelow(f, "▾ 🌐 sb-dev-a") is not null, AppHarness.Timeout, cancellationToken: Ct);
+        var y = QueuesRowBelow(frame, "▾ 🌐 sb-dev-a") ?? 0;
         await terminal.ClickAsync(frame.GetLine(y).IndexOf("📬", StringComparison.Ordinal), y, Ct);
 
         await terminal.WaitUntilAsync(f => f.GetLine(1).Contains("🔑 Contoso Development  ›  🌐 sb-dev-a  ›  📬 Queues (1)"), AppHarness.Timeout, cancellationToken: Ct);
@@ -59,4 +61,11 @@ public sealed class ConnectionHeaderTests
         await terminal.WaitForTextAsync("Topics (1)", AppHarness.Timeout, Ct);
         await terminal.WaitForTextAsync("order-events", AppHarness.Timeout, Ct);
     }
+
+    // The section rows appear a render after the namespace expands.
+    private static int? QueuesRowBelow(TerminalFrame frame, string text) =>
+        Enumerable.Range(0, frame.Height - 1)
+            .Where(i => frame.GetLine(i).Contains(text, StringComparison.Ordinal) && frame.GetLine(i + 1).Contains("📬 Queues", StringComparison.Ordinal))
+            .Select(i => (int?)(i + 1))
+            .FirstOrDefault();
 }

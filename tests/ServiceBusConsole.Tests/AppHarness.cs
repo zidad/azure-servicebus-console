@@ -128,6 +128,8 @@ public sealed class AppHarness
     {
         var terminal = await StartAsync(height: height);
         await WaitForTableFocusAsync(terminal);
+        // The emulator's namespace loads in the background; the key does nothing until its button shows.
+        await terminal.WaitForTextAsync($"[{key}]", Timeout, Ct);
         var connectionFocus = terminal.FocusKey;
         await terminal.SendKeyAsync(key, '\0', cancellationToken: Ct);
         await WaitForTableFocusAsync(terminal, connectionFocus);

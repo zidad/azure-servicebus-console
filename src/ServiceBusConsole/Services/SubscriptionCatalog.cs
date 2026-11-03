@@ -17,7 +17,10 @@ public sealed class SubscriptionCatalog(INamespaceService service, ILogger<Subsc
 
     public IReadOnlyList<AzureSubscription> Subscriptions { get; private set; } = [AzureSubscription.Emulator];
 
-    public bool Loading { get; private set; } = true;
+    private volatile bool _loading = true;
+
+    /// <summary>Once false, <see cref="Subscriptions"/> is the final list.</summary>
+    public bool Loading => _loading;
 
     public string? Error { get; private set; }
 
@@ -54,7 +57,7 @@ public sealed class SubscriptionCatalog(INamespaceService service, ILogger<Subsc
             Error = ex.Message;
         }
 
-        Loading = false;
+        _loading = false;
         Changed?.Invoke();
 
         Task[] checks;

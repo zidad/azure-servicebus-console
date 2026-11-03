@@ -68,7 +68,7 @@
 
     [Parameter] public int? FocusOrder { get; set; }
 
-    /// <summary>The node selected at first, e.g. the breadcrumb that was clicked.</summary>
+    /// <summary>The node to select, e.g. the breadcrumb that was clicked; selected again whenever it changes.</summary>
     [Parameter] public string? SelectKey { get; set; }
 
     /// <summary>Keys the tree does not use, e.g. Escape with an empty filter.</summary>
@@ -95,6 +95,7 @@
     private NavigableTBody? _body;
     private bool _focused;
     private string? _reportedKey;
+    private string? _appliedSelectKey;
 
     private int PageSize => Compact ? Math.Clamp(_rows.Count, 1, MaxRows) : MaxRows;
 
@@ -102,9 +103,19 @@
 
     protected override void OnInitialized()
     {
-        _selectedKey = SelectKey;
+        _selectedKey = _appliedSelectKey = SelectKey;
         Tree.Changed += OnTreeChanged;
         Tree.EnsureStarted();
+        Rebuild();
+    }
+
+    // A new SelectKey wins over the current selection; the same one again leaves the user's selection alone.
+    protected override void OnParametersSet()
+    {
+        if (SelectKey == _appliedSelectKey) return;
+        _appliedSelectKey = SelectKey;
+        if (SelectKey is null) return;
+        _selectedKey = SelectKey;
         Rebuild();
     }
 
