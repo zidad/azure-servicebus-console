@@ -328,11 +328,20 @@ public sealed class FakeTransactionService : ITransactionService
 {
     public int MaxMessages { get; set; } = 100;
 
-    /// <summary>Committed chunks, in order.</summary>
-    public List<IReadOnlyList<long>> Moved { get; } = [];
+    private readonly List<IReadOnlyList<long>> _moved = [];
+    private readonly List<IReadOnlyList<long>> _rolledBack = [];
 
-    /// <summary>Chunks that rolled back.</summary>
-    public List<IReadOnlyList<long>> RolledBack { get; } = [];
+    /// <summary>Committed chunks, in order; a copy, since moves run while tests read it.</summary>
+    public IReadOnlyList<IReadOnlyList<long>> Moved
+    {
+        get { lock (_moved) return [.. _moved]; }
+    }
+
+    /// <summary>Chunks that rolled back; a copy.</summary>
+    public IReadOnlyList<IReadOnlyList<long>> RolledBack
+    {
+        get { lock (_rolledBack) return [.. _rolledBack]; }
+    }
 
     public Func<IReadOnlyList<MessageInfo>, bool> Fails { get; set; } = _ => false;
 
@@ -346,11 +355,11 @@ public sealed class FakeTransactionService : ITransactionService
         if (messages.Count > MaxMessages) throw new ArgumentException($"{messages.Count} messages in one transaction");
         if (Fails(messages))
         {
-            lock (RolledBack) RolledBack.Add([.. messages.Select(m => m.SequenceNumber)]);
+            lock (_rolledBack) _rolledBack.Add([.. messages.Select(m => m.SequenceNumber)]);
             throw new InvalidOperationException("transaction rolled back");
         }
         foreach (var m in messages) await locked.CompleteAsync(m, ct);
-        lock (Moved) Moved.Add([.. messages.Select(m => m.SequenceNumber)]);
+        lock (_moved) _moved.Add([.. messages.Select(m => m.SequenceNumber)]);
     }
 }
 

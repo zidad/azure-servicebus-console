@@ -40,8 +40,9 @@ public sealed class CachedConnectionTreeTests
         app.NamespaceService = new CachingNamespaceService(new HangingNamespaceService(), await SeededCacheAsync());
         await using var terminal = await app.StartAsync(height: 40);
 
+        // The emulator's namespace is added in the background too; until then it says "Discovering".
         var frame = await terminal.WaitUntilAsync(
-            f => f.ContainsText("Contoso Development") && f.ContainsText(Orders.Name) && !f.ContainsText("Contoso Billing"),
+            f => f.ContainsText("Contoso Development") && f.ContainsText(Orders.Name) && f.ContainsText("🌐 localhost") && !f.ContainsText("Contoso Billing"),
             TimeSpan.FromSeconds(2), cancellationToken: Ct);
         frame.ContainsText("Discovering namespaces").ShouldBeFalse(frame.ScreenText);
     }
