@@ -84,6 +84,20 @@ azsb config set plugins.<id>.<key> <value> # a plugin setting, e.g. a repository
 - Secret settings are masked by `azsb plugins` and `azsb config list`
 - Files plugins write (message exports and the like) go to the state directory: `$XDG_STATE_HOME/azsb`, else `~/.local/state/azsb` (Windows: `%LOCALAPPDATA%\azsb\state`)
 
+### Editor (`editor`)
+
+📝 *Open in editor* writes the message to a JSON file (properties, and the body as embedded JSON when it is JSON, else as text) and opens it in your editor. On by default when the editor command is found. Reopening a message overwrites its file, `<entity>-<sequence number>.json` in the state directory's `messages` folder.
+
+| Setting | Default | |
+|---|---|---|
+| `plugins.editor.command` | `code` | GUI editor executable on your `PATH`, e.g. `idea`, `subl`; on Windows `code.cmd`. Terminal editors (`vim`) can't share azsb's screen |
+| `plugins.editor.arguments` | the file | Arguments, split on spaces; `{file}` is the message file, appended when absent, e.g. `--new-window {file}` |
+| `plugins.editor.directory` | `messages` folder | Folder for the message files |
+
+```bash
+azsb config set plugins.editor.command idea
+```
+
 ## Features
 
 - Lists the Azure subscriptions of your `az` login by name, hides the ones without Service Bus namespaces, and lets you filter them; the local emulator is always available
