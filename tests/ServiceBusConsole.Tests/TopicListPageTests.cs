@@ -21,7 +21,7 @@ public sealed class TopicListPageTests
         await using var terminal = await app.OpenTopicsAsync();
         await terminal.WaitForTextAsync("mid", AppHarness.Timeout, Ct);
 
-        await AppHarness.ClickTextAsync(terminal, "Subscriptions");
+        await AppHarness.ClickTextAsync(terminal, "📥 Subscriptions"); // the column, not the tab
         var frame = await terminal.WaitForTextAsync("Subscriptions ▲", AppHarness.Timeout, Ct);
         RowOf(frame, "zeta").ShouldBeLessThan(RowOf(frame, "mid"));
         RowOf(frame, "mid").ShouldBeLessThan(RowOf(frame, "alpha"));

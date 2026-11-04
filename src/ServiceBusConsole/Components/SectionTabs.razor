@@ -1,0 +1,63 @@
+@inject ServiceBusConnection Connection
+@inject FileCache Cache
+@inject NavigationManager Nav
+
+<Flex Justify="FlexJustify.SpaceBetween" FillWidth="true">
+    <Flex Gap="1">
+        @foreach (var (section, index) in Section.Of(Connection.Current).Select((s, i) => (s, i)))
+        {
+            var current = section == Current;
+            <div class="section-tab" @onclick="@(() => Open(section))">
+                <Markup Content="@Label(section, index)"
+                        Background="@(current ? Theme.Selection : Color.Default)"
+                        Foreground="@(current ? Theme.OnSelection : Theme.Muted)"
+                        Decoration="@(current ? Decoration.Bold : Decoration.None)" />
+            </div>
+        }
+    </Flex>
+    <Markup Content="@Details" Foreground="@Theme.Muted" />
+</Flex>
+
+@code {
+    /// <summary>
+    /// The namespace's sections as tabs under the header of their list pages: <c>1 📬 Queues 5</c>, the current one
+    /// highlighted. Its count is the page's; the others come from the cached listings, so they cost no requests.
+    /// </summary>
+    [Parameter, EditorRequired] public required Section Current { get; set; }
+
+    /// <summary>The current section's count, once its list has loaded.</summary>
+    [Parameter] public int? Count { get; set; }
+
+    private IReadOnlyDictionary<Section, int> _cached = new Dictionary<Section, int>();
+    private string? _loadedFor;
+
+    /// <summary>Keys 1, 2, 3 for the other sections; the tabs show them, so they stay out of the footer.</summary>
+    public static IEnumerable<KeyBinding> Bindings(IServiceBusNamespace? ns, Section current, NavigationManager nav) =>
+        Section.Of(ns).Select((s, i) => new KeyBinding($"{i + 1}", s.Label, () => { if (s != current) nav.NavigateTo(s.Route); }) { InFooter = false });
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Connection.Current is not { Info: var ns } || _loadedFor == ns.FullyQualifiedNamespace) return;
+        _loadedFor = ns.FullyQualifiedNamespace;
+        _cached = new Dictionary<Section, int>
+        {
+            [Section.Queues] = (await Cache.LoadAsync<QueueInfo>(CacheKeys.Queues(ns)))?.Count ?? -1,
+            [Section.Topics] = (await Cache.LoadAsync<TopicInfo>(CacheKeys.Topics(ns)))?.Count ?? -1,
+            [Section.AllSubscriptions] = (await Cache.LoadAsync<SubscriptionInfo>(CacheKeys.AllSubscriptions(ns)))?.Count ?? -1,
+        };
+    }
+
+    private string Label(Section section, int index) =>
+        (section == Current ? Count : _cached.GetValueOrDefault(section, -1) is var n and >= 0 ? n : null) is { } count
+            ? $" {index + 1} {section.Label} {count} "
+            : $" {index + 1} {section.Label} ";
+
+    private string Details => Connection.Current is { Info: var ns }
+        ? string.Join(" · ", new[] { ns.Sku, ns.Location, ns.ResourceGroup }.Where(p => !string.IsNullOrEmpty(p)))
+        : "";
+
+    private void Open(Section section)
+    {
+        if (section != Current) Nav.NavigateTo(section.Route);
+    }
+}

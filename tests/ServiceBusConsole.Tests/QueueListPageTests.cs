@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using RazorConsole.Testing;
 using Spectre.Console;
 
@@ -102,12 +103,30 @@ public sealed class QueueListPageTests
         var frame = await terminal.WaitUntilAsync(f => f.GetLine(0).Contains("● live"), AppHarness.Timeout, cancellationToken: Ct);
 
         frame.GetLine(1).Trim().ShouldBe(new string('─', frame.Width));
-        frame.GetLine(2).ShouldStartWith("╭");
-        frame.GetLine(2).ShouldNotContain("┬");
+        frame.GetLine(2).ShouldStartWith(" 1 📬 Queues 3 ");
+        frame.GetLine(3).ShouldStartWith("╭");
+        frame.GetLine(3).ShouldNotContain("┬");
         foreach (var name in new[] { "/ to filter", "payments", "emails" })
             frame.GetLine(RowOf(frame, name)).Count(c => c == '│').ShouldBe(2, name);
         frame.GetLine(RowOf(frame, "payments")).ShouldStartWith("│ ●");
         frame.GetLine(RowOf(frame, "emails")).ShouldNotContain("●");
+    }
+
+    [Test]
+    public async Task Tabs_CountTheSectionLive_AndTheOthersFromTheCache_AndTwoOpensTopics()
+    {
+        var app = WithQueues();
+        await new FileCache(NullLogger<FileCache>.Instance, app.CacheDirectory).SaveAsync(
+            CacheKeys.Topics(NamespaceInfo.Emulator), [new TopicInfo { Name = "orders" }, new TopicInfo { Name = "refunds" }]);
+        await using var terminal = await app.OpenQueuesAsync();
+
+        var frame = await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
+        frame.GetLine(2).ShouldStartWith(" 1 📬 Queues 3   2 📢 Topics 2   3 📥 All Subscriptions ");
+        await AppHarness.WaitForTableFocusAsync(terminal);
+
+        await terminal.SendKeyAsync(ConsoleKey.D2, '2', cancellationToken: Ct);
+
+        await terminal.WaitUntilAsync(f => f.GetLine(0).Contains("📢 Topics"), AppHarness.Timeout, cancellationToken: Ct);
     }
 
     [Test]
