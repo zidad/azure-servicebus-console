@@ -73,7 +73,7 @@ public sealed class MessageActionsTests
 
         await terminal.WaitForTextAsync("Creating issue in acme/orders…", AppHarness.Timeout, Ct);
         release.SetResult();
-        var result = await terminal.WaitUntilAsync(f => f.ContainsText("Created issue #12") && f.ContainsText("[O] 📂 Open"), AppHarness.Timeout, cancellationToken: Ct);
+        var result = await terminal.WaitUntilAsync(f => f.ContainsText("Created issue #12") && f.ContainsText("o  📂 Open"), AppHarness.Timeout, cancellationToken: Ct);
         result.ContainsText("https://github.com/acme/orders/issues/12").ShouldBeTrue(result.ScreenText);
         await AppHarness.WaitForFocusAsync(terminal, "500"); // ResultFocusOrder
         await Press(terminal, ConsoleKey.O, 'o');

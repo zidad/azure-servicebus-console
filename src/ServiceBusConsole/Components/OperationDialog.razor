@@ -4,7 +4,7 @@
 {
     var nameWidth = op.Steps.Max(s => s.Name.Length);
     <ModalWindow IsOpened="true">
-        <Panel Title="@op.Title" BorderColor="@(op.Finished ? OutcomeColor(op.Outcome) : Theme.Accent)" Padding="@(new(2, 1, 2, 1))">
+        <Panel Border="BoxBorder.Rounded" Title="@op.Title" BorderColor="@(op.Finished ? OutcomeColor(op.Outcome) : Theme.Accent)" Padding="@(new(2, 1, 2, 1))">
             <Rows>
                 @foreach (var step in op.Steps)
                 {
@@ -28,14 +28,24 @@
                         <Rows>
                             <Markup Content="@($"{OutcomeIcon(op.Outcome)} {op.Result}")" Foreground="@OutcomeColor(op.Outcome)" />
                             <Padder Padding="@(new(0, 1, 0, 0))">
-                                <KeyButton @ref="_ok" Content="[Enter] OK" OnClick="@(() => OnDismiss.InvokeAsync())"
+                                <KeyButton @ref="_ok" Key="⏎" Content="OK" OnClick="@(() => OnDismiss.InvokeAsync())"
                                             FocusedColor="@Theme.Accent" FocusOrder="1" OnKeyDown="@OkKeyDown" />
                             </Padder>
                         </Rows>
                     }
                     else
                     {
-                        <Markup Content="@(op.Cancelled ? "Cancelling… finishing what is in flight" : "[Esc] Cancel")" Foreground="@(op.Cancelled ? Theme.Warning : Theme.Muted)" />
+                        @if (op.Cancelled)
+                        {
+                            <Markup Content="Cancelling… finishing what is in flight" Foreground="@Theme.Warning" />
+                        }
+                        else
+                        {
+                            <Columns>
+                                <Markup Content=" esc " Background="@Theme.Chip" Foreground="@Theme.OnChip" Decoration="@Decoration.Bold" />
+                                <Markup Content="Cancel" Foreground="@Theme.Muted" />
+                            </Columns>
+                        }
                     }
                 </Padder>
             </Rows>

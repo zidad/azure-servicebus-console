@@ -1,23 +1,30 @@
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 
 <ModalWindow IsOpened="@IsOpened">
-    <Panel Title="@($"{Icons.Confirm} Confirm")" BorderColor="@Theme.Danger" Padding="@(new(2, 1, 2, 1))">
+    <Panel Border="BoxBorder.Rounded" Title="@($"{Icons.Confirm} Confirm")" BorderColor="@Theme.Danger" Padding="@(new(2, 1, 2, 1))">
         <Rows>
             <Markup Content="@Message" />
+            @if (MustType is { } text)
+            {
+                <Padder Padding="@(new(0, 1, 0, 0))">
+                    <TextInput @ref="_input" @key="_opened" Label="@($"Type {text} to confirm")" OnInput="@(v => _typed = v ?? "")"
+                               OnSubmit="@(_ => Confirm())" FocusOrder="0" @onkeydown="HandleTypingKey" FillWidth="true" />
+                </Padder>
+            }
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
                     <KeyButton @ref="_confirmButton"
-                                Content="[Y] Yes"
-                                OnClick="@(() => OnConfirm.InvokeAsync())"
+                                Key="@(MustType is null ? "y" : "⏎")" Danger="true" Content="Yes"
+                                OnClick="Confirm"
                                 OnKeyDown="HandleKey"
                                 FocusedColor="@Theme.Danger"
-                                FocusOrder="0" />
+                                FocusOrder="@(MustType is null ? 0 : 1)" />
                     <Markup Content="   " />
-                    <KeyButton Content="[N] No"
+                    <KeyButton Key="@(MustType is null ? "n" : "esc")" Content="No"
                                 OnClick="@(() => OnCancel.InvokeAsync())"
                                 OnKeyDown="HandleKey"
                                 FocusedColor="@Theme.Muted"
-                                FocusOrder="1" />
+                                FocusOrder="2" />
                 </Columns>
             </Padder>
         </Rows>
@@ -30,34 +37,55 @@
     [Parameter] public EventCallback OnConfirm { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
 
+    /// <summary>Text to type before Yes works, e.g. the name of what a purge empties; y and n are typing then.</summary>
+    [Parameter] public string? MustType { get; set; }
+
     private KeyButton? _confirmButton;
+    private TextInput? _input;
     private bool _wasOpened;
+    private int _opened;
+    private string _typed = "";
+
+    /// <summary>Whether Yes may run: always, or once <see cref="MustType"/> is typed.</summary>
+    public bool CanConfirm => MustType is null || _typed.Trim() == MustType;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (IsOpened && !_wasOpened && _confirmButton is not null)
+        if (IsOpened && !_wasOpened && (MustType is null ? _confirmButton?.FocusKey : _input?.FocusKey) is { } key)
         {
             _wasOpened = true;
             // Once: FocusAsync keeps the request until the button renders, and a retry after the modal
             // closed would replace a later request, such as the result dialog's OK.
-            await FocusManager.FocusAsync(_confirmButton.FocusKey);
+            await FocusManager.FocusAsync(key);
         }
-        else if (!IsOpened)
+        else if (!IsOpened && _wasOpened)
         {
             _wasOpened = false;
+            _opened++;
+            _typed = "";
         }
     }
+
+    private Task Confirm() => CanConfirm ? OnConfirm.InvokeAsync() : Task.CompletedTask;
 
     private void HandleKey(KeyboardEventArgs e)
     {
         switch (e.Key)
         {
-            case "Y": case "y": case "Enter":
-                _ = OnConfirm.InvokeAsync();
+            case "Y" or "y" when MustType is null:
+                _ = Confirm();
                 break;
-            case "N": case "n": case "Escape":
+            case "N" or "n" when MustType is null:
+                _ = OnCancel.InvokeAsync();
+                break;
+            case "Escape":
                 _ = OnCancel.InvokeAsync();
                 break;
         }
+    }
+
+    private void HandleTypingKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") _ = OnCancel.InvokeAsync();
     }
 }

@@ -98,6 +98,7 @@
 
 <AsyncCommand @ref="_purgeDlq" TItem="string"
               ConfirmMessage="@(n => $"Purge ALL messages from DLQ of '{TopicName}/{n}'? This cannot be undone.")"
+              ConfirmByTyping="@(n => n)"
               Execute="@(n => Connection.Namespace.Messages.PurgeAsync(new MessageSource.Subscription(TopicName, n, IsDlq: true)).LastOrDefaultAsync().AsTask())"
               Activity="@(n => $"Purged the dead-letter queue of '{TopicName}/{n}'")"
               OnCompleted="@(n => { List.Update(n, s => s with { DeadLetterMessageCount = 0 }); SortAndReanchor(); StateHasChanged(); return Task.CompletedTask; })" />

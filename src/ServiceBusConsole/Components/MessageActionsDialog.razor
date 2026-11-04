@@ -10,7 +10,7 @@
     case Picking picking:
         var labelWidth = picking.Actions.Max(a => a.Action.Label.Length);
         <ModalWindow IsOpened="true">
-            <Panel Title="@($"{Icons.Actions} Actions on message #{picking.Message.SequenceNumber}")" BorderColor="@Theme.Accent" Padding="@(new(2, 1, 2, 1))">
+            <Panel Border="BoxBorder.Rounded" Title="@($"{Icons.Actions} Actions on message #{picking.Message.SequenceNumber}")" BorderColor="@Theme.Accent" Padding="@(new(2, 1, 2, 1))">
                 <Rows>
                     @for (var i = 0; i < picking.Actions.Count; i++)
                     {
@@ -34,7 +34,7 @@
 
     case Running running:
         <ModalWindow IsOpened="true">
-            <Panel Title="@($"{running.Offered.Action.Icon} {running.Offered.Action.Label}")" BorderColor="@Theme.Accent" Padding="@(new(2, 1, 2, 1))">
+            <Panel Border="BoxBorder.Rounded" Title="@($"{running.Offered.Action.Icon} {running.Offered.Action.Label}")" BorderColor="@Theme.Accent" Padding="@(new(2, 1, 2, 1))">
                 <Rows>
                     <Columns>
                         <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
@@ -53,7 +53,7 @@
 
     case Done done:
         <ModalWindow IsOpened="true">
-            <Panel Title="@($"{Icons.Done} {done.Offered.Plugin.Name}")" BorderColor="@Theme.Success" Padding="@(new(2, 1, 2, 1))">
+            <Panel Border="BoxBorder.Rounded" Title="@($"{Icons.Done} {done.Offered.Plugin.Name}")" BorderColor="@Theme.Success" Padding="@(new(2, 1, 2, 1))">
                 <Rows>
                     <Markup Content="@done.Result.Text" Foreground="@Theme.Success" />
                     @if (done.Result.Link is { } link)
@@ -66,12 +66,12 @@
                     }
                     <Padder Padding="@(new(0, 1, 0, 0))">
                         <Columns>
-                            <KeyButton @ref="_ok" Content="[Enter] OK" OnClick="Close"
+                            <KeyButton @ref="_ok" Key="⏎" Content="OK" OnClick="Close"
                                        FocusedColor="@Theme.Accent" FocusOrder="@ResultFocusOrder" OnKeyDown="@DoneKey" />
                             @if (Target(done.Result) is not null)
                             {
                                 <Markup Content="   " />
-                                <KeyButton Content="@($"[O] {Icons.Open} Open")" OnClick="@(() => Open(done.Result))"
+                                <KeyButton Key="o" Content="@($"{Icons.Open} Open")" OnClick="@(() => Open(done.Result))"
                                            FocusedColor="@Theme.Accent" FocusOrder="@(ResultFocusOrder + 1)" OnKeyDown="@DoneKey" />
                             }
                         </Columns>
