@@ -22,4 +22,16 @@ internal sealed class MetricsService(NamespaceInfo ns, ArmClient armClient, ILog
             throw new InvalidOperationException(failed.ErrorMessage ?? failed.ErrorCode);
         yield return MonitorMetrics.ToMessageMetrics(window, metrics);
     }
+
+    public async IAsyncEnumerable<EntityTraffic> GetIncomingByEntityAsync(MetricsWindow window, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var resource = new ResourceIdentifier(ns.ResourceId
+            ?? throw new InvalidOperationException("Resource ID of the namespace unknown; reopen it from the connection page."));
+
+        logger.LogInformation("Loading incoming messages per entity in {Namespace}", ns.Name);
+        var metrics = await armClient.GetMonitorMetricsAsync(resource, MonitorMetrics.IncomingByEntity(window), ct).ToListAsync(ct);
+        if (metrics.FirstOrDefault(m => m.ErrorCode is { } code && code != "Success") is { } failed)
+            throw new InvalidOperationException(failed.ErrorMessage ?? failed.ErrorCode);
+        yield return MonitorMetrics.ToEntityTraffic(window, metrics);
+    }
 }

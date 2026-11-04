@@ -86,6 +86,9 @@ public sealed class NamespaceOpenerTests
         {
             public IAsyncEnumerable<MessageMetrics> GetMetricsAsync(MetricsScope scope, MetricsWindow window, CancellationToken ct = default) =>
                 inner.GetMetricsAsync(scope, window, ct);
+
+            public IAsyncEnumerable<EntityTraffic> GetIncomingByEntityAsync(MetricsWindow window, CancellationToken ct = default) =>
+                inner.GetIncomingByEntityAsync(window, ct);
         }
 
         public sealed class Deletion(IDeletionService inner) : IDeletionService

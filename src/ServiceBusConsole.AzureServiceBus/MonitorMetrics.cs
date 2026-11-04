@@ -24,6 +24,36 @@ internal static class MonitorMetrics
     public static string? Filter(MetricsScope scope) =>
         scope.Match<string?>(_ => null, entity => $"EntityName eq '{entity.Name}'");
 
+    /// <summary>Most entities a namespace lists traffic for; Azure Monitor returns 10 series unless asked for more.</summary>
+    public const int MaxEntities = 1000;
+
+    /// <summary>Incoming totals split by entity: <c>EntityName eq '*'</c> asks for one series per queue and topic.</summary>
+    public static ArmResourceGetMonitorMetricsOptions IncomingByEntity(MetricsWindow window) => new()
+    {
+        Timespan = $"{window.From.UtcDateTime:O}/{window.To.UtcDateTime:O}",
+        Interval = window.Interval,
+        Metricnames = Incoming,
+        Aggregation = "Total",
+        Filter = "EntityName eq '*'",
+        Top = MaxEntities,
+    };
+
+    /// <summary>Each series is one entity, named by its <c>EntityName</c> dimension; every interval of the window, 0 without data.</summary>
+    public static EntityTraffic ToEntityTraffic(MetricsWindow window, IEnumerable<MonitorMetric> metrics) => new()
+    {
+        Window = window,
+        Incoming = metrics
+            .Where(m => string.Equals(m.Name.Value, Incoming, StringComparison.OrdinalIgnoreCase))
+            .SelectMany(m => m.Timeseries)
+            .SelectMany(series => EntityOf(series) is { Length: > 0 } entity ? [(Entity: entity, Series: series)] : Array.Empty<(string Entity, MonitorTimeSeriesElement Series)>())
+            .GroupBy(e => e.Entity, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<MetricPoint>)PointsOf(g.SelectMany(e => e.Series.Data), window, v => v.Total),
+                StringComparer.OrdinalIgnoreCase),
+    };
+
+    private static string? EntityOf(MonitorTimeSeriesElement series) =>
+        series.Metadatavalues.FirstOrDefault(v => string.Equals(v.Name?.Value, "EntityName", StringComparison.OrdinalIgnoreCase))?.Value;
+
     public static MessageMetrics ToMessageMetrics(MetricsWindow window, IEnumerable<MonitorMetric> metrics)
     {
         var byName = metrics.ToLookup(m => m.Name.Value, StringComparer.OrdinalIgnoreCase);
@@ -47,9 +77,12 @@ internal static class MonitorMetrics
     };
 
     // Every interval of the window, 0 where Azure reports nothing; several time series add up.
-    private static List<MetricPoint> Points(IEnumerable<MonitorMetric> metrics, MetricsWindow window, Func<MonitorMetricValue, double?> value)
+    private static List<MetricPoint> Points(IEnumerable<MonitorMetric> metrics, MetricsWindow window, Func<MonitorMetricValue, double?> value) =>
+        PointsOf(metrics.SelectMany(m => m.Timeseries).SelectMany(series => series.Data), window, value);
+
+    private static List<MetricPoint> PointsOf(IEnumerable<MonitorMetricValue> values, MetricsWindow window, Func<MonitorMetricValue, double?> value)
     {
-        var byInterval = metrics.SelectMany(m => m.Timeseries).SelectMany(series => series.Data).ToLookup(v => window.IntervalOf(v.TimeStamp));
+        var byInterval = values.ToLookup(v => window.IntervalOf(v.TimeStamp));
         return [.. window.IntervalStarts().Select(start => new MetricPoint(start, byInterval[start].Sum(v => value(v) ?? 0)))];
     }
 }

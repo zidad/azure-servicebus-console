@@ -17,4 +17,17 @@ public sealed class CachingMetricsService(IMetricsService inner, NamespaceInfo n
             yield return live;
         }
     }
+
+    public async IAsyncEnumerable<EntityTraffic> GetIncomingByEntityAsync(MetricsWindow window, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var key = CacheKeys.IncomingByEntity(ns, window);
+        if (await cache.LoadAsync<EntityTraffic>(key) is [var cached])
+            yield return cached with { IsRefreshing = true };
+
+        await foreach (var live in inner.GetIncomingByEntityAsync(window, ct))
+        {
+            _ = cache.SaveAsync(key, [live]);
+            yield return live;
+        }
+    }
 }

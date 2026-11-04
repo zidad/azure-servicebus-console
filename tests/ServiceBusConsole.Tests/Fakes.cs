@@ -70,6 +70,27 @@ public sealed class FakeMetricsService : IMetricsService
         yield return Sample(window, scope.Match(_ => 12, e => 1 + e.Name.Length % 4));
     }
 
+    /// <summary>The entities <see cref="GetIncomingByEntityAsync"/> reports traffic for; each load is counted.</summary>
+    public List<string> TrafficEntities { get; } = [];
+    public int TrafficLoads => _trafficLoads;
+    private int _trafficLoads;
+
+    public async IAsyncEnumerable<EntityTraffic> GetIncomingByEntityAsync(MetricsWindow window, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        Interlocked.Increment(ref _trafficLoads);
+        await Task.Yield();
+        if (LoadError is not null) throw LoadError;
+        yield return new()
+        {
+            Window = window,
+            Incoming = TrafficEntities.ToDictionary(e => e, e => Shifted(Sample(window, 1).Incoming, e.Length * 3), StringComparer.OrdinalIgnoreCase),
+        };
+    }
+
+    // The sample day moved by some intervals, so the entities' sparklines differ.
+    private static IReadOnlyList<MetricPoint> Shifted(IReadOnlyList<MetricPoint> points, int by) =>
+        [.. points.Select((p, i) => p with { Value = points[(i + by) % points.Count].Value })];
+
     /// <summary>
     /// Traffic over 96 steps, whatever the window's intervals: a busy daytime, a backlog that builds while consumers lag,
     /// then drains, and a few dead letters.
