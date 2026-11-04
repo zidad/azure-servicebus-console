@@ -16,7 +16,8 @@ Resolve any conflicts, then push with `--force-with-lease`.
 The fork's `azsb` branch (`lib/RazorConsole`) is always **one commit** on top of upstream `RazorConsole/RazorConsole` main, so `git diff upstream/main azsb` shows every customization at once. Keep that commit minimal, aiming to switch back to the RazorConsole NuGet package:
 
 - Component behaviour lives in the app (`Components/`, `Components/Lists/`): `SelectableList`, `NavigableTBody`, `SelectableRow` and `KeyButton` render RazorConsole's element protocol (`<scrollable>`, `<tbody>`, `<tr data-selected-bg>`, `data-focusable`) themselves
-- The fork only holds engine fixes and the smallest hooks the app cannot add itself, each with an upstream PR or one to open; drop it once upstream has it
+- Need a RazorConsole component to behave differently? Copy it into `Components/` and change the copy; never change the fork's components
+- The fork only holds engine fixes (layout, rendering, input) and the smallest hooks the app cannot add itself, each with an upstream PR or one to open; drop it once upstream has it
 
 With every change:
 
