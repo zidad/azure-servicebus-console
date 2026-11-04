@@ -3,7 +3,7 @@
     python tools/render-screenshots.py <json dir> [<png dir>]
 
 Use tools/update-screenshots.sh to regenerate docs/screenshots (dark) and docs/screenshots/light.
-Needs Pillow; uses macOS Menlo and Apple Color Emoji.
+Needs Pillow; uses macOS Menlo and Apple Color Emoji, else JetBrains Mono or DejaVu Sans Mono and Noto Color Emoji.
 """
 import json
 import sys
@@ -13,8 +13,16 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 FONT_SIZE = 15
-MONO = "/System/Library/Fonts/Menlo.ttc"
-EMOJI = "/System/Library/Fonts/Apple Color Emoji.ttc"
+
+
+def first(*paths: str) -> str:
+    return next((p for p in paths if Path(p).exists()), paths[0])
+
+
+MONO = first("/System/Library/Fonts/Menlo.ttc", "/usr/share/fonts/truetype/jetbrains-mono/JetBrainsMono-Regular.ttf",
+             "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
+MONO_BOLD = MONO if MONO.endswith(".ttc") else first(MONO.replace("-Regular", "-Bold"), MONO.replace(".ttf", "-Bold.ttf"))
+EMOJI = first("/System/Library/Fonts/Apple Color Emoji.ttc", "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf")
 # Terminal color schemes (One Dark / One Light): background, text and the 16 palette colors the app uses by name.
 SCHEMES = {
     "dark": ("#1b1d23", "#c8ccd4", ["#1b1d23", "#e06c75", "#98c379", "#d19a66", "#3e5f9e", "#c678dd", "#56b6c2", "#abb2bf",
@@ -28,8 +36,9 @@ BACKGROUND, FOREGROUND, PALETTE = SCHEMES["dark"]
 BOLD, DIM, ITALIC, UNDERLINE = 1, 2, 4, 8
 
 regular = ImageFont.truetype(MONO, FONT_SIZE, index=0)
-bold = ImageFont.truetype(MONO, FONT_SIZE, index=1)
-emoji_font = ImageFont.truetype(EMOJI, 160)  # the only bitmap size Apple Color Emoji ships
+bold = ImageFont.truetype(MONO_BOLD, FONT_SIZE, index=1 if MONO_BOLD.endswith(".ttc") else 0)
+# The only bitmap sizes Apple Color Emoji and Noto Color Emoji ship.
+emoji_font = ImageFont.truetype(EMOJI, 160 if EMOJI.endswith(".ttc") else 109)
 cell_w = round(regular.getlength("M"))
 ascent, descent = regular.getmetrics()
 cell_h = ascent + descent + 3

@@ -1,0 +1,6 @@
+<Markup Content="@(Count > 0 ? "●" : " ")" Foreground="@Theme.Danger" />
+
+@code {
+    /// <summary>Row gutter of a list page: a dot when the entity has dead-lettered messages.</summary>
+    [Parameter] public long Count { get; set; }
+}

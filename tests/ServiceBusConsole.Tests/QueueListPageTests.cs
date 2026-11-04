@@ -89,9 +89,25 @@ public sealed class QueueListPageTests
         frame.GetLine(RowOf(frame, "payments")).ShouldNotContain("💀");
         frame.GetLine(RowOf(frame, "payments")).ShouldContain(" 3 ");
         frame.ContainsText("💀 DLQ").ShouldBeTrue(frame.ScreenText);
-        frame.GetLine(1).ShouldContain("🧪 Local Emulator  ›  🌐 localhost  ›  📬 Queues (3)");
+        frame.GetLine(0).ShouldContain("🧪 Local Emulator  ›  🌐 localhost  ›  📬 Queues (3)");
         RowOf(frame, "payments").ShouldBeLessThan(RowOf(frame, "emails"));
         RowOf(frame, "emails").ShouldBeLessThan(RowOf(frame, "orders"));
+    }
+
+    [Test]
+    public async Task Table_HasOneBorderAndNoColumnLines_MarksDeadLetters_AndTheHeaderSaysLive()
+    {
+        await using var terminal = await WithQueues().OpenQueuesAsync();
+
+        var frame = await terminal.WaitUntilAsync(f => f.GetLine(0).Contains("● live"), AppHarness.Timeout, cancellationToken: Ct);
+
+        frame.GetLine(1).Trim().ShouldBe(new string('─', frame.Width));
+        frame.GetLine(2).ShouldStartWith("╭");
+        frame.GetLine(2).ShouldNotContain("┬");
+        foreach (var name in new[] { "type to filter", "payments", "emails" })
+            frame.GetLine(RowOf(frame, name)).Count(c => c == '│').ShouldBe(2, name);
+        frame.GetLine(RowOf(frame, "payments")).ShouldStartWith("│ ●");
+        frame.GetLine(RowOf(frame, "emails")).ShouldNotContain("●");
     }
 
     [Test]

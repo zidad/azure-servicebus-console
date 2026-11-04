@@ -1,24 +1,34 @@
 @inject ServiceBusConnection Connection
 @inject NavigationState NavState
+@inject ITerminalViewport Viewport
 
-<Panel BorderColor="@Theme.Border" FillWidth="true" Padding="@(new(0, 0, 0, 0))">
-    <Columns>
-        @if (Connection.Current is { Info: var ns })
-        {
-            <div class="pick-subscription" @onclick="OpenSubscriptions"><Markup Content="@SubscriptionLabel" Foreground="@Theme.Muted" Decoration="@Decoration.Underline" /></div>
-            <Markup Content=" › " Foreground="@Theme.Muted" />
-            <div class="pick-namespace" @onclick="OpenNamespaces"><Markup Content="@($"{Icons.Namespace} {ns.Name}")" Decoration="@Decoration.Underline" /></div>
-            <Markup Content=" › " Foreground="@Theme.Muted" />
-        }
-        <CascadingValue Value="this" IsFixed="true">@ChildContent</CascadingValue>
-    </Columns>
-</Panel>
+<Rows FillWidth="true">
+    <Flex Justify="FlexJustify.SpaceBetween" FillWidth="true">
+        <Columns>
+            <Markup Content="azsb" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
+            <Markup Content=" │ " Foreground="@Theme.Border" />
+            @if (Connection.Current is { Info: var ns })
+            {
+                <div class="pick-subscription" @onclick="OpenSubscriptions"><Markup Content="@SubscriptionLabel" Foreground="@Theme.Muted" Decoration="@Decoration.Underline" /></div>
+                <Markup Content=" › " Foreground="@Theme.Muted" />
+                <div class="pick-namespace" @onclick="OpenNamespaces"><Markup Content="@($"{Icons.Namespace} {ns.Name}")" Decoration="@Decoration.Underline" /></div>
+                <Markup Content=" › " Foreground="@Theme.Muted" />
+            }
+            <CascadingValue Value="this" IsFixed="true">@ChildContent</CascadingValue>
+        </Columns>
+        @Status
+    </Flex>
+    <Markup Content="@(new string('─', Math.Max(1, Viewport.Width)))" Foreground="@Theme.Border" />
+</Rows>
 
 <ConnectionPicker @ref="_picker" />
 
 @code {
     /// <summary>Page breadcrumb: Markup pieces, shown after the subscription and namespace.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Right-aligned status, e.g. <see cref="LiveStatus{T}"/>.</summary>
+    [Parameter] public RenderFragment? Status { get; set; }
 
     private ConnectionPicker? _picker;
 
@@ -28,8 +38,8 @@
 
     private string SubscriptionLabel => $"{SubscriptionIcon} {SubscriptionName}";
 
-    // Panel border + padding put the subscription at x = 2; the dropdown opens there, whichever crumb was clicked.
-    private const int SubscriptionX = 2;
+    // "azsb │ " puts the subscription at x = 7; the dropdown opens there, whichever crumb was clicked.
+    private const int SubscriptionX = 7;
 
     private ExplorerNode.Subscription? SubscriptionNode => NavState.AzureSubscription is { } s ? new(s) : null;
 

@@ -16,7 +16,7 @@
                 SelectedIndexChanged="@Select"
                 ActivateOnClick="@Compact"
                 OnActivate="Activate">
-    <SpectreTable BorderColor="@Theme.Border" Expand="@(!Compact)" Border="@(Compact ? TableBorder.None : TableBorder.Rounded)">
+    <SpectreTable BorderColor="@Theme.Border" Expand="@(!Compact)" Border="@(Compact ? TableBorder.None : TableBorder.Rounded)" data-column-separators="false">
         @if (!Compact)
         {
             <SpectreTHead>

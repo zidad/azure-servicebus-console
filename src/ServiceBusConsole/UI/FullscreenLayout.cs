@@ -6,8 +6,8 @@ namespace ServiceBusConsole.UI;
 /// </summary>
 public static class FullscreenLayout
 {
-    /// <summary><see cref="ConnectionHeader"/> panel with default Square border — 3 lines.</summary>
-    public const int Header = 3;
+    /// <summary><see cref="ConnectionHeader"/>: the breadcrumb line and a rule — 2 lines.</summary>
+    public const int Header = 2;
 
     /// <summary><c>Padder(0,1,0,0)</c> + a single-line count/status markup — 2 lines.</summary>
     public const int CountRow = 2;
@@ -15,7 +15,7 @@ public static class FullscreenLayout
     /// <summary><c>SpectreTable</c> with <c>TableBorder.Rounded</c> — top + header + separator + bottom = 4 lines.</summary>
     public const int RoundedTableChrome = 4;
 
-    /// <summary><c>SpectreTable</c> with <c>TableBorder.Simple</c> — top + header + separator + bottom = 4 lines.</summary>
+    /// <summary><c>SpectreTable</c> with <c>TableBorder.Rounded</c> in the message browser — top + header + separator + bottom = 4 lines.</summary>
     public const int SimpleTableChrome = 4;
 
     /// <summary>Footer button row wrapped in <c>Padder(1,0,0,0)</c> + <c>Columns</c> — 1 line.</summary>

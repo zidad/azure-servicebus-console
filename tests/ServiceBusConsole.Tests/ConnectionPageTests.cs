@@ -39,7 +39,7 @@ public sealed class ConnectionPageTests
 
         await terminal.SendKeyAsync(ConsoleKey.F1, '\0', cancellationToken: Ct);
         frame = await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
-        frame.GetLine(1).ShouldContain("🔑 Contoso Development  ›  🌐 sb-dev-b  ›  📬 Queues (1)");
+        frame.GetLine(0).ShouldContain("🔑 Contoso Development  ›  🌐 sb-dev-b  ›  📬 Queues (1)");
         frame.GetLine(0).ShouldNotContain("rg-b");
 
         await AppHarness.WaitForTableFocusAsync(terminal, connectionFocus);

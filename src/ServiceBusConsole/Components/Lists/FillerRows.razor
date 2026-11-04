@@ -1,0 +1,14 @@
+@for (var i = 0; i < Count; i++)
+{
+    <SpectreTR @key="@(new Filler(i))"><SpectreTD> </SpectreTD></SpectreTR>
+}
+
+@code {
+    /// <summary>
+    /// Blank rows after a list's rows, so its bordered table keeps the height of a full page and what is below
+    /// it stays put. Not selectable: they are not <see cref="SelectableRow"/>s.
+    /// </summary>
+    [Parameter] public int Count { get; set; }
+
+    private readonly record struct Filler(int Index);
+}
