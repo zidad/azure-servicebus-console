@@ -174,7 +174,7 @@ public sealed class QueueListPageTests
     {
         await using var terminal = await WithQueues().OpenAzureAsync(ConsoleKey.F1, height: 30);
         await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
-        for (var i = 0; i < 10 && AppHarness.FocusedAttribute(terminal, "data-focus-order") != "5"; i++) // the Delete button: /, ^r, D
+        for (var i = 0; i < 10 && AppHarness.FocusedAttribute(terminal, "data-focus-order") != "4"; i++) // the Delete button: ^r, D
         {
             var previous = terminal.FocusKey;
             await terminal.SendKeyAsync(ConsoleKey.Tab, '\t', cancellationToken: Ct);
