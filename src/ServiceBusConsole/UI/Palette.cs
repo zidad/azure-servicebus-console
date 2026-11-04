@@ -26,6 +26,10 @@ public sealed record Palette
     /// <summary>Text on a <see cref="Danger"/> background: the chip of a key that deletes or moves messages.</summary>
     public required Color OnDanger { get; init; }
 
+    /// <summary>Text on an <see cref="Accent"/> or <see cref="Warning"/> background: the browse mode's badge and strip.</summary>
+    public required Color OnAccent { get; init; }
+    public required Color OnWarning { get; init; }
+
     /// <summary>Background of a hovered button, and its text.</summary>
     public required Color Hover { get; init; }
     public required Color OnHover { get; init; }
@@ -56,6 +60,8 @@ public sealed record Palette
         Chip = Color.Grey,
         OnChip = Color.White,
         OnDanger = Color.Black,
+        OnAccent = Color.Black,
+        OnWarning = Color.Black,
         Hover = Color.Silver,
         OnHover = Color.Black,
         JsonKey = Color.Blue,
@@ -82,6 +88,8 @@ public sealed record Palette
         Chip = Color.Silver,
         OnChip = Color.Black,
         OnDanger = Color.White,
+        OnAccent = Color.White,
+        OnWarning = Color.White,
         Hover = Color.Silver,
         OnHover = Color.Black,
         JsonKey = Color.Navy,

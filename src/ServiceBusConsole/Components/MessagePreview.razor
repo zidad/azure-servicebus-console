@@ -1,27 +1,39 @@
-
-@if (SideBySide)
-{
-    <Flex Direction="FlexDirection.Row" Gap="@Gap" FillWidth="true">
-        @PropertiesPanel(PropertiesWidth, Height)
-        @BodyPanel(Width - PropertiesWidth - Gap, Height)
-    </Flex>
-}
-else
-{
-    <Flex Direction="FlexDirection.Column" FillWidth="true">
-        @PropertiesPanel(Width, StackedPropertiesHeight)
-        @BodyPanel(Width, Height - StackedPropertiesHeight)
-    </Flex>
-}
+<Panel Title="@(Title ?? $"{Icons.Message} #{Message.SequenceNumber}")" BorderColor="@Theme.Border" Border="BoxBorder.Rounded"
+       Width="@Width" Height="@Height" Padding="@(new(1, 0, 1, 0))">
+    <Rows>
+        @if (Message.DeadLetterReason is { } reason)
+        {
+            <Columns>
+                <Markup Content="@($"{Icons.DeadLetter} {reason}")" Foreground="@Theme.Danger" Decoration="@Decoration.Bold" />
+                @if (Message.DeadLetterErrorDescription is { Length: > 0 } description)
+                {
+                    <Markup Content="@description" Foreground="@Theme.Muted" />
+                }
+            </Columns>
+        }
+        @if (SideBySide)
+        {
+            <Flex Direction="FlexDirection.Row" Gap="1" FillWidth="true">
+                @PropertiesView(PropertiesWidth, ContentHeight)
+                <Markup Content="@string.Join("\n", Enumerable.Repeat("│", ContentHeight))" Foreground="@Theme.Border" />
+                @BodyView(ContentHeight)
+            </Flex>
+        }
+        else
+        {
+            @PropertiesView(InnerWidth, StackedPropertiesHeight)
+            @BodyView(ContentHeight - StackedPropertiesHeight)
+        }
+    </Rows>
+</Panel>
 
 @code {
     /// <summary>Wide enough to put properties and body side by side.</summary>
     private const int SideBySideMinWidth = 100;
-    private const int Gap = 1;
 
     /// <summary>
-    /// A message's properties and body in a fixed area of <see cref="Width"/> by <see cref="Height"/> cells:
-    /// side by side when wide enough, stacked otherwise. Both scroll when they do not fit.
+    /// A message in one bordered box of <see cref="Width"/> by <see cref="Height"/> cells: the dead-letter reason first,
+    /// then its properties beside (or, when narrow, above) the body. Both scroll when they do not fit.
     /// </summary>
     [Parameter, EditorRequired] public required MessageInfo Message { get; set; }
 
@@ -31,6 +43,9 @@ else
     [Parameter, EditorRequired] public int Width { get; set; }
     [Parameter, EditorRequired] public int Height { get; set; }
 
+    /// <summary>In the top border; by default the sequence number.</summary>
+    [Parameter] public string? Title { get; set; }
+
     /// <summary>Tab order of the body's scroll area, so Tab reaches it right after the list.</summary>
     [Parameter] public int? BodyFocusOrder { get; set; }
 
@@ -38,54 +53,65 @@ else
     [Parameter] public EventCallback<KeyboardEventArgs> OnKeyDown { get; set; }
 
     private bool SideBySide => Width >= SideBySideMinWidth;
-    private int PropertiesWidth => Width * 2 / 5;
-    private int StackedPropertiesHeight => Math.Max(3, Height * 2 / 5);
 
-    // Panel borders take two lines.
-    private static int Inner(int height) => Math.Max(1, height - 2);
+    // Border and padding.
+    private int InnerWidth => Math.Max(10, Width - 4);
+    private int PropertiesWidth => InnerWidth * 2 / 5;
+    private int ContentHeight => Math.Max(3, Height - 2 - (Message.DeadLetterReason is null ? 0 : 1));
+    private int StackedPropertiesHeight => Math.Max(3, ContentHeight * 2 / 5);
 
-    private RenderFragment PropertiesPanel(int width, int height) =>
-        @<Panel Title="@($"{Icons.Properties} Properties")" BorderColor="@Theme.Border" Width="@width" Height="@height" Padding="@(new(1, 0, 1, 0))">
-            <ViewHeightScrollable LinesToRender="@Inner(height)" Scrollbar="@Theme.Scrollbar()" OnKeyDown="@OnKeyDown">
+    private RenderFragment PropertiesView(int width, int height) =>
+        @<Flex Direction="FlexDirection.Column" Width="@width">
+            <ViewHeightScrollable LinesToRender="@height" Scrollbar="@Theme.Scrollbar()" OnKeyDown="@OnKeyDown">
                 <SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.None">
                     <SpectreTBody>
                         @foreach (var (name, value, color) in Properties())
                         {
                             <SpectreTR>
-                                <SpectreTD><Markup Content="@name" Foreground="@Theme.Muted" /></SpectreTD>
+                                <SpectreTD><Markup Content="@name" Foreground="@Theme.Muted" Decoration="@(value.Length == 0 && name.Length > 0 ? Decoration.Bold : Decoration.None)" /></SpectreTD>
                                 <SpectreTD><Markup Content="@value" Foreground="@color" /></SpectreTD>
                             </SpectreTR>
                         }
                     </SpectreTBody>
                 </SpectreTable>
             </ViewHeightScrollable>
-        </Panel>;
+        </Flex>;
 
-    private RenderFragment BodyPanel(int width, int height) =>
-        @<Panel Title="@($"{Icons.Body} Body")" BorderColor="@Theme.Border" Width="@width" Height="@height" Padding="@(new(1, 0, 1, 0))">
-            <ViewHeightScrollable LinesToRender="@Inner(height)" Scrollbar="@Theme.Scrollbar()" FocusOrder="@BodyFocusOrder" OnKeyDown="@OnKeyDown">
+    private RenderFragment BodyView(int height) =>
+        @<Rows>
+            <Columns>
+                <Markup Content="@($"{Icons.Body} BODY")" Foreground="@Theme.Muted" Decoration="@Decoration.Bold" />
+                <Markup Content="@BodySummary" Foreground="@Theme.Muted" />
+            </Columns>
+            <ViewHeightScrollable LinesToRender="@Math.Max(1, height - 1)" Scrollbar="@Theme.Scrollbar()" FocusOrder="@BodyFocusOrder" OnKeyDown="@OnKeyDown">
                 @if (FormatJson(Message.BodyText) is { } json)
                 {
-                    <SyntaxHighlighter Code="@json" Language="json" />
+                    <SyntaxHighlighter Code="@json" Language="json" ShowLineNumbers="true" />
                 }
                 else
                 {
                     <Markup Content="@Message.BodyText" />
                 }
             </ViewHeightScrollable>
-        </Panel>;
+        </Rows>;
+
+    private string BodySummary => string.Join(" · ",
+        new[] { Message.ContentType, $"{Message.Body.Length:N0} B" }.Where(p => p.Length > 0));
 
     private IEnumerable<(string Name, string Value, Color Color)> Properties()
     {
         var m = Message;
+        yield return ($"{Icons.Properties} MESSAGE", "", Color.Default);
         yield return ("Message ID", m.MessageId, Color.Default);
         yield return ("Sequence #", m.SequenceNumber.ToString(), Color.Default);
         yield return ("Subject", m.Subject, Color.Default);
         yield return ("Content Type", m.ContentType, Color.Default);
-        yield return ("Enqueued", m.EnqueuedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss"), Color.Default);
+        yield return ("Enqueued", RelativeTime.Full(m.EnqueuedTime, DateTimeOffset.UtcNow), Color.Default);
         yield return ("Delivery Count", m.DeliveryCount.ToString(), m.DeliveryCount > 1 ? Theme.Warning : Color.Default);
         yield return ("State", StateText(m), StateColor(m));
-        if (m.DeadLetterReason is { } reason) yield return ("Dead-letter reason", reason, Theme.Danger);
+        if (m.Properties.Count == 0) yield break;
+        yield return ("", "", Color.Default);
+        yield return ("APPLICATION", "", Color.Default);
         foreach (var (key, value) in m.Properties)
             yield return (key, value, Color.Default);
     }

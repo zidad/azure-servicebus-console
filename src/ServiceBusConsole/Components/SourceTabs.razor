@@ -1,0 +1,54 @@
+@inject ServiceBusConnection Connection
+@inject FileCache Cache
+
+<Flex Justify="FlexJustify.SpaceBetween" FillWidth="true">
+    <Flex Gap="1">
+        <div class="source-tab" @onclick="@(() => Switch(false))">
+            <Markup Content="@($" 1 {Icons.Queue} Active{CountText(_counts?.Active)} ")" Background="@(IsDlq ? Color.Default : Theme.Selection)"
+                    Foreground="@(IsDlq ? Theme.Muted : Theme.OnSelection)" Decoration="@(IsDlq ? Decoration.None : Decoration.Bold)" />
+        </div>
+        <div class="source-tab" @onclick="@(() => Switch(true))">
+            <Markup Content="@($" 2 {Icons.DeadLetter} Dead-letter{CountText(_counts?.DeadLetter)} ")" Background="@(IsDlq ? Theme.Selection : Color.Default)"
+                    Foreground="@(IsDlq ? Theme.OnSelection : Theme.Muted)" Decoration="@(IsDlq ? Decoration.Bold : Decoration.None)" />
+        </div>
+    </Flex>
+    @ChildContent
+</Flex>
+
+@code {
+    /// <summary>
+    /// Active and dead-letter queue of a queue or subscription as tabs, with their counts from the cached listing (no
+    /// requests); 1, 2 or a click switches. <see cref="ChildContent"/> goes on the right, e.g. the browse mode.
+    /// </summary>
+    [Parameter, EditorRequired] public required MessageSource Entity { get; set; }
+
+    [Parameter] public bool IsDlq { get; set; }
+
+    /// <summary>The tab picked: true for the dead-letter queue.</summary>
+    [Parameter] public EventCallback<bool> OnSwitch { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private (long Active, long DeadLetter)? _counts;
+    private MessageSource? _loadedFor;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var entity = Entity with { IsDlq = false };
+        if (Connection.Current is not { Info: var ns } || entity == _loadedFor) return;
+        _loadedFor = entity;
+        _counts = await entity.Match(
+            async q => (await Cache.LoadAsync<QueueInfo>(CacheKeys.Queues(ns)))?.FirstOrDefault(i => i.Name == q.Name) is { } info
+                ? (info.ActiveMessageCount, info.DeadLetterMessageCount)
+                : ((long, long)?)null,
+            async s => (await Cache.LoadAsync<SubscriptionInfo>(CacheKeys.Subscriptions(ns, s.Topic))
+                        ?? await Cache.LoadAsync<SubscriptionInfo>(CacheKeys.AllSubscriptions(ns)))
+                    ?.FirstOrDefault(i => i.TopicName == s.Topic && i.Name == s.Name) is { } info
+                ? (info.ActiveMessageCount, info.DeadLetterMessageCount)
+                : ((long, long)?)null);
+    }
+
+    private static string CountText(long? count) => count is { } n ? $" {n:N0}" : "";
+
+    private Task Switch(bool dlq) => dlq == IsDlq ? Task.CompletedTask : OnSwitch.InvokeAsync(dlq);
+}

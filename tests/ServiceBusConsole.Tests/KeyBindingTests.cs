@@ -72,4 +72,16 @@ public sealed class KeyBindingTests
         filter.Handle(Key("Escape")).ShouldBe(FilterKey.Changed);
         filter.Handle(Key("Escape")).ShouldBe(FilterKey.Ignored);
     }
+
+    [Test]
+    public void RelativeTime_InTheLargestWholeUnit()
+    {
+        var now = new DateTimeOffset(2026, 11, 4, 12, 0, 0, TimeSpan.Zero);
+
+        RelativeTime.Ago(now, now).ShouldBe("now");
+        RelativeTime.Ago(now.AddSeconds(-42), now).ShouldBe("42 s ago");
+        RelativeTime.Ago(now.AddMinutes(-12), now).ShouldBe("12 min ago");
+        RelativeTime.Ago(now.AddHours(-3), now).ShouldBe("3 h ago");
+        RelativeTime.Ago(now.AddDays(-9), now).ShouldBe("9 d ago");
+    }
 }

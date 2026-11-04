@@ -21,6 +21,7 @@ public static class MessageMarkdown
             .Append(Bullet("Enqueued", ContextText.Time(message.EnqueuedTime)))
             .Append(Bullet("Delivery count", message.DeliveryCount.ToString(CultureInfo.InvariantCulture)));
         if (message.DeadLetterReason is { } reason) sb.Append(Bullet("Dead-letter reason", Text(reason)));
+        if (message.DeadLetterErrorDescription is { } description) sb.Append(Bullet("Dead-letter description", Text(description)));
 
         sb.Append(CultureInfo.InvariantCulture, $"\n{heading}# Application properties\n\n");
         if (message.Properties.Count == 0) sb.Append("None.\n");

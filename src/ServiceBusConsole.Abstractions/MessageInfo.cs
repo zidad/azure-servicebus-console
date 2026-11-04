@@ -18,7 +18,10 @@ public record MessageInfo
     public int DeliveryCount { get; init; }
     public string? DeadLetterReason { get; init; }
 
-    /// <summary>Application properties as text, without the <see cref="DeadLetterReason"/>.</summary>
+    /// <summary>Why it was dead-lettered, in words: "Message could not be consumed after 10 delivery attempts."</summary>
+    public string? DeadLetterErrorDescription { get; init; }
+
+    /// <summary>Application properties as text, without the <see cref="DeadLetterReason"/> and <see cref="DeadLetterErrorDescription"/>.</summary>
     public IReadOnlyList<KeyValuePair<string, string>> Properties { get; init; } = [];
 
     public string BodyText => Encoding.UTF8.GetString(Body.Span);

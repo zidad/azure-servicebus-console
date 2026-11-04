@@ -6,11 +6,16 @@ namespace ServiceBusConsole.AzureServiceBus.Tests;
 public sealed class ServiceBusMessageInfoTests
 {
     [Test]
-    public void From_ShowsTheDeadLetterReasonApartFromTheProperties()
+    public void From_ShowsTheDeadLetterReasonAndDescriptionApartFromTheProperties()
     {
         var raw = ServiceBusModelFactory.ServiceBusReceivedMessage(
             body: BinaryData.FromString("{}"), messageId: "m-7", sequenceNumber: 7, deliveryCount: 3,
-            properties: new Dictionary<string, object> { ["DeadLetterReason"] = "MaxDeliveryCountExceeded", ["attempt"] = 3 });
+            properties: new Dictionary<string, object>
+            {
+                ["DeadLetterReason"] = "MaxDeliveryCountExceeded",
+                ["DeadLetterErrorDescription"] = "Message could not be consumed after 10 delivery attempts.",
+                ["attempt"] = 3,
+            });
 
         var message = ServiceBusMessageInfo.From(raw, MessageState.Peeked);
 
@@ -19,6 +24,7 @@ public sealed class ServiceBusMessageInfoTests
         message.BodyText.ShouldBe("{}");
         message.DeliveryCount.ShouldBe(3);
         message.DeadLetterReason.ShouldBe("MaxDeliveryCountExceeded");
+        message.DeadLetterErrorDescription.ShouldBe("Message could not be consumed after 10 delivery attempts.");
         message.Properties.ShouldBe([KeyValuePair.Create("attempt", "3")]);
         ServiceBusMessageInfo.RawOf(message).ShouldBeSameAs(raw);
     }

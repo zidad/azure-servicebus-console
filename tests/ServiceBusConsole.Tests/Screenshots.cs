@@ -219,6 +219,7 @@ public sealed class Screenshots
         DeliveryCount = deliveries,
         EnqueuedTime = enqueued,
         DeadLetterReason = reason,
+        DeadLetterErrorDescription = reason == "MaxDeliveryCountExceeded" ? $"Message could not be consumed after {deliveries} delivery attempts." : null,
         Properties = [KeyValuePair.Create("source", "checkout-api")],
     };
 
