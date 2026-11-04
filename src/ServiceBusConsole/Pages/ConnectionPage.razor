@@ -46,37 +46,7 @@
                 }
 
                 <Padder Padding="@(new(0, 1, 0, 0))">
-                    <Columns>
-                        @if (ChosenNamespace is not null)
-                        {
-                            <KeyButton Content="@($"[F1] {Icons.Queue} Queues")"
-                                        OnClick="@(() => Open(Section.Queues))"
-                                        FocusedColor="@Theme.Accent"
-                                        FocusOrder="4"
-                                        OnKeyDown="@HandleKeyDown" />
-                            <Markup Content="  " />
-                            @if (Connection.Current is IHasTopics)
-                            {
-                                <KeyButton Content="@($"[F2] {Icons.Topic} Topics")"
-                                            OnClick="@(() => Open(Section.Topics))"
-                                            FocusedColor="@Theme.Accent"
-                                            FocusOrder="5"
-                                            OnKeyDown="@HandleKeyDown" />
-                                <Markup Content="  " />
-                                <KeyButton Content="@($"[F3] {Icons.Subscription} All Subscriptions")"
-                                            OnClick="@(() => Open(Section.AllSubscriptions))"
-                                            FocusedColor="@Theme.Accent"
-                                            FocusOrder="6"
-                                            OnKeyDown="@HandleKeyDown" />
-                                <Markup Content="  " />
-                            }
-                        }
-                        <KeyButton Content="@($"[F12] {Icons.Metrics} Metrics")"
-                                    OnClick="ToggleMetrics"
-                                    FocusedColor="@Theme.Accent"
-                                    FocusOrder="7"
-                                    OnKeyDown="@HandleKeyDown" />
-                    </Columns>
+                    <KeyHints Bindings="@Keys" FirstFocusOrder="4" OnKeyDown="@HandleKeyDown" />
                 </Padder>
             </Rows>
         </Panel>
@@ -108,6 +78,8 @@
                       OnKeyDown="@HandleKeyDown" />
     }
 </Flex>
+
+<HelpDialog @ref="_help" OnClose="@(() => _tree?.FocusAsync() ?? Task.CompletedTask)" />
 
 @code {
     // Figlet 6; panel 2 + tree table chrome 4 + buttons 2 + cache row 2.
@@ -251,20 +223,31 @@
 
     private Task Open(Section section) => _tree?.OpenSelectedAsync(section) ?? Task.CompletedTask;
 
-    private bool StepRange(KeyboardEventArgs e, string? filter) =>
-        MetricsRange.StepOf(e, filter) is { } step && _metricsPanel?.StepRange(step) == true;
+    private bool StepRange(KeyboardEventArgs e) =>
+        MetricsRange.StepOf(e) is { } step && _metricsPanel?.StepRange(step) == true;
+
+    private IReadOnlyList<KeyBinding> Keys =>
+    [
+        .. ChosenNamespace is null ? Array.Empty<KeyBinding>() :
+        [
+            new("1", $"{Icons.Queue} Queues", () => _ = Open(Section.Queues)) { Aliases = ["F1"] },
+            .. Connection.Current is IHasTopics
+                ? [new KeyBinding("2", $"{Icons.Topic} Topics", () => _ = Open(Section.Topics)) { Aliases = ["F2"] },
+                   new KeyBinding("3", $"{Icons.Subscription} All Subscriptions", () => _ = Open(Section.AllSubscriptions)) { Aliases = ["F3"] }]
+                : Array.Empty<KeyBinding>(),
+        ],
+        new("/", $"{Icons.Filter} Filter", () => _ = _tree?.EditFilterAsync()),
+        new("m", $"{Icons.Metrics} Metrics", ToggleMetrics) { Aliases = ["F12"] },
+        new("C", $"{Icons.Purge} Clear cache", ClearCache) { InFooter = false },
+        new("?", $"{Icons.Confirm} Help", () => _help?.Open(Keys)),
+    ];
+
+    private HelpDialog? _help;
 
     private void HandleKeyDown(KeyboardEventArgs e)
     {
-        if (e.CtrlKey || e.AltKey || e.MetaKey) return;
-        if (StepRange(e, filter: null)) return;
-        switch (e.Key)
-        {
-            case "F12": ToggleMetrics(); return;
-            case "F1": _ = Open(Section.Queues); return;
-            case "F2": _ = Open(Section.Topics); return;
-            case "F3": _ = Open(Section.AllSubscriptions); return;
-        }
+        if (StepRange(e)) return;
+        KeyBinding.Dispatch(Keys, e);
     }
 
     private string? _cacheStatus;

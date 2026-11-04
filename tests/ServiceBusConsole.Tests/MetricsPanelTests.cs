@@ -34,7 +34,7 @@ public sealed class MetricsPanelTests
         frame.ContainsText("incoming").ShouldBeTrue(frame.ScreenText);
         frame.ContainsText("dead-lettered").ShouldBeTrue(frame.ScreenText);
         frame.ContainsText("last 24 h").ShouldBeTrue(frame.ScreenText);
-        frame.ContainsText("[F12] 📈 Metrics").ShouldBeTrue(frame.ScreenText);
+        frame.ContainsText("m  📈 Metrics").ShouldBeTrue(frame.ScreenText);
         app.Metrics.Requested.ShouldContain(new MetricsScope.Entity("payments"));
     }
 
@@ -125,7 +125,7 @@ public sealed class MetricsPanelTests
 
         frame = await terminal.WaitUntilAsync(f => !f.ContainsText("last 24 h") && Rows(f, "q") > rowsWithPanel, AppHarness.Timeout, cancellationToken: Ct);
         (Rows(frame, "q") - rowsWithPanel).ShouldBe(FullscreenLayout.MetricsPanel);
-        frame.ContainsText("[F12] 📈 Metrics").ShouldBeTrue(frame.ScreenText);
+        frame.ContainsText("m  📈 Metrics").ShouldBeTrue(frame.ScreenText);
 
         await terminal.SendKeyAsync(ConsoleKey.F12, '\0', cancellationToken: Ct);
 
@@ -145,7 +145,7 @@ public sealed class MetricsPanelTests
 
         var frame = terminal.CurrentFrame;
         frame.ContainsText("last 24 h").ShouldBeFalse(frame.ScreenText);
-        frame.ContainsText("[F12] 📈 Metrics").ShouldBeTrue(frame.ScreenText);
+        frame.ContainsText("m  📈 Metrics").ShouldBeTrue(frame.ScreenText);
     }
 
     [Test]
@@ -160,7 +160,7 @@ public sealed class MetricsPanelTests
 
         var frame = terminal.CurrentFrame;
         frame.ContainsText("last 24 h").ShouldBeFalse(frame.ScreenText);
-        frame.ContainsText("[F12]").ShouldBeFalse(frame.ScreenText);
+        frame.ContainsText("📈 Metrics").ShouldBeFalse(frame.ScreenText);
         app.Metrics.Requested.ShouldBeEmpty();
     }
 
@@ -224,15 +224,16 @@ public sealed class MetricsPanelTests
     }
 
     [Test]
-    public async Task Minus_GoesIntoAFilterThatHoldsText_Plus_StillZoomsIn()
+    public async Task Minus_GoesIntoAFilterBeingEdited_AfterEnter_PlusZoomsIn()
     {
         var app = new AppHarness();
         app.Queues.Queues.AddRange([new QueueInfo { Name = "order-events" }, new QueueInfo { Name = "orders" }]);
         await using var terminal = await app.OpenAzureAsync(ConsoleKey.F1);
         await terminal.WaitUntilAsync(f => ChartsShown(f, "📬 queue order-events"), AppHarness.Timeout, cancellationToken: Ct);
 
-        await terminal.TypeAsync("order", Ct);
+        await terminal.TypeAsync("/order", Ct);
         await Key(terminal, '-');
+        await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
         await Key(terminal, '+');
 
         var frame = await terminal.WaitUntilAsync(f => f.ContainsText("🔍 order-") && f.ContainsText("last 12 h"), AppHarness.Timeout, cancellationToken: Ct);
@@ -264,7 +265,7 @@ public sealed class MetricsPanelTests
         await terminal.WaitUntilAsync(f => ChartsShown(f, "📬 queue orders", "-12h"), AppHarness.Timeout, cancellationToken: Ct);
         await AppHarness.ClickTextAsync(terminal, "[-]");
         await terminal.WaitUntilAsync(f => ChartsShown(f, "📬 queue orders"), AppHarness.Timeout, cancellationToken: Ct);
-        terminal.CurrentFrame.ContainsText("🔍 type to filter").ShouldBeTrue(terminal.CurrentFrame.ScreenText);
+        terminal.CurrentFrame.ContainsText("🔍 / to filter").ShouldBeTrue(terminal.CurrentFrame.ScreenText);
     }
 
     [Test]
@@ -282,7 +283,7 @@ public sealed class MetricsPanelTests
         var error = await terminal.WaitForTextAsync("Metrics unavailable: Forbidden", AppHarness.Timeout, Ct);
 
         TerminalFrame[] frames = [loading, charts, error];
-        frames.Select(f => (Rows(f, "q"), LineOf(f, "q00"), LineOf(f, "📬 queue q00"), LineOf(f, "[F5] 🔄 Refresh")))
+        frames.Select(f => (Rows(f, "q"), LineOf(f, "q00"), LineOf(f, "📬 queue q00"), LineOf(f, "^r  🔄 Refresh")))
             .Distinct().ShouldHaveSingleItem();
     }
 
@@ -310,7 +311,7 @@ public sealed class MetricsPanelTests
         choosing.ShouldContain(azure);
         choosing.Select(f => (LineOf(f, "🧪 Local Emulator"), LineOf(f, AppHarness.AzureSubscription.Name), LineOf(f, "🌐 sb-orders-dev"))).Distinct().ShouldHaveSingleItem();
         LineOf(azure, "🌐 namespace sb-orders-dev").ShouldBe(LineOf(emulator, "aren't available for localhost"));
-        LineOf(azure, "🌐 namespace sb-orders-dev").ShouldBeGreaterThan(LineOf(azure, "[F1] 📬 Queues") + 1);
+        LineOf(azure, "🌐 namespace sb-orders-dev").ShouldBeGreaterThan(LineOf(azure, "1  📬 Queues") + 1);
     }
 
     [Test]
@@ -327,7 +328,7 @@ public sealed class MetricsPanelTests
         await Key(terminal, '+');
 
         var frame = await terminal.WaitUntilAsync(f => ChartsShown(f, "🌐 namespace sb-orders-dev", "-12h"), AppHarness.Timeout, cancellationToken: Ct);
-        frame.ContainsText("🔍 type to filter").ShouldBeTrue(frame.ScreenText);
+        frame.ContainsText("🔍 / to filter").ShouldBeTrue(frame.ScreenText);
         app.Metrics.Windows.Last().Interval.ShouldBe(TimeSpan.FromMinutes(15));
     }
 
@@ -343,13 +344,13 @@ public sealed class MetricsPanelTests
         await app.SelectAzureNamespaceAsync(terminal, AppHarness.AzureNamespace);
         await Task.Delay(app.MetricsOptions.Debounce * 2, Ct);
         terminal.CurrentFrame.ContainsText("🌐 namespace sb-orders-dev").ShouldBeFalse(terminal.CurrentFrame.ScreenText);
-        terminal.CurrentFrame.ContainsText("[F12] 📈 Metrics").ShouldBeTrue(terminal.CurrentFrame.ScreenText);
+        terminal.CurrentFrame.ContainsText("m  📈 Metrics").ShouldBeTrue(terminal.CurrentFrame.ScreenText);
 
         await terminal.SendKeyAsync(ConsoleKey.F12, '\0', cancellationToken: Ct);
         var connection = terminal.FocusKey;
         await terminal.SendKeyAsync(ConsoleKey.F1, '\0', cancellationToken: Ct);
         await AppHarness.WaitForTableFocusAsync(terminal, connection);
-        await terminal.WaitForTextAsync("[F12] 📈 Metrics", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("m  📈 Metrics", AppHarness.Timeout, Ct);
         await Task.Delay(app.MetricsOptions.Debounce * 2, Ct);
 
         terminal.CurrentFrame.ContainsText("last 24 h").ShouldBeFalse(terminal.CurrentFrame.ScreenText);

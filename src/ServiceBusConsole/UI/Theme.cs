@@ -23,6 +23,11 @@ public static class Theme
     public static Color Selection => Palette.Selection;
     public static Color OnSelection => Palette.OnSelection;
 
+    /// <inheritdoc cref="Palette.Chip"/>
+    public static Color Chip => Palette.Chip;
+    public static Color OnChip => Palette.OnChip;
+    public static Color OnDanger => Palette.OnDanger;
+
     /// <inheritdoc cref="Palette.Hover"/>
     public static Color Hover => Palette.Hover;
     public static Color OnHover => Palette.OnHover;

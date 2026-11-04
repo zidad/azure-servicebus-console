@@ -20,7 +20,7 @@
         @if (_all.Count == 0 && _loadFailed)
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
-                <Markup Content="Failed to load. Press [F5] to retry." Foreground="@Theme.Danger" />
+                <Markup Content="Failed to load. Press ^r to retry." Foreground="@Theme.Danger" />
             </Padder>
         }
         else if (_all.Count == 0)
@@ -39,20 +39,20 @@
                         Scrollbar="@Theme.Scrollbar()"
                         SelectedIndex="@_selectedIndex"
                         SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _filtered.ElementAtOrDefault(i)?.Name; })"
-                        OnActivate="@(() => { if (_filtered.ElementAtOrDefault(_selectedIndex) is {} q) { NavState.FocusedQueueName = q.Name; Nav.NavigateTo($"/queues/{Uri.EscapeDataString(q.Name)}"); } })">
+                        OnActivate="OpenFocused">
                 <SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.Rounded" data-column-separators="false">
                     <SpectreTHead>
                         <SpectreTR>
                             <SpectreTH Width="1"></SpectreTH>
-                            <SpectreTH Align="Justify.Left"><Columns><SortHeader Label="Queue" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="Active" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="DLQ" Icon="@Icons.DeadLetter" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="Scheduled" Icon="@Icons.Scheduled" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="Transfer" Icon="@Icons.Transfer" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Left"><Columns><SortHeader Label="Queue" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="Active" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="DLQ" Icon="@Icons.DeadLetter" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="Scheduled" Icon="@Icons.Scheduled" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="Transfer" Icon="@Icons.Transfer" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /></SpectreTH>
                             <SpectreTH></SpectreTH>
                         </SpectreTR>
                     </SpectreTHead>
-                    <NavigableTBody @ref="_tbody"
+                    <NavigableTBody @ref="_tbody" TakeKey="@EndsFilterEdit"
                                   FocusOrder="1"
                                   OnKeyDown="@HandleKeyDown">
                         @{ var i = 0; }
@@ -80,29 +80,12 @@
         {
             <MetricsPanel @ref="_metricsPanel" Metrics="@metrics" Label="@($"{Icons.Queue} queue {_focusedItem}")" Scope="@(_focusedItem is { } q ? new MetricsScope.Entity(q) : null)" OnKeyDown="@HandleKeyDown" />
         }
-        <Padder Padding="@(new(1, 0, 0, 0))">
-            <Columns>
-                <KeyButton Content="[F5] 🔄 Refresh" OnClick="LoadQueues" FocusedColor="@Theme.Success" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
-                <Markup Content="   " />
-                @if (Connection.Current is IHasDeletion)
-                {
-                    <KeyButton Content="[F9] ❌ Delete" OnClick="@(() => OnFocused(_deleteQueue))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
-                    <Markup Content="   " />
-                }
-                <KeyButton Content="[F11] 🧹 Purge DLQ" OnClick="@(() => OnFocused(_purgeDlq))" FocusedColor="@Theme.Danger" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
-                <Markup Content="   " />
-                @if (Connection.Current is IHasMetrics)
-                {
-                    <KeyButton Content="@($"[F12] {Icons.Metrics} Metrics")" OnClick="ToggleMetrics" FocusedColor="@Theme.Accent" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
-                    <Markup Content="   " />
-                }
-                <KeyButton Content="[Esc] 🔙 Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Theme.Accent" FocusOrder="7" OnKeyDown="@HandleKeyDown" />
-            </Columns>
-        </Padder>
+        <KeyHints Bindings="@Keys" FirstFocusOrder="3" OnKeyDown="@HandleKeyDown" />
     </Footer>
 </FullscreenPage>
 
 <ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
+<HelpDialog @ref="_help" OnClose="FocusTable" />
 
 @if (Connection.Current is IHasDeletion { Deletion: var deletion })
 {
@@ -110,14 +93,14 @@
                   ConfirmMessage="@(n => $"Delete queue '{n}'? This cannot be undone.")"
                   Execute="@(n => deletion.DeleteQueueAsync(n))"
                   Activity="@(n => $"Deleted queue '{n}'")"
-                  OnCompleted="@(n => { _all.RemoveAll(q => q.Name == n); UpdateFilterState(_filter); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1)); _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex)?.Name; StateHasChanged(); return Task.CompletedTask; })" />
+                  OnCompleted="@(n => { _all.RemoveAll(q => q.Name == n); UpdateFilterState(_filter.Text); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1)); _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex)?.Name; StateHasChanged(); return Task.CompletedTask; })" />
 }
 
 <AsyncCommand @ref="_purgeDlq" TItem="string"
               ConfirmMessage="@(n => $"Purge ALL messages from DLQ of '{n}'? This cannot be undone.")"
               Execute="@(n => Connection.Namespace.Messages.PurgeAsync(new MessageSource.Queue(n, IsDlq: true)).LastOrDefaultAsync().AsTask())"
               Activity="@(n => $"Purged the dead-letter queue of '{n}'")"
-              OnCompleted="@(n => { List.Update(n, q => q with { DeadLetterMessageCount = 0 }); UpdateFilterState(_filter); StateHasChanged(); return Task.CompletedTask; })" />
+              OnCompleted="@(n => { List.Update(n, q => q with { DeadLetterMessageCount = 0 }); UpdateFilterState(_filter.Text); StateHasChanged(); return Task.CompletedTask; })" />
 
 @code {
     private LiveList<QueueInfo>? _live;
@@ -125,7 +108,8 @@
     private List<QueueInfo> _all => List.All;
     private CountChanges<QueueInfo> _changes => List.Changes;
     private List<QueueInfo> _filtered = [];
-    private string? _filter;
+    private readonly ListFilter _filter = new();
+    private HelpDialog? _help;
     private int _selectedIndex;
     private string? _focusedItem;
     private string _error = string.Empty;
@@ -156,7 +140,7 @@
                 ("Scheduled", q => q.ScheduledMessageCount), ("Transfer", q => q.TransferMessageCount)),
             LiveCounts, Logger)
         {
-            Changed = () => { UpdateFilterState(_filter); return InvokeAsync(StateHasChanged); },
+            Changed = () => { UpdateFilterState(_filter.Text); return InvokeAsync(StateHasChanged); },
             Render = StateHasChanged,
             LoadFailed = ex => { _loadFailed = true; _error = ErrorText.Of(ex); return InvokeAsync(StateHasChanged); },
         };
@@ -187,7 +171,6 @@
     private void UpdateFilterState(string? value)
     {
         var currentFocus = _focusedItem;
-        _filter = value;
         _filtered = _sort.Apply(string.IsNullOrWhiteSpace(value) ? _all
             : _all.Where(q => q.Name.Contains(value, StringComparison.OrdinalIgnoreCase)));
         if (currentFocus is not null)
@@ -218,26 +201,49 @@
         StateHasChanged();
     }
 
+    private IReadOnlyList<KeyBinding> Keys =>
+    [
+        new("Enter", $"{Icons.Message} Messages", OpenFocused) { InFooter = false },
+        new("/", $"{Icons.Filter} Filter", () => { _filter.Edit(); StateHasChanged(); }),
+        new("r", $"{Icons.Refresh} Refresh", () => _ = LoadQueues()) { Ctrl = true, Aliases = ["F5"] },
+        .. Connection.Current is IHasDeletion
+            ? [new KeyBinding("D", $"{Icons.Delete} Delete", () => OnFocused(_deleteQueue)) { Danger = true, Aliases = ["F9", "Delete", "\\"] }]
+            : Array.Empty<KeyBinding>(),
+        new("P", $"{Icons.Purge} Purge DLQ", () => OnFocused(_purgeDlq)) { Danger = true, Aliases = ["F11"] },
+        .. Connection.Current is IHasMetrics
+            ? [new KeyBinding("m", $"{Icons.Metrics} Metrics", ToggleMetrics) { Aliases = ["F12"] }]
+            : Array.Empty<KeyBinding>(),
+        new("?", $"{Icons.Confirm} Help", () => _help?.Open(Keys)),
+        new("Escape", $"{Icons.Back} Back", () => Nav.NavigateTo("/")),
+    ];
+
+    private void OpenFocused()
+    {
+        if (_filtered.ElementAtOrDefault(_selectedIndex) is not { } q) return;
+        NavState.FocusedQueueName = q.Name;
+        Nav.NavigateTo($"/queues/{Uri.EscapeDataString(q.Name)}");
+    }
+
+    private bool EndsFilterEdit(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter" || !_filter.Editing) return false;
+        _filter.Handle(e);
+        StateHasChanged();
+        return true;
+    }
+
+    private Task FocusTable() => _tbody is { } table ? FocusManager.FocusAsync(table.FocusKey) : Task.CompletedTask;
+
     private void HandleKeyDown(KeyboardEventArgs e)
     {
-        if (e.CtrlKey || e.AltKey || e.MetaKey) return;
         if (_deleteQueue?.HandleKey(e) == true) return;
         if (_purgeDlq?.HandleKey(e) == true) return;
-        if (MetricsRange.StepOf(e, _filter) is { } step && _metricsPanel?.StepRange(step) == true) return;
-        switch (e.Key)
+        switch (_filter.Handle(e))
         {
-            case "Escape": Nav.NavigateTo("/"); return;
-            case "F5": _ = LoadQueues(); return;
-            case "F9": case "Delete": case "\\":
-                OnFocused(_deleteQueue);
-                return;
-            case "F11":
-                OnFocused(_purgeDlq);
-                return;
-            case "F12": ToggleMetrics(); return;
-            default:
-                if (FilterEdit.From(_filter, e) is { } edit) ApplyFilter(edit.Filter);
-                return;
+            case FilterKey.Changed: ApplyFilter(_filter.Text); return;
+            case FilterKey.Handled: StateHasChanged(); return;
         }
+        if (MetricsRange.StepOf(e) is { } step && _metricsPanel?.StepRange(step) == true) return;
+        KeyBinding.Dispatch(Keys, e);
     }
 }

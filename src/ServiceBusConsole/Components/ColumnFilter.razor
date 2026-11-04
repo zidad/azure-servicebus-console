@@ -1,17 +1,17 @@
-
-@if (string.IsNullOrEmpty(Filter))
+@if (Filter.Editing)
 {
-    <Markup Content="@($"{Icons.Filter} type to filter")" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+    <Markup Content="@($"{Icons.Filter} {Filter.Text}▏")" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
+}
+else if (!Filter.IsEmpty)
+{
+    <Markup Content="@($"{Icons.Filter} {Filter.Text}")" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
 }
 else
 {
-    <Markup Content="@($"{Icons.Filter} {Filter}")" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
+    <Markup Content="@(Filter.TypeToFilter ? $"{Icons.Filter} type to filter" : $"{Icons.Filter} / to filter")" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
 }
 
 @code {
-    /// <summary>
-    /// The list filter, shown in the name column's header. Typing while the table has focus edits it;
-    /// Backspace removes a character.
-    /// </summary>
-    [Parameter] public string? Filter { get; set; }
+    /// <summary>The list filter, shown in the name column's header: a cursor while it is being edited.</summary>
+    [Parameter, EditorRequired] public required ListFilter Filter { get; set; }
 }

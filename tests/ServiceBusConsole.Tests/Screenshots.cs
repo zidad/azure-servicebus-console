@@ -27,7 +27,7 @@ public sealed class Screenshots
         await Save(terminal, dir, "connection");
 
         var connectionFocus = terminal.FocusKey;
-        await AppHarness.ClickTextAsync(terminal, "[F1] 📬 Queues");
+        await AppHarness.ClickTextAsync(terminal, "1  📬 Queues");
         await AppHarness.WaitForTableFocusAsync(terminal, connectionFocus);
         await terminal.WaitForTextAsync("Queues (5)", AppHarness.Timeout, Ct);
         await WaitForChartsAsync(terminal, "📬 queue payments");
@@ -98,10 +98,10 @@ public sealed class Screenshots
         await terminal.WaitForTextAsync("Queues (5)", AppHarness.Timeout, Ct);
         await AppHarness.WaitForTableFocusAsync(terminal);
         await Key(terminal, ConsoleKey.Escape, '\u001b');
-        await terminal.WaitUntilAsync(f => f.ContainsText("[F2] 📢 Topics") && f.ContainsText("sb-orders-prd"), AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => f.ContainsText("2  📢 Topics") && f.ContainsText("sb-orders-prd"), AppHarness.Timeout, cancellationToken: Ct);
 
         connectionFocus = terminal.FocusKey;
-        await AppHarness.ClickTextAsync(terminal, "[F2] 📢 Topics");
+        await AppHarness.ClickTextAsync(terminal, "2  📢 Topics");
         await AppHarness.WaitForTableFocusAsync(terminal, connectionFocus);
         await terminal.WaitForTextAsync("Topics (3)", AppHarness.Timeout, Ct);
         await WaitForChartsAsync(terminal, "📢 topic order-events");
@@ -117,10 +117,10 @@ public sealed class Screenshots
         await terminal.WaitForTextAsync("Topics (3)", AppHarness.Timeout, Ct);
         await AppHarness.WaitForTableFocusAsync(terminal);
         await Key(terminal, ConsoleKey.Escape, '\u001b');
-        await terminal.WaitUntilAsync(f => f.ContainsText("[F3] 📥 All Subscriptions") && f.ContainsText("sb-orders-prd"), AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => f.ContainsText("3  📥 All Subscriptions") && f.ContainsText("sb-orders-prd"), AppHarness.Timeout, cancellationToken: Ct);
 
         connectionFocus = terminal.FocusKey;
-        await AppHarness.ClickTextAsync(terminal, "[F3] 📥 All Subscriptions");
+        await AppHarness.ClickTextAsync(terminal, "3  📥 All Subscriptions");
         await AppHarness.WaitForTableFocusAsync(terminal, connectionFocus);
         await terminal.WaitForTextAsync("All Subscriptions (5)", AppHarness.Timeout, Ct);
         await WaitForChartsAsync(terminal, "📢 topic order-events");

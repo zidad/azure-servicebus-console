@@ -37,7 +37,7 @@ public sealed class MessageBrowserTests
 
         var frame = await terminal.WaitUntilAsync(f => f.ContainsText("order-created") && f.ContainsText("order-paid"), AppHarness.Timeout, cancellationToken: Ct);
 
-        frame.ContainsText("[F6] 📬 View Active").ShouldBeTrue(frame.ScreenText);
+        frame.ContainsText("1  📬 Active").ShouldBeTrue(frame.ScreenText);
         frame.GetLine(0).ShouldContain("🧪 Local Emulator  ›  🌐 localhost  ›  📬 Queues  ›  orders 💀 DLQ");
         app.Messages.Peeked.ShouldBe([new MessageSource.Queue("orders", IsDlq: true)]);
     }
@@ -70,7 +70,7 @@ public sealed class MessageBrowserTests
         await AppHarness.WaitForTableFocusAsync(terminal, queueTable);
         await terminal.SendKeyAsync(ConsoleKey.F6, '\0', cancellationToken: Ct);
         // The button flips before the active queue is peeked, and the list re-renders as it loads: wait until it stops.
-        await AppHarness.WaitForSettledAsync(terminal, f => f.ContainsText("View DLQ") && f.ContainsText("3 message(s)"));
+        await AppHarness.WaitForSettledAsync(terminal, f => f.ContainsText("2  💀 DLQ") && f.ContainsText("3 message(s)"));
         await AppHarness.WaitForTableFocusAsync(terminal);
 
         await terminal.SendKeyAsync(ConsoleKey.Spacebar, ' ', cancellationToken: Ct);
@@ -119,7 +119,7 @@ public sealed class MessageBrowserTests
     {
         var (app, terminal) = await PeekDlqAndSelectFirstAndThirdAsync();
         await using var _ = terminal;
-        terminal.CurrentFrame.ContainsText("[F10] 🔁 Retry").ShouldBeTrue(terminal.CurrentFrame.ScreenText);
+        terminal.CurrentFrame.ContainsText("R  🔁 Retry").ShouldBeTrue(terminal.CurrentFrame.ScreenText);
 
         await terminal.SendKeyAsync(ConsoleKey.F10, '\0', cancellationToken: Ct);
         await terminal.WaitForTextAsync("2 messages → PeekLock → Requeue to orders → Mark complete", AppHarness.Timeout, Ct);
@@ -255,7 +255,7 @@ public sealed class MessageBrowserTests
         await using var _ = terminal;
 
         var tableFocus = terminal.FocusKey;
-        await terminal.SendKeyAsync(ConsoleKey.A, 'a', cancellationToken: Ct);
+        await terminal.SendKeyAsync(ConsoleKey.A, '\u0001', ConsoleModifiers.Control, Ct);
         await terminal.WaitForTextAsync("2 selected", AppHarness.Timeout, Ct);
         await terminal.SendKeyAsync(ConsoleKey.F10, '\0', cancellationToken: Ct);
         await terminal.WaitForTextAsync("Retry 2 messages?", AppHarness.Timeout, Ct);

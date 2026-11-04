@@ -7,7 +7,7 @@ namespace ServiceBusConsole.Tests;
 [NotInParallel(nameof(MessageActionsTests))]
 public sealed class MessageActionsTests
 {
-    private const string ActionsButton = "[F2] ⚡ Actions…";
+    private const string ActionsButton = ".  ⚡ Actions…";
     private static readonly MessageSource OrdersDlq = new MessageSource.Queue("orders", IsDlq: true);
 
     private static MessageInfo Message(long sequence, string subject) => new()

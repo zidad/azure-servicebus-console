@@ -6,14 +6,24 @@
      data-focus-order="@FocusOrder?.ToString(CultureInfo.InvariantCulture)"
      @key="FocusKey"
      data-focus-key="@FocusKey">
-    <Markup Content="@Content" Background="@(_focused ? FocusedColor : Hovered ? HoverColor : BackgroundColor)"
-            Foreground="@(Hovered && !_focused ? HoverForegroundColor : ForegroundColor)" />
+    @if (Key is { } key)
+    {
+        <Columns>
+            <Markup Content="@($" {key} ")" Background="@(Danger ? Theme.Danger : Theme.Chip)" Foreground="@(Danger ? Theme.OnDanger : Theme.OnChip)" Decoration="@Decoration.Bold" />
+            @Label
+        </Columns>
+    }
+    else
+    {
+        @Label
+    }
 </div>
 
 @code {
     /// <summary>
     /// A text button like RazorConsole's <c>TextButton</c>, plus <see cref="OnKeyDown"/> (so page shortcuts keep
     /// working while it has focus) and <see cref="FocusKey"/> (to focus it from code). Enter and Space click it.
+    /// With <see cref="Key"/> it shows the key as a chip before <see cref="Content"/>, as in the footer.
     /// </summary>
     [Parameter, EditorRequired] public required string Content { get; set; }
     [Parameter] public EventCallback OnClick { get; set; }
@@ -25,6 +35,12 @@
     [Parameter] public Color HoverColor { get; set; } = Theme.Hover;
     [Parameter] public Color HoverForegroundColor { get; set; } = Theme.OnHover;
 
+    /// <summary>The key that also runs it, shown as a chip: "D", "^r", "esc".</summary>
+    [Parameter] public string? Key { get; set; }
+
+    /// <summary>A red chip, for keys that delete or move messages.</summary>
+    [Parameter] public bool Danger { get; set; }
+
     /// <summary>The focus manager key, for <c>FocusManager.FocusAsync</c>.</summary>
     public string FocusKey { get; } = Guid.NewGuid().ToString("N");
 
@@ -32,12 +48,16 @@
     private bool _hovered;
     private bool Hovered => _hovered && OnClick.HasDelegate;
 
+    private RenderFragment Label => @<Markup Content="@Content" Background="@(_focused ? FocusedColor : Hovered ? HoverColor : BackgroundColor)"
+                                             Foreground="@(Hovered && !_focused ? HoverForegroundColor : ForegroundColor)" />;
+
     private void SetFocused(bool focused) => _focused = focused;
 
     private Task OnKeyDownHandler(KeyboardEventArgs e)
     {
-        // Not forwarded: a page's type-to-filter would take it as text.
+        // Space clicks it (Enter does too, in the engine); neither goes to the page, where they mean something else.
         if (e.Key == " ") return OnClick.InvokeAsync();
+        if (e.Key == "Enter") return Task.CompletedTask;
         if (OnKeyDown is { } forward) _ = InvokeAsync(() => forward(e));
         return Task.CompletedTask;
     }
