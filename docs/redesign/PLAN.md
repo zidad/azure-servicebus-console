@@ -5,7 +5,8 @@ Each phase is one issue and one PR. Follow `CLAUDE.md` for style, tests and the 
 
 Decided:
 
-- Keep the emoji (breadcrumbs, tabs, column headers, tree, buttons, ✅/⬜ selection). Only the boxes and column lines go.
+- Keep the emoji (breadcrumbs, tabs, column headers, tree, buttons, ✅/⬜ selection).
+- One subtle rounded border around the main content (the table, the message preview); no boxed header, no column lines inside.
 - Keep the metrics panel as it is; only its surrounding borders go.
 - Count columns keep their short headers (`💀 DLQ`), sized for small numbers.
 - Letter keys with Shift for anything that deletes or moves messages; F-keys stay as aliases. `/` opens the filter.
@@ -16,7 +17,7 @@ Decided:
 ![Queues](screens/queues.png)
 
 - `ConnectionHeader.razor`: drop the `Panel`; one line `azsb │ 🔑 subscription › 🌐 namespace › 📬 Queues`, right-aligned status (`● live · updated 4 s ago`, `◐ cached` while `IsRefreshing`), then a `─` rule. `FullscreenLayout.Header` 3 → 2.
-- List tables (`QueueListPage`, `TopicListPage`, `SubscriptionListPage`, `AllSubscriptionsPage`, `MessageBrowserView`): no column lines, a rule under the header, no empty spacer rows, no empty trailing column. Start with `TableBorder.None` plus a rule; if `SelectableList`/`NavigableTBody` need a border RazorConsole lacks, add the smallest hook to the fork (`azsb`) with an upstream PR. Update the `*TableChrome` constants.
+- List tables (`QueueListPage`, `TopicListPage`, `SubscriptionListPage`, `AllSubscriptionsPage`, `MessageBrowserView`): one rounded border (`Theme.Border`) around the table, filling the space above the metrics; inside it no column lines, a rule under the header, no empty spacer rows, no empty trailing column. The message preview gets the same border with `📨 #102 · 2 of 3` in it. Start with `TableBorder.None` plus a rule; if `SelectableList`/`NavigableTBody` need a border RazorConsole lacks, add the smallest hook to the fork (`azsb`) with an upstream PR. Update the `*TableChrome` constants.
 - A `●` (danger) gutter on rows with dead letters.
 - `MetricsPanel`: same charts, legend and zoom; no border around it.
 - `Palette.cs`: add `Chip`/`OnChip` for key chips (dark: `Grey`/`White`, light: `Silver`/`Black`), `Badge`/`OnBadge`, `LockedStrip`, `DeletedStrip`. Only the 16 palette colors.
