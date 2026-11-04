@@ -8,6 +8,8 @@
 @inject ITerminalViewport Viewport
 @inject PluginActions PluginActions
 @inject SessionContext Session
+@inject Clipboard Clipboard
+@inject ActivityLog Activity
 
 @if (NavState.Message is null)
 {
@@ -18,14 +20,60 @@ else
     var msg = NavState.Message;
 
     <Flex Class="rows" Direction="FlexDirection.Column" @onkeydown="HandleKeyDown">
-        <ConnectionHeader>
+        <ConnectionHeader Status="@Position">
             <Markup Content="@SourceLabel" Foreground="@Theme.Muted" />
             <Markup Content=" › " Foreground="@Theme.Muted" />
             <Markup Content="@($"{Icons.Message} Message #{msg.SequenceNumber}")" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
         </ConnectionHeader>
 
-        <MessagePreview Message="@msg" Browser="@_browser" Width="@Viewport.Width" Height="@PreviewHeight" BodyFocusOrder="0" OnKeyDown="@HandleKeyDown" />
+        <Flex Justify="FlexJustify.SpaceBetween" FillWidth="true">
+            <Flex Gap="1">
+                @foreach (var (tab, index) in Tabs(msg).Select((t, i) => (t, i)))
+                {
+                    var current = index == _tab;
+                    <div class="zoom-tab" @onclick="@(() => ShowTab(index))">
+                        <Markup Content="@($" {index + 1} {tab} ")" Background="@(current ? Theme.Selection : Color.Default)"
+                                Foreground="@(current ? Theme.OnSelection : Theme.Muted)" Decoration="@(current ? Decoration.Bold : Decoration.None)" />
+                    </div>
+                }
+            </Flex>
+            <Markup Content="@BodySummary(msg)" Foreground="@Theme.Muted" />
+        </Flex>
 
+        @if (msg.DeadLetterReason is { } reason)
+        {
+            <Columns>
+                <Markup Content="@($"{Icons.DeadLetter} {reason}")" Foreground="@Theme.Danger" Decoration="@Decoration.Bold" />
+                @if (msg.DeadLetterErrorDescription is { Length: > 0 } description) { <Markup Content="@description" Foreground="@Theme.Muted" /> }
+            </Columns>
+        }
+
+        <Panel BorderColor="@Theme.Border" Border="BoxBorder.Rounded" Width="@Viewport.Width" Height="@BoxHeight(msg)" Padding="@(new(1, 0, 1, 0))">
+            <ViewHeightScrollable @key="@($"{msg.SequenceNumber}/{_tab}")" LinesToRender="@(BoxHeight(msg) - 2)" Scrollbar="@Theme.Scrollbar()" FocusOrder="0" OnKeyDown="@HandleKeyDown">
+                @switch (_tab)
+                {
+                    case 0:
+                        @if (MessagePreview.FormatJson(msg.BodyText) is { } json) { <SyntaxHighlighter Code="@json" Language="json" ShowLineNumbers="true" /> }
+                        else { <Markup Content="@msg.BodyText" /> }
+                        break;
+                    case 1:
+                        @Table(SystemProperties(msg))
+                        break;
+                    case 2:
+                        @if (msg.Properties.Count == 0) { <Markup Content="No application properties." Foreground="@Theme.Muted" /> }
+                        else { @Table(msg.Properties.Select(p => (p.Key, p.Value))) }
+                        break;
+                    default:
+                        <SyntaxHighlighter Code="@MessageJson.Format(msg)" Language="json" />
+                        break;
+                }
+            </ViewHeightScrollable>
+        </Panel>
+
+        @if (_copied is { } copied)
+        {
+            <Markup Content="@copied" Foreground="@Theme.Success" />
+        }
         <KeyHints Bindings="@Keys" FirstFocusOrder="1" OnKeyDown="@HandleKeyDown" />
     </Flex>
 }
@@ -85,8 +133,80 @@ else
     // Progress of an action started here arrives from a background thread.
     private void OnBrowserChanged() => _ = InvokeAsync(StateHasChanged);
 
-    // Header 3 lines, button row 1, and the line FullscreenPage-style layouts leave free at the bottom.
-    private int PreviewHeight => Math.Max(6, Viewport.Height - 5);
+    private int _tab;
+    private string? _copied;
+
+    // Header 2 lines, tabs 1, the dead-letter line, a copied note, the key row 1, and the line left free at the bottom.
+    private int BoxHeight(MessageInfo m) =>
+        Math.Max(5, Viewport.Height - 5 - (m.DeadLetterReason is null ? 0 : 1) - (_copied is null ? 0 : 1));
+
+    private static IReadOnlyList<string> Tabs(MessageInfo m) =>
+        [$"{Icons.Body} Body", $"{Icons.Properties} Properties", m.Properties.Count > 0 ? $"Application {m.Properties.Count}" : "Application", "Raw"];
+
+    private static string BodySummary(MessageInfo m) =>
+        string.Join(" · ", new[] { m.ContentType, $"{m.Body.Length:N0} B" }.Where(p => p.Length > 0));
+
+    private static RenderFragment Table(IEnumerable<(string Name, string Value)> rows) =>
+        @<SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.None">
+            <SpectreTBody>
+                @foreach (var (name, value) in rows)
+                {
+                    <SpectreTR>
+                        <SpectreTD><Markup Content="@name" Foreground="@Theme.Muted" /></SpectreTD>
+                        <SpectreTD><Markup Content="@value" /></SpectreTD>
+                    </SpectreTR>
+                }
+            </SpectreTBody>
+        </SpectreTable>;
+
+    private static IEnumerable<(string, string)> SystemProperties(MessageInfo m) =>
+    [
+        ("Message ID", m.MessageId),
+        ("Sequence #", m.SequenceNumber.ToString()),
+        ("Subject", m.Subject),
+        ("Content type", m.ContentType),
+        ("Enqueued", RelativeTime.Full(m.EnqueuedTime, DateTimeOffset.UtcNow)),
+        ("Delivery count", m.DeliveryCount.ToString()),
+        ("State", m.State.ToString()),
+        .. m.DeadLetterReason is { } reason ? [("Dead-letter reason", reason)] : Array.Empty<(string, string)>(),
+        .. m.DeadLetterErrorDescription is { } description ? [("Dead-letter description", description)] : Array.Empty<(string, string)>(),
+    ];
+
+    /// <summary>Where the message is in the browser's list: "2 of 3"; nothing without the list.</summary>
+    private RenderFragment? Position => IndexInList is { } i && _browser is { } b
+        ? @<Markup Content="@($"[ {i + 1} of {b.Messages.Count} ]")" Foreground="@Theme.Muted" />
+        : null;
+
+    private int? IndexInList => _browser is { } b && NavState.Message is { } m
+        && b.Messages.Select((x, i) => (x, i)).FirstOrDefault(e => e.x.SequenceNumber == m.SequenceNumber) is { x: not null } found
+            ? found.i : null;
+
+    private void ShowTab(int tab)
+    {
+        _tab = tab;
+        StateHasChanged();
+    }
+
+    /// <summary>The previous or next message of the list, without going back to it; the list's cursor follows.</summary>
+    private void Step(int by)
+    {
+        if (_browser is not { } b || IndexInList is not { } i) return;
+        var next = Math.Clamp(i + by, 0, b.Messages.Count - 1);
+        if (next == i) return;
+        b.Cursor = next;
+        NavState.Message = b.Messages[next];
+        _copied = null;
+        StateHasChanged();
+    }
+
+    private void CopyBody()
+    {
+        if (NavState.Message is not { } m) return;
+        Clipboard.Copy(m.BodyText);
+        _copied = $"{Icons.Done} Copied the body of #{m.SequenceNumber} ({m.Body.Length:N0} B) to the clipboard";
+        Activity.Record(ActivityKind.Operation, $"Copied the body of #{m.SequenceNumber}", NavState.MessageSource);
+        StateHasChanged();
+    }
 
     private string SourceLabel => NavState.MessageSource is { } source
         ? $"{source.Match(_ => Icons.Queue, _ => Icons.Subscription)} {source.DisplayName}"
@@ -152,9 +272,15 @@ else
         .. NavState.Message is { } msg && NavState.MessageSource is { } source && PluginActions.Any(msg, source, Session.Snapshot)
             ? [new KeyBinding(".", $"{Icons.Actions} Actions…", OpenActions) { Aliases = ["F2"] }]
             : Array.Empty<KeyBinding>(),
+        new("[", "◀ Previous", () => Step(-1)) { InFooter = _browser is { Messages.Count: > 1 } },
+        new("]", "Next ▶", () => Step(1)) { InFooter = _browser is { Messages.Count: > 1 } },
+        new("y", $"{Icons.Body} Copy", CopyBody),
+        .. Tabs(NavState.Message ?? EmptyMessage).Select((t, i) => new KeyBinding($"{i + 1}", t, () => ShowTab(i)) { InFooter = false }),
         new("?", $"{Icons.Confirm} Help", () => _help?.Open(Keys)),
         new("Escape", $"{Icons.Back} Back", GoBack),
     ];
+
+    private static readonly MessageInfo EmptyMessage = new() { SequenceNumber = 0, State = MessageState.Peeked };
 
     private void HandleKeyDown(KeyboardEventArgs e)
     {

@@ -160,6 +160,7 @@ Declare once per action and trigger via `@ref`:
 - UI tests: `AppHarness.Plugins`, `.Settings` (`plugins:<id>:enabled`) and `.PluginHost` (`FakePluginHost` records processes and opened paths)
 
 **Message operations:** `Components/MessageBrowserView.razor` is the shared queue/subscription browser: `<SourceTabs>` (1 Active, 2 Dead-letter; counts from the cached listing) with the browse mode's badge on the right, a full-width strip in Locked and Received mode, relative times in the list, and `<MessagePreview>` as one bordered box (dead-letter reason and description first, then grouped properties beside the body). State lives in `MessageBrowser` (list, selection, locked receiver), kept by the singleton `MessageBrowserStore` so the detail page acts on the same locks.
+- The detail page (`/message`) is the zoom view: tabs 1 Body, 2 Properties, 3 Application, 4 Raw (`MessageJson`), `[ ]` step through the browser's list (its cursor follows), `y` copies the body with OSC 52 (`Clipboard`; `AppHarness.Copied` in tests)
 - *Peek* is read-only; on an active queue *Resend* sends copies.
 - *Receive (PeekLock)* returns `ILockedMessages`: the receiver stays open, locks auto-renew, leftovers are abandoned on dispose. Complete/abandon/dead-letter only work on these.
 - *Receive (ReceiveAndDelete)* removes messages at once; *Requeue* resends them.

@@ -210,6 +210,32 @@ public sealed class MessageBrowserTests
     }
 
     [Test]
+    public async Task Zoom_StepsThroughTheList_SwitchesTabs_AndCopiesTheBody()
+    {
+        var (app, terminal) = await OpenOrdersAsync();
+        await using var _ = terminal;
+        var list = terminal.FocusKey;
+        await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
+        var frame = await terminal.WaitForTextAsync("Message #1", AppHarness.Timeout, Ct);
+        frame.ContainsText(" 1 📄 Body   2 📋 Properties   3 Application   4 Raw ").ShouldBeTrue(frame.ScreenText);
+        frame.ContainsText("[ 1 of 2 ]").ShouldBeTrue(frame.ScreenText);
+        await AppHarness.WaitForFocusAsync(terminal, "0", list);
+
+        await terminal.SendKeyAsync(ConsoleKey.Oem6, ']', cancellationToken: Ct);
+        frame = await terminal.WaitForTextAsync("Message #2", AppHarness.Timeout, Ct);
+        frame.ContainsText("\"id\": 2").ShouldBeTrue(frame.ScreenText);
+        frame.ContainsText("[ 2 of 2 ]").ShouldBeTrue(frame.ScreenText);
+
+        await terminal.SendKeyAsync(ConsoleKey.D2, '2', cancellationToken: Ct);
+        frame = await terminal.WaitForTextAsync("order-paid", AppHarness.Timeout, Ct);
+        frame.ContainsText("Sequence #").ShouldBeTrue(frame.ScreenText);
+
+        await terminal.SendKeyAsync(ConsoleKey.Y, 'y', cancellationToken: Ct);
+        await terminal.WaitForTextAsync("Copied the body of #2", AppHarness.Timeout, Ct);
+        app.Copied.ShouldBe([$"\u001b]52;c;{Convert.ToBase64String(Encoding.UTF8.GetBytes("{\"id\":2}"))}\u0007"]);
+    }
+
+    [Test]
     public async Task Preview_FollowsTheCursor()
     {
         var (_, terminal) = await OpenOrdersAsync();
