@@ -10,6 +10,9 @@ public static class CacheKeys
     public static string AllSubscriptions(NamespaceInfo ns) => $"{ns.FullyQualifiedNamespace}/all-subscriptions.json";
     public static string Subscriptions(NamespaceInfo ns, string topicName) => $"{ns.FullyQualifiedNamespace}/topics/{topicName}/subscriptions.json";
 
+    public static string IncomingByEntity(NamespaceInfo ns, MetricsWindow window) =>
+        $"{ns.FullyQualifiedNamespace}/metrics/incoming-by-entity/{XmlConvert.ToString(window.To - window.From)}-{XmlConvert.ToString(window.Interval)}.json";
+
     // Spans and intervals in ISO 8601, as Azure Monitor names its grains: P1D, PT30M.
     public static string Metrics(NamespaceInfo ns, MetricsScope scope, MetricsWindow window) =>
         $"{ns.FullyQualifiedNamespace}/metrics/{scope.Match(_ => "namespace", e => $"entities/{e.Name}")}/"

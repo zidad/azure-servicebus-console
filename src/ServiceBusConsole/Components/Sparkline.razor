@@ -1,0 +1,19 @@
+<Markup Content="@Blocks" Foreground="@(Points.Any(p => p.Value > 0) ? Theme.Incoming : Theme.Muted)" />
+
+@code {
+    private const string Levels = "▁▂▃▄▅▆▇█";
+
+    /// <summary>One block per point, scaled to the highest: a row's last 24 hours of incoming messages at a glance.</summary>
+    [Parameter, EditorRequired] public required IReadOnlyList<MetricPoint> Points { get; set; }
+
+    /// <summary>Cells when there are no points yet, so the column keeps its width.</summary>
+    [Parameter] public int Width { get; set; } = 24;
+
+    private string Blocks => Points.Count == 0 ? new string(' ', Width) : Of(Points.Select(p => p.Value).ToList());
+
+    /// <summary>Blocks for <paramref name="values"/>: the lowest block for 0, the highest for the maximum.</summary>
+    public static string Of(IReadOnlyList<double> values) =>
+        values.Max() is var max and > 0
+            ? string.Concat(values.Select(v => Levels[(int)Math.Round(v / max * (Levels.Length - 1))]))
+            : new string(Levels[0], values.Count);
+}

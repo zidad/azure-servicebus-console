@@ -69,4 +69,33 @@ public sealed class MonitorMetricsTests
                                  && q.Interval == TimeSpan.FromMinutes(15)
                                  && q.Filter == "EntityName eq 'orders'");
     }
+
+    [Test]
+    public void IncomingByEntity_AsksForEverySeriesOfEntityName_InOneQuery()
+    {
+        var query = MonitorMetrics.IncomingByEntity(Hour);
+
+        query.Metricnames.ShouldBe("IncomingMessages");
+        query.Aggregation.ShouldBe("Total");
+        query.Filter.ShouldBe("EntityName eq '*'");
+        query.Top.ShouldBe(MonitorMetrics.MaxEntities);
+        query.Interval.ShouldBe(TimeSpan.FromMinutes(15));
+    }
+
+    [Test]
+    public void ToEntityTraffic_KeysEachSeriesByItsEntityName_IgnoringCase()
+    {
+        MonitorTimeSeriesElement Series(string entity, params MonitorMetricValue[] values) => ArmMonitorModelFactory.MonitorTimeSeriesElement(
+            [ArmMonitorModelFactory.MonitorMetadataValue(ArmMonitorModelFactory.MonitorLocalizableString("entityname", "EntityName"), entity)], values);
+        var metric = ArmMonitorModelFactory.MonitorMetric(
+            id: "/metrics/IncomingMessages", metricType: "Microsoft.Insights/metrics", name: ArmMonitorModelFactory.MonitorLocalizableString("IncomingMessages", "IncomingMessages"),
+            displayDescription: "", errorCode: "Success", errorMessage: null, unit: MonitorMetricUnit.Count,
+            timeseries: [Series("orders", Value(0, total: 4), Value(30, total: 2)), Series("payments", Value(15, total: 7))]);
+
+        var traffic = MonitorMetrics.ToEntityTraffic(Hour, [metric]);
+
+        traffic.Of("Orders").Select(p => p.Value).ShouldBe([4, 0, 2, 0]);
+        traffic.Of("payments").Select(p => p.Value).ShouldBe([0, 7, 0, 0]);
+        traffic.Of("invoices").ShouldBeEmpty();
+    }
 }

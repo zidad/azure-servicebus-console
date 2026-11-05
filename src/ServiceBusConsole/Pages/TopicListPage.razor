@@ -47,6 +47,7 @@
                             <SpectreTH Align="Justify.Left"><Columns><SortHeader Label="Topic" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
                             <SpectreTH Align="Justify.Right"><SortHeader Label="Subscriptions" Icon="@Icons.Subscription" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /></SpectreTH>
                             <SpectreTH Align="Justify.Right"><SortHeader Label="Scheduled" Icon="@Icons.Scheduled" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /></SpectreTH>
+                            @if (_traffic is not null) { <SpectreTH Align="Justify.Left">Incoming · 24 h</SpectreTH> }
                             <SpectreTH></SpectreTH>
                         </SpectreTR>
                     </SpectreTHead>
@@ -61,6 +62,7 @@
                                 <SpectreTD>@t.Name</SpectreTD>
                                 <SpectreTD Align="Justify.Right"><CountCell Value="@t.SubscriptionCount" Highlight="@List.Changes.Highlight(t, "Subscriptions")" /></SpectreTD>
                                 <SpectreTD Align="Justify.Right"><CountCell Value="@t.ScheduledMessageCount" Color="@Theme.Scheduled" Highlight="@List.Changes.Highlight(t, "Scheduled")" /></SpectreTD>
+                                @if (_traffic is { } traffic) { <SpectreTD><Sparkline Points="@traffic.Of(t.Name)" /></SpectreTD> }
                                 <SpectreTD>@if (t.IsRefreshing) { <Spinner /> }</SpectreTD>
                             </SelectableRow>
                         }
@@ -115,11 +117,28 @@
     private MetricsPanel? _metricsPanel;
     private bool ShowMetrics => Connection.Current is IHasMetrics && MetricsVisibility.IsVisible(Viewport.Height);
 
-    public void Dispose() => _live?.Dispose();
+    public void Dispose()
+    {
+        _live?.Dispose();
+        _traffic?.Dispose();
+    }
+
+    private IncomingTraffic? _traffic;
+
+    /// <summary>The sparkline column: with Azure Monitor metrics and room for it.</summary>
+    private void StartTraffic()
+    {
+        if (Connection.Current is not IHasMetrics { Metrics: var metrics } || Viewport.Width < MinTrafficWidth) return;
+        _traffic = new IncomingTraffic(metrics, LiveCounts, Logger) { Changed = () => InvokeAsync(StateHasChanged) };
+        _ = _traffic.RunAsync();
+    }
+
+    private const int MinTrafficWidth = 110;
 
 
     protected override void OnInitialized()
     {
+        StartTraffic();
         _live = new LiveList<TopicInfo>(ct => Topics.GetTopicsAsync(ct), t => t.Name, x => x.IsRefreshing,
             new(t => t.Name, ("Subscriptions", x => x.SubscriptionCount), ("Scheduled", x => x.ScheduledMessageCount)),
             LiveCounts, Logger)

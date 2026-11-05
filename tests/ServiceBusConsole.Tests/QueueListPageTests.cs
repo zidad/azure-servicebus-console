@@ -130,6 +130,32 @@ public sealed class QueueListPageTests
     }
 
     [Test]
+    public async Task IncomingSparklines_OneRequestForAllQueues_NoneForTheEmulator()
+    {
+        var app = WithQueues();
+        app.Metrics.TrafficEntities.AddRange(["payments", "orders"]);
+        await using var terminal = await app.OpenAzureAsync(ConsoleKey.F1);
+
+        static string Row(TerminalFrame f, string queue) =>
+            Enumerable.Range(0, f.Height).Select(f.GetLine).First(l => l.StartsWith('│') && l.Contains($" {queue} "));
+        var frame = await terminal.WaitUntilAsync(f => f.ContainsText("Queues (3)") && Row(f, "payments").Contains('█'),
+            AppHarness.Timeout, cancellationToken: Ct);
+        Row(frame, "orders").ShouldContain("█");
+        Row(frame, "emails").ShouldNotContain("▁");
+        app.Metrics.TrafficLoads.ShouldBe(1);
+
+        await using var emulator = await WithQueues().OpenQueuesAsync();
+        (await emulator.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct)).ContainsText("Incoming · 24 h").ShouldBeFalse();
+    }
+
+    [Test]
+    public void Sparkline_ScalesToTheHighest_ZeroIsTheLowestBlock()
+    {
+        ServiceBusConsole.Components.Sparkline.Of([0, 5, 10]).ShouldBe("▁▅█");
+        ServiceBusConsole.Components.Sparkline.Of([0, 0]).ShouldBe("▁▁");
+    }
+
+    [Test]
     public async Task TypingFiltersTheList()
     {
         await using var terminal = await WithQueues().OpenQueuesAsync();

@@ -183,6 +183,7 @@ public sealed class Screenshots
             new QueueInfo { Name = "audit-log", TransferMessageCount = 2 },
             new QueueInfo { Name = "invoices" },
         ]);
+        app.Metrics.TrafficEntities.AddRange(["payments", "orders", "emails", "audit-log", "order-events", "notifications"]);
         app.Topics.Topics.AddRange(
         [
             new TopicInfo { Name = "order-events", SubscriptionCount = 3 },
