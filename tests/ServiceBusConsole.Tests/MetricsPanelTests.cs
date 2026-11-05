@@ -339,7 +339,8 @@ public sealed class MetricsPanelTests
         app.Namespaces.Subscriptions.Add(AppHarness.AzureSubscription);
         app.Namespaces.Namespaces.Add(AppHarness.AzureNamespace);
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
-        await using var terminal = await app.StartAsync(height: 36);
+        app.MetricsOptions.AutoShowHeight = 30; // shown by default, but the connection page needs more lines
+        await using var terminal = await app.StartAsync(height: 30);
         await AppHarness.WaitForTableFocusAsync(terminal);
         await app.SelectAzureNamespaceAsync(terminal, AppHarness.AzureNamespace);
         await Task.Delay(app.MetricsOptions.Debounce * 2, Ct);

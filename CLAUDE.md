@@ -142,7 +142,7 @@ Declare once per action and trigger via `@ref`:
               OnCompleted="@(m => { _messages.Remove(m); StateHasChanged(); return Task.CompletedTask; })" />
 ```
 
-- Omit `ConfirmMessage` to run without a confirm prompt.
+- Omit `ConfirmMessage` to run without a confirm prompt. `ConfirmByTyping` (purges) makes the user type the entity's name; y doesn't confirm then.
 - `TItem` is the thing acted on and never null (`where TItem : notnull`): the focused name, the message, or the `MessageSource` for a page-wide Purge. Invoke only when it exists: `if (_focusedItem is { } item) _cmd?.Invoke(item)`.
 - `Execute` may return any `Task`/`Task<T>`; exceptions are caught and shown in the component's own `ErrorModal`.
 - A page may still keep its own `_error`/`_loading` + `ErrorModal` for non-command paths like initial load (`PeekMessages`, streaming list loads) — those aren't async commands.

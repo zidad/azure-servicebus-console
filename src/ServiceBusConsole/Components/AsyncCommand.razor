@@ -3,6 +3,7 @@
 
 <ConfirmModal IsOpened="@(_pending is not null)"
               Message="@(_pending?.Text ?? "")"
+              MustType="@_pending?.MustType"
               OnConfirm="ExecuteConfirmed"
               OnCancel="Cancel" />
 
@@ -11,13 +12,16 @@
 @code {
     /// <summary>Confirm prompt for the item; without it the command runs at once.</summary>
     [Parameter] public Func<TItem, string>? ConfirmMessage { get; set; }
+
+    /// <summary>What the user types to confirm, e.g. the entity a purge empties; with it, y doesn't confirm.</summary>
+    [Parameter] public Func<TItem, string>? ConfirmByTyping { get; set; }
     [Parameter, EditorRequired] public required Func<TItem, Task> Execute { get; set; }
     [Parameter] public Func<TItem, Task>? OnCompleted { get; set; }
     [Parameter] public Func<Exception, string>? FormatError { get; set; }
     /// <summary>What a successful run did, for the session's activity log; commands that record their own outcome omit it.</summary>
     [Parameter] public Func<TItem, string>? Activity { get; set; }
 
-    private sealed record Pending(TItem Item, string Text);
+    private sealed record Pending(TItem Item, string Text, string? MustType);
 
     private Pending? _pending;
     private bool _running;
@@ -34,7 +38,7 @@
             _ = RunAsync(item);
             return;
         }
-        _pending = new(item, ConfirmMessage(item));
+        _pending = new(item, ConfirmMessage(item), ConfirmByTyping?.Invoke(item));
         StateHasChanged();
     }
 
@@ -48,6 +52,13 @@
     public bool HandleKey(KeyboardEventArgs e)
     {
         if (_pending is null) return false;
+        // Typing to confirm: the keys are text in the modal's input, only Escape cancels from here.
+        if (_pending.MustType is not null)
+        {
+            if (e.Key != "Escape") return false;
+            Cancel();
+            return true;
+        }
         switch (e.Key)
         {
             case "Y" or "y" or "Enter": ExecuteConfirmed(); return true;

@@ -101,7 +101,7 @@ public sealed class Screenshots
         app.Services.Transactions.Hold.SetResult();
         await terminal.WaitForTextAsync("Retried 2 of 2.", AppHarness.Timeout, Ct);
         await Save(terminal, dir, "retry-result");
-        await AppHarness.ClickTextAsync(terminal, "[Enter] OK");
+        await AppHarness.ClickTextAsync(terminal, "⏎  OK");
         await terminal.WaitUntilAsync(f => !f.ContainsText("Retrying 2 messages") && !f.ContainsText("selected"), AppHarness.Timeout, cancellationToken: Ct);
         await AppHarness.WaitForTableFocusAsync(terminal);
         await Key(terminal, ConsoleKey.Escape, '\u001b');

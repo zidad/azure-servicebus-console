@@ -1,7 +1,7 @@
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 
 <ModalWindow IsOpened="@IsOpened">
-    <Panel Title="❓ Keys" BorderColor="@Theme.Accent" Padding="@(new(2, 1, 2, 1))">
+    <Panel Border="BoxBorder.Rounded" Title="❓ Keys" BorderColor="@Theme.Accent" Padding="@(new(2, 1, 2, 1))">
         <Rows>
             <Markup Content="Letters act on the page; / filters. F-keys from earlier versions still work." Foreground="@Theme.Muted" />
             <Newline />

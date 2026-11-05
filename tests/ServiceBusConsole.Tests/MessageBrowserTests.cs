@@ -288,9 +288,14 @@ public sealed class MessageBrowserTests
         var (app, terminal) = await OpenOrdersAsync();
         await using var _ = terminal;
 
+        var table = terminal.FocusKey;
         await terminal.SendKeyAsync(ConsoleKey.F11, '\0', cancellationToken: Ct);
-        await terminal.WaitForTextAsync("Purge ALL messages", AppHarness.Timeout, Ct);
-        await terminal.SendKeyAsync(ConsoleKey.Y, 'y', cancellationToken: Ct);
+        await terminal.WaitForTextAsync("Type orders to confirm", AppHarness.Timeout, Ct);
+        await AppHarness.WaitForFocusAsync(terminal, "0", table);
+        await terminal.TypeAsync("order\r", Ct);
+        await Task.Delay(200, Ct);
+        app.Messages.Purged.ShouldBeEmpty();
+        await terminal.TypeAsync("s\r", Ct);
 
         await ClickOkAsync(terminal, "Purged 2 message(s).");
         await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
@@ -312,7 +317,7 @@ public sealed class MessageBrowserTests
 
         // The result stays up until OK; only then back to the list.
         var frame = await terminal.WaitForTextAsync("Retried 2 of 2.", AppHarness.Timeout, Ct);
-        frame.ContainsText("[Enter] OK").ShouldBeTrue(frame.ScreenText);
+        frame.ContainsText("⏎  OK").ShouldBeTrue(frame.ScreenText);
         frame.ContainsText("Queues (1)").ShouldBeFalse(frame.ScreenText);
         app.Messages.Completed.Order().ShouldBe([1L, 2L]);
 
@@ -382,9 +387,9 @@ public sealed class MessageBrowserTests
 
     private static async Task ClickOkAsync(RazorConsole.Testing.HeadlessTerminal terminal, string result)
     {
-        var frame = await terminal.WaitUntilAsync(f => f.ContainsText(result) && f.ContainsText("[Enter] OK"), AppHarness.Timeout, cancellationToken: Ct);
-        var y = Enumerable.Range(0, frame.Height).First(y => frame.GetLine(y).Contains("[Enter] OK"));
-        await terminal.ClickAsync(frame.GetLine(y).IndexOf("[Enter] OK", StringComparison.Ordinal) + 2, y, Ct);
+        var frame = await terminal.WaitUntilAsync(f => f.ContainsText(result) && f.ContainsText("⏎  OK"), AppHarness.Timeout, cancellationToken: Ct);
+        var y = Enumerable.Range(0, frame.Height).First(y => frame.GetLine(y).Contains("⏎  OK"));
+        await terminal.ClickAsync(frame.GetLine(y).IndexOf("⏎  OK", StringComparison.Ordinal) + 2, y, Ct);
     }
 
     private static string Line(RazorConsole.Testing.TerminalFrame frame, string text)
@@ -461,7 +466,7 @@ public sealed class MessageBrowserTests
         await terminal.SendKeyAsync(ConsoleKey.F10, '\0', cancellationToken: Ct);
         await terminal.WaitForTextAsync("Retry 2 messages?", AppHarness.Timeout, Ct);
         await terminal.SendKeyAsync(ConsoleKey.Y, 'y', cancellationToken: Ct);
-        await terminal.WaitForTextAsync("[Esc] Cancel", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("esc  Cancel", AppHarness.Timeout, Ct);
         // Escape reaches the browser through the table; it gets focus back once the confirm modal is gone.
         await AppHarness.WaitForTableFocusAsync(terminal);
 

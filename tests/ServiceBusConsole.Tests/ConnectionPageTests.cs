@@ -34,7 +34,7 @@ public sealed class ConnectionPageTests
 
         await app.SelectAzureNamespaceAsync(terminal, app.Namespaces.Namespaces[1]);
         var frame = terminal.CurrentFrame;
-        frame.ContainsText("Premium · North Europe · rg-b · Active").ShouldBeTrue(frame.ScreenText);
+        frame.ContainsText("Premium   North Europe   rg-b                  ✅ Active").ShouldBeTrue(frame.ScreenText);
         var connectionFocus = terminal.FocusKey;
 
         await terminal.SendKeyAsync(ConsoleKey.F1, '\0', cancellationToken: Ct);

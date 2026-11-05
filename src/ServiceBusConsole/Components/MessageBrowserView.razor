@@ -167,6 +167,7 @@
 
 <AsyncCommand @ref="_purge" TItem="MessageSource"
               ConfirmMessage="@(source => $"Purge ALL messages from {source.DisplayName}? This cannot be undone.")"
+              ConfirmByTyping="@(source => source.Match(q => q.Name, s => s.Name))"
               Execute="@(_ => Browser.PurgeAsync())" />
 
 @code {

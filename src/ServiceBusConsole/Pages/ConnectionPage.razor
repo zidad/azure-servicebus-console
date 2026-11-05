@@ -15,9 +15,13 @@
 @* With the metrics panel, a column of the terminal's height keeps it at the bottom, wherever the lists end. *@
 <Flex Direction="FlexDirection.Column" Height="@(ShowMetrics ? Viewport.Height - 1 : null)" Justify="FlexJustify.SpaceBetween" FillWidth="true">
     <Rows FillWidth="true">
-        <Figlet Content="SB Console" Color="@Theme.Accent" Justify="Justify.Left" />
+        <Columns>
+            <Markup Content="azsb" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
+            <Markup Content=" │ " Foreground="@Theme.Border" />
+            <Markup Content="@($"{Icons.Connection} Connect")" Decoration="@Decoration.Bold" />
+        </Columns>
+        <Markup Content="@(new string('─', Math.Max(1, Viewport.Width)))" Foreground="@Theme.Border" />
 
-        <Panel Title="@($"{Icons.Connection} Connection")" BorderColor="@Theme.Border" FillWidth="true" Padding="@(new(1, 0, 1, 0))">
             <Rows>
                 <ConnectionTree @ref="_tree"
                                 MaxRows="@TreeRows"
@@ -49,7 +53,6 @@
                     <KeyHints Bindings="@Keys" FirstFocusOrder="4" OnKeyDown="@HandleKeyDown" />
                 </Padder>
             </Rows>
-        </Panel>
 
         <Padder Padding="@(new(0, 1, 0, 0))">
             <Columns>
@@ -82,9 +85,9 @@
 <HelpDialog @ref="_help" OnClose="@(() => _tree?.FocusAsync() ?? Task.CompletedTask)" />
 
 @code {
-    // Figlet 6; panel 2 + tree table chrome 4 + buttons 2 + cache row 2.
-    private const int LogoLines = 6;
-    private const int ChromeLines = 10;
+    // Title line and rule 2; tree table chrome 4 + buttons 2 + cache row 2.
+    private const int LogoLines = FullscreenLayout.Header;
+    private const int ChromeLines = 8;
     private const int MinTreeRows = 8;
 
     // The metrics panel, and the line the terminal-high column leaves free.
