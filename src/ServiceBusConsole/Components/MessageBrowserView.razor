@@ -144,6 +144,7 @@
 
 <MessageActionsDialog @ref="_actions" OnClosed="StateHasChanged" />
 <HelpDialog @ref="_help" OnClose="@(() => _tbody is { } t ? FocusManager.FocusAsync(t.FocusKey) : Task.CompletedTask)" />
+<JumpDialog @ref="_jump" OnCancel="FocusTable" />
 
 <AsyncCommand @ref="_complete" TItem="IReadOnlyList<MessageInfo>"
               ConfirmMessage="@(l => $"Complete {Count(l)}? They are removed from {Source.DisplayName}.")"
@@ -188,6 +189,7 @@
     private FetchDialog? _receiveDialog;
     private MessageActionsDialog? _actions;
     private HelpDialog? _help;
+    private JumpDialog? _jump;
     private AsyncCommand<IReadOnlyList<MessageInfo>>? _complete;
     private AsyncCommand<IReadOnlyList<MessageInfo>>? _abandon;
     private AsyncCommand<IReadOnlyList<MessageInfo>>? _deadLetter;
@@ -207,7 +209,7 @@
 
     private IEnumerable<AsyncCommand<IReadOnlyList<MessageInfo>>?> ListCommands => [_complete, _abandon, _deadLetter, _retry, _resend];
     private bool IsBusy => _loading is not null || ListCommands.Any(c => c?.IsBusy == true) || _purge?.IsBusy == true;
-    private bool IsDialogOpen => _peekDialog?.IsOpened == true || _receiveDialog?.IsOpened == true || _actions?.IsOpened == true || _help?.IsOpened == true;
+    private bool IsDialogOpen => _peekDialog?.IsOpened == true || _receiveDialog?.IsOpened == true || _actions?.IsOpened == true || _help?.IsOpened == true || _jump?.IsOpened == true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -356,6 +358,7 @@
         new(" ", "Select", () => { }) { InFooter = false },
         new("a", "Select all", () => { Browser.SelectAll(); StateHasChanged(); }) { Ctrl = true, InFooter = false },
         new("i", "Invert the selection", () => { Browser.InvertSelection(); StateHasChanged(); }) { InFooter = false },
+        new(":", $"{Icons.Filter} Jump", () => _ = _jump?.OpenAsync()) { InFooter = false },
         new("?", $"{Icons.Confirm} Help", () => _help?.Open(Keys)),
         new("Escape", $"{Icons.Back} Back", GoBack),
     ];

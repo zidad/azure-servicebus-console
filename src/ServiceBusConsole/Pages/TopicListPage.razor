@@ -83,6 +83,7 @@
 
 <ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
 <HelpDialog @ref="_help" OnClose="FocusTable" />
+<JumpDialog @ref="_jump" OnCancel="FocusTable" />
 
 @if (Connection.Current is IHasDeletion { Deletion: var deletion })
 {
@@ -102,6 +103,7 @@
     private List<TopicInfo> _filtered = [];
     private readonly ListFilter _filter = new();
     private HelpDialog? _help;
+    private JumpDialog? _jump;
     private int _selectedIndex;
     private string? _focusedItem;
     private string _error = string.Empty;
@@ -207,7 +209,7 @@
     private IReadOnlyList<KeyBinding> Keys =>
     [
         new("Enter", $"{Icons.Subscription} Subscriptions", OpenFocused) { InFooter = false },
-        new("/", $"{Icons.Filter} Filter", () => { _filter.Edit(); StateHasChanged(); }),
+        new("/", $"{Icons.Filter} Filter", () => { _filter.Edit(); StateHasChanged(); }) { InFooter = false },
         new("r", $"{Icons.Refresh} Refresh", () => _ = LoadTopics()) { Ctrl = true, Aliases = ["F5"] },
         .. Connection.Current is IHasDeletion
             ? [new KeyBinding("D", $"{Icons.Delete} Delete", () => OnFocused(_deleteTopic)) { Danger = true, Aliases = ["F9", "Delete", "\\"] }]
@@ -216,6 +218,7 @@
             ? [new KeyBinding("m", $"{Icons.Metrics} Metrics", ToggleMetrics) { Aliases = ["F12"] }]
             : Array.Empty<KeyBinding>(),
         .. SectionTabs.Bindings(Connection.Current, Section.Topics, Nav),
+        new(":", $"{Icons.Filter} Jump", () => _ = _jump?.OpenAsync()),
         new("?", $"{Icons.Confirm} Help", () => _help?.Open(Keys)),
         new("Escape", $"{Icons.Back} Back", () => Nav.NavigateTo("/")),
     ];

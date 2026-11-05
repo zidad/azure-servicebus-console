@@ -51,6 +51,16 @@ public sealed class Screenshots
         await terminal.WaitUntilAsync(f => !f.ContainsText("Go to"), AppHarness.Timeout, cancellationToken: Ct);
 
         await AppHarness.WaitForTableFocusAsync(terminal);
+        var queuesTable = terminal.FocusKey;
+        await terminal.SendKeyAsync(ConsoleKey.Oem1, ':', ConsoleModifiers.Shift, Ct);
+        await AppHarness.WaitForFocusAsync(terminal, "100", queuesTable);
+        await terminal.TypeAsync("pay", Ct);
+        await terminal.WaitForTextAsync("📬 payments", AppHarness.Timeout, Ct);
+        await Save(terminal, dir, "jump");
+        await Key(terminal, ConsoleKey.Escape, '\u001b');
+        await terminal.WaitUntilAsync(f => !f.ContainsText("Jump to"), AppHarness.Timeout, cancellationToken: Ct);
+
+        await AppHarness.WaitForTableFocusAsync(terminal);
         await Key(terminal, ConsoleKey.F9);
         await terminal.WaitForTextAsync("Delete queue", AppHarness.Timeout, Ct);
         await Save(terminal, dir, "confirm-delete");

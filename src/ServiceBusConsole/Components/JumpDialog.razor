@@ -1,0 +1,143 @@
+@inject RazorConsole.Core.Focus.FocusManager FocusManager
+@inject ServiceBusConnection Connection
+@inject FileCache Cache
+@inject NavigationManager Nav
+@inject NavigationState NavState
+
+<ModalWindow IsOpened="@IsOpened">
+    <Panel Title="@($"{Icons.Filter} Jump to")" BorderColor="@Theme.Accent" Border="BoxBorder.Rounded" Width="@Width" Padding="@(new(1, 0, 1, 0))">
+        <Rows>
+            @* No Value binding: a render that lags behind typing would overwrite it. A new input each time it opens starts empty. *@
+            <TextInput @ref="_input" @key="_opened" OnInput="@OnQuery" OnSubmit="@(_ => Open())"
+                       Placeholder="queue, topic or subscription" FocusOrder="100" @onkeydown="HandleKey" FillWidth="true" />
+            @if (_loading)
+            {
+                <Markup Content="Listing…" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+            }
+            else if (_results.Count == 0)
+            {
+                <Markup Content="Nothing matches." Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+            }
+            @foreach (var (target, index) in _results.Select((t, i) => (t, i)))
+            {
+                var current = index == _cursor;
+                <div class="jump-result" @onclick="@(() => Open(target))">
+                    <Markup Content="@Line(target)" Background="@(current ? Theme.Selection : Color.Default)" Foreground="@(current ? Theme.OnSelection : Color.Default)" />
+                </div>
+            }
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Markup Content="⏎ open · ↑↓ move · esc close" Foreground="@Theme.Muted" />
+            </Padder>
+        </Rows>
+    </Panel>
+</ModalWindow>
+
+@code {
+    /// <summary>
+    /// Opened with <c>:</c>: finds a queue, topic or subscription of the current namespace by name (<see cref="JumpIndex"/>)
+    /// and opens it. Lists from the cached listings, or live when one isn't cached yet.
+    /// </summary>
+    public bool IsOpened { get; private set; }
+
+    /// <summary>Gives focus back when closed without opening anything.</summary>
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private const int Width = 84;
+
+    private TextInput? _input;
+    private bool _focusPending;
+    private bool _loading;
+    private string _query = "";
+    private int _opened;
+    private int _cursor;
+    private IReadOnlyList<JumpTarget> _targets = [];
+    private IReadOnlyList<JumpTarget> _results = [];
+
+    public async Task OpenAsync()
+    {
+        IsOpened = true;
+        _opened++;
+        _query = "";
+        _cursor = 0;
+        _focusPending = true;
+        _loading = true;
+        StateHasChanged();
+        _targets = await LoadAsync();
+        _loading = false;
+        Search();
+        StateHasChanged();
+    }
+
+    private async Task<IReadOnlyList<JumpTarget>> LoadAsync()
+    {
+        if (Connection.Current is not { Info: var ns } current) return [];
+        var queues = await Cache.LoadAsync<QueueInfo>(CacheKeys.Queues(ns)) ?? await current.Queues.GetQueuesAsync().ToListAsync();
+        if (current is not IHasTopics { Topics: var topicService }) return [.. queues.Select(q => new JumpTarget.Queue(q))];
+        var topics = await Cache.LoadAsync<TopicInfo>(CacheKeys.Topics(ns)) ?? await topicService.GetTopicsAsync().ToListAsync();
+        var subscriptions = await Cache.LoadAsync<SubscriptionInfo>(CacheKeys.AllSubscriptions(ns)) ?? await topicService.GetAllSubscriptionsAsync().ToListAsync();
+        return [.. queues.Select(q => (JumpTarget)new JumpTarget.Queue(q)),
+                .. topics.Select(t => new JumpTarget.Topic(t)),
+                .. subscriptions.Select(s => new JumpTarget.Subscription(s))];
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusPending || _input is null) return;
+        _focusPending = false;
+        await FocusManager.FocusAsync(_input.FocusKey);
+    }
+
+    private void OnQuery(string? query)
+    {
+        // The : that opened the dialog can reach the input when focus moves first.
+        _query = (query ?? "").TrimStart(':');
+        _cursor = 0;
+        Search();
+    }
+
+    private void Search() => _results = JumpIndex.Search(_query, _targets);
+
+    private string Line(JumpTarget t)
+    {
+        var info = t.DeadLetters > 0 ? $"{Icons.DeadLetter} {t.DeadLetters:N0}" : "";
+        var name = t.Label.Length > 54 ? t.Label[..53] + "…" : t.Label;
+        return $" {name.PadRight(56)}{t.Kind.PadRight(14)}{info}".PadRight(Width - 4);
+    }
+
+    private void HandleKey(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "Escape": _ = Close(); return;
+            case "ArrowDown": _cursor = Math.Min(_cursor + 1, Math.Max(0, _results.Count - 1)); StateHasChanged(); return;
+            case "ArrowUp": _cursor = Math.Max(0, _cursor - 1); StateHasChanged(); return;
+        }
+    }
+
+    private void Open()
+    {
+        if (_results.ElementAtOrDefault(_cursor) is { } target) Open(target);
+    }
+
+    private void Open(JumpTarget target)
+    {
+        IsOpened = false;
+        target.Match(
+            q => { NavState.FocusedQueueName = q.Info.Name; Nav.NavigateTo($"/queues/{Uri.EscapeDataString(q.Info.Name)}"); return 0; },
+            t => { NavState.TopicName = t.Info.Name; Nav.NavigateTo("/topic-detail"); return 0; },
+            s =>
+            {
+                (NavState.TopicName, NavState.SubscriptionName, NavState.ReturnPath) = (s.Info.TopicName, s.Info.Name, "/subscriptions");
+                Nav.NavigateTo("/subscription-browser");
+                return 0;
+            });
+    }
+
+    private async Task Close()
+    {
+        if (!IsOpened) return;
+        IsOpened = false;
+        StateHasChanged();
+        await OnCancel.InvokeAsync();
+    }
+}
