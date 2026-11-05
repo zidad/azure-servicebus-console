@@ -17,6 +17,7 @@
     </Header>
     <Status>@if (_live is { } live) { <LiveStatus List="@live" /> }</Status>
     <Content>
+        <SectionTabs Current="@Section.Topics" Count="@(_all.Count > 0 ? _all.Count : null)" />
         @if (_all.Count == 0 && _loadFailed)
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
@@ -35,7 +36,7 @@
         else
         {
             <SelectableList Items="@_filtered"
-                        PageSize="@FullscreenLayout.PageSizeRoundedTable(Viewport.Height, ShowMetrics)"
+                        PageSize="@FullscreenLayout.PageSizeRoundedTable(Viewport.Height, ShowMetrics, tabs: true)"
                         Scrollbar="@Theme.Scrollbar()"
                         SelectedIndex="@_selectedIndex"
                         SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _filtered.ElementAtOrDefault(i)?.Name; })"
@@ -63,7 +64,7 @@
                                 <SpectreTD>@if (t.IsRefreshing) { <Spinner /> }</SpectreTD>
                             </SelectableRow>
                         }
-                        <FillerRows Count="@(FullscreenLayout.PageSizeRoundedTable(Viewport.Height, ShowMetrics) - context.Items.Count)" />
+                        <FillerRows Count="@(FullscreenLayout.PageSizeRoundedTable(Viewport.Height, ShowMetrics, tabs: true) - context.Items.Count)" />
                     </NavigableTBody>
                 </SpectreTable>
             </SelectableList>
@@ -195,6 +196,7 @@
         .. Connection.Current is IHasMetrics
             ? [new KeyBinding("m", $"{Icons.Metrics} Metrics", ToggleMetrics) { Aliases = ["F12"] }]
             : Array.Empty<KeyBinding>(),
+        .. SectionTabs.Bindings(Connection.Current, Section.Topics, Nav),
         new("?", $"{Icons.Confirm} Help", () => _help?.Open(Keys)),
         new("Escape", $"{Icons.Back} Back", () => Nav.NavigateTo("/")),
     ];

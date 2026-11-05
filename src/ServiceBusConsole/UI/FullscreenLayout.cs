@@ -9,6 +9,9 @@ public static class FullscreenLayout
     /// <summary><see cref="ConnectionHeader"/>: the breadcrumb line and a rule — 2 lines.</summary>
     public const int Header = 2;
 
+    /// <summary><see cref="SectionTabs"/> under the header of a section's list page — 1 line.</summary>
+    public const int Tabs = 1;
+
     /// <summary><c>Padder(0,1,0,0)</c> + a single-line count/status markup — 2 lines.</summary>
     public const int CountRow = 2;
 
@@ -45,9 +48,12 @@ public static class FullscreenLayout
     public static int PageSizeRoundedTable(int terminalHeight)
         => PageSize(terminalHeight, Header + RoundedTableChrome + FooterButtons);
 
-    /// <summary><see cref="PageSizeRoundedTable(int)"/> with the metrics panel above the buttons when <paramref name="metrics"/>.</summary>
-    public static int PageSizeRoundedTable(int terminalHeight, bool metrics)
-        => PageSize(terminalHeight, Header + RoundedTableChrome + FooterButtons + (metrics ? MetricsPanel : 0));
+    /// <summary>
+    /// <see cref="PageSizeRoundedTable(int)"/> with the metrics panel above the buttons when <paramref name="metrics"/>,
+    /// and <see cref="SectionTabs"/> under the header when <paramref name="tabs"/>.
+    /// </summary>
+    public static int PageSizeRoundedTable(int terminalHeight, bool metrics, bool tabs = false)
+        => PageSize(terminalHeight, Header + (tabs ? Tabs : 0) + RoundedTableChrome + FooterButtons + (metrics ? MetricsPanel : 0));
 
     /// <summary>
     /// Message browser: list rows on top and the preview of the focused message below, about half each.
