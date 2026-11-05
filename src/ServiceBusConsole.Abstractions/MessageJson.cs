@@ -17,6 +17,7 @@ public static class MessageJson
         ["enqueuedTime"] = ContextText.Time(message.EnqueuedTime),
         ["deliveryCount"] = message.DeliveryCount,
         ["deadLetterReason"] = message.DeadLetterReason,
+        ["deadLetterErrorDescription"] = message.DeadLetterErrorDescription,
         ["properties"] = Properties(message.Properties),
         ["body"] = ContextText.JsonBody(message) ?? JsonValue.Create(message.BodyText),
     };

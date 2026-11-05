@@ -27,6 +27,8 @@ public static class Theme
     public static Color Chip => Palette.Chip;
     public static Color OnChip => Palette.OnChip;
     public static Color OnDanger => Palette.OnDanger;
+    public static Color OnAccent => Palette.OnAccent;
+    public static Color OnWarning => Palette.OnWarning;
 
     /// <inheritdoc cref="Palette.Hover"/>
     public static Color Hover => Palette.Hover;

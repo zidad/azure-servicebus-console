@@ -19,23 +19,33 @@
         @if (_isAutoForwarding) { <Markup Content="@($"· {Icons.Transfer} auto-forwarding")" Foreground="@Theme.Transfer" /> }
     </Header>
     <Content>
+        <SourceTabs Entity="@Entity" IsDlq="@_isDlq" OnSwitch="@(dlq => { _ = SwitchDlq(dlq); })">
+            <Columns>
+                <Markup Content="@($" {ModeBadge(Mode)} ")" Background="@ModeColor(Mode)" Foreground="@OnModeColor(Mode)" Decoration="@Decoration.Bold" />
+                <Markup Content="@ModeNote(Mode)" Foreground="@Theme.Muted" />
+            </Columns>
+        </SourceTabs>
         @* A load shows the spinner only until its first page arrives; then the list fills in. *@
         @if (_browser is not { } browser || (_loading is not null && browser.Messages.Count == 0))
         {
-            <Padder Padding="@(new(0, 1, 0, 0))">
-                <Columns>
-                    <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
-                    <Markup Content="@(_loading ?? "Loading…")" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
-                    @if (_loading is not null) { <Markup Content="· Esc cancels" Foreground="@Theme.Muted" /> }
-                </Columns>
-            </Padder>
+            <Columns>
+                <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                <Markup Content="@(_loading ?? "Loading…")" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+                @if (_loading is not null) { <Markup Content="· Esc cancels" Foreground="@Theme.Muted" /> }
+            </Columns>
         }
         else if (browser.Messages.Count > 0)
         {
             var showChecks = browser.Selected.Count > 0;
-            <Padder Padding="@(new(0, 1, 0, 0))">
+            @if (browser.Mode != BrowseMode.Peek && browser.Operation is not { Modal: false })
+            {
+                @* Locked or already deleted: a full-width strip, hard to miss. *@
+                <Markup Content="@ModeStrip(browser).PadRight(Math.Max(0, Viewport.Width - 2))" Background="@ModeColor(browser.Mode)" Foreground="@OnModeColor(browser.Mode)" Decoration="@Decoration.Bold" />
+            }
+            else
+            {
                 <Columns>
-                    <Markup Content="@StatusCount(browser)" Foreground="@(browser.Mode == BrowseMode.Received ? Theme.Danger : Color.Default)" />
+                    <Markup Content="@StatusCount(browser)" />
                     @if (browser.Selected.Count > 0)
                     {
                         <Markup Content="@($"· {Icons.Selected} {browser.Selected.Count} selected")" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
@@ -50,7 +60,7 @@
                         <Markup Content="· space select, ^a all, i invert" Foreground="@Theme.Muted" />
                     }
                 </Columns>
-            </Padder>
+            }
 
             <SelectableList Items="@browser.Messages"
                         PageSize="@Split.Rows"
@@ -92,7 +102,7 @@
                                 <SpectreTD>@Truncate(m.MessageId, 30)</SpectreTD>
                                 <SpectreTD>@Truncate(m.Subject, 25)</SpectreTD>
                                 @if (_isDlq) { <SpectreTD><Markup Content="@Truncate(m.DeadLetterReason ?? "", 25)" Foreground="@Theme.Danger" /></SpectreTD> }
-                                <SpectreTD>@m.EnqueuedTime.LocalDateTime.ToString("MM-dd HH:mm:ss")</SpectreTD>
+                                <SpectreTD><Markup Content="@RelativeTime.Ago(m.EnqueuedTime, DateTimeOffset.UtcNow)" Foreground="@Theme.Muted" /></SpectreTD>
                                 <SpectreTD Align="Justify.Right"><Markup Content="@m.DeliveryCount.ToString()" Foreground="@(m.DeliveryCount > 1 ? Theme.Warning : Theme.Muted)" /></SpectreTD>
                                 @if (browser.Mode == BrowseMode.Locked)
                                 {
@@ -109,15 +119,14 @@
 
             @if (browser.Focused is { } focused)
             {
-                <MessagePreview Message="@focused" Browser="@browser" Width="@Viewport.Width" Height="@PreviewHeight(browser)" BodyFocusOrder="2" OnKeyDown="@HandleKeyDown" />
+                <MessagePreview Message="@focused" Browser="@browser" Width="@Viewport.Width" Height="@PreviewHeight(browser)" BodyFocusOrder="2" OnKeyDown="@HandleKeyDown"
+                                Title="@($"{Icons.Message} #{focused.SequenceNumber} · {browser.Cursor + 1} of {browser.Messages.Count} · ⏎ zoom")" />
             }
         }
         else
         {
-            <Padder Padding="@(new(0, 1, 0, 0))">
-                <Markup Content="@(_isAutoForwarding ? "Auto-forwarding enabled — messages are forwarded to another entity." : EmptyText(browser.Mode))"
-                        Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
-            </Padder>
+            <Markup Content="@(_isAutoForwarding ? "Auto-forwarding enabled — messages are forwarded to another entity." : EmptyText(browser.Mode))"
+                    Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
         }
     </Content>
     <Footer>
@@ -319,6 +328,9 @@
         if (Browser.Messages.ElementAtOrDefault(index) is { } m) Toggle(m);
     }
 
+    /// <summary>How many messages the selection commands act on, after their label: " 2"; none for the message under the cursor.</summary>
+    private string Targets => _browser is { Selected.Count: > 0 and var n } ? $" {n}" : "";
+
     private IReadOnlyList<KeyBinding> Keys =>
     [
         new("Enter", $"{Icons.Message} Open", () => { if (_browser?.Focused is { } m) ViewMessage(m); }) { InFooter = false },
@@ -327,15 +339,15 @@
         new("1", $"{Icons.Queue} Active", () => { if (_isDlq) _ = SwitchDlq(false); }) { InFooter = _isDlq, Aliases = _isDlq ? ["F6"] : [] },
         new("2", $"{Icons.DeadLetter} DLQ", () => { if (!_isDlq) _ = SwitchDlq(true); }) { InFooter = !_isDlq, Aliases = _isDlq ? [] : ["F6"] },
         .. Mode == BrowseMode.Locked
-            ? [new KeyBinding("c", $"{Icons.Complete} Complete", () => Run(_complete)) { Danger = true, Aliases = ["F9", "Delete"] },
-               new KeyBinding("a", $"{Icons.Unlocked} Abandon", () => Run(_abandon)) { Aliases = ["F4"] },
+            ? [new KeyBinding("c", $"{Icons.Complete} Complete{Targets}", () => Run(_complete)) { Danger = true, Aliases = ["F9", "Delete"] },
+               new KeyBinding("a", $"{Icons.Unlocked} Abandon{Targets}", () => Run(_abandon)) { Aliases = ["F4"] },
                .. _isDlq ? Array.Empty<KeyBinding>()
-                   : [new KeyBinding("X", $"{Icons.DeadLetter} Dead-letter", () => Run(_deadLetter)) { Danger = true, Aliases = ["F3"] }]]
+                   : [new KeyBinding("X", $"{Icons.DeadLetter} Dead-letter{Targets}", () => Run(_deadLetter)) { Danger = true, Aliases = ["F3"] }]]
             : Array.Empty<KeyBinding>(),
         .. CanRetry
-            ? [new KeyBinding("R", $"{Icons.Retry} {RetryText.Label(_isDlq)}", () => Run(_retry)) { Danger = true, Aliases = ["F10"] }]
+            ? [new KeyBinding("R", $"{Icons.Retry} {RetryText.Label(_isDlq)}{Targets}", () => Run(_retry)) { Danger = true, Aliases = ["F10"] }]
             : Mode == BrowseMode.Peek
-                ? [new KeyBinding("R", $"{Icons.Send} Resend", () => Run(_resend)) { Danger = true, Aliases = ["F10"] }]
+                ? [new KeyBinding("R", $"{Icons.Send} Resend{Targets}", () => Run(_resend)) { Danger = true, Aliases = ["F10"] }]
                 : Array.Empty<KeyBinding>(),
         new("P", $"{Icons.Purge} Purge", () => _purge?.Invoke(Source)) { Danger = true, Aliases = ["F11"] },
         .. _browser?.Focused is { } target && PluginActions.Any(target, Source, Session.Snapshot)
@@ -401,6 +413,32 @@
         BrowseMode.Received => $"{Icons.Received} received and deleted",
         _ => $"{Icons.Peek} peek",
     };
+
+    private static string ModeBadge(BrowseMode mode) => mode switch
+    {
+        BrowseMode.Locked => $"{Icons.Locked} LOCKED",
+        BrowseMode.Received => $"{Icons.Received} RECEIVED AND DELETED",
+        _ => $"{Icons.Peek} PEEK",
+    };
+
+    private string ModeNote(BrowseMode mode) => mode switch
+    {
+        BrowseMode.Peek => _browser is { Messages.Count: var n } ? $"read-only · {n:N0} loaded" : "read-only",
+        _ => "",
+    };
+
+    private static Color OnModeColor(BrowseMode mode) => mode switch
+    {
+        BrowseMode.Locked => Theme.OnWarning,
+        BrowseMode.Received => Theme.OnDanger,
+        _ => Theme.OnAccent,
+    };
+
+    private static string ModeStrip(MessageBrowser b) => b.Mode switch
+    {
+        BrowseMode.Locked => $" {ModeBadge(b.Mode)}  {b.Messages.Count:N0} locked message(s), {b.LockedCount:N0} held · locks renew automatically · esc abandons the rest",
+        _ => $" {ModeBadge(b.Mode)}  {b.Messages.Count:N0} message(s) already deleted, requeue them or they are gone",
+    } + (b.Selected.Count > 0 ? $" · {Icons.Selected} {b.Selected.Count} selected" : "");
 
     private static Color ModeColor(BrowseMode mode) => mode switch
     {

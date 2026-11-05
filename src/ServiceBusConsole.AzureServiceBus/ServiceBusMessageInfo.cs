@@ -7,7 +7,8 @@ namespace ServiceBusConsole.AzureServiceBus;
 /// <summary>A <see cref="MessageInfo"/> that keeps the received message, so copies carry everything it had.</summary>
 internal sealed record ServiceBusMessageInfo : MessageInfo
 {
-    private const string DeadLetterReasonProperty = "DeadLetterReason";
+    // Service Bus keeps both in the application properties too.
+    private static readonly HashSet<string> DeadLetterProperties = ["DeadLetterReason", "DeadLetterErrorDescription"];
 
     public required ServiceBusReceivedMessage Raw { get; init; }
 
@@ -23,8 +24,9 @@ internal sealed record ServiceBusMessageInfo : MessageInfo
         Body = BodyOf(raw),
         DeliveryCount = raw.DeliveryCount,
         DeadLetterReason = raw.DeadLetterReason,
+        DeadLetterErrorDescription = raw.DeadLetterErrorDescription,
         Properties = [.. raw.ApplicationProperties
-            .Where(p => p.Key != DeadLetterReasonProperty)
+            .Where(p => !DeadLetterProperties.Contains(p.Key))
             .Select(p => KeyValuePair.Create(p.Key, p.Value?.ToString() ?? ""))],
     };
 

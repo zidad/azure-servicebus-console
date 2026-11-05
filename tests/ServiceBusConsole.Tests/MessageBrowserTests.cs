@@ -188,6 +188,28 @@ public sealed class MessageBrowserTests
     }
 
     [Test]
+    public async Task DeadLetteredMessage_ShowsItsReasonAndDescriptionAboveTheProperties()
+    {
+        var app = new AppHarness();
+        app.Queues.Queues.Add(new QueueInfo { Name = "orders", DeadLetterMessageCount = 1 });
+        app.Messages.Messages.Add(Message(1, "order-created", "{\"id\":1}") with
+        {
+            DeadLetterReason = "MaxDeliveryCountExceeded",
+            DeadLetterErrorDescription = "Message could not be consumed after 10 delivery attempts.",
+        });
+        await using var terminal = await app.OpenQueuesAsync();
+        await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
+        await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
+
+        var frame = await terminal.WaitForTextAsync("Message could not be consumed", AppHarness.Timeout, Ct);
+        var lines = Enumerable.Range(0, frame.Height).Select(frame.GetLine).ToList();
+        var reason = lines.FindIndex(l => l.Contains("💀 MaxDeliveryCountExceeded Message could not be consumed after 10 delivery attempts."));
+        reason.ShouldBeGreaterThan(0, frame.ScreenText);
+        lines.FindIndex(l => l.Contains("📋 MESSAGE")).ShouldBeGreaterThan(reason);
+        frame.ContainsText("Dead-letter reason").ShouldBeFalse(frame.ScreenText);
+    }
+
+    [Test]
     public async Task Preview_FollowsTheCursor()
     {
         var (_, terminal) = await OpenOrdersAsync();
@@ -198,7 +220,8 @@ public sealed class MessageBrowserTests
 
         var frame = await terminal.WaitForTextAsync("\"id\": 2", AppHarness.Timeout, Ct);
         frame.ContainsText("\"id\": 1").ShouldBeFalse(frame.ScreenText);
-        frame.ContainsText("Properties").ShouldBeTrue(frame.ScreenText);
+        frame.ContainsText("📨 #2 · 2 of 2 · ⏎ zoom").ShouldBeTrue(frame.ScreenText);
+        frame.ContainsText("📋 MESSAGE").ShouldBeTrue(frame.ScreenText);
     }
 
     [Test]
