@@ -27,13 +27,12 @@ public sealed class MetricsRange(FileCache cache)
 
     /// <summary>
     /// Zoom in (+ or =, shorter range) is -1, zoom out (- or _, longer range) +1, other keys null; = and _ work without
-    /// Shift. Entity names hold '-' and '_' but never '+' or '=', so - and _ only step while <paramref name="filter"/> is
-    /// empty and go into the filter otherwise.
+    /// Shift. A list filter being edited takes its keys first (<see cref="ListFilter"/>), so - and _ go there then.
     /// </summary>
-    public static int? StepOf(KeyboardEventArgs e, string? filter) => e.Key switch
+    public static int? StepOf(KeyboardEventArgs e) => e.Key switch
     {
         "+" or "=" => -1,
-        "-" or "_" when string.IsNullOrEmpty(filter) => 1,
+        "-" or "_" => 1,
         _ => null,
     };
 

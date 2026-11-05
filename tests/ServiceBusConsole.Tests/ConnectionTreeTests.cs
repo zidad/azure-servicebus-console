@@ -80,7 +80,7 @@ public sealed class ConnectionTreeTests
     {
         await using var terminal = await OpenTreeAsync(Harness());
 
-        foreach (var c in "legacy") await terminal.SendKeyAsync(ConsoleKey.A, c, cancellationToken: Ct);
+        foreach (var c in "/legacy") await terminal.SendKeyAsync(ConsoleKey.A, c, cancellationToken: Ct);
         var frame = await terminal.WaitUntilAsync(f => f.ContainsText("🔍 legacy") && !f.ContainsText("sb-orders-dev"), AppHarness.Timeout, cancellationToken: Ct);
         frame.ContainsText("└─ ▸ 🌐 sb-legacy").ShouldBeTrue(frame.ScreenText);
         frame.ContainsText("▾ 🔑 Contoso Development").ShouldBeTrue(frame.ScreenText);

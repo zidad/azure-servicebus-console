@@ -16,8 +16,8 @@ public sealed class NamespaceFeatureTests
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
         await using var terminal = await app.OpenQueuesAsync();
         var frame = await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
-        frame.ContainsText("[F11] 🧹 Purge DLQ").ShouldBeTrue(frame.ScreenText);
-        frame.ContainsText("[F9]").ShouldBeFalse(frame.ScreenText);
+        frame.ContainsText("P  🧹 Purge DLQ").ShouldBeTrue(frame.ScreenText);
+        frame.ContainsText("❌ Delete").ShouldBeFalse(frame.ScreenText);
 
         await terminal.SendKeyAsync(ConsoleKey.F9, '\0', cancellationToken: Ct);
         await Task.Delay(300, Ct);
@@ -33,11 +33,39 @@ public sealed class NamespaceFeatureTests
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
         await using var terminal = await app.OpenAzureAsync(ConsoleKey.F1, height: 30);
         var frame = await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
-        frame.ContainsText("[F9] ❌ Delete").ShouldBeTrue(frame.ScreenText);
+        frame.ContainsText("D  ❌ Delete").ShouldBeTrue(frame.ScreenText);
 
         await terminal.SendKeyAsync(ConsoleKey.F9, '\0', cancellationToken: Ct);
 
         await terminal.WaitForTextAsync("Delete queue 'orders'?", AppHarness.Timeout, Ct);
+        await terminal.SendKeyAsync(ConsoleKey.N, 'n', cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => !f.ContainsText("Delete queue"), AppHarness.Timeout, cancellationToken: Ct);
+        await AppHarness.WaitForTableFocusAsync(terminal);
+
+        await terminal.SendKeyAsync(ConsoleKey.D, 'D', ConsoleModifiers.Shift, Ct);
+
+        await terminal.WaitForTextAsync("Delete queue 'orders'?", AppHarness.Timeout, Ct);
+    }
+
+    [Test]
+    public async Task QuestionMark_ListsThePageKeys_AndEscapeClosesThem()
+    {
+        var app = new AppHarness();
+        app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
+        await using var terminal = await app.OpenAzureAsync(ConsoleKey.F1, height: 40);
+        await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
+        var table = terminal.FocusKey;
+
+        await terminal.SendKeyAsync(ConsoleKey.Oem2, '?', ConsoleModifiers.Shift, Ct);
+
+        var help = await terminal.WaitForTextAsync("❓ Keys", AppHarness.Timeout, Ct);
+        help.ContainsText("F9 Delete \\").ShouldBeTrue(help.ScreenText);
+        help.ContainsText("Shift marks the keys").ShouldBeTrue(help.ScreenText);
+        await AppHarness.WaitForFocusAsync(terminal, "1", table);
+        await terminal.SendKeyAsync(ConsoleKey.Escape, '\u001b', cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => !f.ContainsText("❓ Keys"), AppHarness.Timeout, cancellationToken: Ct);
+        await AppHarness.WaitForTableFocusAsync(terminal);
+        terminal.CurrentFrame.ContainsText("Queues (1)").ShouldBeTrue();
     }
 
     [Test]
@@ -50,10 +78,10 @@ public sealed class NamespaceFeatureTests
         await AppHarness.WaitForTableFocusAsync(terminal);
         await app.SelectAzureNamespaceAsync(terminal, Basic);
 
-        var frame = await terminal.WaitUntilAsync(f => f.ContainsText("[F1] 📬 Queues") && f.ContainsText("[F12]"), AppHarness.Timeout, cancellationToken: Ct);
-        frame.ContainsText("[F2]").ShouldBeFalse(frame.ScreenText);
-        frame.ContainsText("[F3]").ShouldBeFalse(frame.ScreenText);
-        frame.ContainsText("[F12] 📈 Metrics").ShouldBeTrue(frame.ScreenText);
+        var frame = await terminal.WaitUntilAsync(f => f.ContainsText("1  📬 Queues") && f.ContainsText("📈 Metrics"), AppHarness.Timeout, cancellationToken: Ct);
+        frame.ContainsText("2  📢 Topics").ShouldBeFalse(frame.ScreenText);
+        frame.ContainsText("3  📥 All Subscriptions").ShouldBeFalse(frame.ScreenText);
+        frame.ContainsText("m  📈 Metrics").ShouldBeTrue(frame.ScreenText);
         app.Connection.Current.ShouldBeOfType<FakeBasicNamespace>();
     }
 

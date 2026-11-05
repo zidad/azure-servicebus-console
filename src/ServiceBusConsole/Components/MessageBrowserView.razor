@@ -47,7 +47,7 @@
                     }
                     else
                     {
-                        <Markup Content="· Space select, A all, I invert" Foreground="@Theme.Muted" />
+                        <Markup Content="· space select, ^a all, i invert" Foreground="@Theme.Muted" />
                     }
                 </Columns>
             </Padder>
@@ -121,46 +121,7 @@
         }
     </Content>
     <Footer>
-        <Padder Padding="@(new(1, 0, 0, 0))">
-            <Columns>
-                <KeyButton Content="@($"[F7] {Icons.Peek} Peek…")" OnClick="@(() => _peekDialog?.Open())" FocusedColor="@Theme.Success" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
-                <Markup Content="  " />
-                <KeyButton Content="@($"[F8] {Icons.Subscription} Receive…")" OnClick="@(() => _receiveDialog?.Open())" FocusedColor="@Theme.Danger" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
-                <Markup Content="  " />
-                <KeyButton Content="@(_isDlq ? $"[F6] {Icons.Queue} View Active" : $"[F6] {Icons.DeadLetter} View DLQ")" OnClick="@(() => { _ = SwitchDlq(!_isDlq); })" FocusedColor="@Theme.Warning" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
-                <Markup Content="  " />
-                @if (Mode == BrowseMode.Locked)
-                {
-                    <KeyButton Content="@($"[F9] {Icons.Complete} Complete")" OnClick="@(() => Run(_complete))" FocusedColor="@Theme.Danger" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
-                    <Markup Content="  " />
-                    <KeyButton Content="@($"[F4] {Icons.Unlocked} Abandon")" OnClick="@(() => Run(_abandon))" FocusedColor="@Theme.Warning" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
-                    <Markup Content="  " />
-                    @if (!_isDlq)
-                    {
-                        <KeyButton Content="@($"[F3] {Icons.DeadLetter} Dead-letter")" OnClick="@(() => Run(_deadLetter))" FocusedColor="@Theme.Danger" FocusOrder="7" OnKeyDown="@HandleKeyDown" />
-                        <Markup Content="  " />
-                    }
-                }
-                @if (CanRetry)
-                {
-                    <KeyButton Content="@($"[F10] {Icons.Retry} {RetryText.Label(_isDlq)}")" OnClick="@(() => Run(_retry))" FocusedColor="@Theme.Success" FocusOrder="8" OnKeyDown="@HandleKeyDown" />
-                    <Markup Content="  " />
-                }
-                else if (Mode == BrowseMode.Peek)
-                {
-                    <KeyButton Content="@($"[F10] {Icons.Send} Resend")" OnClick="@(() => Run(_resend))" FocusedColor="@Theme.Success" FocusOrder="8" OnKeyDown="@HandleKeyDown" />
-                    <Markup Content="  " />
-                }
-                <KeyButton Content="@($"[F11] {Icons.Purge} Purge")" OnClick="@(() => _purge?.Invoke(Source))" FocusedColor="@Theme.Danger" FocusOrder="9" OnKeyDown="@HandleKeyDown" />
-                <Markup Content="  " />
-                @if (_browser?.Focused is { } actionTarget && PluginActions.Any(actionTarget, Source, Session.Snapshot))
-                {
-                    <KeyButton Content="@($"[F2] {Icons.Actions} Actions…")" OnClick="OpenActions" FocusedColor="@Theme.Accent" FocusOrder="10" OnKeyDown="@HandleKeyDown" />
-                    <Markup Content="  " />
-                }
-                <KeyButton Content="@($"[Esc] {Icons.Back} Back")" OnClick="GoBack" FocusedColor="@Theme.Accent" FocusOrder="11" OnKeyDown="@HandleKeyDown" />
-            </Columns>
-        </Padder>
+        <KeyHints Bindings="@Keys" FirstFocusOrder="3" OnKeyDown="@HandleKeyDown" />
     </Footer>
 </FullscreenPage>
 
@@ -173,6 +134,7 @@
 <ErrorModal Message="@_error" OnDismiss="@(() => { _error = ""; FocusTable(); })" />
 
 <MessageActionsDialog @ref="_actions" OnClosed="StateHasChanged" />
+<HelpDialog @ref="_help" OnClose="@(() => _tbody is { } t ? FocusManager.FocusAsync(t.FocusKey) : Task.CompletedTask)" />
 
 <AsyncCommand @ref="_complete" TItem="IReadOnlyList<MessageInfo>"
               ConfirmMessage="@(l => $"Complete {Count(l)}? They are removed from {Source.DisplayName}.")"
@@ -216,6 +178,7 @@
     private FetchDialog? _peekDialog;
     private FetchDialog? _receiveDialog;
     private MessageActionsDialog? _actions;
+    private HelpDialog? _help;
     private AsyncCommand<IReadOnlyList<MessageInfo>>? _complete;
     private AsyncCommand<IReadOnlyList<MessageInfo>>? _abandon;
     private AsyncCommand<IReadOnlyList<MessageInfo>>? _deadLetter;
@@ -235,7 +198,7 @@
 
     private IEnumerable<AsyncCommand<IReadOnlyList<MessageInfo>>?> ListCommands => [_complete, _abandon, _deadLetter, _retry, _resend];
     private bool IsBusy => _loading is not null || ListCommands.Any(c => c?.IsBusy == true) || _purge?.IsBusy == true;
-    private bool IsDialogOpen => _peekDialog?.IsOpened == true || _receiveDialog?.IsOpened == true || _actions?.IsOpened == true;
+    private bool IsDialogOpen => _peekDialog?.IsOpened == true || _receiveDialog?.IsOpened == true || _actions?.IsOpened == true || _help?.IsOpened == true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -356,6 +319,35 @@
         if (Browser.Messages.ElementAtOrDefault(index) is { } m) Toggle(m);
     }
 
+    private IReadOnlyList<KeyBinding> Keys =>
+    [
+        new("Enter", $"{Icons.Message} Open", () => { if (_browser?.Focused is { } m) ViewMessage(m); }) { InFooter = false },
+        new("p", $"{Icons.Peek} Peek…", () => _peekDialog?.Open()) { Aliases = ["F7"] },
+        new("r", $"{Icons.Subscription} Receive…", () => _receiveDialog?.Open()) { Aliases = ["F8"] },
+        new("1", $"{Icons.Queue} Active", () => { if (_isDlq) _ = SwitchDlq(false); }) { InFooter = _isDlq, Aliases = _isDlq ? ["F6"] : [] },
+        new("2", $"{Icons.DeadLetter} DLQ", () => { if (!_isDlq) _ = SwitchDlq(true); }) { InFooter = !_isDlq, Aliases = _isDlq ? [] : ["F6"] },
+        .. Mode == BrowseMode.Locked
+            ? [new KeyBinding("c", $"{Icons.Complete} Complete", () => Run(_complete)) { Danger = true, Aliases = ["F9", "Delete"] },
+               new KeyBinding("a", $"{Icons.Unlocked} Abandon", () => Run(_abandon)) { Aliases = ["F4"] },
+               .. _isDlq ? Array.Empty<KeyBinding>()
+                   : [new KeyBinding("X", $"{Icons.DeadLetter} Dead-letter", () => Run(_deadLetter)) { Danger = true, Aliases = ["F3"] }]]
+            : Array.Empty<KeyBinding>(),
+        .. CanRetry
+            ? [new KeyBinding("R", $"{Icons.Retry} {RetryText.Label(_isDlq)}", () => Run(_retry)) { Danger = true, Aliases = ["F10"] }]
+            : Mode == BrowseMode.Peek
+                ? [new KeyBinding("R", $"{Icons.Send} Resend", () => Run(_resend)) { Danger = true, Aliases = ["F10"] }]
+                : Array.Empty<KeyBinding>(),
+        new("P", $"{Icons.Purge} Purge", () => _purge?.Invoke(Source)) { Danger = true, Aliases = ["F11"] },
+        .. _browser?.Focused is { } target && PluginActions.Any(target, Source, Session.Snapshot)
+            ? [new KeyBinding(".", $"{Icons.Actions} Actions…", OpenActions) { Aliases = ["F2"] }]
+            : Array.Empty<KeyBinding>(),
+        new(" ", "Select", () => { }) { InFooter = false },
+        new("a", "Select all", () => { Browser.SelectAll(); StateHasChanged(); }) { Ctrl = true, InFooter = false },
+        new("i", "Invert the selection", () => { Browser.InvertSelection(); StateHasChanged(); }) { InFooter = false },
+        new("?", $"{Icons.Confirm} Help", () => _help?.Open(Keys)),
+        new("Escape", $"{Icons.Back} Back", GoBack),
+    ];
+
     private void OpenActions()
     {
         if (_browser?.Focused is { } message) _actions?.Open(message, Source);
@@ -376,7 +368,7 @@
 
     private void HandleKeyDown(KeyboardEventArgs e)
     {
-        if (e.CtrlKey || e.AltKey || e.MetaKey || IsDialogOpen) return;
+        if (e.AltKey || e.MetaKey || IsDialogOpen) return;
         // A finished operation's dialog waits for OK, also when focus is still here.
         if (_browser?.Operation is { Finished: true })
         {
@@ -390,31 +382,14 @@
             return;
         }
         if (ListCommands.Any(c => c?.HandleKey(e) == true) || _purge?.HandleKey(e) == true) return;
-        switch (e.Key)
+        if (e.Key == "Escape")
         {
-            case "Escape":
-                if (_browser is { Selected.Count: > 0 } b) { b.Selected.Clear(); StateHasChanged(); }
-                else GoBack();
-                return;
+            if (_browser is { Selected.Count: > 0 } b) { b.Selected.Clear(); StateHasChanged(); }
+            else GoBack();
+            return;
         }
         if (IsBusy) return;
-        switch (e.Key)
-        {
-            case "a": case "A": Browser.SelectAll(); StateHasChanged(); return;
-            case "i": case "I": Browser.InvertSelection(); StateHasChanged(); return;
-            case "F6": _ = SwitchDlq(!_isDlq); return;
-            case "F7": _peekDialog?.Open(); return;
-            case "F8": _receiveDialog?.Open(); return;
-            case "F2": OpenActions(); return;
-            case "F9": case "Delete": if (Mode == BrowseMode.Locked) Run(_complete); return;
-            case "F4": if (Mode == BrowseMode.Locked) Run(_abandon); return;
-            case "F3": if (Mode == BrowseMode.Locked && !_isDlq) Run(_deadLetter); return;
-            case "F10":
-                if (CanRetry) Run(_retry);
-                else if (Mode == BrowseMode.Peek) Run(_resend);
-                return;
-            case "F11": _purge?.Invoke(Source); return;
-        }
+        KeyBinding.Dispatch(Keys, e);
     }
 
     private static string Count(IReadOnlyList<MessageInfo> list) =>
@@ -436,8 +411,8 @@
 
     private static string EmptyText(BrowseMode mode) => mode switch
     {
-        BrowseMode.Peek => "No messages. Use F7 Peek or F8 Receive to load.",
-        _ => "No messages left. Use F7 Peek or F8 Receive to load more.",
+        BrowseMode.Peek => "No messages. Press p to peek or r to receive.",
+        _ => "No messages left. Press p to peek or r to receive more.",
     };
 
     private static string StatusCount(MessageBrowser b) => b.Mode switch

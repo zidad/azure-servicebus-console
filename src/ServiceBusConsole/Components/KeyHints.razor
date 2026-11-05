@@ -1,0 +1,21 @@
+<Padder Padding="@(new(1, 0, 0, 0))">
+    <Flex Gap="2">
+        @{ var order = FirstFocusOrder; }
+        @foreach (var binding in Bindings.Where(b => b.InFooter))
+        {
+            <KeyButton @key="binding.Key" Key="@binding.Display" Danger="@binding.Danger" Content="@binding.Label"
+                       OnClick="@(() => binding.Run())" FocusedColor="@(binding.Danger ? Theme.Danger : Theme.Accent)"
+                       FocusOrder="@(order++)" OnKeyDown="@OnKeyDown" />
+        }
+    </Flex>
+</Padder>
+
+@code {
+    /// <summary>A page's footer: each of its <see cref="KeyBinding"/>s as a key chip and label, clickable.</summary>
+    [Parameter, EditorRequired] public required IReadOnlyList<KeyBinding> Bindings { get; set; }
+
+    /// <summary>Tab order of the first button; the others follow.</summary>
+    [Parameter] public int FirstFocusOrder { get; set; } = 10;
+
+    [Parameter] public Action<KeyboardEventArgs>? OnKeyDown { get; set; }
+}

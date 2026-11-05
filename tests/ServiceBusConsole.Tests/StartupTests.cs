@@ -76,7 +76,7 @@ public sealed class StartupTests
 
         await AppHarness.WaitForTableFocusAsync(terminal);
         await terminal.WaitUntilAsync(_ => app.Connection.CurrentNamespace == AppHarness.AzureNamespace.FullyQualifiedNamespace, AppHarness.Timeout, cancellationToken: Ct);
-        await terminal.WaitUntilAsync(f => f.ContainsText("[F1] 📬 Queues") && f.ContainsText("sb-orders-dev"), AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => f.ContainsText("1  📬 Queues") && f.ContainsText("sb-orders-dev"), AppHarness.Timeout, cancellationToken: Ct);
         app.NavState.AzureSubscription.ShouldBe(AppHarness.AzureSubscription);
 
         await terminal.SendKeyAsync(ConsoleKey.F1, '\0', cancellationToken: Ct);
@@ -127,7 +127,7 @@ public sealed class StartupTests
 
         // The error, the listed namespace and its buttons render separately.
         await terminal.WaitUntilAsync(
-            f => f.ContainsText("Namespace \"sb-missing\" not found in Contoso Development.") && f.ContainsText("sb-orders-dev") && f.ContainsText("[F1] 📬 Queues"),
+            f => f.ContainsText("Namespace \"sb-missing\" not found in Contoso Development.") && f.ContainsText("sb-orders-dev") && f.ContainsText("1  📬 Queues"),
             AppHarness.Timeout, cancellationToken: Ct);
         app.NavState.AzureSubscription.ShouldBe(AppHarness.AzureSubscription);
     }
@@ -139,7 +139,7 @@ public sealed class StartupTests
         await using var terminal = await app.StartAsync(height: 40);
 
         await terminal.WaitUntilAsync(
-            f => f.ContainsText("Azure subscription \"Contoso Production\" not found.") && f.ContainsText("[F1] 📬 Queues"),
+            f => f.ContainsText("Azure subscription \"Contoso Production\" not found.") && f.ContainsText("1  📬 Queues"),
             AppHarness.Timeout, cancellationToken: Ct);
         app.NavState.AzureSubscription.ShouldBe(AzureSubscription.Emulator);
     }
@@ -157,11 +157,11 @@ public sealed class StartupTests
 
         await terminal.SendKeyAsync(ConsoleKey.Escape, '\u001b', cancellationToken: Ct);
         await AppHarness.WaitForTableFocusAsync(terminal, queuesFocus);
-        await terminal.WaitUntilAsync(f => f.ContainsText("[F1] 📬 Queues") && f.ContainsText("sb-orders-dev"), AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => f.ContainsText("1  📬 Queues") && f.ContainsText("sb-orders-dev"), AppHarness.Timeout, cancellationToken: Ct);
         // The namespace is listed again; a startup target still applying would open the queues now.
         await Task.Delay(TimeSpan.FromMilliseconds(500), Ct);
 
         visited.ShouldBe([""]);
-        terminal.CurrentFrame.ContainsText("[F1] 📬 Queues").ShouldBeTrue(terminal.CurrentFrame.ScreenText);
+        terminal.CurrentFrame.ContainsText("1  📬 Queues").ShouldBeTrue(terminal.CurrentFrame.ScreenText);
     }
 }

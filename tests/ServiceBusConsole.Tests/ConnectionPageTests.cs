@@ -10,12 +10,12 @@ public sealed class ConnectionPageTests
     public async Task FunctionKey_WithEmulatorPreselected_OpensPage(ConsoleKey key, string header)
     {
         await using var terminal = await new AppHarness().StartAsync();
-        await terminal.WaitForTextAsync("[F1] 📬 Queues", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("1  📬 Queues", AppHarness.Timeout, Ct);
         await AppHarness.WaitForTableFocusAsync(terminal);
 
         await terminal.SendKeyAsync(key, '\0', cancellationToken: Ct);
 
-        await terminal.WaitUntilAsync(f => !f.ContainsText("[F1] 📬 Queues") && f.ContainsText(header), AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => !f.ContainsText("1  📬 Queues") && f.ContainsText(header), AppHarness.Timeout, cancellationToken: Ct);
     }
 
     [Test]
@@ -44,7 +44,7 @@ public sealed class ConnectionPageTests
 
         await AppHarness.WaitForTableFocusAsync(terminal, connectionFocus);
         await terminal.SendKeyAsync(ConsoleKey.Escape, '\u001b', cancellationToken: Ct);
-        await terminal.WaitForTextAsync("[F1] 📬 Queues", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("1  📬 Queues", AppHarness.Timeout, Ct);
         await terminal.WaitForTextAsync("sb-dev-b", AppHarness.Timeout, Ct);
         app.Connection.CurrentNamespace.ShouldBe("sb-dev-b.servicebus.windows.net");
     }
@@ -60,7 +60,7 @@ public sealed class ConnectionPageTests
         await terminal.WaitForTextAsync("Could not list Azure subscriptions", AppHarness.Timeout, Ct);
         await terminal.SendKeyAsync(ConsoleKey.F1, '\0', cancellationToken: Ct);
 
-        await terminal.WaitUntilAsync(f => !f.ContainsText("[F1]") && f.ContainsText("📬 Queues"), AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => !f.ContainsText("1  📬 Queues") && f.ContainsText("📬 Queues"), AppHarness.Timeout, cancellationToken: Ct);
     }
 
     [Test]
@@ -77,7 +77,7 @@ public sealed class ConnectionPageTests
         await AppHarness.WaitForTableFocusAsync(terminal);
         await terminal.WaitForTextAsync("Contoso Sandbox", AppHarness.Timeout, Ct);
 
-        await terminal.TypeAsync("prod", Ct);
+        await terminal.TypeAsync("/prod", Ct);
 
         var frame = await terminal.WaitUntilAsync(f => !f.ContainsText("Contoso Sandbox") && !f.ContainsText("Contoso Development"), AppHarness.Timeout, cancellationToken: Ct);
         frame.ContainsText("Contoso Production").ShouldBeTrue(frame.ScreenText);

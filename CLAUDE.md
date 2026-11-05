@@ -111,6 +111,8 @@ This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, que
 
 **Tables:** a page's main table is its bordered box: `Border="TableBorder.Rounded" data-column-separators="false"` (a fork hook) draws the outer border and the header rule, no lines between columns. List pages end their rows with `<FillerRows>` so the box keeps a full page's height; the message browser doesn't, its preview takes the spare lines. A `<DeadLetterMark>` gutter marks rows with dead letters.
 
+**Keys:** a page lists its keys once as `KeyBinding`s (`Keys` property); `KeyHints` renders the footer from them, `HelpDialog` (`?`) lists them all and `KeyBinding.Dispatch` runs them from `HandleKeyDown`, after `AsyncCommand.HandleKey` (y/n) and the filter. Letters are commands, Shift for anything that deletes or moves messages (`D`, `P`, `R`, `X`), `^r` refresh; each F-key of earlier versions stays as an `Aliases` entry. Lists filter on `/` (`ListFilter`: typing edits, Enter keeps, Escape clears; `NavigableTBody.TakeKey` lets Enter end the edit); only the header dropdown filters as you type. `KeyButton` doesn't forward Space or Enter to the page: they click it.
+
 **Focus:** request focus once with `FocusManager.FocusAsync`; it keeps the request until the target renders. A retry loop can replace a later request (e.g. a dialog's OK) with one for an element that is gone.
 
 **Configuration:** every setting is a `ConfigKey` registered in `ConfigKeys` (plugins' keys live under `plugins.`); read it from `IConfiguration` by `ConfigurationPath`. Precedence: command-line flag > `AZSB_` environment variable > config file > the key's default. Tests point the file elsewhere (`ConfigInput.File`, a temp path), never at the user's config.
@@ -125,8 +127,8 @@ This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, que
 
 **Metrics:** `MetricsPanel` (bottom of the list pages and of the connection page, below the lists) charts Azure Monitor metrics from `IMetricsService` (`Azure.ResourceManager.Monitor` on the shared `ArmClient`, `EntityName` filter; subscriptions show their topic, Azure has no per-subscription dimension). It loads after the selection settles, cached first (keyed by span and interval).
 - Always `FullscreenLayout.MetricsPanel` lines, whatever it shows, so nothing around it moves. The connection page reserves it by terminal height and subscription count only, with a placeholder for the emulator
-- `+`/`=` zoom in, `-`/`_` zoom out (or the `[+]`/`[-]` buttons), stepping `MetricsRange` between 1 h and 30 d; `-` and `_` go into a non-empty list filter instead. The interval is the finest Azure Monitor grain with at most 1.5 points per plot column (`MetricsChart.Interval`)
-- F12 toggles it; range and F12 choice are remembered in the file cache. No panel for the emulator on list pages, or on short terminals
+- `+`/`=` zoom in, `-`/`_` zoom out (or the `[+]`/`[-]` buttons), stepping `MetricsRange` between 1 h and 30 d; `-` and `_` go into a filter being edited instead. The interval is the finest Azure Monitor grain with at most 1.5 points per plot column (`MetricsChart.Interval`)
+- `m` (F12) toggles it; range and F12 choice are remembered in the file cache. No panel for the emulator on list pages, or on short terminals
 
 **Async commands:** Confirm-then-execute flows (delete, purge, requeue, etc.) use the `<AsyncCommand<TItem>>` component (`Components/AsyncCommand.razor`). It owns the pending-item, busy, and error state — pages should NOT reintroduce `_pending*` bool/field patterns or inline `ConfirmModal` + `ErrorModal` pairs per action.
 
@@ -153,7 +155,7 @@ Declare once per action and trigger via `@ref`:
 - `[assembly: ServiceBusConsolePlugin(typeof(XPlugin))]`; `XPlugin : IPlugin` with a parameterless constructor, a lower-case `Id`, its `Settings` (`plugins.<id>.<key>`, `IsSecret` for tokens) and `ConfigureServices` registering its `IMessageAction`s. Disabled (`plugins.<id>.enabled=false`) registers nothing
 - `IMessageAction.CanRun` is cheap; `RunAsync` gets a `MessageActionContext` (message, source, `SessionSnapshot`, settings with defaults, `IPluginHost`, `Progress`), throws on failure, honors the token (Esc) and returns an `ActionResult` (text, optional link and file)
 - Processes and opening files or URLs go through `IPluginHost` (fake in tests); files under its `StateDirectory` via `PluginFiles`: message exports in `messages/`, the rest in `plugins/<id>/`
-- The host shows the F2 picker, progress, result and error, and records the outcome in the activity log; plugins don't
+- The host shows the `.` (F2) picker, progress, result and error, and records the outcome in the activity log; plugins don't
 - UI tests: `AppHarness.Plugins`, `.Settings` (`plugins:<id>:enabled`) and `.PluginHost` (`FakePluginHost` records processes and opened paths)
 
 **Message operations:** `Components/MessageBrowserView.razor` is the shared queue/subscription browser. State lives in `MessageBrowser` (list, selection, locked receiver), kept by the singleton `MessageBrowserStore` so the detail page acts on the same locks.

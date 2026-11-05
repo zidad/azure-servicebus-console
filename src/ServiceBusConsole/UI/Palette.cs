@@ -19,6 +19,13 @@ public sealed record Palette
     public required Color Selection { get; init; }
     public required Color OnSelection { get; init; }
 
+    /// <summary>Background of a key in the footer (<see cref="KeyHints"/>), and its text.</summary>
+    public required Color Chip { get; init; }
+    public required Color OnChip { get; init; }
+
+    /// <summary>Text on a <see cref="Danger"/> background: the chip of a key that deletes or moves messages.</summary>
+    public required Color OnDanger { get; init; }
+
     /// <summary>Background of a hovered button, and its text.</summary>
     public required Color Hover { get; init; }
     public required Color OnHover { get; init; }
@@ -46,6 +53,9 @@ public sealed record Palette
         Transfer = Color.Fuchsia,
         Selection = Color.Navy,
         OnSelection = Color.White,
+        Chip = Color.Grey,
+        OnChip = Color.White,
+        OnDanger = Color.Black,
         Hover = Color.Silver,
         OnHover = Color.Black,
         JsonKey = Color.Blue,
@@ -69,6 +79,9 @@ public sealed record Palette
         Transfer = Color.Purple,
         Selection = Color.Navy,
         OnSelection = Color.White,
+        Chip = Color.Silver,
+        OnChip = Color.Black,
+        OnDanger = Color.White,
         Hover = Color.Silver,
         OnHover = Color.Black,
         JsonKey = Color.Navy,

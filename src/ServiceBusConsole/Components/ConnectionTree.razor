@@ -26,7 +26,7 @@
                 </SpectreTR>
             </SpectreTHead>
         }
-        <NavigableTBody @ref="_body" FocusOrder="@FocusOrder" OnKeyDown="@HandleKeyDown">
+        <NavigableTBody @ref="_body" FocusOrder="@FocusOrder" OnKeyDown="@HandleKeyDown" TakeKey="@EndsFilterEdit">
             @{ var i = 0; }
             @foreach (var row in context.Items)
             {
@@ -58,7 +58,7 @@
 @code {
     /// <summary>
     /// The connection tree: Azure subscriptions › namespaces › their sections. Branches open with → or Enter (a click in
-    /// <see cref="Compact"/> mode), a section opens its list page in that namespace. Typing filters. Open branches are
+    /// <see cref="Compact"/> mode), a section opens its list page in that namespace. / filters (typing, in <see cref="Compact"/> mode). Open branches are
     /// shared by every tree (the connection page's and the header dropdown's).
     /// </summary>
     [Parameter] public int MaxRows { get; set; } = 10;
@@ -74,8 +74,8 @@
     /// <summary>Keys the tree does not use, e.g. Escape with an empty filter.</summary>
     [Parameter] public Action<KeyboardEventArgs>? OnKeyDown { get; set; }
 
-    /// <summary>Sees keys before the tree, with its filter; true takes the key (e.g. metrics zoom).</summary>
-    [Parameter] public Func<KeyboardEventArgs, string?, bool>? TakeKey { get; set; }
+    /// <summary>Sees keys before the tree, after its filter; true takes the key (e.g. metrics zoom).</summary>
+    [Parameter] public Func<KeyboardEventArgs, bool>? TakeKey { get; set; }
 
     /// <summary>The selected node once it is on screen; null on a note.</summary>
     [Parameter] public EventCallback<ExplorerNode?> SelectedChanged { get; set; }
@@ -89,7 +89,7 @@
     [Parameter] public EventCallback<bool> OnPicked { get; set; }
 
     private IReadOnlyList<ExplorerRow> _rows = [];
-    private string? _filter;
+    private readonly ListFilter _filter = new();
     private int _index;
     private string? _selectedKey;
     private NavigableTBody? _body;
@@ -112,6 +112,7 @@
     // A new SelectKey wins over the current selection; the same one again leaves the user's selection alone.
     protected override void OnParametersSet()
     {
+        _filter.TypeToFilter = Compact;
         if (SelectKey == _appliedSelectKey) return;
         _appliedSelectKey = SelectKey;
         if (SelectKey is null) return;
@@ -120,6 +121,16 @@
     }
 
     public void Dispose() => Tree.Changed -= OnTreeChanged;
+
+    /// <summary>Starts editing the filter and focuses the tree, as / does.</summary>
+    public async Task EditFilterAsync()
+    {
+        _filter.Edit();
+        StateHasChanged();
+        await FocusAsync();
+    }
+
+    public Task FocusAsync() => _body is { } body ? FocusManager.FocusAsync(body.FocusKey) : Task.CompletedTask;
 
     private void OnTreeChanged() => _ = InvokeAsync(() => { Rebuild(); StateHasChanged(); });
 
@@ -133,7 +144,7 @@
     // Keeps the selected node selected as rows come and go.
     private void Rebuild()
     {
-        _rows = Tree.Rows(_filter);
+        _rows = Tree.Rows(_filter.Text);
         var found = _selectedKey is null ? -1 : IndexOf(_selectedKey);
         _index = found >= 0 ? found : Math.Clamp(_index, 0, Math.Max(0, _rows.Count - 1));
         if (found >= 0 || _selectedKey is null) _selectedKey = _rows.ElementAtOrDefault(_index)?.Key;
@@ -253,10 +264,23 @@
         if (Section.Of(probe).Contains(section)) await OpenAsync(ns, section);
     }
 
+    private bool EndsFilterEdit(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter" || !_filter.Editing) return false;
+        _filter.Handle(e);
+        StateHasChanged();
+        return true;
+    }
+
     private void HandleKeyDown(KeyboardEventArgs e)
     {
-        if (e.CtrlKey || e.AltKey || e.MetaKey) return;
-        if (TakeKey?.Invoke(e, _filter) == true) return;
+        switch (_filter.Handle(e))
+        {
+            case FilterKey.Changed: ApplyFilter(_filter.Text); return;
+            case FilterKey.Handled: StateHasChanged(); return;
+        }
+        if (e.CtrlKey || e.AltKey || e.MetaKey) { OnKeyDown?.Invoke(e); return; }
+        if (TakeKey?.Invoke(e) == true) return;
         var node = Selected;
         switch (e.Key)
         {
@@ -271,17 +295,12 @@
             case "F1" or "F2" or "F3" when node?.InNamespace is { } ns:
                 _ = OpenSectionAsync(ns, e.Key switch { "F1" => Section.Queues, "F2" => Section.Topics, _ => Section.AllSubscriptions });
                 return;
-            case "Escape" when !string.IsNullOrEmpty(_filter):
-                ApplyFilter(null);
-                return;
         }
-        if (FilterEdit.From(_filter, e) is { } edit) ApplyFilter(edit.Filter);
-        else OnKeyDown?.Invoke(e);
+        OnKeyDown?.Invoke(e);
     }
 
     private void ApplyFilter(string? filter)
     {
-        _filter = filter;
         _ = FilterChanged.InvokeAsync(filter);
         Rebuild();
         // Typing looks for something: jump to the first match unless the selection is still shown and matches.

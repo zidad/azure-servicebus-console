@@ -22,7 +22,7 @@
         @if (_subscriptions.Count == 0 && _loadFailed)
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
-                <Markup Content="Failed to load. Press [F5] to retry." Foreground="@Theme.Danger" />
+                <Markup Content="Failed to load. Press ^r to retry." Foreground="@Theme.Danger" />
             </Padder>
         }
         else if (_subscriptions.Count == 0)
@@ -41,7 +41,7 @@
                         Scrollbar="@Theme.Scrollbar()"
                         SelectedIndex="@_selectedIndex"
                         SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _subscriptions.ElementAtOrDefault(i)?.Name; })"
-                        OnActivate="@(() => { if (_subscriptions.ElementAtOrDefault(_selectedIndex) is {} s) { NavState.TopicName = TopicName; NavState.SubscriptionName = s.Name; NavState.ReturnPath = "/topic-detail"; Nav.NavigateTo("/subscription-browser"); } })">
+                        OnActivate="OpenFocused">
                 <SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.Rounded" data-column-separators="false">
                     <SpectreTHead>
                         <SpectreTR>
@@ -80,29 +80,12 @@
         {
             <MetricsPanel @ref="_metricsPanel" Metrics="@metrics" Label="@($"{Icons.Topic} topic {TopicName}")" Scope="@(new MetricsScope.Entity(TopicName))" OnKeyDown="@HandleKeyDown" />
         }
-        <Padder Padding="@(new(1, 0, 0, 0))">
-            <Columns>
-                <KeyButton Content="[F5] 🔄 Refresh" OnClick="LoadSubscriptions" FocusedColor="@Theme.Success" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
-                <Markup Content="   " />
-                @if (Connection.Current is IHasDeletion)
-                {
-                    <KeyButton Content="[F9] ❌ Delete" OnClick="@(() => OnFocused(_deleteSub))" FocusedColor="@Theme.Danger" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
-                    <Markup Content="   " />
-                }
-                <KeyButton Content="[F11] 🧹 Purge DLQ" OnClick="@(() => OnFocused(_purgeDlq))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
-                <Markup Content="   " />
-                @if (Connection.Current is IHasMetrics)
-                {
-                    <KeyButton Content="@($"[F12] {Icons.Metrics} Metrics")" OnClick="ToggleMetrics" FocusedColor="@Theme.Accent" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
-                    <Markup Content="   " />
-                }
-                <KeyButton Content="[Esc] 🔙 Back" OnClick="@(() => Nav.NavigateTo("/topics"))" FocusedColor="@Theme.Accent" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
-            </Columns>
-        </Padder>
+        <KeyHints Bindings="@Keys" FirstFocusOrder="3" OnKeyDown="@HandleKeyDown" />
     </Footer>
 </FullscreenPage>
 
 <ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
+<HelpDialog @ref="_help" OnClose="FocusTable" />
 
 @if (Connection.Current is IHasDeletion { Deletion: var deletion })
 {
@@ -131,6 +114,7 @@
     private string? _focusedItem;
     private string _error = string.Empty;
     private AsyncCommand<string>? _deleteSub;
+    private HelpDialog? _help;
     private AsyncCommand<string>? _purgeDlq;
     private bool _loadFailed;
     private NavigableTBody? _tbody;
@@ -206,23 +190,37 @@
         StateHasChanged();
     }
 
+    private IReadOnlyList<KeyBinding> Keys =>
+    [
+        new("Enter", $"{Icons.Message} Messages", OpenFocused) { InFooter = false },
+        new("r", $"{Icons.Refresh} Refresh", () => _ = LoadSubscriptions()) { Ctrl = true, Aliases = ["F5"] },
+        .. Connection.Current is IHasDeletion
+            ? [new KeyBinding("D", $"{Icons.Delete} Delete", () => OnFocused(_deleteSub)) { Danger = true, Aliases = ["F9", "Delete", "\\"] }]
+            : Array.Empty<KeyBinding>(),
+        new("P", $"{Icons.Purge} Purge DLQ", () => OnFocused(_purgeDlq)) { Danger = true, Aliases = ["F11"] },
+        .. Connection.Current is IHasMetrics
+            ? [new KeyBinding("m", $"{Icons.Metrics} Metrics", ToggleMetrics) { Aliases = ["F12"] }]
+            : Array.Empty<KeyBinding>(),
+        new("?", $"{Icons.Confirm} Help", () => _help?.Open(Keys)),
+        new("Escape", $"{Icons.Back} Back", () => Nav.NavigateTo("/topics")),
+    ];
+
+    private void OpenFocused()
+    {
+        if (_subscriptions.ElementAtOrDefault(_selectedIndex) is not { } s) return;
+        NavState.TopicName = TopicName;
+        NavState.SubscriptionName = s.Name;
+        NavState.ReturnPath = "/topic-detail";
+        Nav.NavigateTo("/subscription-browser");
+    }
+
+    private Task FocusTable() => _tbody is { } table ? FocusManager.FocusAsync(table.FocusKey) : Task.CompletedTask;
+
     private void HandleKeyDown(KeyboardEventArgs e)
     {
-        if (e.CtrlKey || e.AltKey || e.MetaKey) return;
         if (_deleteSub?.HandleKey(e) == true) return;
         if (_purgeDlq?.HandleKey(e) == true) return;
-        if (MetricsRange.StepOf(e, null) is { } step && _metricsPanel?.StepRange(step) == true) return;
-        switch (e.Key)
-        {
-            case "Escape": Nav.NavigateTo("/topics"); return;
-            case "F5": _ = LoadSubscriptions(); return;
-            case "F9": case "Delete": case "\\":
-                OnFocused(_deleteSub);
-                return;
-            case "F11":
-                OnFocused(_purgeDlq);
-                return;
-            case "F12": ToggleMetrics(); return;
-        }
+        if (MetricsRange.StepOf(e) is { } step && _metricsPanel?.StepRange(step) == true) return;
+        KeyBinding.Dispatch(Keys, e);
     }
 }

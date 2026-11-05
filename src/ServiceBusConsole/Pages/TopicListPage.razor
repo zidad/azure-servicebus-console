@@ -20,7 +20,7 @@
         @if (_all.Count == 0 && _loadFailed)
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
-                <Markup Content="Failed to load. Press [F5] to retry." Foreground="@Theme.Danger" />
+                <Markup Content="Failed to load. Press ^r to retry." Foreground="@Theme.Danger" />
             </Padder>
         }
         else if (_all.Count == 0)
@@ -39,17 +39,17 @@
                         Scrollbar="@Theme.Scrollbar()"
                         SelectedIndex="@_selectedIndex"
                         SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _filtered.ElementAtOrDefault(i)?.Name; })"
-                        OnActivate="@(() => { if (_filtered.ElementAtOrDefault(_selectedIndex) is {} t) { NavState.TopicName = t.Name; Nav.NavigateTo("/topic-detail"); } })">
+                        OnActivate="OpenFocused">
                 <SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.Rounded" data-column-separators="false">
                     <SpectreTHead>
                         <SpectreTR>
-                            <SpectreTH Align="Justify.Left"><Columns><SortHeader Label="Topic" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="Subscriptions" Icon="@Icons.Subscription" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="Scheduled" Icon="@Icons.Scheduled" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Left"><Columns><SortHeader Label="Topic" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="Subscriptions" Icon="@Icons.Subscription" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="Scheduled" Icon="@Icons.Scheduled" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /></SpectreTH>
                             <SpectreTH></SpectreTH>
                         </SpectreTR>
                     </SpectreTHead>
-                    <NavigableTBody @ref="_tbody"
+                    <NavigableTBody @ref="_tbody" TakeKey="@EndsFilterEdit"
                                   FocusOrder="1"
                                   OnKeyDown="@HandleKeyDown">
                         @{ var i = 0; }
@@ -74,27 +74,12 @@
         {
             <MetricsPanel @ref="_metricsPanel" Metrics="@metrics" Label="@($"{Icons.Topic} topic {_focusedItem}")" Scope="@(_focusedItem is { } t ? new MetricsScope.Entity(t) : null)" OnKeyDown="@HandleKeyDown" />
         }
-        <Padder Padding="@(new(1, 0, 0, 0))">
-            <Columns>
-                <KeyButton Content="[F5] 🔄 Refresh" OnClick="LoadTopics" FocusedColor="@Theme.Success" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
-                <Markup Content="   " />
-                @if (Connection.Current is IHasDeletion)
-                {
-                    <KeyButton Content="[F9] ❌ Delete" OnClick="@(() => OnFocused(_deleteTopic))" FocusedColor="@Theme.Danger" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
-                    <Markup Content="   " />
-                }
-                @if (Connection.Current is IHasMetrics)
-                {
-                    <KeyButton Content="@($"[F12] {Icons.Metrics} Metrics")" OnClick="ToggleMetrics" FocusedColor="@Theme.Accent" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
-                    <Markup Content="   " />
-                }
-                <KeyButton Content="[Esc] 🔙 Back" OnClick="@(() => Nav.NavigateTo("/"))" FocusedColor="@Theme.Accent" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
-            </Columns>
-        </Padder>
+        <KeyHints Bindings="@Keys" FirstFocusOrder="3" OnKeyDown="@HandleKeyDown" />
     </Footer>
 </FullscreenPage>
 
 <ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
+<HelpDialog @ref="_help" OnClose="FocusTable" />
 
 @if (Connection.Current is IHasDeletion { Deletion: var deletion })
 {
@@ -102,7 +87,7 @@
                   ConfirmMessage="@(n => $"Delete topic '{n}' and all its subscriptions? This cannot be undone.")"
                   Execute="@(n => deletion.DeleteTopicAsync(n))"
                   Activity="@(n => $"Deleted topic '{n}' and its subscriptions")"
-                  OnCompleted="@(n => { _all.RemoveAll(t => t.Name == n); UpdateFilterState(_filter); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1)); _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex)?.Name; StateHasChanged(); return Task.CompletedTask; })" />
+                  OnCompleted="@(n => { _all.RemoveAll(t => t.Name == n); UpdateFilterState(_filter.Text); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1)); _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex)?.Name; StateHasChanged(); return Task.CompletedTask; })" />
 }
 
 @code {
@@ -112,7 +97,8 @@
     private LiveList<TopicInfo> List => _live ?? throw new InvalidOperationException("Topic list not initialized");
     private List<TopicInfo> _all => List.All;
     private List<TopicInfo> _filtered = [];
-    private string? _filter;
+    private readonly ListFilter _filter = new();
+    private HelpDialog? _help;
     private int _selectedIndex;
     private string? _focusedItem;
     private string _error = string.Empty;
@@ -137,7 +123,7 @@
             new(t => t.Name, ("Subscriptions", x => x.SubscriptionCount), ("Scheduled", x => x.ScheduledMessageCount)),
             LiveCounts, Logger)
         {
-            Changed = () => { UpdateFilterState(_filter); return InvokeAsync(StateHasChanged); },
+            Changed = () => { UpdateFilterState(_filter.Text); return InvokeAsync(StateHasChanged); },
             Render = StateHasChanged,
             LoadFailed = ex => { _loadFailed = true; _error = ErrorText.Of(ex); return InvokeAsync(StateHasChanged); },
         };
@@ -168,7 +154,6 @@
     private void UpdateFilterState(string? value)
     {
         var currentFocus = _focusedItem;
-        _filter = value;
         _filtered = _sort.Apply(string.IsNullOrWhiteSpace(value) ? _all
             : _all.Where(t => t.Name.Contains(value, StringComparison.OrdinalIgnoreCase)));
         if (currentFocus is not null)
@@ -199,22 +184,47 @@
         StateHasChanged();
     }
 
+    private IReadOnlyList<KeyBinding> Keys =>
+    [
+        new("Enter", $"{Icons.Subscription} Subscriptions", OpenFocused) { InFooter = false },
+        new("/", $"{Icons.Filter} Filter", () => { _filter.Edit(); StateHasChanged(); }),
+        new("r", $"{Icons.Refresh} Refresh", () => _ = LoadTopics()) { Ctrl = true, Aliases = ["F5"] },
+        .. Connection.Current is IHasDeletion
+            ? [new KeyBinding("D", $"{Icons.Delete} Delete", () => OnFocused(_deleteTopic)) { Danger = true, Aliases = ["F9", "Delete", "\\"] }]
+            : Array.Empty<KeyBinding>(),
+        .. Connection.Current is IHasMetrics
+            ? [new KeyBinding("m", $"{Icons.Metrics} Metrics", ToggleMetrics) { Aliases = ["F12"] }]
+            : Array.Empty<KeyBinding>(),
+        new("?", $"{Icons.Confirm} Help", () => _help?.Open(Keys)),
+        new("Escape", $"{Icons.Back} Back", () => Nav.NavigateTo("/")),
+    ];
+
+    private void OpenFocused()
+    {
+        if (_filtered.ElementAtOrDefault(_selectedIndex) is not { } t) return;
+        NavState.TopicName = t.Name;
+        Nav.NavigateTo("/topic-detail");
+    }
+
+    private bool EndsFilterEdit(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter" || !_filter.Editing) return false;
+        _filter.Handle(e);
+        StateHasChanged();
+        return true;
+    }
+
+    private Task FocusTable() => _tbody is { } table ? FocusManager.FocusAsync(table.FocusKey) : Task.CompletedTask;
+
     private void HandleKeyDown(KeyboardEventArgs e)
     {
-        if (e.CtrlKey || e.AltKey || e.MetaKey) return;
         if (_deleteTopic?.HandleKey(e) == true) return;
-        if (MetricsRange.StepOf(e, _filter) is { } step && _metricsPanel?.StepRange(step) == true) return;
-        switch (e.Key)
+        switch (_filter.Handle(e))
         {
-            case "Escape": Nav.NavigateTo("/"); return;
-            case "F5": _ = LoadTopics(); return;
-            case "F9": case "Delete": case "\\":
-                OnFocused(_deleteTopic);
-                return;
-            case "F12": ToggleMetrics(); return;
-            default:
-                if (FilterEdit.From(_filter, e) is { } edit) ApplyFilter(edit.Filter);
-                return;
+            case FilterKey.Changed: ApplyFilter(_filter.Text); return;
+            case FilterKey.Handled: StateHasChanged(); return;
         }
+        if (MetricsRange.StepOf(e) is { } step && _metricsPanel?.StepRange(step) == true) return;
+        KeyBinding.Dispatch(Keys, e);
     }
 }

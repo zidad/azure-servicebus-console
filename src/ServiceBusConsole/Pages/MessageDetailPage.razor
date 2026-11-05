@@ -26,51 +26,14 @@ else
 
         <MessagePreview Message="@msg" Browser="@_browser" Width="@Viewport.Width" Height="@PreviewHeight" BodyFocusOrder="0" OnKeyDown="@HandleKeyDown" />
 
-        <Padder Padding="@(new(1, 0, 0, 0))">
-            <Columns>
-                @if (Mode == BrowseMode.Locked)
-                {
-                    <KeyButton Content="@($"[F9] {Icons.Complete} Complete")" OnClick="@(() => Run(_complete))"
-                                FocusedColor="@Theme.Danger" FocusOrder="1" OnKeyDown="@HandleKeyDown" />
-                    <Markup Content="  " />
-                    <KeyButton Content="@($"[F4] {Icons.Unlocked} Abandon")" OnClick="@(() => Run(_abandon))"
-                                FocusedColor="@Theme.Warning" FocusOrder="2" OnKeyDown="@HandleKeyDown" />
-                    <Markup Content="  " />
-                    @if (!IsDlq)
-                    {
-                        <KeyButton Content="@($"[F3] {Icons.DeadLetter} Dead-letter")" OnClick="@(() => Run(_deadLetter))"
-                                    FocusedColor="@Theme.Danger" FocusOrder="3" OnKeyDown="@HandleKeyDown" />
-                        <Markup Content="  " />
-                    }
-                }
-                @if (CanRetry)
-                {
-                    <KeyButton Content="@($"[F10] {Icons.Retry} {RetryText.Label(IsDlq)}")" OnClick="@(() => Run(_retry))"
-                                FocusedColor="@Theme.Success" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
-                    <Markup Content="  " />
-                }
-                else if (Mode == BrowseMode.Peek && _browser is not null)
-                {
-                    <KeyButton Content="@($"[F10] {Icons.Send} Resend")" OnClick="@(() => Run(_resend))"
-                                FocusedColor="@Theme.Success" FocusOrder="4" OnKeyDown="@HandleKeyDown" />
-                    <Markup Content="  " />
-                }
-                @if (NavState.MessageSource is { } actionSource && PluginActions.Any(msg, actionSource, Session.Snapshot))
-                {
-                    <KeyButton Content="@($"[F2] {Icons.Actions} Actions…")" OnClick="OpenActions"
-                                FocusedColor="@Theme.Accent" FocusOrder="5" OnKeyDown="@HandleKeyDown" />
-                    <Markup Content="  " />
-                }
-                <KeyButton Content="@($"[Esc] {Icons.Back} Back")" OnClick="GoBack"
-                            FocusedColor="@Theme.Accent" FocusOrder="6" OnKeyDown="@HandleKeyDown" />
-            </Columns>
-        </Padder>
+        <KeyHints Bindings="@Keys" FirstFocusOrder="1" OnKeyDown="@HandleKeyDown" />
     </Flex>
 }
 
 <OperationDialog Operation="@_browser?.Operation" OnDismiss="DismissOperation" />
 
 <MessageActionsDialog @ref="_actions" OnClosed="StateHasChanged" />
+<HelpDialog @ref="_help" OnClose="StateHasChanged" />
 
 <AsyncCommand @ref="_complete" TItem="MessageInfo"
               ConfirmMessage="@(m => $"Complete message #{m.SequenceNumber}? It is removed from {NavState.MessageSource?.DisplayName}.")"
@@ -171,9 +134,31 @@ else
         }
     }
 
+    private HelpDialog? _help;
+
+    private IReadOnlyList<KeyBinding> Keys =>
+    [
+        .. Mode == BrowseMode.Locked
+            ? [new KeyBinding("c", $"{Icons.Complete} Complete", () => Run(_complete)) { Danger = true, Aliases = ["F9", "Delete"] },
+               new KeyBinding("a", $"{Icons.Unlocked} Abandon", () => Run(_abandon)) { Aliases = ["F4"] },
+               .. IsDlq ? Array.Empty<KeyBinding>()
+                   : [new KeyBinding("X", $"{Icons.DeadLetter} Dead-letter", () => Run(_deadLetter)) { Danger = true, Aliases = ["F3"] }]]
+            : Array.Empty<KeyBinding>(),
+        .. CanRetry
+            ? [new KeyBinding("R", $"{Icons.Retry} {RetryText.Label(IsDlq)}", () => Run(_retry)) { Danger = true, Aliases = ["F10"] }]
+            : Mode == BrowseMode.Peek && _browser is not null
+                ? [new KeyBinding("R", $"{Icons.Send} Resend", () => Run(_resend)) { Danger = true, Aliases = ["F10"] }]
+                : Array.Empty<KeyBinding>(),
+        .. NavState.Message is { } msg && NavState.MessageSource is { } source && PluginActions.Any(msg, source, Session.Snapshot)
+            ? [new KeyBinding(".", $"{Icons.Actions} Actions…", OpenActions) { Aliases = ["F2"] }]
+            : Array.Empty<KeyBinding>(),
+        new("?", $"{Icons.Confirm} Help", () => _help?.Open(Keys)),
+        new("Escape", $"{Icons.Back} Back", GoBack),
+    ];
+
     private void HandleKeyDown(KeyboardEventArgs e)
     {
-        if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        if (e.CtrlKey || e.AltKey || e.MetaKey || _help?.IsOpened == true || _actions?.IsOpened == true) return;
         if (_browser?.Operation is { Finished: true })
         {
             if (e.Key is "Escape" or "Enter") DismissOperation();
@@ -187,17 +172,6 @@ else
         }
         if (Commands.Any(c => c?.HandleKey(e) == true)) return;
         if (Commands.Any(c => c?.IsBusy == true)) return;
-        switch (e.Key)
-        {
-            case "Escape": GoBack(); return;
-            case "F9": case "Delete": if (Mode == BrowseMode.Locked) Run(_complete); return;
-            case "F4": if (Mode == BrowseMode.Locked) Run(_abandon); return;
-            case "F3": if (Mode == BrowseMode.Locked && !IsDlq) Run(_deadLetter); return;
-            case "F10":
-                if (CanRetry) Run(_retry);
-                else if (Mode == BrowseMode.Peek) Run(_resend);
-                return;
-            case "F2": OpenActions(); return;
-        }
+        KeyBinding.Dispatch(Keys, e);
     }
 }

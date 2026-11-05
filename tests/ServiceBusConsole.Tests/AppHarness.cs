@@ -136,6 +136,14 @@ public sealed class AppHarness
         await terminal.WaitUntilAsync(_ => Connection.CurrentNamespace == ns.FullyQualifiedNamespace, Timeout, cancellationToken: Ct);
     }
 
+    /// <summary>The connection page's footer button for a section's F-key: its key chip and label.</summary>
+    public static string SectionButton(ConsoleKey key) => key switch
+    {
+        ConsoleKey.F1 => $"1  {Icons.Queue} Queues",
+        ConsoleKey.F2 => $"2  {Icons.Topic} Topics",
+        _ => $"3  {Icons.Subscription} All Subscriptions",
+    };
+
     // A key, not a click: the connection page can still shift its buttons (e.g. the subscription
     // spinner appears), so a click at a position read from an earlier frame may miss.
     private async Task<HeadlessTerminal> OpenAsync(ConsoleKey key, int height = 30)
@@ -143,7 +151,7 @@ public sealed class AppHarness
         var terminal = await StartAsync(height: height);
         await WaitForTableFocusAsync(terminal);
         // The emulator's namespace loads in the background; the key does nothing until its button shows.
-        await terminal.WaitForTextAsync($"[{key}]", Timeout, Ct);
+        await terminal.WaitForTextAsync(SectionButton(key), Timeout, Ct);
         var connectionFocus = terminal.FocusKey;
         await terminal.SendKeyAsync(key, '\0', cancellationToken: Ct);
         await WaitForTableFocusAsync(terminal, connectionFocus);

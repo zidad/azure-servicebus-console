@@ -114,18 +114,14 @@ public sealed class MetricsTests
     }
 
     [Test]
-    [Arguments("+", null, -1)]
-    [Arguments("=", null, -1)]
-    [Arguments("+", "orders", -1)]
-    [Arguments("=", "orders", -1)]
-    [Arguments("-", null, 1)]
-    [Arguments("_", "", 1)]
-    [Arguments("-", "orders", null)]
-    [Arguments("_", "orders", null)]
-    [Arguments("o", null, null)]
-    [Arguments("F5", null, null)]
-    public void Range_PlusOrEqualsZoomsIn_MinusOrUnderscoreZoomsOutOnlyWithoutAFilter(string key, string? filter, int? step) =>
-        MetricsRange.StepOf(new KeyboardEventArgs { Key = key }, filter).ShouldBe(step);
+    [Arguments("+", -1)]
+    [Arguments("=", -1)]
+    [Arguments("-", 1)]
+    [Arguments("_", 1)]
+    [Arguments("o", null)]
+    [Arguments("F5", null)]
+    public void Range_PlusOrEqualsZoomsIn_MinusOrUnderscoreZoomsOut(string key, int? step) =>
+        MetricsRange.StepOf(new KeyboardEventArgs { Key = key }).ShouldBe(step);
 
     [Test]
     public void Range_Label_KeepsOneWidth()

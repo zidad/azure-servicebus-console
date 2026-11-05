@@ -104,7 +104,7 @@ public sealed class QueueListPageTests
         frame.GetLine(1).Trim().ShouldBe(new string('─', frame.Width));
         frame.GetLine(2).ShouldStartWith("╭");
         frame.GetLine(2).ShouldNotContain("┬");
-        foreach (var name in new[] { "type to filter", "payments", "emails" })
+        foreach (var name in new[] { "/ to filter", "payments", "emails" })
             frame.GetLine(RowOf(frame, name)).Count(c => c == '│').ShouldBe(2, name);
         frame.GetLine(RowOf(frame, "payments")).ShouldStartWith("│ ●");
         frame.GetLine(RowOf(frame, "emails")).ShouldNotContain("●");
@@ -116,7 +116,7 @@ public sealed class QueueListPageTests
         await using var terminal = await WithQueues().OpenQueuesAsync();
         await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
 
-        await terminal.TypeAsync("pay", Ct);
+        await terminal.TypeAsync("/pay", Ct);
 
         var frame = await terminal.WaitForTextAsync("Queues (1 of 3)", AppHarness.Timeout, Ct);
         frame.GetLine(RowOf(frame, "Queue ")).ShouldContain("🔍 pay");
@@ -129,7 +129,7 @@ public sealed class QueueListPageTests
     {
         await using var terminal = await WithQueues().OpenAzureAsync(ConsoleKey.F1, height: 30);
         await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
-        for (var i = 0; i < 10 && AppHarness.FocusedAttribute(terminal, "data-focus-order") != "4"; i++) // the Delete button
+        for (var i = 0; i < 10 && AppHarness.FocusedAttribute(terminal, "data-focus-order") != "5"; i++) // the Delete button: /, ^r, D
         {
             var previous = terminal.FocusKey;
             await terminal.SendKeyAsync(ConsoleKey.Tab, '\t', cancellationToken: Ct);
@@ -142,7 +142,7 @@ public sealed class QueueListPageTests
         await terminal.SendKeyAsync(ConsoleKey.N, 'n', cancellationToken: Ct);
         var frame = await terminal.WaitUntilAsync(f => !f.ContainsText("Delete queue"), AppHarness.Timeout, cancellationToken: Ct);
         frame.ContainsText("Queues (3)").ShouldBeTrue(frame.ScreenText);
-        frame.ContainsText("type to filter").ShouldBeTrue(frame.ScreenText);
+        frame.ContainsText("/ to filter").ShouldBeTrue(frame.ScreenText);
     }
 
     [Test]
@@ -184,7 +184,7 @@ public sealed class QueueListPageTests
         app.Queues.LoadError = new InvalidOperationException("boom");
         await using var terminal = await app.OpenQueuesAsync();
 
-        await terminal.WaitForTextAsync("Failed to load. Press [F5] to retry.", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("Failed to load. Press ^r to retry.", AppHarness.Timeout, Ct);
     }
 
     [Test]

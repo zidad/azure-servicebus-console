@@ -26,6 +26,9 @@
     /// <summary>Keys the list does not handle (e.g. F5, Escape), for the page's shortcuts.</summary>
     [Parameter] public Action<KeyboardEventArgs>? OnKeyDown { get; set; }
 
+    /// <summary>Sees navigation keys before the list; true keeps one from it (e.g. Enter ending a filter edit).</summary>
+    [Parameter] public Func<KeyboardEventArgs, bool>? TakeKey { get; set; }
+
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object?>? AdditionalAttributes { get; set; }
 
     [CascadingParameter] private ListSelection? Selection { get; set; }
@@ -57,6 +60,7 @@
 
     private async Task OnKeyDownHandler(KeyboardEventArgs e)
     {
+        if (TakeKey?.Invoke(e) == true) return;
         if (!e.CtrlKey && !e.AltKey && !e.MetaKey && NavigationKeys.Contains(e.Key) && Selection is { } selection)
             await selection.HandleKeyDown(e);
         else if (OnKeyDown is { } forward)
