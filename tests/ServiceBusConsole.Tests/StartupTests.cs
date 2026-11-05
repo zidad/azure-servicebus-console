@@ -25,7 +25,7 @@ public sealed class StartupTests
 
         var frame = await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
 
-        frame.GetLine(1).ShouldContain(QueueHeader);
+        frame.GetLine(0).ShouldContain(QueueHeader);
         app.Connection.CurrentNamespace.ShouldBe(AppHarness.AzureNamespace.FullyQualifiedNamespace);
     }
 
@@ -39,7 +39,7 @@ public sealed class StartupTests
 
         var frame = await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
 
-        frame.GetLine(1).ShouldContain(QueueHeader);
+        frame.GetLine(0).ShouldContain(QueueHeader);
         app.Namespaces.HoldListing.SetResult();
         app.Namespaces.HoldNamespaces.SetResult();
     }
@@ -81,7 +81,7 @@ public sealed class StartupTests
 
         await terminal.SendKeyAsync(ConsoleKey.F1, '\0', cancellationToken: Ct);
         var frame = await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
-        frame.GetLine(1).ShouldContain(QueueHeader);
+        frame.GetLine(0).ShouldContain(QueueHeader);
     }
 
     [Test]

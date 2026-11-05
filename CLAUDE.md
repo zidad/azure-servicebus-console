@@ -16,7 +16,8 @@ Resolve any conflicts, then push with `--force-with-lease`.
 The fork's `azsb` branch (`lib/RazorConsole`) is always **one commit** on top of upstream `RazorConsole/RazorConsole` main, so `git diff upstream/main azsb` shows every customization at once. Keep that commit minimal, aiming to switch back to the RazorConsole NuGet package:
 
 - Component behaviour lives in the app (`Components/`, `Components/Lists/`): `SelectableList`, `NavigableTBody`, `SelectableRow` and `KeyButton` render RazorConsole's element protocol (`<scrollable>`, `<tbody>`, `<tr data-selected-bg>`, `data-focusable`) themselves
-- The fork only holds engine fixes and the smallest hooks the app cannot add itself, each with an upstream PR or one to open; drop it once upstream has it
+- Need a RazorConsole component to behave differently? Copy it into `Components/` and change the copy; never change the fork's components
+- The fork only holds engine fixes (layout, rendering, input) and the smallest hooks the app cannot add itself, each with an upstream PR or one to open; drop it once upstream has it
 
 With every change:
 
@@ -51,7 +52,7 @@ Tests use TUnit on Microsoft.Testing.Platform with Shouldly assertions; `Ct` (`t
 - Keys go only to the focused element; they do not bubble. Page `HandleKeyDown` runs only via components that forward `OnKeyDown`.
 - `AppHarness` gives each test its own `FileCache` directory under the temp folder.
 - UI tests run at most one per core (`TestParallelism.cs`), and one at a time per class: a new UI test class gets `[NotInParallel(nameof(TheClass))]`. TUnit's defaults (4 per core, tests of a class in parallel) starve their render timeouts.
-- Screenshots for design review: `SCREENSHOT_DIR=<dir> dotnet test --project tests/ServiceBusConsole.Tests` dumps every page (`Screenshots.cs`), then `python tools/render-screenshots.py <dir>` renders PNGs (Pillow, macOS fonts).
+- Screenshots for design review: `SCREENSHOT_DIR=<dir> dotnet test --project tests/ServiceBusConsole.Tests` dumps every page (`Screenshots.cs`), then `python tools/render-screenshots.py <dir>` renders PNGs (Pillow; macOS fonts, else JetBrains Mono or DejaVu and Noto Color Emoji).
 
 ## C# style
 
@@ -106,7 +107,9 @@ This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, que
 | `Messaging/` | `MessageBrowser` (+ store), `OperationProgress`, `RetryText` |
 | `Logging/`, `Syntax/` | File logger, JSON highlighting grammar |
 
-**UI pattern:** Use `/razorconsole` for a full component and pattern reference. Namespace pages use `<FullscreenPage>`: `<Header>` (breadcrumb + count, rendered inside `ConnectionHeader`), `<Content>` (table wrapped in `<Scrollable>`), `<Footer>` (action buttons). `ConnectionHeader` shows subscription › namespace with click-to-switch pickers; switching calls `ServiceBusConnection.SetNamespace`, then `NavigationState.Reload()` remounts the page when it stays on the same route (`App.razor` keys `RouteView` on `NavState.PageVersion`). Navigation uses `Nav.NavigateTo("/route")`.
+**UI pattern:** Use `/razorconsole` for a full component and pattern reference. Namespace pages use `<FullscreenPage>`: `<Header>` (breadcrumb + count, rendered inside `ConnectionHeader`), `<Status>` (right of the breadcrumb: `<LiveStatus>` on list pages), `<Content>` (table wrapped in `<Scrollable>`), `<Footer>` (action buttons). `ConnectionHeader` is one line (`azsb │ subscription › namespace › page`) and a rule, with click-to-switch pickers on the subscription and namespace; switching calls `ServiceBusConnection.SetNamespace`, then `NavigationState.Reload()` remounts the page when it stays on the same route (`App.razor` keys `RouteView` on `NavState.PageVersion`). Navigation uses `Nav.NavigateTo("/route")`.
+
+**Tables:** a page's main table is its bordered box: `Border="TableBorder.Rounded" data-column-separators="false"` (a fork hook) draws the outer border and the header rule, no lines between columns. List pages end their rows with `<FillerRows>` so the box keeps a full page's height; the message browser doesn't, its preview takes the spare lines. A `<DeadLetterMark>` gutter marks rows with dead letters.
 
 **Focus:** request focus once with `FocusManager.FocusAsync`; it keeps the request until the target renders. A retry loop can replace a later request (e.g. a dialog's OK) with one for an element that is gone.
 

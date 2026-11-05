@@ -15,6 +15,7 @@
         <SectionCrumb Section="@Section.Topics" Current="true" />
         @if (_all.Count > 0) { <Markup Content="@ConnectionHeader.Count(_filtered.Count, _all.Count)" Foreground="@Theme.Muted" /> }
     </Header>
+    <Status>@if (_live is { } live) { <LiveStatus List="@live" /> }</Status>
     <Content>
         @if (_all.Count == 0 && _loadFailed)
         {
@@ -39,7 +40,7 @@
                         SelectedIndex="@_selectedIndex"
                         SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _filtered.ElementAtOrDefault(i)?.Name; })"
                         OnActivate="@(() => { if (_filtered.ElementAtOrDefault(_selectedIndex) is {} t) { NavState.TopicName = t.Name; Nav.NavigateTo("/topic-detail"); } })">
-                <SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.Rounded">
+                <SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.Rounded" data-column-separators="false">
                     <SpectreTHead>
                         <SpectreTR>
                             <SpectreTH Align="Justify.Left"><Columns><SortHeader Label="Topic" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter))" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
@@ -62,6 +63,7 @@
                                 <SpectreTD>@if (t.IsRefreshing) { <Spinner /> }</SpectreTD>
                             </SelectableRow>
                         }
+                        <FillerRows Count="@(FullscreenLayout.PageSizeRoundedTable(Viewport.Height, ShowMetrics) - context.Items.Count)" />
                     </NavigableTBody>
                 </SpectreTable>
             </SelectableList>

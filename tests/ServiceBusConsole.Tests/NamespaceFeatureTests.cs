@@ -88,7 +88,7 @@ public sealed class NamespaceFeatureTests
         await terminal.WaitForTextAsync("│  └─   📬 Queues", AppHarness.Timeout, Ct);
         await AppHarness.ClickTextAsync(terminal, "│  └─   📬 Queues");
 
-        await terminal.WaitUntilAsync(f => f.GetLine(1).Contains("🌐 sb-legacy  ›  📬 Queues (1)"), AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => f.GetLine(0).Contains("🌐 sb-legacy  ›  📬 Queues (1)"), AppHarness.Timeout, cancellationToken: Ct);
         app.Connection.Current.ShouldBeOfType<FakeBasicNamespace>();
     }
 

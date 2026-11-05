@@ -60,7 +60,7 @@ public sealed class ConnectionTreeTests
         await Down(terminal, 1);
         await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
         var frame = await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
-        frame.GetLine(1).ShouldContain("🔑 Contoso Development  ›  🌐 sb-orders-dev  ›  📬 Queues (1)");
+        frame.GetLine(0).ShouldContain("🔑 Contoso Development  ›  🌐 sb-orders-dev  ›  📬 Queues (1)");
     }
 
     [Test]

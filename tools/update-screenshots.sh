@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Regenerates docs/screenshots from the headless screenshot scenes (sample data, no Azure needed).
-# Needs Python with Pillow and the macOS Menlo / Apple Color Emoji fonts.
+# Needs Python with Pillow and the macOS Menlo / Apple Color Emoji fonts (on Linux: JetBrains Mono or DejaVu Sans Mono, Noto Color Emoji).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

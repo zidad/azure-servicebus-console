@@ -23,7 +23,7 @@ public sealed class ConnectionHeaderTests
         await AppHarness.ClickTextAsync(terminal, "sb-dev-a");
         await AppHarness.ClickSettledAsync(terminal, f => QueuesRowBelow(f, "▾ 🌐 sb-dev-a") is { } y ? (f.GetLine(y).IndexOf("📬", StringComparison.Ordinal), y) : null);
 
-        await terminal.WaitUntilAsync(f => f.GetLine(1).Contains("🔑 Contoso Development  ›  🌐 sb-dev-a  ›  📬 Queues (1)"), AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(f => f.GetLine(0).Contains("🔑 Contoso Development  ›  🌐 sb-dev-a  ›  📬 Queues (1)"), AppHarness.Timeout, cancellationToken: Ct);
         app.Connection.CurrentNamespace.ShouldBe("sb-dev-a.servicebus.windows.net");
         app.Queues.Loads.ShouldBeGreaterThan(loadsBefore);
     }

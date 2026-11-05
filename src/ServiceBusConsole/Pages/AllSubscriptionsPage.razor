@@ -15,6 +15,7 @@
         <SectionCrumb Section="@Section.AllSubscriptions" Current="true" />
         @if (_all.Count > 0) { <Markup Content="@ConnectionHeader.Count(_filtered.Count, _all.Count)" Foreground="@Theme.Muted" /> }
     </Header>
+    <Status>@if (_live is { } live) { <LiveStatus List="@live" /> }</Status>
     <Content>
         @if (_all.Count == 0 && _loadFailed)
         {
@@ -39,9 +40,10 @@
                         SelectedIndex="@_selectedIndex"
                         SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _filtered.ElementAtOrDefault(i); })"
                         OnActivate="@(() => { if (_filtered.ElementAtOrDefault(_selectedIndex) is {} s) { NavState.TopicName = s.TopicName; NavState.SubscriptionName = s.Name; NavState.ReturnPath = "/subscriptions"; Nav.NavigateTo("/subscription-browser"); } })">
-                <SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.Rounded">
+                <SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.Rounded" data-column-separators="false">
                     <SpectreTHead>
                         <SpectreTR>
+                            <SpectreTH Width="1"></SpectreTH>
                             <SpectreTH Align="Justify.Left"><Columns><SortHeader Label="Topic" Sort="_sort" OnSorted="SortAndUpdateFilterState" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
                             <SpectreTH Align="Justify.Left"><SortHeader Label="Subscription" Sort="_sort" OnSorted="SortAndUpdateFilterState" /></SpectreTH>
                             <SpectreTH Align="Justify.Right"><SortHeader Label="Active" Sort="_sort" OnSorted="SortAndUpdateFilterState" /></SpectreTH>
@@ -58,6 +60,7 @@
                         {
                             var idx = i++;
                             <SelectableRow @key="@($"{s.TopicName}/{s.Name}")" RowIndex="@idx">
+                                <SpectreTD><DeadLetterMark Count="@s.DeadLetterMessageCount" /></SpectreTD>
                                 <SpectreTD>@s.TopicName</SpectreTD>
                                 <SpectreTD>@s.Name</SpectreTD>
                                 <SpectreTD Align="Justify.Right"><CountCell Value="@s.ActiveMessageCount" Highlight="@List.Changes.Highlight(s, "Active")" /></SpectreTD>
@@ -66,6 +69,7 @@
                                 <SpectreTD>@if (s.IsRefreshing) { <Spinner /> }</SpectreTD>
                             </SelectableRow>
                         }
+                        <FillerRows Count="@(FullscreenLayout.PageSizeRoundedTable(Viewport.Height, ShowMetrics) - context.Items.Count)" />
                     </NavigableTBody>
                 </SpectreTable>
             </SelectableList>

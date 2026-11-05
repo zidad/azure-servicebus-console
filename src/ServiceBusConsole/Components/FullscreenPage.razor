@@ -4,7 +4,7 @@
 <Flex Class="rows" Direction="FlexDirection.Column" @onkeydown="OnKeyDown" FillWidth="true">
     <Flex Direction="FlexDirection.Column" Height="@(Viewport.Height - 1)" Justify="FlexJustify.SpaceBetween" FillWidth="true">
         <Rows FillWidth="true">
-            <ConnectionHeader>@Header</ConnectionHeader>
+            <ConnectionHeader Status="@Status">@Header</ConnectionHeader>
             @Content
         </Rows>
         <Rows FillWidth="true">
@@ -23,6 +23,9 @@
     /// </summary>
     /// <summary>Breadcrumb pieces for the page, shown inside the <see cref="ConnectionHeader"/>.</summary>
     [Parameter] public RenderFragment? Header { get; set; }
+
+    /// <summary>Right-aligned status in the header, e.g. <see cref="LiveStatus{T}"/>.</summary>
+    [Parameter] public RenderFragment? Status { get; set; }
     [Parameter, EditorRequired] public required RenderFragment Content { get; set; }
     [Parameter, EditorRequired] public required RenderFragment Footer { get; set; }
     [Parameter] public EventCallback<KeyboardEventArgs> OnKeyDown { get; set; }

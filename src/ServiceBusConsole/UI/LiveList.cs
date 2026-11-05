@@ -25,6 +25,9 @@ public sealed class LiveList<T>(
 
     public CountChanges<T> Changes { get; } = changes;
 
+    /// <summary>When the last live load or poll finished; null while only cached rows are shown.</summary>
+    public DateTimeOffset? UpdatedAt { get; private set; }
+
     /// <summary>Re-sort/filter and render; after every batch of rows and every poll.</summary>
     public required Func<Task> Changed { get; init; }
 
@@ -97,6 +100,7 @@ public sealed class LiveList<T>(
 
             if (token.IsCancellationRequested) return false;
             All.RemoveAll(x => !live.Contains(key(x)));
+            UpdatedAt = Changes.Time.GetUtcNow();
             await Changed();
             if (poll) _ = FadeAsync(token);
             return true;

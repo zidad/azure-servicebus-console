@@ -6,7 +6,8 @@ namespace ServiceBusConsole.Tests;
 public sealed class MetricsPanelTests
 {
     private static int Rows(TerminalFrame frame, string prefix)
-        => Enumerable.Range(0, frame.Height).Count(y => frame.GetLine(y).StartsWith($"│ {prefix}", StringComparison.Ordinal));
+        => Enumerable.Range(0, frame.Height).Count(y => frame.GetLine(y) is var line
+            && line.StartsWith('│') && line.TrimStart('│', ' ', '●').StartsWith(prefix, StringComparison.Ordinal));
 
     private static bool ChartsShown(TerminalFrame frame, string label, string from = "-24h")
         => frame.ContainsText(label) && frame.ContainsText(from) && frame.ContainsText("now") && !frame.ContainsText("Loading metrics");
