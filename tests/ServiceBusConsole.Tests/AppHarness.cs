@@ -35,6 +35,9 @@ public sealed class AppHarness
     public FakeMessageService Messages => Services.Messages;
     public FakeMetricsService Metrics => Services.Metrics;
 
+    /// <summary>What the app sent to the terminal's clipboard (OSC 52 sequences), in order.</summary>
+    public System.Collections.Concurrent.ConcurrentQueue<string> Copied { get; } = [];
+
     /// <summary>The namespace a choice opens; by default like the real opener (<see cref="FakeNamespace.For"/>).</summary>
     public Func<NamespaceInfo, IServiceBusNamespace> OpenNamespace { get; set; }
 
@@ -70,6 +73,7 @@ public sealed class AppHarness
                     services.AddSingleton(NavState);
                     services.AddSingleton<MessageBrowserStore>();
                     services.AddSingleton<ActivityLog>();
+                    services.AddSingleton(new Clipboard { Write = Copied.Enqueue });
                     services.AddSingleton<SessionContext>();
                     services.AddSingleton(new FileCache(NullLogger<FileCache>.Instance, CacheDirectory));
                     services.AddSingleton<SubscriptionCatalog>();
