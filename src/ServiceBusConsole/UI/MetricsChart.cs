@@ -1,8 +1,6 @@
-using RazorConsole.Components;
-
 namespace ServiceBusConsole.UI;
 
-/// <summary>Turns <see cref="MessageMetrics"/> series into <see cref="StepChart"/> series, X in <see cref="TimeAxis"/> units before the window's end.</summary>
+/// <summary>Turns <see cref="MessageMetrics"/> series into <see cref="StepPlot"/> series, X in <see cref="TimeAxis"/> units before the window's end.</summary>
 public static class MetricsChart
 {
     // The widest Y label of the compact formats, e.g. "123.4k".
@@ -15,7 +13,7 @@ public static class MetricsChart
         TimeSpan.FromHours(1), TimeSpan.FromHours(6), TimeSpan.FromHours(12), TimeSpan.FromDays(1),
     ];
 
-    /// <summary>Plot columns of a <see cref="StepChart"/> of <paramref name="width"/>: its Y labels and axes take the rest.</summary>
+    /// <summary>Plot columns of a <see cref="StepPlot"/> of <paramref name="width"/>: its Y labels and axes take the rest.</summary>
     public static int PlotColumns(int width) => width - 1 - MaxYLabelWidth;
 
     /// <summary>
@@ -28,8 +26,8 @@ public static class MetricsChart
     public static string XAxisFormat(MetricsWindow window) => TimeAxis.For(window.To - window.From).Format;
 
     /// <summary>Drawn in order: a later series covers an earlier one where they meet.</summary>
-    public static List<StepChart.ChartSeries> Series(MetricsWindow window, params IEnumerable<(Color Color, IReadOnlyList<MetricPoint> Points)> series) =>
-        [.. series.Select(s => new StepChart.ChartSeries(s.Color, Steps(s.Points, window)))];
+    public static IReadOnlyList<ChartSeries> Series(MetricsWindow window, params IEnumerable<(Color Color, IReadOnlyList<MetricPoint> Points)> series) =>
+        [.. series.Select(s => new ChartSeries(s.Color, Steps(s.Points, window)))];
 
     /// <summary>Each interval's value held until the next one starts; the last one until its own end.</summary>
     public static List<(double X, double Y)> Steps(IReadOnlyList<MetricPoint> points, MetricsWindow window)

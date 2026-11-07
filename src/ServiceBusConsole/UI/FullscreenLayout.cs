@@ -27,7 +27,7 @@ public static class FullscreenLayout
     /// <summary><see cref="MetricsPanel"/>: header line + charts, which take <c>Height + 1</c> lines with axes — 12 lines.</summary>
     public const int MetricsPanel = 1 + MetricsChartHeight + 1;
 
-    /// <summary><c>StepChart.Height</c> of the metrics charts: 8 plot rows.</summary>
+    /// <summary><see cref="StepPlot.Height"/> of the metrics charts: 8 plot rows.</summary>
     public const int MetricsChartHeight = 10;
 
     /// <summary>

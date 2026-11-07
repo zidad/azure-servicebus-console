@@ -49,14 +49,8 @@
         else if (_metrics is { } m)
         {
             <Flex Direction="FlexDirection.Row" Gap="@Gap">
-                <StepChart Width="@ChartWidth" Height="@FullscreenLayout.MetricsChartHeight"
-                           AxesColor="@Theme.Border" LabelsColor="@Theme.Muted"
-                           XAxisFormat="@MetricsChart.XAxisFormat(m.Window)" YAxisFormat="@MetricsChart.YAxisFormat([m.Incoming, m.Outgoing])"
-                           Series="@MetricsChart.Series(m.Window, (Theme.Outgoing, m.Outgoing), (Theme.Incoming, m.Incoming))" />
-                <StepChart Width="@ChartWidth" Height="@FullscreenLayout.MetricsChartHeight"
-                           AxesColor="@Theme.Border" LabelsColor="@Theme.Muted"
-                           XAxisFormat="@MetricsChart.XAxisFormat(m.Window)" YAxisFormat="@MetricsChart.YAxisFormat([m.Active, m.DeadLettered])"
-                           Series="@MetricsChart.Series(m.Window, (Theme.Backlog, m.Active), (Theme.Danger, m.DeadLettered))" />
+                <StepChartView Plot="@Plot(m, [m.Incoming, m.Outgoing], (Theme.Outgoing, m.Outgoing), (Theme.Incoming, m.Incoming))" />
+                <StepChartView Plot="@Plot(m, [m.Active, m.DeadLettered], (Theme.Backlog, m.Active), (Theme.Danger, m.DeadLettered))" />
             </Flex>
         }
         else
@@ -110,6 +104,17 @@
 
     // The axes take two columns beyond Width.
     private int ChartWidth => HalfWidth - 2;
+
+    private StepPlot Plot(MessageMetrics m, IReadOnlyList<IReadOnlyList<MetricPoint>> values, params IEnumerable<(Color Color, IReadOnlyList<MetricPoint> Points)> series) => new()
+    {
+        Width = ChartWidth,
+        Height = FullscreenLayout.MetricsChartHeight,
+        AxesColor = Theme.Border,
+        LabelsColor = Theme.Muted,
+        XAxisFormat = MetricsChart.XAxisFormat(m.Window),
+        YAxisFormat = MetricsChart.YAxisFormat(values),
+        Series = MetricsChart.Series(m.Window, series),
+    };
 
     protected override void OnParametersSet() => Retarget();
 
