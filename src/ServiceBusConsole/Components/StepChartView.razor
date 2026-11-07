@@ -1,0 +1,16 @@
+<Rows>
+    @foreach (var line in Plot.Lines())
+    {
+        <Flex Direction="FlexDirection.Row">
+            @foreach (var run in line)
+            {
+                <Markup Content="@run.Text" Foreground="@run.Color" />
+            }
+        </Flex>
+    }
+</Rows>
+
+@code {
+    [Parameter, EditorRequired]
+    public required StepPlot Plot { get; set; }
+}
