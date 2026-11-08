@@ -40,7 +40,6 @@ public static class Icons
     public const string Running = "⏳";
     public const string Pending = "⬜";
     public const string Cancelled = "🛑";
-    public const string Unselected = "⬜";
     public const string Metrics = "📈";
     public const string Actions = "⚡";
     public const string Link = "🔗";

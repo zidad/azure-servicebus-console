@@ -1,0 +1,9 @@
+<Markup Content="@(Checked ? Mark : Empty)" Foreground="@(Checked ? Theme.Accent : Theme.Muted)" />
+
+@code {
+    /// <summary>One-cell checkbox of a selectable row, so the selection column stays one cell wide.</summary>
+    public const string Mark = "■";
+    public const string Empty = "□";
+
+    [Parameter] public bool Checked { get; set; }
+}
