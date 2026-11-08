@@ -120,8 +120,9 @@ public sealed class QueueListPageTests
             CacheKeys.Topics(NamespaceInfo.Emulator), [new TopicInfo { Name = "orders" }, new TopicInfo { Name = "refunds" }]);
         await using var terminal = await app.OpenQueuesAsync();
 
-        var frame = await terminal.WaitForTextAsync("Queues (3)", AppHarness.Timeout, Ct);
-        frame.GetLine(2).ShouldStartWith(" 1 📬 Queues 3   2 📢 Topics 2   3 📥 All Subscriptions ");
+        // The cached Topics count can render a frame after the live Queues count.
+        await terminal.WaitUntilAsync(f => f.ContainsText("Queues (3)") && f.GetLine(2).StartsWith(" 1 📬 Queues 3   2 📢 Topics 2   3 📥 All Subscriptions "),
+            AppHarness.Timeout, cancellationToken: Ct);
         await AppHarness.WaitForTableFocusAsync(terminal);
 
         await terminal.SendKeyAsync(ConsoleKey.D2, '2', cancellationToken: Ct);
