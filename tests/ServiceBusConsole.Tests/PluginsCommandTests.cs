@@ -1,4 +1,3 @@
-using JasperFx.CommandLine.Help;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 
@@ -17,23 +16,23 @@ public sealed class PluginsCommandTests
 
     private string[] Run(PluginCatalog catalog, params (string Key, string? Value)[] settings)
     {
-        var run = new AppCommands(Host.CreateDefaultBuilder(), catalog).BuildRun(["plugins"]);
-        var input = run.Input.ShouldBeOfType<PluginsInput>();
+        var input = new AppCommands(Host.CreateDefaultBuilder(), catalog).Bind("plugins").ShouldBeOfType<PluginsInput>();
         input.Catalog.ShouldBeSameAs(catalog);
-        input.Configuration = new ConfigurationBuilder().AddInMemoryCollection(settings.Select(s => KeyValuePair.Create(s.Key, s.Value))).Build();
-        input.Out = _out;
-        new PluginsCommand().Execute(input).ShouldBeTrue();
+        PluginsCommand.Execute(input with
+        {
+            Configuration = new ConfigurationBuilder().AddInMemoryCollection(settings.Select(s => KeyValuePair.Create(s.Key, s.Value))).Build(),
+            Out = _out,
+        }).ShouldBeTrue();
         return _out.ToString().Split(Environment.NewLine);
     }
 
     [Test]
-    public void Plugins_IsInTheHelp_AndBuildsNoHost()
+    public void Plugins_HasItsOwnHelp()
     {
-        var commands = new AppCommands(Host.CreateDefaultBuilder());
+        var (output, exitCode) = CommandLineTests.Invoke("help", "plugins");
 
-        commands.AllCommandTypes().ShouldContain(typeof(PluginsCommand));
-        commands.BuildRun(["help", "plugins"]).Input.ShouldBeOfType<HelpInput>();
-        commands.BuildRun(["plugins"]).Command.ShouldBeOfType<PluginsCommand>();
+        exitCode.ShouldBe(0);
+        output.ShouldContain("azsb plugins");
     }
 
     [Test]
@@ -66,17 +65,15 @@ public sealed class PluginsCommandTests
     [Test]
     public void Config_KnowsThePluginsKeys_AndMasksSecretsInList()
     {
-        var input = new AppCommands(Host.CreateDefaultBuilder(), Catalog).BuildRun(["config", "list"]).Input.ShouldBeOfType<ConfigInput>();
         var directory = Path.Combine(Path.GetTempPath(), "azsb-tests", Guid.NewGuid().ToString("N"));
         var file = new ConfigFile(Path.Combine(directory, "config.json"));
         file.Set("plugins.fake.token", "s3cret");
         file.Set("plugins.fake.repo", "acme/orders");
-        input.File = file;
-        input.Out = _out;
+        var input = new AppCommands(Host.CreateDefaultBuilder(), Catalog).Bind("config", "list").ShouldBeOfType<ConfigInput>() with { File = file, Out = _out };
 
         input.Keys.Select(k => k.Key).ShouldContain("plugins.fake.token");
         input.Keys.Select(k => k.Key).ShouldContain(ConfigKeys.Theme.Key);
-        new ConfigCommand().Execute(input).ShouldBeTrue();
+        ConfigCommand.Execute(input).ShouldBeTrue();
         _out.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).ShouldBe(["plugins.fake.repo=acme/orders", "plugins.fake.token=********"]);
         Directory.Delete(directory, recursive: true);
     }

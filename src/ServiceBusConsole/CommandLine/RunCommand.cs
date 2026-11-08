@@ -1,22 +1,21 @@
-using JasperFx.CommandLine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 namespace ServiceBusConsole.CommandLine;
 
-[Description("Open the terminal UI (the default command)")]
-public sealed class RunCommand : JasperFxAsyncCommand<RunInput>
+/// <summary>Opens the terminal UI, the default command.</summary>
+public static class RunCommand
 {
-    public override async Task<bool> Execute(RunInput input)
+    public static async Task<bool> ExecuteAsync(RunInput input)
     {
-        if (input is { SubscriptionFlag: null, NamespaceFlag: not null })
+        if (input is { Subscription: null, Namespace: not null })
         {
             AnsiConsole.MarkupLine("[red]Invalid usage:[/] --namespace needs --subscription. See [italic]azsb help run[/].");
             return false;
         }
 
-        var host = input.BuildHost();
+        var host = input.HostBuilder.Build();
         var theme = input.ThemeSetting(host.Services.GetRequiredService<IConfiguration>());
         if (Palette.For(theme, Environment.GetEnvironmentVariable("COLORFGBG")) is not { } palette)
         {

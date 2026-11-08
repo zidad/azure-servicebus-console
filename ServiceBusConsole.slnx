@@ -3,6 +3,7 @@
     <Project Path="src/ServiceBusConsole/ServiceBusConsole.csproj" />
     <Project Path="src/ServiceBusConsole.Abstractions/ServiceBusConsole.Abstractions.csproj" />
     <Project Path="src/ServiceBusConsole.AzureServiceBus/ServiceBusConsole.AzureServiceBus.csproj" />
+    <Project Path="src/ServiceBusConsole.BundledPlugins/ServiceBusConsole.BundledPlugins.csproj" />
     <Project Path="src/ServiceBusConsole.Plugins/ServiceBusConsole.Plugins.csproj" />
     <Project Path="src/ServiceBusConsole.Plugins.Editor/ServiceBusConsole.Plugins.Editor.csproj" />
     <Project Path="src/ServiceBusConsole.Plugins.GitHub/ServiceBusConsole.Plugins.GitHub.csproj" />

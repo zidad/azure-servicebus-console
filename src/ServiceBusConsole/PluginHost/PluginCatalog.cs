@@ -1,10 +1,9 @@
-using System.Reflection;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Configuration;
 
 namespace ServiceBusConsole.PluginHost;
 
-/// <summary>The installed plugins, from the <see cref="ServiceBusConsolePluginAttribute"/>s of <c>ServiceBusConsole.Plugins.*</c> assemblies.</summary>
+/// <summary>The bundled plugins, with their settings and whether each is enabled.</summary>
 public sealed partial class PluginCatalog
 {
     public const string AssemblyPrefix = "ServiceBusConsole.Plugins.";
@@ -28,18 +27,6 @@ public sealed partial class PluginCatalog
 
     /// <summary>Where <see cref="IPlugin.Missing"/> looks for what plugins need.</summary>
     public PluginEnvironment Environment { get; }
-
-    /// <summary>The plugin assemblies in <paramref name="directory"/>, the tool's folder; not the contracts assembly.</summary>
-    public static PluginCatalog Discover(string directory) =>
-        FromAssemblies(Directory.EnumerateFiles(directory, "*.dll")
-            .Where(path => Path.GetFileName(path).StartsWith(AssemblyPrefix, StringComparison.Ordinal))
-            .Order(StringComparer.Ordinal)
-            .Select(Load));
-
-    public static PluginCatalog FromAssemblies(IEnumerable<Assembly> assemblies) =>
-        new(assemblies
-            .SelectMany(a => a.GetCustomAttributes<ServiceBusConsolePluginAttribute>())
-            .Select(attribute => Create(attribute.PluginType)));
 
     public IPlugin? Find(string id) => Plugins.FirstOrDefault(p => p.Id == id);
 
@@ -74,18 +61,6 @@ public sealed partial class PluginCatalog
                 .Select(s => KeyValuePair.Create(ConfigurationPath.Combine(s.Key.Split('.')), s.Default)))
             .AddInMemoryCollection(configuration.GetSection($"plugins:{plugin.Id}").AsEnumerable(makePathsRelative: true))
             .Build();
-
-    // Referenced plugins are in the app's dependency list and load by name; one dropped in the folder loads from its file.
-    private static Assembly Load(string path)
-    {
-        var name = AssemblyName.GetAssemblyName(path);
-        try { return Assembly.Load(name); }
-        catch (FileNotFoundException) { return Assembly.LoadFrom(path); }
-    }
-
-    private static IPlugin Create(Type type) =>
-        Activator.CreateInstance(type) as IPlugin
-        ?? throw new InvalidOperationException($"{type.FullName} is named as a plugin but does not implement {nameof(IPlugin)}.");
 
     [GeneratedRegex("^[a-z0-9]+(-[a-z0-9]+)*$")]
     private static partial Regex IdPattern();

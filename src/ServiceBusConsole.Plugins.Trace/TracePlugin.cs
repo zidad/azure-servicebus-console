@@ -1,7 +1,5 @@
 using Microsoft.Extensions.Configuration;
 
-[assembly: ServiceBusConsole.Plugins.ServiceBusConsolePlugin(typeof(ServiceBusConsole.Plugins.Trace.TracePlugin))]
-
 namespace ServiceBusConsole.Plugins.Trace;
 
 public sealed class TracePlugin : IPlugin

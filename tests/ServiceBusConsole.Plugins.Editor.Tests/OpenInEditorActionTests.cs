@@ -160,7 +160,5 @@ public sealed class OpenInEditorActionTests
             a => a.PluginId.ShouldBe(plugin.Id),
             a => a.Label.ShouldBe("Open in editor"),
             a => a.Icon.ShouldBe("📝"));
-        typeof(EditorPlugin).Assembly.GetCustomAttributes(typeof(ServiceBusConsolePluginAttribute), false)
-            .ShouldHaveSingleItem().ShouldBeOfType<ServiceBusConsolePluginAttribute>().PluginType.ShouldBe(typeof(EditorPlugin));
     }
 }

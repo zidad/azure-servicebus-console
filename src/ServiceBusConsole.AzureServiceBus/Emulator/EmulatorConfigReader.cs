@@ -4,8 +4,6 @@ namespace ServiceBusConsole.AzureServiceBus.Emulator;
 
 internal static class EmulatorConfigReader
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
-
     /// <summary>The first namespace in the nearest <c>emulator/Config.json</c>, if any: see <see cref="Find"/>.</summary>
     public static EmulatorNamespaceDef? TryLoad() =>
         Find(Directory.GetCurrentDirectory(), AppContext.BaseDirectory) is { } path ? Parse(File.ReadAllText(path)) : null;
@@ -26,5 +24,5 @@ internal static class EmulatorConfigReader
     }
 
     public static EmulatorNamespaceDef? Parse(string json) =>
-        JsonSerializer.Deserialize<EmulatorConfigFile>(json, JsonOptions)?.UserConfig.Namespaces.FirstOrDefault();
+        JsonSerializer.Deserialize(json, EmulatorJsonContext.Default.EmulatorConfigFile)?.UserConfig.Namespaces.FirstOrDefault();
 }

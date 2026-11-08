@@ -1,4 +1,4 @@
-using JasperFx.CommandLine.Help;
+using System.CommandLine;
 using Microsoft.Extensions.Hosting;
 
 namespace ServiceBusConsole.Tests;
@@ -8,11 +8,17 @@ public sealed class CommandLineTests
     private static RunInput Parse(params string[] args)
     {
         var builder = Host.CreateDefaultBuilder();
-        var run = new AppCommands(builder).BuildRun(args);
-        run.Command.ShouldBeOfType<RunCommand>();
-        var input = run.Input.ShouldBeOfType<RunInput>();
+        var input = new AppCommands(builder).Bind(args).ShouldBeOfType<RunInput>();
         input.HostBuilder.ShouldBeSameAs(builder);
         return input;
+    }
+
+    /// <summary>What azsb prints for <paramref name="args"/>, and its exit code.</summary>
+    public static (string Output, int ExitCode) Invoke(params string[] args)
+    {
+        var output = new StringWriter();
+        var exitCode = new AppCommands(Host.CreateDefaultBuilder()).Root.Parse(args).Invoke(new InvocationConfiguration { Output = output, Error = output });
+        return (output.ToString(), exitCode);
     }
 
     [Test]
@@ -30,10 +36,34 @@ public sealed class CommandLineTests
         Parse("run", "--subscription", "emulator").StartupTarget.ShouldBe(new StartupTarget("emulator"));
 
     [Test]
-    public async Task NamespaceWithoutSubscription_IsInvalidUsage() =>
-        (await new RunCommand().Execute(Parse("--namespace", "sb-orders-dev"))).ShouldBeFalse();
+    [Arguments("--theme")]
+    [Arguments("-t")]
+    public void Theme_IsTheFlagsValue(string flag) => Parse(flag, "light").Theme.ShouldBe("light");
 
     [Test]
-    public void Help_ShowsTheToolName() =>
-        new AppCommands(Host.CreateDefaultBuilder()).BuildRun(["help"]).Input.ShouldBeOfType<HelpInput>().AppName.ShouldBe("azsb");
+    public async Task NamespaceWithoutSubscription_IsInvalidUsage() =>
+        (await RunCommand.ExecuteAsync(Parse("--namespace", "sb-orders-dev"))).ShouldBeFalse();
+
+    [Test]
+    public void UnknownFlag_IsInvalidUsage_AndRunsNothing()
+    {
+        new AppCommands(Host.CreateDefaultBuilder()).Bind("--colour", "red").ShouldBeNull();
+        var (output, exitCode) = Invoke("--colour", "red");
+
+        exitCode.ShouldNotBe(0);
+        output.ShouldContain("--colour");
+    }
+
+    [Test]
+    [Arguments("help")]
+    [Arguments("--help")]
+    public void Help_ShowsTheToolName_AndItsCommands(string arg)
+    {
+        var (output, exitCode) = Invoke(arg);
+
+        exitCode.ShouldBe(0);
+        output.ShouldContain("azsb");
+        output.ShouldContain("--subscription");
+        foreach (var command in new[] { "run", "config", "plugins", "help" }) output.ShouldContain($"  {command} ");
+    }
 }

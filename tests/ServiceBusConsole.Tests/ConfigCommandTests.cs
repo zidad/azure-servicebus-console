@@ -1,5 +1,3 @@
-using JasperFx.CommandLine;
-using JasperFx.CommandLine.Help;
 using Microsoft.Extensions.Hosting;
 
 namespace ServiceBusConsole.Tests;
@@ -18,29 +16,22 @@ public sealed class ConfigCommandTests
         if (Directory.Exists(_directory)) Directory.Delete(_directory, recursive: true);
     }
 
-    private ConfigInput Parse(params string[] args)
-    {
-        var run = new AppCommands(Host.CreateDefaultBuilder()).BuildRun(["config", .. args]);
-        run.Command.ShouldBeOfType<ConfigCommand>();
-        var input = run.Input.ShouldBeOfType<ConfigInput>();
-        input.File = Config;
-        input.Out = _out;
-        input.Error = _error;
-        return input;
-    }
+    private ConfigInput Parse(params string[] args) =>
+        new AppCommands(Host.CreateDefaultBuilder()).Bind(["config", .. args]).ShouldBeOfType<ConfigInput>() with { File = Config, Out = _out, Error = _error };
 
-    private bool Run(params string[] args) => new ConfigCommand().Execute(Parse(args));
+    private bool Run(params string[] args) => ConfigCommand.Execute(Parse(args));
 
     private string[] Lines(StringWriter writer) => writer.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
 
     [Test]
-    public void Config_IsInTheHelp_AndBuildsNoHost()
+    public void Config_HasItsOwnHelp()
     {
-        var commands = new AppCommands(Host.CreateDefaultBuilder());
+        var (output, exitCode) = CommandLineTests.Invoke("help", "config");
 
-        commands.AllCommandTypes().ShouldContain(typeof(ConfigCommand));
-        commands.BuildRun(["help", "config"]).Input.ShouldBeOfType<HelpInput>().AppName.ShouldBe("azsb");
-        commands.BuildRun(["config", "list"]).Input.ShouldNotBeAssignableTo<IHostBuilderInput>();
+        exitCode.ShouldBe(0);
+        output.ShouldContain("azsb config");
+        output.ShouldContain("get <key>");
+        output.ShouldContain("--all");
     }
 
     [Test]
@@ -51,7 +42,7 @@ public sealed class ConfigCommandTests
         input.Action.ShouldBe(ConfigAction.set);
         input.Key.ShouldBe("ui.theme");
         input.Value.ShouldBe("light");
-        Parse("list", "--all").AllFlag.ShouldBeTrue();
+        Parse("list", "--all").All.ShouldBeTrue();
     }
 
     [Test]
@@ -89,10 +80,9 @@ public sealed class ConfigCommandTests
     [Test]
     public void Set_KnowsTheKeysItIsGiven()
     {
-        var input = Parse("set", "ui.colour", "red");
-        input.Keys = ConfigKeys.With([new ConfigKey("ui.colour", "A colour")]);
+        var input = Parse("set", "ui.colour", "red") with { Keys = ConfigKeys.With([new ConfigKey("ui.colour", "A colour")]) };
 
-        new ConfigCommand().Execute(input).ShouldBeTrue();
+        ConfigCommand.Execute(input).ShouldBeTrue();
 
         _error.ToString().ShouldBeEmpty();
     }

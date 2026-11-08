@@ -3,13 +3,14 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RazorConsole.Core;
 using ServiceBusConsole.AzureServiceBus;
+using ServiceBusConsole.BundledPlugins;
 using ServiceBusConsole.Components;
 
 var logFile = Path.Combine(
     Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "logs")).FullName,
     $"session-{DateTime.Now:yyyyMMdd-HHmmss}.log");
 
-var plugins = PluginCatalog.Discover(AppContext.BaseDirectory);
+var plugins = new PluginCatalog(Bundled.Plugins);
 
 var builder = Host.CreateDefaultBuilder(args)
     .ConfigureAppConfiguration(config => config.AddAzsbConfiguration(AppPaths.ConfigFile))

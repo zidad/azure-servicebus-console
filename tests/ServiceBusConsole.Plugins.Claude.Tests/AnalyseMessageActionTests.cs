@@ -208,7 +208,7 @@ public sealed class AnalyseMessageActionTests : IDisposable
     }
 
     [Test]
-    public void Plugin_RegistersTheAction_AndIsNamedByTheAssembly()
+    public void Plugin_RegistersTheAction()
     {
         var plugin = new ClaudePlugin();
         var services = new ServiceCollection();
@@ -219,8 +219,6 @@ public sealed class AnalyseMessageActionTests : IDisposable
         action.PluginId.ShouldBe("claude");
         action.Icon.ShouldBe("🤖");
         action.CanRun(Context()).ShouldBeTrue();
-        typeof(ClaudePlugin).Assembly.GetCustomAttributes(typeof(ServiceBusConsolePluginAttribute), false)
-            .ShouldHaveSingleItem().ShouldBeOfType<ServiceBusConsolePluginAttribute>().PluginType.ShouldBe(typeof(ClaudePlugin));
     }
 
     [Test]

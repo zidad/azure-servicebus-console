@@ -7,11 +7,6 @@ namespace ServiceBusConsole.Plugins.Linear.Tests;
 public sealed class LinearPluginTests
 {
     [Test]
-    public void Assembly_NamesThePlugin() =>
-        typeof(LinearPlugin).Assembly.GetCustomAttributes<ServiceBusConsolePluginAttribute>()
-            .Select(a => a.PluginType).ShouldBe([typeof(LinearPlugin)]);
-
-    [Test]
     public void Settings_KeepTheApiKeySecret_AndHaveDefaults()
     {
         var settings = new LinearPlugin().Settings.ToDictionary(s => s.Key);

@@ -1,17 +1,13 @@
-using JasperFx.CommandLine;
 using Microsoft.Extensions.Configuration;
 
 namespace ServiceBusConsole.CommandLine;
 
-public sealed class PluginsInput
+public sealed record PluginsInput : CommandInput
 {
-    [IgnoreOnCommandLine]
-    public PluginCatalog Catalog { get; set; } = PluginCatalog.Empty;
+    public PluginCatalog Catalog { get; init; } = PluginCatalog.Empty;
 
     /// <summary>The settings as the app reads them: config file and environment variables.</summary>
-    [IgnoreOnCommandLine]
-    public IConfiguration Configuration { get; set; } = new ConfigurationBuilder().Build();
+    public IConfiguration Configuration { get; init; } = new ConfigurationBuilder().Build();
 
-    [IgnoreOnCommandLine]
-    public TextWriter Out { get; set; } = Console.Out;
+    public TextWriter Out { get; init; } = Console.Out;
 }

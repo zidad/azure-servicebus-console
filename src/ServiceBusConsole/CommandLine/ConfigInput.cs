@@ -1,31 +1,23 @@
-using JasperFx.CommandLine;
-
 namespace ServiceBusConsole.CommandLine;
 
-public sealed class ConfigInput
+public sealed record ConfigInput : CommandInput
 {
-    [Description("get, set, unset, list or path")]
-    public ConfigAction Action { get; set; }
+    public ConfigAction Action { get; init; }
 
-    [Description("Dotted key, such as ui.theme")]
-    public string? Key { get; set; }
+    /// <summary>Dotted key, such as <c>ui.theme</c>.</summary>
+    public string? Key { get; init; }
 
-    [Description("Value to set")]
-    public string? Value { get; set; }
+    public string? Value { get; init; }
 
-    [Description("With list: also the known keys that are unset, with their default and description")]
-    public bool AllFlag { get; set; }
+    /// <summary><c>--all</c>: with list, also the known keys that are unset.</summary>
+    public bool All { get; init; }
 
-    [IgnoreOnCommandLine]
-    public ConfigFile File { get; set; } = new(AppPaths.ConfigFile);
+    public ConfigFile File { get; init; } = new(AppPaths.ConfigFile);
 
     /// <summary>The keys <c>set</c> accepts without a warning and <c>list --all</c> shows.</summary>
-    [IgnoreOnCommandLine]
-    public IReadOnlyList<ConfigKey> Keys { get; set; } = ConfigKeys.App;
+    public IReadOnlyList<ConfigKey> Keys { get; init; } = ConfigKeys.App;
 
-    [IgnoreOnCommandLine]
-    public TextWriter Out { get; set; } = Console.Out;
+    public TextWriter Out { get; init; } = Console.Out;
 
-    [IgnoreOnCommandLine]
-    public TextWriter Error { get; set; } = Console.Error;
+    public TextWriter Error { get; init; } = Console.Error;
 }

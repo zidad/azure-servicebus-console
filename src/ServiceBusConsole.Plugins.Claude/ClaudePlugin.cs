@@ -1,8 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-[assembly: ServiceBusConsolePlugin(typeof(ServiceBusConsole.Plugins.Claude.ClaudePlugin))]
-
 namespace ServiceBusConsole.Plugins.Claude;
 
 /// <summary>Opens Claude Code in a new terminal window, in the codebase that sends or handles a message, primed with it.</summary>

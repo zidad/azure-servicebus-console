@@ -1,8 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-[assembly: ServiceBusConsolePlugin(typeof(ServiceBusConsole.Plugins.GitHub.GitHubPlugin))]
-
 namespace ServiceBusConsole.Plugins.GitHub;
 
 /// <summary>Creates GitHub issues from messages with the GitHub CLI and its existing login.</summary>
