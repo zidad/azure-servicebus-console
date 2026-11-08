@@ -2,7 +2,7 @@ namespace ServiceBusConsole.AzureServiceBus.Emulator;
 
 internal sealed record EmulatorNamespaceDef
 {
-    public string Name { get; init; } = "";
-    public IReadOnlyList<EmulatorQueueDef> Queues { get; init; } = [];
-    public IReadOnlyList<EmulatorTopicDef> Topics { get; init; } = [];
+    public string Name { get; set; } = "";
+    public IReadOnlyList<EmulatorQueueDef> Queues { get; set; } = [];
+    public IReadOnlyList<EmulatorTopicDef> Topics { get; set; } = [];
 }

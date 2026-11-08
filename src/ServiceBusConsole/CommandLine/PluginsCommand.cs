@@ -1,11 +1,9 @@
-using JasperFx.CommandLine;
-
 namespace ServiceBusConsole.CommandLine;
 
-[Description("List the plugins, whether they are enabled, and their settings")]
-public sealed class PluginsCommand : JasperFxCommand<PluginsInput>
+/// <summary>Lists the plugins, whether they are enabled, and their settings.</summary>
+public static class PluginsCommand
 {
-    public override bool Execute(PluginsInput input)
+    public static bool Execute(PluginsInput input)
     {
         IEnumerable<string> lines = input.Catalog.Plugins.Count == 0
             ? ["No plugins installed."]

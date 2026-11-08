@@ -1,7 +1,5 @@
 using Microsoft.Extensions.Configuration;
 
-[assembly: ServiceBusConsole.Plugins.ServiceBusConsolePlugin(typeof(ServiceBusConsole.Plugins.Editor.EditorPlugin))]
-
 namespace ServiceBusConsole.Plugins.Editor;
 
 public sealed class EditorPlugin : IPlugin

@@ -92,10 +92,8 @@ public sealed class CreateIssueActionTests
     }
 
     [Test]
-    public void IsABundledPlugin_WithTheCreateIssueAction()
+    public void HasTheCreateIssueAction()
     {
-        typeof(GitHubPlugin).Assembly.GetCustomAttributes(typeof(ServiceBusConsolePluginAttribute), false)
-            .Cast<ServiceBusConsolePluginAttribute>().ShouldHaveSingleItem().PluginType.ShouldBe(typeof(GitHubPlugin));
         var action = new CreateIssueAction();
         action.PluginId.ShouldBe(new GitHubPlugin().Id);
         action.Icon.ShouldBe("🐙");

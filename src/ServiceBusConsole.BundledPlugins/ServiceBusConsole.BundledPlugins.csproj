@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../ServiceBusConsole.Plugins/ServiceBusConsole.Plugins.csproj" />
+    <ProjectReference Include="../ServiceBusConsole.Plugins.*/ServiceBusConsole.Plugins.*.csproj" />
+  </ItemGroup>
+</Project>

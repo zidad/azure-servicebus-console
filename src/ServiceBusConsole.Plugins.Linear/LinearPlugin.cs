@@ -1,8 +1,5 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using ServiceBusConsole.Plugins.Linear;
-
-[assembly: ServiceBusConsolePlugin(typeof(LinearPlugin))]
 
 namespace ServiceBusConsole.Plugins.Linear;
 

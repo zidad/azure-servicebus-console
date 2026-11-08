@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 
 namespace ServiceBusConsole.Tests;
 
@@ -23,7 +24,7 @@ public sealed class ThemeSettingTests
     }
 
     private string? Theme(string? flag) =>
-        new RunInput { ThemeFlag = flag }.ThemeSetting(new ConfigurationBuilder().AddAzsbConfiguration(FilePath).Build());
+        new RunInput { HostBuilder = Host.CreateDefaultBuilder(), Theme = flag }.ThemeSetting(new ConfigurationBuilder().AddAzsbConfiguration(FilePath).Build());
 
     [Test]
     public void Nothing_IsAuto() => Theme(null).ShouldBeNull();

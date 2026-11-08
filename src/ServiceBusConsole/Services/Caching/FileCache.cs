@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Microsoft.Extensions.Logging;
 
 namespace ServiceBusConsole.Services.Caching;
@@ -16,7 +17,7 @@ public sealed class FileCache(ILogger<FileCache> logger, string? directory = nul
         if (!File.Exists(path)) return null;
         try
         {
-            return JsonSerializer.Deserialize<List<T>>(await File.ReadAllTextAsync(path));
+            return JsonSerializer.Deserialize(await File.ReadAllTextAsync(path), TypeInfo<T>());
         }
         catch (Exception ex)
         {
@@ -31,7 +32,7 @@ public sealed class FileCache(ILogger<FileCache> logger, string? directory = nul
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path) ?? CacheDirectory);
-            await File.WriteAllTextAsync(path, JsonSerializer.Serialize(items));
+            await File.WriteAllTextAsync(path, JsonSerializer.Serialize([.. items], TypeInfo<T>()));
         }
         catch (Exception ex)
         {
@@ -82,4 +83,8 @@ public sealed class FileCache(ILogger<FileCache> logger, string? directory = nul
     }
 
     private string GetPath(string key) => Path.Combine(CacheDirectory, key);
+
+    private static JsonTypeInfo<List<T>> TypeInfo<T>() =>
+        CacheJsonContext.Default.GetTypeInfo(typeof(List<T>)) as JsonTypeInfo<List<T>>
+        ?? throw new InvalidOperationException($"{typeof(T).Name} is not in {nameof(CacheJsonContext)}; add it there to cache it.");
 }

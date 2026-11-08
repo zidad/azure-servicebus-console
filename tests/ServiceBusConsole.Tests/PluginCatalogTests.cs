@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using ServiceBusConsole.BundledPlugins;
 
 namespace ServiceBusConsole.Tests;
 
@@ -15,23 +16,14 @@ public sealed class PluginCatalogTests
     private static FakeMessageAction Action(string pluginId, string label, Func<MessageActionContext, bool>? when = null) =>
         new(pluginId, label, (_, _) => Task.FromResult(new ActionResult("done"))) { When = when ?? (_ => true) };
 
+    // Every plugin project the app ships is in the list: a new one that is only referenced would never load.
     [Test]
-    public void FromAssemblies_CreatesThePluginsTheirAttributesName()
+    public void Bundled_ListsEveryShippedPluginAssembly()
     {
-        var catalog = PluginCatalog.FromAssemblies([typeof(FakePlugin).Assembly, typeof(IPlugin).Assembly]);
+        var shipped = Directory.EnumerateFiles(AppContext.BaseDirectory, $"{PluginCatalog.AssemblyPrefix}*.dll").Select(Path.GetFileNameWithoutExtension);
 
-        catalog.Plugins.Select(p => p.GetType()).ShouldBe([typeof(FakePlugin)]);
-        catalog.Find("fake").ShouldBeOfType<FakePlugin>();
-        catalog.Find("other").ShouldBeNull();
-    }
-
-    [Test]
-    public void Discover_LoadsTheBundledPluginAssemblies_NotTheContracts()
-    {
-        var bundled = Directory.EnumerateFiles(AppContext.BaseDirectory, $"{PluginCatalog.AssemblyPrefix}*.dll").Select(Path.GetFileNameWithoutExtension);
-        File.Exists(Path.Combine(AppContext.BaseDirectory, "ServiceBusConsole.Plugins.dll")).ShouldBeTrue();
-
-        PluginCatalog.Discover(AppContext.BaseDirectory).Plugins.Select(p => p.GetType().Assembly.GetName().Name).Distinct().ShouldBe(bundled, ignoreOrder: true);
+        Bundled.Plugins.Select(p => p.GetType().Assembly.GetName().Name).ShouldBe(shipped, ignoreOrder: true);
+        new PluginCatalog(Bundled.Plugins).Find("github").ShouldNotBeNull();
     }
 
     [Test]

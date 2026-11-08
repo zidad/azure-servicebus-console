@@ -2,11 +2,9 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-[assembly: ServiceBusConsole.Plugins.ServiceBusConsolePlugin(typeof(ServiceBusConsole.Tests.FakePlugin))]
-
 namespace ServiceBusConsole.Tests;
 
-/// <summary>A plugin whose actions are given; parameterless, so attribute discovery can create it.</summary>
+/// <summary>A plugin whose actions are given.</summary>
 public sealed class FakePlugin : IPlugin
 {
     public string Id { get; init; } = "fake";

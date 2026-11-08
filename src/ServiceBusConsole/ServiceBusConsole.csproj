@@ -14,17 +14,17 @@
     <None Include="../../README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="JasperFx" />
-    <PackageReference Include="Scrutor" />
+    <!-- Blazor's Router finds the @page components by scanning this assembly: trimming must keep them all. -->
+    <TrimmerRootAssembly Include="$(AssemblyName)" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
     <PackageReference Include="Spectre.Console" />
     <ProjectReference Include="../ServiceBusConsole.Abstractions/ServiceBusConsole.Abstractions.csproj" />
     <ProjectReference Include="../ServiceBusConsole.AzureServiceBus/ServiceBusConsole.AzureServiceBus.csproj" />
+    <ProjectReference Include="../ServiceBusConsole.BundledPlugins/ServiceBusConsole.BundledPlugins.csproj" />
     <ProjectReference Include="../ServiceBusConsole.Plugins/ServiceBusConsole.Plugins.csproj" />
     <ProjectReference Include="../../lib/RazorConsole/src/RazorConsole.Core/RazorConsole.Core.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <!-- Bundled plugins: referenced so they ship in the tool folder, where PluginCatalog finds them; never used in code. -->
-    <ProjectReference Include="../ServiceBusConsole.Plugins.*/ServiceBusConsole.Plugins.*.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="ServiceBusConsole.Abstractions" />

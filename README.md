@@ -41,7 +41,7 @@ azsb help                                                            # all flags
 - They apply at startup only: `Esc` back to the connection page works as usual. A subscription or namespace that isn't found is reported there
 - `--theme` / `-t`: `dark` or `light` terminal background; `auto` (default) reads `COLORFGBG` where the terminal sets it, else dark; overrides the `ui.theme` setting. Colors are the terminal's 16 palette colors, so its color scheme sets their shade
 - Without `--subscription`, the Azure CLI's current subscription (`az account set`) is preselected; the subscription list marks it `(az default)`
-- Parsed by [JasperFx](https://github.com/JasperFx/jasperfx); `azsb help` also lists its generic host flags (`--config:<key> <value>`, `--environment`, `--log-level`)
+- `azsb help` lists the flags and commands; `azsb help <command>` (or `--help`) explains one
 
 ## Configuration
 
@@ -405,4 +405,4 @@ This requires a trusted publishing policy on nuget.org (Account → Trusted Publ
 - [Azure.Messaging.ServiceBus](https://www.nuget.org/packages/Azure.Messaging.ServiceBus) — Service Bus client
 - [Azure.ResourceManager.ServiceBus](https://www.nuget.org/packages/Azure.ResourceManager.ServiceBus) — namespace discovery via ARM
 - [Azure.ResourceManager.Monitor](https://www.nuget.org/packages/Azure.ResourceManager.Monitor) — Azure Monitor metrics
-- [JasperFx](https://www.nuget.org/packages/JasperFx) — command line
+- [System.CommandLine](https://www.nuget.org/packages/System.CommandLine) — command line

@@ -1,20 +1,11 @@
 using System.Text.Json;
-using JasperFx.CommandLine;
 
 namespace ServiceBusConsole.CommandLine;
 
-[Description("Read and write settings in the config file, like git config")]
-public sealed class ConfigCommand : JasperFxCommand<ConfigInput>
+/// <summary>Reads and writes settings in the config file, like git config.</summary>
+public static class ConfigCommand
 {
-    public ConfigCommand()
-    {
-        // Member selectors, never evaluated: the coalescing only satisfies their object return type.
-        Usage("get <key>: print a value, exit code 1 when unset; unset <key>: remove it").Arguments(x => x.Action, x => x.Key ?? "").ValidFlags();
-        Usage("set <key> <value>: true/false and integers are stored as such, the rest as text").Arguments(x => x.Action, x => x.Key ?? "", x => x.Value ?? "").ValidFlags();
-        Usage("list: print key=value lines, secrets masked; path: print the config file's path").Arguments(x => x.Action).ValidFlags(x => x.AllFlag);
-    }
-
-    public override bool Execute(ConfigInput input)
+    public static bool Execute(ConfigInput input)
     {
         try
         {
@@ -49,7 +40,7 @@ public sealed class ConfigCommand : JasperFxCommand<ConfigInput>
     {
         var entries = input.File.List();
         var lines = entries.Select(e => $"{e.Key}={(ConfigKeys.IsSecret(e.Key, input.Keys) ? ConfigKey.Mask : e.Value)}");
-        var unset = input.AllFlag
+        var unset = input.All
             ? input.Keys
                 .Where(k => !entries.Any(e => string.Equals(e.Key, k.Key, StringComparison.OrdinalIgnoreCase)))
                 .Select(k => $"# {k.Key}={k.Default}  ({k.Description})")

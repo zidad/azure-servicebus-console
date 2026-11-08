@@ -215,7 +215,5 @@ public sealed class OpenTraceActionTests
             a => a.PluginId.ShouldBe(plugin.Id),
             a => a.Label.ShouldBe("Open trace"),
             a => a.Icon.ShouldBe("🔍"));
-        typeof(TracePlugin).Assembly.GetCustomAttributes(typeof(ServiceBusConsolePluginAttribute), false)
-            .ShouldHaveSingleItem().ShouldBeOfType<ServiceBusConsolePluginAttribute>().PluginType.ShouldBe(typeof(TracePlugin));
     }
 }
