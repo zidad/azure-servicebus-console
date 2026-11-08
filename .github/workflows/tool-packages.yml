@@ -1,0 +1,140 @@
+name: Tool packages
+
+# The azsb tool packages: a Native AOT package and archive per platform, each packed on its own OS,
+# the framework-dependent 'any' package and the top-level package that points to them.
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    name: Native AOT (${{ matrix.rid }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-22.04, rid: linux-x64, platform: linux-x64 }
+          - { os: ubuntu-22.04-arm, rid: linux-arm64, platform: linux-arm64 }
+          - { os: windows-2025, rid: win-x64, platform: windows-x64 }
+          - { os: windows-11-vs2026-arm, rid: win-arm64, platform: windows-arm64 }
+          - { os: macos-15-intel, rid: osx-x64, platform: macos-x64 }
+          - { os: macos-15, rid: osx-arm64, platform: macos-arm64 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      RID: ${{ matrix.rid }}
+      PACKAGE: Net.Azure.ServiceBusConsole.${{ matrix.rid }}.${{ inputs.version }}.nupkg
+      ARCHIVE: azsb-${{ inputs.version }}-${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Install Linux Native AOT prerequisites
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      - name: Pack
+        run: dotnet pack src/ServiceBusConsole/ServiceBusConsole.csproj --configuration Release --runtime ${{ matrix.rid }} -p:Version=${{ inputs.version }} --output artifacts/packages
+
+      # The archive holds what the package installs, the executable renamed to azsb.
+      - name: Archive
+        shell: pwsh
+        run: |
+          Copy-Item "artifacts/packages/$env:PACKAGE" artifacts/package.zip
+          Expand-Archive artifacts/package.zip artifacts/package
+          $stage = "artifacts/archives/$env:ARCHIVE"
+          New-Item -ItemType Directory $stage | Out-Null
+          Copy-Item "artifacts/package/tools/any/$env:RID/*" $stage -Recurse
+          Remove-Item "$stage/DotnetToolSettings.xml"
+          $ext = $IsWindows ? '.exe' : ''
+          Move-Item "$stage/ServiceBusConsole$ext" "$stage/azsb$ext"
+          if ($IsWindows) {
+            Compress-Archive $stage "artifacts/archives/$env:ARCHIVE.zip"
+          } else {
+            chmod +x "$stage/azsb"
+            tar -C artifacts/archives -czf "artifacts/archives/$env:ARCHIVE.tar.gz" $env:ARCHIVE
+          }
+
+      - name: Check architecture and run
+        shell: bash
+        run: |
+          executable="artifacts/archives/$ARCHIVE/azsb"
+          [[ "$RUNNER_OS" == "Windows" ]] && executable="$executable.exe"
+          description="$(file "$executable")"
+          echo "$description"
+          if [[ "$RID" == *-arm64 ]]; then
+            grep -Eiq 'arm64|aarch64' <<< "$description"
+          else
+            grep -Eiq 'x86-64|x86_64|x64' <<< "$description"
+          fi
+          "$executable" --version
+          "$executable" --help
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.rid }}
+          path: artifacts/packages/${{ env.PACKAGE }}
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: archive-${{ matrix.rid }}
+          path: artifacts/archives/${{ env.ARCHIVE }}.*
+          if-no-files-found: error
+
+  tool:
+    name: Top-level and any packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Pack
+        run: dotnet pack src/ServiceBusConsole/ServiceBusConsole.csproj --configuration Release -p:Version=${{ inputs.version }} --output artifacts/packages
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-tool
+          path: artifacts/packages/*.nupkg
+          if-no-files-found: error
+
+  # Installs from the packages as nuget.org would serve them: the top-level package picks the linux-x64 one.
+  install:
+    name: Install from the packages
+    needs: [native, tool]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: package-*
+          path: packages
+          merge-multiple: true
+
+      - name: Install and run
+        run: |
+          ls packages
+          dotnet tool install --tool-path tool --add-source packages Net.Azure.ServiceBusConsole --version ${{ inputs.version }}
+          file -L tool/azsb | tee /dev/stderr | grep -q ELF
+          tool/azsb --version

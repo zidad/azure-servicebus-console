@@ -9,7 +9,27 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/zidad/azure-servicebus-console</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- A native package per platform, packed with dotnet pack -r <rid> on that OS; 'any' (framework-dependent) elsewhere. -->
+    <PublishAot>true</PublishAot>
+    <!-- Restores the 'any' target that a plain pack builds. -->
+    <RuntimeIdentifiers>any</RuntimeIdentifiers>
+    <ToolPackageRuntimeIdentifiers>linux-x64;linux-arm64;osx-x64;osx-arm64;win-x64;win-arm64;any</ToolPackageRuntimeIdentifiers>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(PublishAot)' == 'true'">
+    <!-- Keep debug symbols and XML docs out of the tool packages and archives. -->
+    <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
+    <PublishDocumentationFile>false</PublishDocumentationFile>
+    <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
+    <PublishReferencesSymbols>false</PublishReferencesSymbols>
+    <!-- Blazor 10's Router.NotFoundPage setter is annotated for trimming; Router parameters are set by reflection (dotnet/aspnetcore#63951). -->
+    <NoWarn>$(NoWarn);IL2110;IL2111</NoWarn>
+  </PropertyGroup>
+  <!-- The plain dotnet pack builds the pointer package and 'any' only, on any host; the native packages come from dotnet pack -r. -->
+  <Target Name="PackAnyWithThePointer" BeforeTargets="ComputeToolPackageRuntimeIdentifiersToPack">
+    <ItemGroup>
+      <ToolPackageRuntimeIdentifiersToPack Include="any" />
+    </ItemGroup>
+  </Target>
   <ItemGroup>
     <None Include="../../README.md" Pack="true" PackagePath="\" />
   </ItemGroup>

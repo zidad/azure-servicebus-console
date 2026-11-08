@@ -7,12 +7,13 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
-  publish:
+  test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: write # create the GitHub release
-      id-token: write # required for NuGet trusted publishing (OIDC)
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -34,15 +35,37 @@ jobs:
       - name: Test
         run: dotnet test --solution ServiceBusConsole.slnx --configuration Release --max-parallel-test-modules 1
 
-      # After the tests, which build without the version; pack --no-build uses this build.
-      - name: Build
-        run: dotnet build src/ServiceBusConsole/ServiceBusConsole.csproj --configuration Release -p:Version=${{ steps.version.outputs.VERSION }}
+  packages:
+    needs: test
+    uses: ./.github/workflows/tool-packages.yml
+    with:
+      version: ${{ needs.test.outputs.version }}
 
-      - name: Pack
-        run: |
-          dotnet pack src/ServiceBusConsole/ServiceBusConsole.csproj --configuration Release --no-build \
-            -p:Version=${{ steps.version.outputs.VERSION }} \
-            --output ./artifacts
+  publish:
+    needs: [test, packages]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write # create the GitHub release
+      id-token: write # required for NuGet trusted publishing (OIDC)
+    env:
+      VERSION: ${{ needs.test.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: package-*
+          path: packages
+          merge-multiple: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: archive-*
+          path: archives
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: archives
+        run: sha256sum azsb-* | tee SHA256SUMS
 
       # Exchanges the job's GitHub OIDC token for a short-lived (1 hour) nuget.org
       # API key. Requires a trusted publishing policy on nuget.org for
@@ -53,10 +76,19 @@ jobs:
         with:
           user: zidad
 
+      # The platform packages first: installs fail while the top-level package points to a missing one.
       - name: Push to NuGet
-        run: dotnet nuget push ./artifacts/Net.Azure.ServiceBusConsole.*.nupkg --api-key ${{ steps.nuget_login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+        env:
+          API_KEY: ${{ steps.nuget_login.outputs.NUGET_API_KEY }}
+        run: |
+          top="packages/Net.Azure.ServiceBusConsole.$VERSION.nupkg"
+          for package in packages/*.nupkg; do
+            [[ "$package" == "$top" ]] && continue
+            dotnet nuget push "$package" --api-key "$API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+          done
+          dotnet nuget push "$top" --api-key "$API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
       - name: GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" ./artifacts/*.nupkg --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
+        run: gh release create "$GITHUB_REF_NAME" archives/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes --verify-tag

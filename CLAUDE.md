@@ -29,7 +29,7 @@ With every change:
 
 ## Releases
 
-Release by pushing a version tag on a `main` commit: `git tag v1.2.3 origin/main && git push origin v1.2.3`. `publish.yml` then tests, packs with the tag's version, pushes to NuGet and creates a GitHub release with generated notes. There is no version in the code or in PR titles.
+Release by pushing a version tag on a `main` commit: `git tag v1.2.3 origin/main && git push origin v1.2.3`. `publish.yml` then tests, packs with the tag's version (`tool-packages.yml`), pushes to NuGet and creates a GitHub release with the native archives, their checksums and generated notes. There is no version in the code or in PR titles.
 
 ## Commands
 
@@ -71,6 +71,9 @@ The app stays publishable with `PublishAot=true`: no reflection the trimmer can'
 - JSON through source-generated contexts: a new cached type goes in `CacheJsonContext` (`FileCache` throws for others); a generated context resets a missing `init` property to null, so give defaults with `set` where JSON may leave it out (`EmulatorJsonContext`)
 - No assembly scanning or loading: plugins are listed in `Bundled.Plugins`, services registered explicitly (`Decorate<TService, TDecorator>` instead of Scrutor)
 - Blazor's router scans the app assembly for `@page` components: it is a `TrimmerRootAssembly`
+- Shipped as a RID-specific tool (`ToolPackageRuntimeIdentifiers`): `Net.Azure.ServiceBusConsole` points to a Native AOT package per platform (`dotnet pack -r <rid>`, each on its own OS) and the framework-dependent `.any` (a plain `dotnet pack`, which also makes the top-level package). `tool-packages.yml` packs them all, on every PR too, with an archive per platform for the release; NuGet gets the platform packages before the top-level one
+- Libraries are `IsAotCompatible` (`Directory.Build.props`), so trim and AOT warnings show in a normal build
+- A local native pack on macOS with Homebrew's OpenSSL needs `LIBRARY_PATH=/opt/homebrew/opt/openssl@3/lib:/opt/homebrew/opt/brotli/lib`
 
 ## Prerequisites
 
