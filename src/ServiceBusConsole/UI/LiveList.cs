@@ -5,12 +5,14 @@ namespace ServiceBusConsole.UI;
 /// <summary>
 /// The rows of a list page, kept current: the first load shows cached rows then live ones; after that a
 /// poll every <see cref="LiveCountsOptions.Interval"/> merges live rows, highlights changed counts and
-/// adds or drops entities. Call from the page's dispatcher; callbacks run there too.
+/// adds or drops entities. <c>isCached</c> tells a cached row (shown refreshing) from a live one; <c>stale</c>
+/// stops a cached row refreshing when the live load fails. Call from the page's dispatcher; callbacks run there too.
 /// </summary>
 public sealed class LiveList<T>(
     Func<CancellationToken, IAsyncEnumerable<T>> source,
     Func<T, string> key,
     Func<T, bool> isCached,
+    Func<T, T> stale,
     CountChanges<T> changes,
     LiveCountsOptions options,
     ILogger logger) : IDisposable
@@ -114,7 +116,10 @@ public sealed class LiveList<T>(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Loading {Rows} failed", typeof(T).Name);
-            // The throttle may have skipped the cached rows that arrived before the failure; they stay.
+            // The cached rows that arrived before the failure stay, no longer refreshing (no spinners forever).
+            var rows = All.Select(x => isCached(x) ? stale(x) : x).ToList();
+            All.Clear();
+            All.AddRange(rows);
             await Changed();
             await LoadFailed(ex);
             return false;
