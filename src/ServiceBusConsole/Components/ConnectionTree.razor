@@ -57,9 +57,9 @@
 
 @code {
     /// <summary>
-    /// The connection tree: Azure subscriptions › namespaces › their sections. Branches open with → or Enter (a click in
-    /// <see cref="Compact"/> mode), a section opens its list page in that namespace. / filters (typing, in <see cref="Compact"/> mode). Open branches are
-    /// shared by every tree (the connection page's and the header dropdown's).
+    /// The connection tree: Azure subscriptions › namespaces. Subscriptions open with → or Enter (a click in
+    /// <see cref="Compact"/> mode); a namespace opens on its queues tab. / filters (typing, in <see cref="Compact"/> mode).
+    /// Open subscriptions are shared by every tree (the connection page's and the header dropdown's).
     /// </summary>
     [Parameter] public int MaxRows { get; set; } = 10;
 
@@ -85,7 +85,7 @@
 
     [Parameter] public EventCallback<string?> FilterChanged { get; set; }
 
-    /// <summary>A section was picked; true when that navigates, false when it is the page already shown.</summary>
+    /// <summary>A namespace or section was picked; true when that navigates, false when it is the page already shown.</summary>
     [Parameter] public EventCallback<bool> OnPicked { get; set; }
 
     private IReadOnlyList<ExplorerRow> _rows = [];
@@ -187,7 +187,7 @@
     }
 
     private static string Label(ExplorerRow.Item item) =>
-        $"{item.Prefix}{(item.Node.IsBranch ? item.Open ? "▾ " : "▸ " : "  ")}{item.Node.Icon} {item.Node.Name}";
+        $"{item.Prefix}{(item.Node.IsBranch ? item.Open ? "▾ " : "▸ " : "")}{item.Node.Icon} {item.Node.Name}";
 
     private string Details(ExplorerNode node) => node switch
     {
@@ -208,21 +208,15 @@
 
     private static string Fit(string text, int width) => (text.Length < width ? text : text[..(width - 2)] + "…").PadRight(width);
 
-    // Where the app is: the open subscription, namespace and section are highlighted.
+    // Where the app is: the open subscription and namespace are highlighted.
     private bool IsHere(ExplorerNode node) => node switch
     {
         Subscription s => s.Value == NavState.AzureSubscription && Connection.Current is not null,
         Namespace ns => ns.Parent.Value == NavState.AzureSubscription && ns.Info.FullyQualifiedNamespace == Connection.CurrentNamespace,
-        Page p => IsHere(p.Parent) && Nav.ToBaseRelativePath(Nav.Uri).StartsWith(p.Section.Route.TrimStart('/')),
         _ => false,
     };
 
-    private static ExplorerNode? ParentOf(ExplorerNode node) => node switch
-    {
-        Namespace ns => ns.Parent,
-        Page p => p.Parent,
-        _ => null,
-    };
+    private static ExplorerNode? ParentOf(ExplorerNode node) => (node as Namespace)?.Parent;
 
     private async Task OpenAsync(Namespace ns, Section section)
     {
@@ -245,6 +239,19 @@
         else Nav.NavigateTo(section.Route);
     }
 
+    // A namespace opens on its queues tab, or from a list page on that list when it has one; the open one stays as it is.
+    private async Task OpenNamespaceAsync(Namespace ns)
+    {
+        var route = "/" + Nav.ToBaseRelativePath(Nav.Uri);
+        if (route != "/" && ns.Info.FullyQualifiedNamespace == Connection.CurrentNamespace && ns.Parent.Value == NavState.AzureSubscription)
+        {
+            await OnPicked.InvokeAsync(false);
+            return;
+        }
+        var section = Section.All.FirstOrDefault(s => s.Route == route) is { } listed && await HasSectionAsync(ns, listed) ? listed : Section.Queues;
+        await OpenAsync(ns, section);
+    }
+
     private async Task Activate()
     {
         if (_rows.ElementAtOrDefault(_index) is ExplorerRow.Note { IsError: true } failed)
@@ -254,8 +261,8 @@
         }
         switch (Selected)
         {
-            case Page p:
-                await OpenAsync(p.Parent, p.Section);
+            case Namespace ns:
+                await OpenNamespaceAsync(ns);
                 return;
             case { IsBranch: true } branch:
                 Tree.SetOpen(branch, !Tree.IsOpen(branch));
@@ -266,13 +273,15 @@
     // F1-F3 open a section of the selected namespace, when it has that section.
     private async Task OpenSectionAsync(Namespace ns, Section section)
     {
-        if (Connection.Current is { } current && current.Info == ns.Info)
-        {
-            if (Section.Of(current).Contains(section)) await OpenAsync(ns, section);
-            return;
-        }
+        if (await HasSectionAsync(ns, section)) await OpenAsync(ns, section);
+    }
+
+    // Opening only composes the namespace's features; it connects on first use, which this never makes.
+    private async Task<bool> HasSectionAsync(Namespace ns, Section section)
+    {
+        if (Connection.Current is { } current && current.Info == ns.Info) return Section.Of(current).Contains(section);
         await using var probe = Opener.Open(ns.Info);
-        if (Section.Of(probe).Contains(section)) await OpenAsync(ns, section);
+        return Section.Of(probe).Contains(section);
     }
 
     private bool EndsFilterEdit(KeyboardEventArgs e)

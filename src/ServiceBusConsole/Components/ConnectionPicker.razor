@@ -31,7 +31,7 @@
     public void Open(int left, int top, string? selectKey)
     {
         if (!_open) _returnFocusKey = FocusManager.CurrentFocusKey;
-        if (NavState.AzureSubscription is { } subscription) Tree.Reveal(subscription, Connection.Current?.Info);
+        if (NavState.AzureSubscription is { } subscription) Tree.Reveal(subscription);
         (_open, _left, _top, _selectKey, _filter) = (true, left, top, selectKey, null);
         StateHasChanged();
     }

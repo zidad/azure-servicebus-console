@@ -4,14 +4,13 @@ using static ServiceBusConsole.UI.Explorer.ExplorerNode;
 namespace ServiceBusConsole.UI.Explorer;
 
 /// <summary>
-/// The explorer's tree: subscriptions (open by default, so their namespaces list at once) › namespaces › the pages a
-/// namespace has. Namespaces load the first time their subscription opens, cached first, then live. Kept for the run,
-/// so the tree is as it was after visiting a page. Changed is raised on any thread.
+/// The explorer's tree: subscriptions (open by default, so their namespaces list at once) › namespaces. Namespaces load
+/// the first time their subscription opens, cached first, then live. Kept for the run, so the tree is as it was after
+/// visiting a page. Changed is raised on any thread.
 /// </summary>
 public sealed class ExplorerTree(
     SubscriptionCatalog catalog,
     INamespaceService namespaces,
-    INamespaceOpener opener,
     ILogger<ExplorerTree> logger) : IDisposable
 {
     private const string Root = "";
@@ -52,13 +51,8 @@ public sealed class ExplorerTree(
         Changed?.Invoke();
     }
 
-    /// <summary>Opens the path to <paramref name="ns"/>, so the tree shows where the app is.</summary>
-    public void Reveal(AzureSubscription subscription, NamespaceInfo? ns)
-    {
-        var node = new Subscription(subscription);
-        SetOpen(node, true);
-        if (ns is not null) SetOpen(new Namespace(node, ns), true);
-    }
+    /// <summary>Opens <paramref name="subscription"/>, so the tree shows where the app is.</summary>
+    public void Reveal(AzureSubscription subscription) => SetOpen(new Subscription(subscription), true);
 
     /// <summary>A subscription's namespaces listed so far; <c>Done</c> once its listing ended, also on failure.</summary>
     public Listing NamespacesOf(AzureSubscription subscription)
@@ -116,7 +110,7 @@ public sealed class ExplorerTree(
     private bool HasMatchBelow(ExplorerNode node, string filter) =>
         Children(node.Key).Any(c => c.Matches(filter) || HasMatchBelow(c, filter));
 
-    // Subscriptions keep the catalog's order (emulator first) and pages their own; namespaces go by name.
+    // Subscriptions keep the catalog's order (emulator first); namespaces go by name.
     private IEnumerable<ExplorerNode> Children(string key) =>
         !_children.TryGetValue(key, out var list) ? []
         : list.FirstOrDefault() is Namespace ? list.OrderBy(n => n.Name, StringComparer.CurrentCultureIgnoreCase)
@@ -148,12 +142,7 @@ public sealed class ExplorerTree(
             }
         }
         // Off the renderer's context, like the catalog's loading.
-        _ = Task.Run(() => node switch
-        {
-            Subscription s => LoadNamespacesAsync(s),
-            Namespace ns => AddPagesAsync(ns),
-            _ => Task.CompletedTask,
-        });
+        if (node is Subscription s) _ = Task.Run(() => LoadNamespacesAsync(s));
     }
 
     private async Task LoadNamespacesAsync(Subscription node)
@@ -178,15 +167,6 @@ public sealed class ExplorerTree(
         {
             lock (_sync) _listing.Remove(node.Key);
         }
-        Changed?.Invoke();
-    }
-
-    // Opening only composes the namespace's features; it connects on first use, which this never makes.
-    private async Task AddPagesAsync(Namespace node)
-    {
-        await using var opened = opener.Open(node.Info);
-        lock (_sync)
-            foreach (var section in Section.Of(opened)) Add(node.Key, new Page(node, section));
         Changed?.Invoke();
     }
 
