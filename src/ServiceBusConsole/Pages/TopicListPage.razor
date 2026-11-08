@@ -141,7 +141,7 @@
     protected override void OnInitialized()
     {
         StartTraffic();
-        _live = new LiveList<TopicInfo>(ct => Topics.GetTopicsAsync(ct), t => t.Name, x => x.IsRefreshing,
+        _live = new LiveList<TopicInfo>(ct => Topics.GetTopicsAsync(ct), t => t.Name, x => x.IsRefreshing, x => x with { IsRefreshing = false },
             new(t => t.Name, ("Subscriptions", x => x.SubscriptionCount), ("Scheduled", x => x.ScheduledMessageCount)),
             LiveCounts, Logger)
         {

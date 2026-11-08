@@ -157,7 +157,7 @@
     protected override void OnInitialized()
     {
         StartTraffic();
-        _live = new LiveList<QueueInfo>(ct => Connection.Namespace.Queues.GetQueuesAsync(ct), q => q.Name, q => q.IsRefreshing,
+        _live = new LiveList<QueueInfo>(ct => Connection.Namespace.Queues.GetQueuesAsync(ct), q => q.Name, q => q.IsRefreshing, q => q with { IsRefreshing = false },
             new(q => q.Name,
                 ("Active", q => q.ActiveMessageCount), ("DLQ", q => q.DeadLetterMessageCount),
                 ("Scheduled", q => q.ScheduledMessageCount), ("Transfer", q => q.TransferMessageCount)),

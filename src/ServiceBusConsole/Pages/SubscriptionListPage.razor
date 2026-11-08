@@ -135,7 +135,7 @@
 
     protected override void OnInitialized()
     {
-        _live = new LiveList<SubscriptionInfo>(ct => Topics.GetSubscriptionsAsync(TopicName, ct), s => s.Name, x => x.IsRefreshing,
+        _live = new LiveList<SubscriptionInfo>(ct => Topics.GetSubscriptionsAsync(TopicName, ct), s => s.Name, x => x.IsRefreshing, x => x with { IsRefreshing = false },
             new(s => s.Name, ("Active", x => x.ActiveMessageCount), ("DLQ", x => x.DeadLetterMessageCount), ("Transfer", x => x.TransferMessageCount)),
             LiveCounts, Logger)
         {

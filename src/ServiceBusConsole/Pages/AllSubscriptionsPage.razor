@@ -159,7 +159,7 @@
     protected override void OnInitialized()
     {
         StartTraffic();
-        _live = new LiveList<SubscriptionInfo>(ct => Topics.GetAllSubscriptionsAsync(ct), Key, s => s.IsRefreshing,
+        _live = new LiveList<SubscriptionInfo>(ct => Topics.GetAllSubscriptionsAsync(ct), Key, s => s.IsRefreshing, s => s with { IsRefreshing = false },
             new(Key, ("Active", s => s.ActiveMessageCount), ("DLQ", s => s.DeadLetterMessageCount), ("Transfer", s => s.TransferMessageCount)),
             LiveCounts, Logger)
         {
