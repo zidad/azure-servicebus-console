@@ -1,6 +1,6 @@
 namespace ServiceBusConsole.UI.Explorer;
 
-/// <summary>A node of the explorer tree: subscription › namespace › its pages (queues, topics, all subscriptions).</summary>
+/// <summary>A node of the explorer tree: subscription › namespace; a namespace opens on its queues tab.</summary>
 public abstract record ExplorerNode
 {
     private ExplorerNode() { }
@@ -16,13 +16,8 @@ public abstract record ExplorerNode
 
     public virtual bool Matches(string filter) => Name.Contains(filter, StringComparison.CurrentCultureIgnoreCase);
 
-    /// <summary>The namespace this node is or belongs to.</summary>
-    public Namespace? InNamespace => this switch
-    {
-        Namespace ns => ns,
-        Page p => p.Parent,
-        _ => null,
-    };
+    /// <summary>The namespace this node is, if any.</summary>
+    public Namespace? InNamespace => this as Namespace;
 
     public sealed record Subscription(AzureSubscription Value) : ExplorerNode
     {
@@ -39,15 +34,5 @@ public abstract record ExplorerNode
         public override string Key => $"{Parent.Key}/{Info.FullyQualifiedNamespace}";
         public override string Name => Info.Name;
         public override string Icon => Icons.Namespace;
-        public override bool IsBranch => true;
-    }
-
-    /// <summary>A namespace's list page; never matches a filter, it shows under a matching namespace.</summary>
-    public sealed record Page(Namespace Parent, Section Section) : ExplorerNode
-    {
-        public override string Key => $"{Parent.Key}{Section.Route}";
-        public override string Name => Section.Name;
-        public override string Icon => Section.Icon;
-        public override bool Matches(string filter) => false;
     }
 }

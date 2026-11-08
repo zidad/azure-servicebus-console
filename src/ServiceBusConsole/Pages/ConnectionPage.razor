@@ -124,7 +124,7 @@
         var returning = NavState.AzureSubscription is not null;
         var subscription = NavState.AzureSubscription ?? AzureSubscription.Emulator;
         var ns = returning ? Connection.Current?.Info : NamespaceInfo.Emulator;
-        Tree.Reveal(subscription, null);
+        Tree.Reveal(subscription);
         _selectKey = KeyOf(subscription, ns);
         _ = Catalog.EnsureLoadedAsync();
         _azDefaultId = await NamespaceService.GetCurrentSubscriptionIdAsync();
@@ -153,7 +153,7 @@
 
     private void SelectNode(AzureSubscription subscription, NamespaceInfo? ns)
     {
-        Tree.Reveal(subscription, null);
+        Tree.Reveal(subscription);
         _selectKey = KeyOf(subscription, ns);
         _tree?.SelectNode(_selectKey);
     }
@@ -172,7 +172,7 @@
             SelectNode(AzureSubscription.Emulator, NamespaceInfo.Emulator);
             return;
         }
-        Tree.Reveal(subscription, null);
+        Tree.Reveal(subscription);
         var (namespaces, done) = Tree.NamespacesOf(subscription);
         if (startup.Namespace is not null && namespaces.FirstOrDefault(startup.Matches) is { } ns)
         {

@@ -86,22 +86,7 @@ public sealed class NamespaceFeatureTests
     }
 
     [Test]
-    public async Task WithoutTopics_SectionDropdownListsQueuesOnly()
-    {
-        var app = new AppHarness();
-        app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
-        await using var terminal = await app.OpenAzureAsync(ConsoleKey.F1, height: 30, ns: Basic);
-        await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
-
-        await AppHarness.ClickTextAsync(terminal, "Queues (1)");
-
-        var frame = await terminal.WaitUntilAsync(f => f.ContainsText("Go to") && f.ContainsText("└─   📬 Queues"), AppHarness.Timeout, cancellationToken: Ct);
-        frame.ContainsText("📢 Topics").ShouldBeFalse(frame.ScreenText);
-        frame.ContainsText("All Subscriptions").ShouldBeFalse(frame.ScreenText);
-    }
-
-    [Test]
-    public async Task SwitchingFromTopicsToANamespaceWithoutThem_OffersItsQueues()
+    public async Task SwitchingFromTopicsToANamespaceWithoutThem_OpensItsQueues()
     {
         var app = new AppHarness();
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
@@ -112,9 +97,7 @@ public sealed class NamespaceFeatureTests
 
         await AppHarness.ClickTextAsync(terminal, "sb-orders-dev");
         await terminal.WaitForTextAsync("Go to", AppHarness.Timeout, Ct);
-        await AppHarness.ClickTextAsync(terminal, "sb-legacy");
-        await terminal.WaitForTextAsync("│  └─   📬 Queues", AppHarness.Timeout, Ct);
-        await AppHarness.ClickTextAsync(terminal, "│  └─   📬 Queues");
+        await AppHarness.ClickTextAsync(terminal, "🌐 sb-legacy");
 
         await terminal.WaitUntilAsync(f => f.GetLine(0).Contains("🌐 sb-legacy  ›  📬 Queues (1)"), AppHarness.Timeout, cancellationToken: Ct);
         app.Connection.Current.ShouldBeOfType<FakeBasicNamespace>();

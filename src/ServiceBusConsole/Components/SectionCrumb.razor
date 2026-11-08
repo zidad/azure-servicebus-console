@@ -1,8 +1,10 @@
+@inject NavigationManager Nav
+
 
 <div class="pick-section" @onclick="HandleClick"><Markup Content="@Section.Label" Foreground="@(Current ? Theme.Accent : Theme.Muted)" Decoration="@(Current ? Decoration.Bold | Decoration.Underline : Decoration.Underline)" /></div>
 
 @code {
-    /// <summary>Breadcrumb entry for a section; a click opens the connection dropdown at it.</summary>
+    /// <summary>Breadcrumb entry for a section: deeper in, a click goes back to its list; on the list, it opens the connection dropdown.</summary>
     [Parameter, EditorRequired] public required Section Section { get; set; }
 
     /// <summary>True on the section's own list page (accent), false deeper in (muted).</summary>
@@ -10,5 +12,9 @@
 
     [CascadingParameter] public ConnectionHeader? Header { get; set; }
 
-    private void HandleClick(MouseEventArgs e) => Header?.OpenSections(Section, (int)e.ClientY + 1);
+    private void HandleClick(MouseEventArgs e)
+    {
+        if (Current) Header?.OpenSections((int)e.ClientY + 1);
+        else Nav.NavigateTo(Section.Route);
+    }
 }
