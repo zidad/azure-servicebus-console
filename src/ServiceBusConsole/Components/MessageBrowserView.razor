@@ -1,3 +1,4 @@
+@using System.Globalization
 @implements IDisposable
 @inject NavigationManager Nav
 @inject MessageBrowserStore Store
@@ -69,11 +70,11 @@
                         SelectedIndexChanged="@(i => browser.Cursor = i)"
                         OnToggle="@(i => ToggleAt(i))"
                         OnActivate="@(() => { if (browser.Operation is not { Modal: true } && browser.Focused is { } m) ViewMessage(m); })">
-                <SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.Rounded" data-column-separators="false">
+                <SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.Rounded" ColumnSeparators="false">
                     <SpectreTHead>
                         <SpectreTR>
-                            <SpectreTH Width="4"><div class="check-all" @onclick="ToggleAll">@(browser.AllSelected ? Icons.Selected : Icons.Unselected)</div></SpectreTH>
-                            <SpectreTH Align="Justify.Right">#</SpectreTH>
+                            <SpectreTH Width="@Gutter.Width" Padding="@Gutter.Header"><div class="check-all" @onclick="ToggleAll"><RowCheck Checked="@browser.AllSelected" /></div></SpectreTH>
+                            <SpectreTH Align="Justify.Right" Width="@SequenceWidth(browser)">#</SpectreTH>
                             <SpectreTH Align="Justify.Left">Message ID</SpectreTH>
                             <SpectreTH Align="Justify.Left">Subject</SpectreTH>
                             @if (_isDlq) { <SpectreTH Align="Justify.Left">Reason</SpectreTH> }
@@ -92,10 +93,10 @@
                             var isCursor = context.CurrentOffset + idx == browser.Cursor;
                             var selected = browser.IsSelected(m);
                             <SelectableRow @key="m.SequenceNumber" RowIndex="@idx">
-                                <SpectreTD>
+                                <SpectreTD data-padding="@Gutter.Cell">
                                     @if (showChecks || isCursor)
                                     {
-                                        <div class="check" @onclick="@ToggleHandler(m)" @onclick:stopPropagation="true">@(selected ? Icons.Selected : Icons.Unselected)</div>
+                                        <div class="check" @onclick="@ToggleHandler(m)" @onclick:stopPropagation="true"><RowCheck Checked="@selected" /></div>
                                     }
                                 </SpectreTD>
                                 <SpectreTD Align="Justify.Right">@m.SequenceNumber</SpectreTD>
@@ -171,6 +172,9 @@
               Execute="@(_ => Browser.PurgeAsync())" />
 
 @code {
+    /// <summary>The # column fits the longest sequence number: a fixed width takes no share of the spare space.</summary>
+    private int SequenceWidth(MessageBrowser browser) => 2 + browser.Messages.Select(m => m.SequenceNumber.ToString(CultureInfo.InvariantCulture).Length).DefaultIfEmpty(1).Max();
+
     /// <summary>The entity to browse; <see cref="MessageSource.IsDlq"/> is the initial view.</summary>
     [Parameter, EditorRequired] public required MessageSource Entity { get; set; }
     [Parameter, EditorRequired] public RenderFragment Breadcrumb { get; set; } = _ => { };

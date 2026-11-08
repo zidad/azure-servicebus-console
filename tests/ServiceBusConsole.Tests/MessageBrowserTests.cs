@@ -1,3 +1,4 @@
+using ServiceBusConsole.Components;
 using System.Text;
 
 namespace ServiceBusConsole.Tests;
@@ -273,7 +274,7 @@ public sealed class MessageBrowserTests
         await using var _ = terminal;
         var frame = await terminal.WaitForTextAsync("order-paid", AppHarness.Timeout, Ct);
         var header = Enumerable.Range(0, frame.Height).First(y => frame.GetLine(y).Contains("Message ID"));
-        var x = frame.GetLine(header).IndexOf(Icons.Unselected, StringComparison.Ordinal);
+        var x = frame.GetLine(header).IndexOf(RowCheck.Empty, StringComparison.Ordinal);
 
         await terminal.ClickAsync(x, header, Ct);
         await terminal.WaitForTextAsync("2 selected", AppHarness.Timeout, Ct);

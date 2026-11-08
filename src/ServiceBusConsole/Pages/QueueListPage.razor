@@ -41,11 +41,11 @@
                         SelectedIndex="@_selectedIndex"
                         SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _filtered.ElementAtOrDefault(i)?.Name; })"
                         OnActivate="OpenFocused">
-                <SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.Rounded" data-column-separators="false">
+                <SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.Rounded" ColumnSeparators="false">
                     <SpectreTHead>
                         <SpectreTR>
-                            <SpectreTH Width="1"></SpectreTH>
-                            <SpectreTH Align="Justify.Left"><Columns><SortHeader Label="Queue" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
+                            <SpectreTH Width="@Gutter.Width" Padding="@Gutter.Header"></SpectreTH>
+                            <SpectreTH Align="Justify.Left" Padding="@Gutter.NextHeader"><Columns><SortHeader Label="Queue" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
                             <SpectreTH Align="Justify.Right"><SortHeader Label="Active" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /></SpectreTH>
                             <SpectreTH Align="Justify.Right"><SortHeader Label="DLQ" Icon="@Icons.DeadLetter" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /></SpectreTH>
                             <SpectreTH Align="Justify.Right"><SortHeader Label="Scheduled" Icon="@Icons.Scheduled" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /></SpectreTH>
@@ -62,8 +62,8 @@
                         {
                             var idx = i++;
                             <SelectableRow @key="q.Name" RowIndex="@idx">
-                                <SpectreTD><DeadLetterMark Count="@q.DeadLetterMessageCount" /></SpectreTD>
-                                <SpectreTD>@q.Name</SpectreTD>
+                                <SpectreTD data-padding="@Gutter.Cell"><DeadLetterMark Count="@q.DeadLetterMessageCount" /></SpectreTD>
+                                <SpectreTD data-padding="@Gutter.NextCell">@q.Name</SpectreTD>
                                 <SpectreTD Align="Justify.Right"><CountCell Value="@q.ActiveMessageCount" Highlight="@_changes.Highlight(q, "Active")" /></SpectreTD>
                                 <SpectreTD Align="Justify.Right"><CountCell Value="@q.DeadLetterMessageCount" Color="@Theme.Danger" Bold="true" Highlight="@_changes.Highlight(q, "DLQ")" /></SpectreTD>
                                 <SpectreTD Align="Justify.Right"><CountCell Value="@q.ScheduledMessageCount" Color="@Theme.Scheduled" Highlight="@_changes.Highlight(q, "Scheduled")" /></SpectreTD>

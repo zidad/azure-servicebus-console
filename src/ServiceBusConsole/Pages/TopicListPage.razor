@@ -41,7 +41,7 @@
                         SelectedIndex="@_selectedIndex"
                         SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _filtered.ElementAtOrDefault(i)?.Name; })"
                         OnActivate="OpenFocused">
-                <SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.Rounded" data-column-separators="false">
+                <SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.Rounded" ColumnSeparators="false">
                     <SpectreTHead>
                         <SpectreTR>
                             <SpectreTH Align="Justify.Left"><Columns><SortHeader Label="Topic" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
