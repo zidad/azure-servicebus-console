@@ -4,4 +4,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+  <!-- The app ships as Native AOT: trim and AOT analyzers on every shipped project. -->
+  <PropertyGroup Condition="!$(MSBuildProjectName.EndsWith('.Tests'))">
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
 </Project>

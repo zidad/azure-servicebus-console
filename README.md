@@ -27,6 +27,8 @@ To update to the latest version:
 dotnet tool update -g Net.Azure.ServiceBusConsole
 ```
 
+The tool installs as a native executable on Linux, macOS and Windows (x64 and arm64); on other platforms it runs on the .NET 10 runtime. Without the .NET SDK, download the executable for your platform from the [releases](https://github.com/zidad/azure-servicebus-console/releases) (`SHA256SUMS` lists the checksums).
+
 ## Command line
 
 ```bash

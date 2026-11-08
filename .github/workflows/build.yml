@@ -20,6 +20,12 @@ jobs:
 
       - run: dotnet build ServiceBusConsole.slnx --configuration Release
 
+  # Every tool package, as a release packs them, so a Native AOT break fails on its PR.
+  tool-packages:
+    uses: ./.github/workflows/tool-packages.yml
+    with:
+      version: 0.0.0-ci.${{ github.run_number }}
+
   test:
     runs-on: ubuntu-latest
     # A hung test run would otherwise hold the job until GitHub's 6-hour limit.
