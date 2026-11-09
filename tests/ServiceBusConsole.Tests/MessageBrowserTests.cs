@@ -291,12 +291,12 @@ public sealed class MessageBrowserTests
 
         var table = terminal.FocusKey;
         await terminal.SendKeyAsync(ConsoleKey.F11, '\0', cancellationToken: Ct);
-        await terminal.WaitForTextAsync("Type orders to confirm", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("Type yes to confirm", AppHarness.Timeout, Ct);
         await AppHarness.WaitForFocusAsync(terminal, "0", table);
-        await terminal.TypeAsync("order\r", Ct);
+        await terminal.TypeAsync("ye\r", Ct);
         await Task.Delay(200, Ct);
         app.Messages.Purged.ShouldBeEmpty();
-        await terminal.TypeAsync("s\r", Ct);
+        await terminal.TypeAsync("S\r", Ct);
 
         await ClickOkAsync(terminal, "Purged 2 message(s).");
         await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
