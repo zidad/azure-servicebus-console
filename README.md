@@ -35,12 +35,15 @@ The tool installs as a native executable on Linux, macOS and Windows (x64 and ar
 azsb --subscription "Contoso Development" --namespace sb-orders-dev   # straight to the namespace's queues
 azsb -s 00000000-0000-0000-0000-000000000000                         # connection page, subscription selected
 azsb -s emulator -n localhost                                        # the local emulator
+azsb -s "Contoso Development" -n sb-orders-dev -o orders/active      # straight to a queue's active messages
+azsb --version                                                       # the installed version
 azsb help                                                            # all flags
 ```
 
 - `--subscription` / `-s`: Azure subscription by name or ID (case-insensitive); `emulator` or `Local Emulator` for the local emulator
 - `--namespace` / `-n`: namespace in that subscription, by name or host name (`sb-orders-dev.servicebus.windows.net`); needs `--subscription`
-- They apply at startup only: `Esc` back to the connection page works as usual. A subscription or namespace that isn't found is reported there
+- `--open` / `-o`: what to open in that namespace, by exact name (case-insensitive): a queue, a topic or `topic/subscription`; add `/active` or `/dlq` for the tab (dead letters by default). Or a list: `queues`, `topics`, `subscriptions`. Needs `--namespace`
+- They apply at startup only: `Esc` back to the connection page works as usual. A subscription, namespace or `--open` target that isn't found is reported there
 - `--theme` / `-t`: `dark` or `light` terminal background; `auto` (default) reads `COLORFGBG` where the terminal sets it, else dark; overrides the `ui.theme` setting. Colors are the terminal's 16 palette colors, so its color scheme sets their shade
 - Without `--subscription`, the Azure CLI's current subscription (`az account set`) is preselected; the subscription list marks it `(az default)`
 - `azsb help` lists the flags and commands; `azsb help <command>` (or `--help`) explains one

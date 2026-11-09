@@ -24,6 +24,11 @@ public sealed class AppCommands
         Description = "Namespace of that subscription to open, by name or host name; needs --subscription",
     };
 
+    private readonly Option<string?> _open = new("--open", "-o")
+    {
+        Description = "Queue, topic or topic/subscription of that namespace to open, by exact name; /dlq or /active picks the tab. Or a list: queues, topics or subscriptions. Needs --namespace",
+    };
+
     private readonly Option<string?> _theme = new("--theme", "-t")
     {
         Description = "Colors for a dark or light terminal background: auto (default; COLORFGBG, else dark), dark or light; overrides ui.theme",
@@ -45,7 +50,7 @@ public sealed class AppCommands
     {
         _host = host;
         _plugins = plugins;
-        _run = new("run", "Open the terminal UI (the default command)") { _subscription, _namespace, _theme };
+        _run = new("run", "Open the terminal UI (the default command)") { _subscription, _namespace, _open, _theme };
         _config = new("config", """
             Read and write settings in the config file, like git config:
               get <key>: print a value, exit code 1 when unset; unset <key>: remove it
@@ -58,7 +63,7 @@ public sealed class AppCommands
         // Named azsb, not after the executable: the tool's shim runs ServiceBusConsole.
         Root = new("azsb", "Terminal UI for browsing Azure Service Bus namespaces, queues, topics, and messages")
         {
-            new HelpOption(), new VersionOption(), _subscription, _namespace, _theme, _run, _config, _pluginsCommand, help,
+            new HelpOption(), new VersionOption(), _subscription, _namespace, _open, _theme, _run, _config, _pluginsCommand, help,
         };
         foreach (var command in new[] { Root, _run, _config, _pluginsCommand })
             command.SetAction(async (result, _) => await ExecuteAsync(result) ? 0 : 1);
@@ -93,6 +98,7 @@ public sealed class AppCommands
             HostBuilder = _host,
             Subscription = result.GetValue(_subscription),
             Namespace = result.GetValue(_namespace),
+            Open = result.GetValue(_open),
             Theme = result.GetValue(_theme),
         },
         _ => null,

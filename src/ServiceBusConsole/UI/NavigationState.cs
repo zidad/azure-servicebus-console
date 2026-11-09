@@ -14,6 +14,23 @@ public sealed class NavigationState
     public string? FocusedQueueName { get; set; }
     public AzureSubscription? AzureSubscription { get; set; }
 
+    /// <summary>The next queue or subscription browser opens on its Active tab instead of dead letters; it takes and clears this.</summary>
+    public bool StartActive { get; set; }
+
+    /// <summary>Sets what <paramref name="target"/>'s page reads and returns its route.</summary>
+    public string RouteTo(JumpTarget target, bool active = false)
+    {
+        StartActive = active;
+        return target.Match(
+            q => { FocusedQueueName = q.Info.Name; return $"/queues/{Uri.EscapeDataString(q.Info.Name)}"; },
+            t => { TopicName = t.Info.Name; return "/topic-detail"; },
+            s =>
+            {
+                (TopicName, SubscriptionName, ReturnPath) = (s.Info.TopicName, s.Info.Name, "/subscriptions");
+                return "/subscription-browser";
+            });
+    }
+
     /// <summary>Where the command line asked to start; the first connection page takes it, later visits start as usual.</summary>
     public StartupTarget? Startup { get; set; }
 

@@ -68,17 +68,8 @@
         StateHasChanged();
     }
 
-    private async Task<IReadOnlyList<JumpTarget>> LoadAsync()
-    {
-        if (Connection.Current is not { Info: var ns } current) return [];
-        var queues = await Cache.LoadAsync<QueueInfo>(CacheKeys.Queues(ns)) ?? await current.Queues.GetQueuesAsync().ToListAsync();
-        if (current is not IHasTopics { Topics: var topicService }) return [.. queues.Select(q => new JumpTarget.Queue(q))];
-        var topics = await Cache.LoadAsync<TopicInfo>(CacheKeys.Topics(ns)) ?? await topicService.GetTopicsAsync().ToListAsync();
-        var subscriptions = await Cache.LoadAsync<SubscriptionInfo>(CacheKeys.AllSubscriptions(ns)) ?? await topicService.GetAllSubscriptionsAsync().ToListAsync();
-        return [.. queues.Select(q => (JumpTarget)new JumpTarget.Queue(q)),
-                .. topics.Select(t => new JumpTarget.Topic(t)),
-                .. subscriptions.Select(s => new JumpTarget.Subscription(s))];
-    }
+    private Task<IReadOnlyList<JumpTarget>> LoadAsync() =>
+        Connection.Current is { } current ? JumpTargets.LoadAsync(current, Cache) : Task.FromResult<IReadOnlyList<JumpTarget>>([]);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -122,15 +113,7 @@
     private void Open(JumpTarget target)
     {
         IsOpened = false;
-        target.Match(
-            q => { NavState.FocusedQueueName = q.Info.Name; Nav.NavigateTo($"/queues/{Uri.EscapeDataString(q.Info.Name)}"); return 0; },
-            t => { NavState.TopicName = t.Info.Name; Nav.NavigateTo("/topic-detail"); return 0; },
-            s =>
-            {
-                (NavState.TopicName, NavState.SubscriptionName, NavState.ReturnPath) = (s.Info.TopicName, s.Info.Name, "/subscriptions");
-                Nav.NavigateTo("/subscription-browser");
-                return 0;
-            });
+        Nav.NavigateTo(NavState.RouteTo(target));
     }
 
     private async Task Close()

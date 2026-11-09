@@ -180,7 +180,8 @@
             _leaving = true;
             NavState.AzureSubscription = subscription;
             Connection.SetNamespace(ns);
-            Nav.NavigateTo(Section.Queues.Route);
+            if (startup.Open is { } path) _ = OpenAsync(subscription, ns, path);
+            else Nav.NavigateTo(Section.Queues.Route);
             return;
         }
         // Without a namespace, its first one is selected, ready for F1.
@@ -194,6 +195,28 @@
         _startup = null;
         if (startup.Namespace is { } missing) _startupError = $"Namespace \"{missing}\" not found in {subscription.Name}.";
         SelectNode(subscription, namespaces.FirstOrDefault());
+    }
+
+    // --open: what it names, else the namespace stays selected here with the error.
+    private async Task OpenAsync(AzureSubscription subscription, NamespaceInfo ns, string path)
+    {
+        try
+        {
+            if (Connection.Current is not { } current) return;
+            if (StartupDestination.Find(path, await JumpTargets.LoadAsync(current, FileCache), Section.Of(current)) is { } destination)
+            {
+                Nav.NavigateTo(destination.Match(e => NavState.RouteTo(e.Target, e.Active), l => l.Section.Route));
+                return;
+            }
+            _startupError = $"Nothing named \"{path}\" in {ns.Name}.";
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _startupError = $"Could not list {ns.Name}: {ErrorText.Of(ex)}";
+        }
+        _leaving = false;
+        SelectNode(subscription, ns);
+        StateHasChanged();
     }
 
     // The selection is the connection: its namespace opens (without connecting), so metrics and F1-F3 act on it.

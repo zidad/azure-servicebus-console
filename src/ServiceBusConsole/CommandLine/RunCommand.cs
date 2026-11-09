@@ -14,6 +14,11 @@ public static class RunCommand
             AnsiConsole.MarkupLine("[red]Invalid usage:[/] --namespace needs --subscription. See [italic]azsb help run[/].");
             return false;
         }
+        if (input is { Namespace: null, Open: not null })
+        {
+            AnsiConsole.MarkupLine("[red]Invalid usage:[/] --open needs --namespace. See [italic]azsb help run[/].");
+            return false;
+        }
 
         var host = input.HostBuilder.Build();
         var theme = input.ThemeSetting(host.Services.GetRequiredService<IConfiguration>());

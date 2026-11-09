@@ -4,7 +4,7 @@
 @inject ServiceBusConnection Connection
 @inject NavigationState NavState
 
-<MessageBrowserView Entity="@(new MessageSource.Subscription(TopicName, SubscriptionName, IsDlq: true))" BackPath="@BackPath">
+<MessageBrowserView Entity="@(new MessageSource.Subscription(TopicName, SubscriptionName, IsDlq: _dlq))" BackPath="@BackPath">
     <Breadcrumb>
         <SectionCrumb Section="@(NavState.ReturnPath == "/subscriptions" ? Section.AllSubscriptions : Section.Topics)" />
         <Markup Content=" › " Foreground="@Theme.Muted" />
@@ -20,8 +20,12 @@
 
     private string BackPath => NavState.ReturnPath ?? (string.IsNullOrEmpty(TopicName) ? "/topics" : "/topic-detail");
 
+    private bool _dlq = true;
+
     protected override void OnInitialized()
     {
+        _dlq = !NavState.StartActive;
+        NavState.StartActive = false;
         if (Connection.CurrentNamespace is null)
             Nav.NavigateTo("/");
     }
