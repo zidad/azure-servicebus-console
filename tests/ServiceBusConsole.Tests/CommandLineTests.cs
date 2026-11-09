@@ -32,6 +32,26 @@ public sealed class CommandLineTests
             .ShouldBe(new StartupTarget("Contoso Development", "sb-orders-dev"));
 
     [Test]
+    [Arguments("--open")]
+    [Arguments("-o")]
+    public void Open_IsPartOfTheStartupTarget(string flag) =>
+        Parse("-s", "Contoso Development", "-n", "sb-orders-dev", flag, "orders/active").StartupTarget
+            .ShouldBe(new StartupTarget("Contoso Development", "sb-orders-dev", "orders/active"));
+
+    [Test]
+    public async Task OpenWithoutNamespace_IsInvalidUsage() =>
+        (await RunCommand.ExecuteAsync(Parse("-s", "Contoso Development", "--open", "orders"))).ShouldBeFalse();
+
+    [Test]
+    public void Version_PrintsTheVersion()
+    {
+        var (output, exitCode) = Invoke("--version");
+
+        exitCode.ShouldBe(0);
+        output.Trim().ShouldNotBeEmpty();
+    }
+
+    [Test]
     public void RunByName_TakesTheSameFlags() =>
         Parse("run", "--subscription", "emulator").StartupTarget.ShouldBe(new StartupTarget("emulator"));
 

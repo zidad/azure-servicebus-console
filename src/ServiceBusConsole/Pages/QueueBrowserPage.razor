@@ -2,8 +2,9 @@
 
 @inject NavigationManager Nav
 @inject ServiceBusConnection Connection
+@inject NavigationState NavState
 
-<MessageBrowserView Entity="@(new MessageSource.Queue(QueueName, IsDlq: true))" BackPath="/queues">
+<MessageBrowserView Entity="@(new MessageSource.Queue(QueueName, IsDlq: _dlq))" BackPath="/queues">
     <Breadcrumb>
         <SectionCrumb Section="@Section.Queues" />
         <Markup Content=" › " Foreground="@Theme.Muted" />
@@ -14,8 +15,12 @@
 @code {
     [Parameter] public string QueueName { get; set; } = "";
 
+    private bool _dlq = true;
+
     protected override void OnInitialized()
     {
+        _dlq = !NavState.StartActive;
+        NavState.StartActive = false;
         if (Connection.CurrentNamespace is null)
             Nav.NavigateTo("/");
     }

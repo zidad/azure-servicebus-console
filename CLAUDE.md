@@ -106,7 +106,7 @@ This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, que
 | UI folder | Contents |
 |---|---|
 | `Program.cs` | Generic Host with `UseRazorConsole<App>()`, service registration (`AddAzureServiceBus()`), file logging to `logs/`; runs the command line through `AppCommands` |
-| `CommandLine/` | System.CommandLine: `AppCommands` parses into a `CommandInput` (`RunInput`, `ConfigInput`, `PluginsInput`; `Bind` in tests) and runs `RunCommand` (default; `--subscription`, `--namespace`, `--theme`), `ConfigCommand` or `PluginsCommand`; `help`. `StartupTarget` is taken once by the connection page via `NavigationState.Startup` |
+| `CommandLine/` | System.CommandLine: `AppCommands` parses into a `CommandInput` (`RunInput`, `ConfigInput`, `PluginsInput`; `Bind` in tests) and runs `RunCommand` (default; `--subscription`, `--namespace`, `--open`, `--theme`), `ConfigCommand` or `PluginsCommand`; `help`. `StartupTarget` is taken once by the connection page via `NavigationState.Startup`; `--open` resolves with `StartupDestination.Find` over `JumpTargets` |
 | `Configuration/` | `AppPaths` (config file, state directory), `ConfigFile` (dotted keys as nested JSON, read on every call), `ConfigKeys` (the known `ConfigKey`s), `AddAzsbConfiguration` (file and `AZSB_` environment variables into the host's `IConfiguration`); `azsb config` is `CommandLine/ConfigCommand` |
 | `Pages/` | One Razor component per screen, each with a `@page` route |
 | `Components/` | Shared Razor components; `App.razor` is the root router |

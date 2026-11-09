@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 
 namespace ServiceBusConsole.Tests;
@@ -163,5 +164,67 @@ public sealed class StartupTests
 
         visited.ShouldBe([""]);
         terminal.CurrentFrame.ContainsText("1  📬 Queues").ShouldBeTrue(terminal.CurrentFrame.ScreenText);
+    }
+
+    [Test]
+    public async Task Open_StartsInTheQueuesBrowser_OnItsDeadLetters()
+    {
+        var app = WithAzure(new("Contoso Development", "sb-orders-dev", "orders"));
+        await using var terminal = await app.StartAsync(height: 40);
+
+        var frame = await terminal.WaitForTextAsync("orders 💀 DLQ", AppHarness.Timeout, Ct);
+
+        frame.GetLine(0).ShouldContain("🌐 sb-orders-dev  ›  📬 Queues  ›  orders 💀 DLQ");
+    }
+
+    [Test]
+    public async Task OpenActive_StartsOnTheActiveTab()
+    {
+        var app = WithAzure(new("Contoso Development", "sb-orders-dev", "orders/active"));
+        await using var terminal = await app.StartAsync(height: 40);
+
+        await terminal.WaitForTextAsync("📬 Queues  ›  orders", AppHarness.Timeout, Ct);
+        var store = terminal.Services.GetRequiredService<MessageBrowserStore>();
+        await terminal.WaitUntilAsync(_ => store.Current is not null, AppHarness.Timeout, cancellationToken: Ct);
+
+        store.Current?.Source.ShouldBe(new MessageSource.Queue("orders"));
+        terminal.CurrentFrame.GetLine(0).ShouldNotContain("DLQ");
+    }
+
+    [Test]
+    public async Task OpenASubscription_StartsInItsBrowser()
+    {
+        var app = WithAzure(new("Contoso Development", "sb-orders-dev", "events/billing"));
+        app.Topics.Topics.Add(new TopicInfo { Name = "events" });
+        app.Topics.Subscriptions.Add(new SubscriptionInfo { Name = "billing", TopicName = "events" });
+        await using var terminal = await app.StartAsync(height: 40);
+
+        await terminal.WaitForTextAsync("📥 billing", AppHarness.Timeout, Ct);
+
+        terminal.CurrentFrame.GetLine(0).ShouldContain("📥 All Subscriptions  ›  events  ›  📥 billing");
+    }
+
+    [Test]
+    public async Task OpenAList_StartsOnIt()
+    {
+        var app = WithAzure(new("Contoso Development", "sb-orders-dev", "topics"));
+        app.Topics.Topics.Add(new TopicInfo { Name = "events" });
+        await using var terminal = await app.StartAsync(height: 40);
+
+        var frame = await terminal.WaitForTextAsync("Topics (1)", AppHarness.Timeout, Ct);
+
+        frame.ContainsText("events").ShouldBeTrue(frame.ScreenText);
+    }
+
+    [Test]
+    public async Task OpenUnknown_StaysOnTheConnectionPage_WithTheNamespaceSelected_AndSaysSo()
+    {
+        var app = WithAzure(new("Contoso Development", "sb-orders-dev", "payments"));
+        await using var terminal = await app.StartAsync(height: 40);
+
+        await terminal.WaitUntilAsync(
+            f => f.ContainsText("Nothing named \"payments\" in sb-orders-dev.") && f.ContainsText("1  📬 Queues"),
+            AppHarness.Timeout, cancellationToken: Ct);
+        app.Connection.CurrentNamespace.ShouldBe(AppHarness.AzureNamespace.FullyQualifiedNamespace);
     }
 }
