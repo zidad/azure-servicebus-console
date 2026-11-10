@@ -286,6 +286,9 @@
   <data name="MessageBrowserView_StateCount" xml:space="preserve">
     <value>{count} {state}</value>
   </data>
+  <data name="MessageBrowserView_StillHeld" xml:space="preserve">
+    <value>{count} still held</value>
+  </data>
   <data name="MessageBrowserView_Received" xml:space="preserve">
     <value>{count} received</value>
   </data>

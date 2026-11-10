@@ -177,20 +177,20 @@ public sealed class Screenshots
         await AppHarness.WaitForSettledAsync(terminal, f => f.ContainsText("10 received") && f.ContainsText("10 held"));
         await AppHarness.WaitForTableFocusAsync(terminal);
 
-        foreach (var _ in Enumerable.Range(0, 4)) await Key(terminal, ConsoleKey.DownArrow);
+        foreach (var _ in Enumerable.Range(0, 6)) await Key(terminal, ConsoleKey.DownArrow);
+        await Key(terminal, ConsoleKey.A, 'a');
+        await WaitForStatusAsync(terminal, "Abandoned message #2007");
+        await Key(terminal, ConsoleKey.UpArrow);
         await Key(terminal, ConsoleKey.Spacebar, ' ');
-        await Key(terminal, ConsoleKey.DownArrow);
+        await Key(terminal, ConsoleKey.UpArrow);
         await Key(terminal, ConsoleKey.Spacebar, ' ');
         await terminal.WaitForTextAsync("2 selected", AppHarness.Timeout, Ct);
         await Key(terminal, ConsoleKey.C, 'c');
         await terminal.WaitForTextAsync("Complete 2 messages?", AppHarness.Timeout, Ct);
         await Key(terminal, ConsoleKey.Y, 'y');
-        await DismissAsync(terminal, "Completed 2 of 2.");
-        await Key(terminal, ConsoleKey.DownArrow);
-        await Key(terminal, ConsoleKey.A, 'a');
-        await DismissAsync(terminal, "Abandoned 1 of 1.");
+        await WaitForStatusAsync(terminal, "Completed 2 messages");
 
-        foreach (var _ in Enumerable.Range(0, 5)) await Key(terminal, ConsoleKey.UpArrow);
+        foreach (var _ in Enumerable.Range(0, 3)) await Key(terminal, ConsoleKey.UpArrow);
         foreach (var _ in Enumerable.Range(0, 3))
         {
             await Key(terminal, ConsoleKey.Spacebar, ' ');
@@ -202,11 +202,9 @@ public sealed class Screenshots
         await Save(terminal, dir, "peeklock");
     }
 
-    private static async Task DismissAsync(HeadlessTerminal terminal, string result)
+    private static async Task WaitForStatusAsync(HeadlessTerminal terminal, string status)
     {
-        await terminal.WaitForTextAsync(result, AppHarness.Timeout, Ct);
-        await AppHarness.ClickTextAsync(terminal, "⏎  OK");
-        await terminal.WaitUntilAsync(f => !f.ContainsText(result), AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitForTextAsync(status, AppHarness.Timeout, Ct);
         await AppHarness.WaitForTableFocusAsync(terminal);
     }
 

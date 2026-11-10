@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.Extensions.DependencyInjection;
 using RazorConsole.Testing;
 using ServiceBusConsole.Components;
 using Spectre.Console;
@@ -45,13 +46,13 @@ public sealed class LockedBrowserTests
         return (app, terminal);
     }
 
-    private static async Task ClickOkAsync(HeadlessTerminal terminal, string result)
+    /// <summary>Settling reports in one line under the list; no dialog to dismiss.</summary>
+    private static async Task<HeadlessTerminalFrame> WaitForStatusAsync(HeadlessTerminal terminal, string status)
     {
-        var frame = await terminal.WaitUntilAsync(f => f.ContainsText(result) && f.ContainsText("⏎  OK"), AppHarness.Timeout, cancellationToken: Ct);
-        var y = Enumerable.Range(0, frame.Height).First(y => frame.GetLine(y).Contains("⏎  OK"));
-        await terminal.ClickAsync(frame.GetLine(y).IndexOf("⏎  OK", StringComparison.Ordinal) + 2, y, Ct);
-        await terminal.WaitUntilAsync(f => !f.ContainsText(result), AppHarness.Timeout, cancellationToken: Ct);
+        var frame = await terminal.WaitForTextAsync(status, AppHarness.Timeout, Ct);
+        frame.ContainsText("⏎  OK").ShouldBeFalse(frame.ScreenText);
         await AppHarness.WaitForTableFocusAsync(terminal);
+        return frame;
     }
 
     /// <summary>The counts beside the tabs, and the strip's held count.</summary>
@@ -90,7 +91,10 @@ public sealed class LockedBrowserTests
         await terminal.SendKeyAsync(ConsoleKey.C, 'c', cancellationToken: Ct);
         await terminal.WaitForTextAsync("Complete message #1?", AppHarness.Timeout, Ct);
         await terminal.SendKeyAsync(ConsoleKey.Y, 'y', cancellationToken: Ct);
-        await ClickOkAsync(terminal, "Completed 1 of 1.");
+        var status = await WaitForStatusAsync(terminal, "✅ Completed message #1 · 2 still held");
+        Foreground(status, "✅ Completed message #1", "Completed").ShouldBe(Theme.Success);
+        terminal.Services.GetRequiredService<ActivityLog>().Entries
+            .ShouldContain(e => e.Kind == ActivityKind.Operation && e.Text == "Completing message #1: Completed message #1");
 
         var frame = await WaitForCountsAsync(terminal, "3 received · 1 completed", 2);
         frame.GetLine(Row(frame, "first")).ShouldContain("✅ completed");
@@ -121,12 +125,12 @@ public sealed class LockedBrowserTests
         await using var _ = terminal;
 
         await terminal.SendKeyAsync(ConsoleKey.A, 'a', cancellationToken: Ct);
-        await ClickOkAsync(terminal, "Abandoned 1 of 1.");
+        await WaitForStatusAsync(terminal, "✅ Abandoned message #1 · 2 still held");
         await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
         await terminal.SendKeyAsync(ConsoleKey.X, 'X', ConsoleModifiers.Shift, Ct);
         await terminal.WaitForTextAsync("Move message #2 to the dead-letter queue?", AppHarness.Timeout, Ct);
         await terminal.SendKeyAsync(ConsoleKey.Y, 'y', cancellationToken: Ct);
-        await ClickOkAsync(terminal, "Dead-lettered 1 of 1.");
+        await WaitForStatusAsync(terminal, "✅ Dead-lettered message #2 · 1 still held");
         app.Messages.Received.ShouldNotBeNull().LoseLock(3);
 
         var frame = await WaitForCountsAsync(terminal, "3 received · 1 abandoned · 1 dead-lettered", 0);
@@ -143,7 +147,7 @@ public sealed class LockedBrowserTests
         var (app, terminal) = await ReceiveOrdersAsync();
         await using var _ = terminal;
         await terminal.SendKeyAsync(ConsoleKey.A, 'a', cancellationToken: Ct);
-        await ClickOkAsync(terminal, "Abandoned 1 of 1.");
+        await WaitForStatusAsync(terminal, "✅ Abandoned message #1 · 2 still held");
 
         var browserFocus = terminal.FocusKey;
         await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
@@ -160,10 +164,34 @@ public sealed class LockedBrowserTests
         await terminal.SendKeyAsync(ConsoleKey.C, 'c', cancellationToken: Ct);
         await terminal.WaitForTextAsync("Complete message #2?", AppHarness.Timeout, Ct);
         await terminal.SendKeyAsync(ConsoleKey.Y, 'y', cancellationToken: Ct);
-        await ClickOkAsync(terminal, "Completed 1 of 1.");
+        await WaitForStatusAsync(terminal, "✅ Completed message #2 · 1 still held");
 
         frame = await WaitForCountsAsync(terminal, "3 received · 1 completed · 1 abandoned", 1);
         frame.GetLine(Row(frame, "second")).ShouldContain("✅ completed");
         app.Messages.Completed.ShouldBe([2L]);
+    }
+
+    [Test]
+    public async Task FailedSettle_ShowsInTheStatusInTheDangerColor_AndInTheActivityLog()
+    {
+        var (app, terminal) = await ReceiveOrdersAsync();
+        await using var _ = terminal;
+        app.Messages.FailSettle.Add(2);
+
+        await terminal.SendKeyAsync(ConsoleKey.A, '\u0001', ConsoleModifiers.Control, Ct);
+        await terminal.WaitForTextAsync("3 selected", AppHarness.Timeout, Ct);
+        await terminal.SendKeyAsync(ConsoleKey.C, 'c', cancellationToken: Ct);
+        await terminal.WaitForTextAsync("Complete 3 messages?", AppHarness.Timeout, Ct);
+        await terminal.SendKeyAsync(ConsoleKey.Y, 'y', cancellationToken: Ct);
+
+        const string status = "❌ Completed 2 of 3. Failed messages stay selected: #2 Service Bus is busy · 1 still held";
+        var frame = await WaitForStatusAsync(terminal, status);
+        Foreground(frame, status, "Completed").ShouldBe(Theme.Danger);
+        frame = await WaitForCountsAsync(terminal, "3 received · 2 completed", 1);
+        frame.ContainsText("1 selected").ShouldBeTrue(frame.ScreenText);
+        frame.GetLine(Row(frame, "second")).ShouldContain("🔒 held");
+        app.Messages.Completed.Order().ShouldBe([1L, 3L]);
+        terminal.Services.GetRequiredService<ActivityLog>().Entries
+            .ShouldContain(e => e.Kind == ActivityKind.Error && e.Text.StartsWith("Completing 3 messages: Completed 2 of 3.", StringComparison.Ordinal));
     }
 }

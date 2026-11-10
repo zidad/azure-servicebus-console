@@ -27,6 +27,9 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
     /// <summary>The batch operation in progress or finished (until <see cref="Dismiss"/>), for the progress dialog; null when idle.</summary>
     public OperationProgress? Operation { get; private set; }
 
+    /// <summary>The last complete, abandon or dead-letter, for the status line under the list; null after a new load.</summary>
+    public OperationProgress? Settled { get; private set; }
+
     public event Action? Changed;
 
     /// <summary>A load or batch operation ended without throwing: finished with a result, or (a load) done or cancelled.</summary>
@@ -465,6 +468,7 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
         Messages = messages;
         Mode = mode;
         _settled.Clear();
+        Settled = null;
         Selected.Clear();
         Cursor = 0;
         Changed?.Invoke();
@@ -494,11 +498,12 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
         }
     }
 
-    // Settled rows stay in the list, marked; failed ones stay selected.
+    // Settled rows stay in the list, marked; failed ones stay selected. Reports in the status line, not a dialog.
     private Task SettleAsync(string title, string stepName, string pastVerb, LockedState settledAs, IReadOnlyList<MessageInfo> targets,
         Func<ILockedMessages, MessageInfo, CancellationToken, Task> settle) =>
-        RunAsync(new(title, [new(stepName, targets.Count)]), async op =>
+        RunAsync(new(title, [new(stepName, targets.Count)], modal: false), async op =>
         {
+            Settled = null;
             var locked = _locked ?? throw new InvalidOperationException(MessagingStrings.MessageBrowser_NoLockedMessages);
             var failures = new ConcurrentBag<Failure>();
             var done = await RunParallelAsync(Start(op, 0), targets, async (m, ct) =>
@@ -513,7 +518,9 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
                 catch (Exception ex) { failures.Add(new(m, Describe(ex))); return false; }
             });
             UpdateSelection(targets, failures.Select(f => f.Message));
-            Report(op, pastVerb, targets.Count, done.Count, [.. failures]);
+            if (failures.IsEmpty) op.Finish(MessagingStrings.FormatMessageBrowser_Settled(pastVerb, What(targets)), OperationOutcome.Succeeded);
+            else Report(op, pastVerb, targets.Count, done.Count, [.. failures]);
+            Settled = op;
         });
 
     private async Task<IReadOnlyList<MessageInfo>> RunParallelAsync(OperationStep step, IReadOnlyList<MessageInfo> items, Func<MessageInfo, CancellationToken, Task<bool>> op)
