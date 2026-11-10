@@ -7,7 +7,7 @@ namespace ServiceBusConsole.UI;
 public sealed class ListView<T>(Func<T, string> key, TableSort<T> sort, Func<T, string, bool>? matches = null) where T : class
 {
     private List<T> _items = [];
-    private string? _restoreKey;
+    private string? _pendingKey;
 
     public IReadOnlyList<T> Items => _items;
 
@@ -22,14 +22,12 @@ public sealed class ListView<T>(Func<T, string> key, TableSort<T> sort, Func<T, 
 
     public T? Focused => Items.ElementAtOrDefault(SelectedIndex);
 
-    /// <summary>Selects <paramref name="rowKey"/> from the start; dropped if the first rows don't include it.</summary>
-    public void Focus(string? rowKey) => FocusedKey = rowKey;
-
-    /// <summary>Selects <paramref name="rowKey"/> once a load brings it, while nothing else is selected.</summary>
-    public void Restore(string? rowKey) => _restoreKey = rowKey;
+    /// <summary>Selects <paramref name="rowKey"/> once a load brings it, unless the user selects another row first.</summary>
+    public void Focus(string? rowKey) => FocusedKey = _pendingKey = rowKey;
 
     public void Select(int index)
     {
+        _pendingKey = null;
         SelectedIndex = index;
         FocusedKey = KeyAt(index);
     }
@@ -39,10 +37,10 @@ public sealed class ListView<T>(Func<T, string> key, TableSort<T> sort, Func<T, 
     {
         var focused = FocusedKey;
         _items = sort.Apply(matches is null || Filter.Text is not { } text || string.IsNullOrWhiteSpace(text) ? all : all.Where(x => matches(x, text)));
-        if (focused is null && _restoreKey is { } restore && _items.Exists(x => key(x) == restore))
+        if (_pendingKey is { } pending && _items.Exists(x => key(x) == pending))
         {
-            focused = restore;
-            _restoreKey = null;
+            focused = pending;
+            _pendingKey = null;
         }
         if (focused is not null && _items.FindIndex(x => key(x) == focused) is >= 0 and var index) SelectedIndex = index;
         FocusedKey = KeyAt(SelectedIndex);

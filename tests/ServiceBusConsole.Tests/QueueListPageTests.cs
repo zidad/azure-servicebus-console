@@ -324,4 +324,31 @@ public sealed class QueueListPageTests
         await terminal.WaitForTextAsync("Delete queue 'payments'?", AppHarness.Timeout, Ct);
     }
 
+    [Test]
+    public async Task GoingBack_KeepsTheOpenedQueueSelected_WithCachedRows()
+    {
+        var app = WithQueues();
+        app.OpenNamespace = info => new CachedQueuesNamespace(FakeNamespace.For(info, app.Services), app.Cache);
+        await using var terminal = await app.OpenQueuesAsync();
+        await AppHarness.WaitForSettledAsync(terminal, f => f.ContainsText("Queues (3)") && f.ContainsText("● live"));
+        await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
+        await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
+        await AppHarness.WaitForSettledAsync(terminal, f => f.GetLine(0).Contains("emails") && f.ContainsText("No messages"));
+
+        await terminal.SendKeyAsync(ConsoleKey.Escape, '\u001b', cancellationToken: Ct);
+        await AppHarness.WaitForTableFocusAsync(terminal);
+        await AppHarness.WaitForSettledAsync(terminal, f => f.ContainsText("Queues (3)") && f.ContainsText("● live"));
+        await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
+
+        await terminal.WaitUntilAsync(f => !f.ContainsText("Queues (") && f.GetLine(0).Contains("emails"), AppHarness.Timeout, cancellationToken: Ct);
+    }
+
+    // The real opener caches listings (CachingNamespaceDecorator): going back shows cached rows first.
+    private sealed class CachedQueuesNamespace(IServiceBusNamespace inner, FileCache cache) : IServiceBusNamespace
+    {
+        public NamespaceInfo Info => inner.Info;
+        public IQueueService Queues { get; } = new CachingNamespaceDecorator(cache).Decorate(inner.Info, inner.Queues);
+        public IMessageService Messages => inner.Messages;
+        public ValueTask DisposeAsync() => inner.DisposeAsync();
+    }
 }

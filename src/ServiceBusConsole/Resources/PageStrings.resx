@@ -156,9 +156,6 @@
   <data name="MessageDetail_DeadLetterConfirm" xml:space="preserve">
     <value>Move message #{sequenceNumber} to the dead-letter queue?</value>
   </data>
-  <data name="MessageDetail_ResendConfirm" xml:space="preserve">
-    <value>Send a copy of message #{sequenceNumber} to {target}? The original stays.</value>
-  </data>
   <data name="MessageDetail_TabBody" xml:space="preserve">
     <value>Body</value>
   </data>

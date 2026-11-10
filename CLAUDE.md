@@ -112,7 +112,7 @@ This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, que
 | `Components/` | Shared Razor components; `App.razor` is the root router |
 | `PluginHost/` | `PluginCatalog` (discovery, enabled, config keys), `AddPlugins`, `PluginActions` (offered actions and their context), `ProcessPluginHost`; namespace `ServiceBusConsole.PluginHost`, since `ServiceBusConsole.Plugins` is the contracts' |
 | `UI/` | Non-component UI code: `Theme`/`Icons`, `TableSort`, `LiveList`, `CountChanges`, `NavigationState` (parameters that aren't URL segments), `FullscreenLayout` |
-| `Services/` | `ServiceBusConnection` (the namespace being browsed: `SetNamespace` opens it and disposes the previous one; read `Current` each time), `SubscriptionCatalog`, `AzureSubscriptions` (emulator first, then the account's subscriptions) |
+| `Services/` | `ServiceBusConnection` (the namespace being browsed: `SetNamespace` opens it and disposes the previous one; read `Current` each time), `NamespaceSwitcher` (opening a namespace: switch, record in `RecentNamespaces`, navigate; tree, startup and jump), `SubscriptionCatalog`, `AzureSubscriptions` (emulator first, then the account's subscriptions) |
 | `Services/Caching/` | `FileCache`, `CachingNamespaceDecorator` (wraps each opened namespace's listings, metrics and deletion: cached data first, then live), `CachingNamespaceService` |
 | `Messaging/` | `MessageBrowser` (+ store), `OperationProgress`, `RetryText` |
 | `Logging/`, `Syntax/` | File logger, JSON highlighting grammar |

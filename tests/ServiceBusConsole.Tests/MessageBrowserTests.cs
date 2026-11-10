@@ -44,6 +44,27 @@ public sealed class MessageBrowserTests
     }
 
     [Test]
+    public async Task ResendOnActiveQueue_ConfirmsWithTheGrid_AndSendsCopies()
+    {
+        var (app, terminal) = await OpenOrdersAsync();
+        await using var _ = terminal;
+        var dlqTable = terminal.FocusKey;
+        await terminal.SendKeyAsync(ConsoleKey.D1, '1', cancellationToken: Ct);
+        await AppHarness.WaitForSettledAsync(terminal, f => f.ContainsText("order-created") && f.ContainsText("R  📤 Resend"));
+        await AppHarness.WaitForTableFocusAsync(terminal, dlqTable);
+
+        await terminal.SendKeyAsync(ConsoleKey.R, 'R', ConsoleModifiers.Shift, cancellationToken: Ct);
+
+        var confirm = await terminal.WaitForTextAsync("Resend message #1?", AppHarness.Timeout, Ct);
+        confirm.ContainsText("How     Send copies to orders").ShouldBeTrue(confirm.ScreenText);
+        confirm.ContainsText("Note    The originals stay in orders.").ShouldBeTrue(confirm.ScreenText);
+        await terminal.SendKeyAsync(ConsoleKey.Y, 'y', cancellationToken: Ct);
+
+        await terminal.WaitUntilAsync(_ => app.Messages.Sent.Count == 1, AppHarness.Timeout, cancellationToken: Ct);
+        app.Messages.Sent.ShouldBe([(new MessageSource.Queue("orders"), 1L)]);
+    }
+
+    [Test]
     public async Task EnterOnMessage_ShowsItsBody()
     {
         var (_, terminal) = await OpenOrdersAsync();
@@ -84,7 +105,8 @@ public sealed class MessageBrowserTests
         await terminal.WaitForTextAsync("Message #3", AppHarness.Timeout, Ct);
         await WaitForDetailFocusAsync(terminal, browserFocus);
         await terminal.SendKeyAsync(ConsoleKey.F10, '\0', cancellationToken: Ct);
-        await terminal.WaitForTextAsync("Send a copy", AppHarness.Timeout, Ct);
+        var confirm = await terminal.WaitForTextAsync("Resend message #3?", AppHarness.Timeout, Ct);
+        confirm.ContainsText("How     Send copies to orders").ShouldBeTrue(confirm.ScreenText);
         await terminal.SendKeyAsync(ConsoleKey.Y, 'y', cancellationToken: Ct);
 
         await ClickOkAsync(terminal, "Sent 1 of 1.");

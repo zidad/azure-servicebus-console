@@ -14,7 +14,7 @@
             Changes="@_changes"
             Sort="@_sort"
             Matches="@((s, text) => s.TopicName.Contains(text, StringComparison.OrdinalIgnoreCase) || s.Name.Contains(text, StringComparison.OrdinalIgnoreCase))"
-            RestoreFocus="@(NavState is { TopicName: { } topic, SubscriptionName: { } name } ? $"{topic}/{name}" : null)"
+            Focus="@(NavState is { TopicName: { } topic, SubscriptionName: { } name } ? $"{topic}/{name}" : null)"
             TrafficEntity="@(s => s.TopicName)"
             MetricsEntity="@(view => view.Focused?.TopicName)"
             MetricsLabel="@(t => $"{Icons.Topic} {PageStrings.FormatList_MetricsTopic(t)}")"

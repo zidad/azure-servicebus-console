@@ -175,7 +175,8 @@
               Execute="@(l => Browser.RetryAsync(l))" />
 
 <AsyncCommand @ref="_resend" TItem="IReadOnlyList<MessageInfo>"
-              ConfirmMessage="@(l => ComponentStrings.FormatMessageBrowserView_ConfirmResend(Count(l), Source.SendTarget, Source.DisplayName, TopicNote))"
+              ConfirmMessage="@(l => RetryText.ResendQuestion(Count(l)))"
+              ConfirmFields="@(_ => RetryText.ResendFields(Source))"
               Execute="@(l => Browser.ResendAsync(l))" />
 
 <AsyncCommand @ref="_purge" TItem="MessageSource"
@@ -224,7 +225,6 @@
     // A short list leaves rows unused; the preview takes them.
     private int PreviewHeight(MessageBrowser browser) =>
         Split.Preview + Math.Max(0, Split.Rows - browser.Messages.Count) - (browser.Settled is { Finished: true } ? 1 : 0);
-    private string TopicNote => Source is MessageSource.Subscription ? ComponentStrings.MessageBrowserView_TopicNote : "";
 
     private IEnumerable<AsyncCommand<IReadOnlyList<MessageInfo>>?> ListCommands => [_complete, _abandon, _deadLetter, _retry, _resend];
     private bool IsBusy => _loading is not null || ListCommands.Any(c => c?.IsBusy == true) || _purge?.IsBusy == true;

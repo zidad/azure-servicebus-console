@@ -159,6 +159,15 @@
   <data name="RetryText_RequeueTo" xml:space="preserve">
     <value>Requeue to {target}</value>
   </data>
+  <data name="RetryText_ResendQuestion" xml:space="preserve">
+    <value>Resend {what}?</value>
+  </data>
+  <data name="RetryText_SendCopiesTo" xml:space="preserve">
+    <value>Send copies to {target}</value>
+  </data>
+  <data name="RetryText_OriginalsStay" xml:space="preserve">
+    <value>The originals stay in {source}.</value>
+  </data>
   <data name="RetryText_MoveTo" xml:space="preserve">
     <value>Move to {target}</value>
   </data>
