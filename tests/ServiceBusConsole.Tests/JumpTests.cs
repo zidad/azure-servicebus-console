@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using RazorConsole.Testing;
 
 namespace ServiceBusConsole.Tests;
@@ -42,6 +43,27 @@ public sealed class JumpTests
         groups[0].Targets.Select(t => t.Name).ShouldBe(["payments", "payments-retry"]);
         groups[1].Targets.Select(t => t.Name).ShouldBe(["order-events/payments"]);
         JumpIndex.Grouped("order", Targets).Select(g => g.Kind).ShouldBe([JumpKind.Queue, JumpKind.Topic, JumpKind.Subscription]);
+    }
+
+    private static readonly JumpNamespace Production = new(new AzureSubscription("Contoso Production", "prod-id"), new NamespaceInfo
+    {
+        Name = "sb-payments-prd", FullyQualifiedNamespace = "sb-payments-prd.servicebus.windows.net", ResourceGroup = "rg-prd", Location = "West Europe", Sku = "Standard",
+    });
+
+    [Test]
+    public void Search_PutsTheCurrentNamespaceFirst_AndNamespacesInTheirOwnGroup()
+    {
+        JumpTarget[] targets =
+        [
+            new JumpTarget.Queue(new QueueInfo { Name = "payments" }) { Elsewhere = Production },
+            new JumpTarget.Queue(new QueueInfo { Name = "payments" }),
+            new JumpTarget.Namespace(Production),
+        ];
+
+        JumpIndex.Search("pay", targets).Select(t => t.OtherNamespace).ShouldBe([null, Production, Production]);
+        var groups = JumpIndex.Grouped("pay", targets);
+        groups.Select(g => g.Kind).ShouldBe([JumpKind.Queue, JumpKind.Namespace]);
+        groups[1].Targets.Single().Name.ShouldBe("sb-payments-prd");
     }
 
     [Test]
@@ -175,4 +197,62 @@ public sealed class JumpTests
         var frame = await terminal.WaitUntilAsync(f => f.ContainsText("📬 orders") && !f.ContainsText("📬 payments"), AppHarness.Timeout, cancellationToken: Ct);
         frame.ContainsText(" ACTIONS").ShouldBeFalse(frame.ScreenText);
     }
+
+    // Development is open; Production's namespace and its queues are only in the cache.
+    private static async Task<(AppHarness App, HeadlessTerminal Terminal)> JumpFromDevelopmentAsync()
+    {
+        var app = new AppHarness();
+        app.Namespaces.Subscriptions.Add(Production.Subscription);
+        app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
+        var cache = new FileCache(NullLogger<FileCache>.Instance, app.CacheDirectory);
+        await cache.SaveAsync(CacheKeys.Namespaces("prod-id"), [Production.Info]);
+        await cache.SaveAsync(CacheKeys.Queues(Production.Info), [new QueueInfo { Name = "refunds", DeadLetterMessageCount = 4 }]);
+        var terminal = await app.OpenAzureAsync(ConsoleKey.F1);
+        await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
+        var table = terminal.FocusKey;
+        await terminal.SendKeyAsync(ConsoleKey.Oem1, ':', ConsoleModifiers.Shift, Ct);
+        await AppHarness.WaitForFocusAsync(terminal, "100", table);
+        await terminal.WaitForTextAsync("in sb-orders-dev · ^a all namespaces", AppHarness.Timeout, Ct);
+        return (app, terminal);
+    }
+
+    [Test]
+    public async Task ANamespaceOfAnotherSubscription_SwitchesTheConnection()
+    {
+        var (app, terminal) = await JumpFromDevelopmentAsync();
+        await using var _ = terminal;
+
+        await terminal.TypeAsync("prd", Ct);
+        var frame = await terminal.WaitForTextAsync("🌐 sb-payments-prd", AppHarness.Timeout, Ct);
+        frame.ContainsText(" OTHER NAMESPACES").ShouldBeTrue(frame.ScreenText);
+        frame.ContainsText("Contoso Production").ShouldBeTrue(frame.ScreenText);
+        await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
+
+        await terminal.WaitUntilAsync(f => f.GetLine(0).Contains("sb-payments-prd") && f.GetLine(0).Contains("Contoso Production"), AppHarness.Timeout, cancellationToken: Ct);
+        app.Connection.CurrentNamespace.ShouldBe(Production.Info.FullyQualifiedNamespace);
+        app.NavState.AzureSubscription.ShouldBe(Production.Subscription);
+    }
+
+    [Test]
+    public async Task CtrlA_SearchesTheCachedEntitiesOfAllNamespaces()
+    {
+        var (app, terminal) = await JumpFromDevelopmentAsync();
+        await using var _ = terminal;
+
+        await terminal.TypeAsync("refu", Ct);
+        await terminal.WaitForTextAsync("Nothing matches.", AppHarness.Timeout, Ct);
+        await terminal.SendKeyAsync(ConsoleKey.A, '\u0001', ConsoleModifiers.Control, Ct);
+        var frame = await terminal.WaitForTextAsync("📬 refunds", AppHarness.Timeout, Ct);
+        frame.ContainsText("in all namespaces · ^a sb-orders-dev only").ShouldBeTrue(frame.ScreenText);
+        Line(frame, "📬 refunds").ShouldContain("sb-payments-prd");
+        await terminal.SendKeyAsync(ConsoleKey.Tab, '\t', cancellationToken: Ct);
+
+        await terminal.WaitUntilAsync(f => f.GetLine(0).Contains("sb-payments-prd") && f.GetLine(0).Contains("refunds"), AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(_ => app.Messages.Peeked.Count > 0, AppHarness.Timeout, cancellationToken: Ct);
+        app.Messages.Peeked.ShouldBe([new MessageSource.Queue("refunds", IsDlq: true)]);
+        app.Connection.CurrentNamespace.ShouldBe(Production.Info.FullyQualifiedNamespace);
+    }
+
+    private static string Line(TerminalFrame frame, string text)
+        => frame.GetLine(Enumerable.Range(0, frame.Height).First(y => frame.GetLine(y).Contains(text)));
 }

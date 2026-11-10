@@ -31,7 +31,8 @@ public sealed class NavigationState
             {
                 (TopicName, SubscriptionName, ReturnPath) = (s.Info.TopicName, s.Info.Name, "/subscriptions");
                 return "/subscription-browser";
-            });
+            },
+            _ => Section.Queues.Route);
     }
 
     /// <summary>Where the command line asked to start; the first connection page takes it, later visits start as usual.</summary>

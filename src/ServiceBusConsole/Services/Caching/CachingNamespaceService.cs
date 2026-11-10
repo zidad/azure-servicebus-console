@@ -11,7 +11,7 @@ public sealed class CachingNamespaceService(INamespaceService inner, FileCache c
     public Task<string?> GetCurrentSubscriptionIdAsync(CancellationToken ct = default) => inner.GetCurrentSubscriptionIdAsync(ct);
 
     public IAsyncEnumerable<NamespaceInfo> GetNamespacesAsync(string subscriptionId, CancellationToken ct = default) =>
-        cache.CachedThenLiveAsync($"{subscriptionId}/namespaces.json", () => inner.GetNamespacesAsync(subscriptionId, ct), ns => ns, ct);
+        cache.CachedThenLiveAsync(CacheKeys.Namespaces(subscriptionId), () => inner.GetNamespacesAsync(subscriptionId, ct), ns => ns, ct);
 
     public async IAsyncEnumerable<bool> HasNamespacesAsync(string subscriptionId, [EnumeratorCancellation] CancellationToken ct = default)
     {

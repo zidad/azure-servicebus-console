@@ -21,6 +21,12 @@
   <data name="JumpTarget_Subscription" xml:space="preserve">
     <value>subscription</value>
   </data>
+  <data name="JumpTarget_Namespace" xml:space="preserve">
+    <value>namespace</value>
+  </data>
+  <data name="JumpGroup_OtherNamespaces" xml:space="preserve">
+    <value>Other namespaces</value>
+  </data>
   <data name="KeyBinding_Escape" xml:space="preserve">
     <value>esc</value>
   </data>

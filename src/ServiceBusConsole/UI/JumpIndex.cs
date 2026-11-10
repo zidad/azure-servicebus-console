@@ -2,7 +2,7 @@ namespace ServiceBusConsole.UI;
 
 /// <summary>
 /// Ranks jump targets for a query: names starting with it first, then containing it, then holding its letters in order
-/// ("pmt" finds "payments"); within each, dead letters first, then by name. An empty query lists dead letters first.
+/// ("pmt" finds "payments"); within each, dead letters first, then the current namespace's, then by name. An empty query lists dead letters first.
 /// </summary>
 public static class JumpIndex
 {
@@ -14,12 +14,13 @@ public static class JumpIndex
             .Where(r => r.Rank is not null)
             .OrderBy(r => r.Rank)
             .ThenByDescending(r => r.Target.DeadLetters)
+            .ThenBy(r => r.Target.Elsewhere is not null)
             .ThenBy(r => r.Target.Name, StringComparer.OrdinalIgnoreCase)
             .Take(max)
             .Select(r => r.Target)];
     }
 
-    /// <summary>The <see cref="Search"/> results by kind (queues, topics, subscriptions), keeping their rank within each.</summary>
+    /// <summary>The <see cref="Search"/> results by kind (queues, topics, subscriptions, namespaces), keeping their rank within each.</summary>
     public static IReadOnlyList<JumpGroup> Grouped(string? query, IEnumerable<JumpTarget> targets, int max = 12) =>
         [.. Search(query, targets, max).GroupBy(t => t.Group).OrderBy(g => g.Key).Select(g => new JumpGroup(g.Key, [.. g]))];
 
