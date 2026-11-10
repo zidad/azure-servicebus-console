@@ -113,7 +113,10 @@ else
 
     private bool IsDlq => NavState.MessageSource?.IsDlq == true;
     private BrowseMode? Mode => NavState.Message is null ? null : _browser?.Mode;
-    private bool CanRetry => _browser is not null && Mode is { } mode && RetryText.CanRetry(mode, IsDlq);
+    private bool CanRetry => CanAct && Mode is { } mode && RetryText.CanRetry(mode, IsDlq);
+
+    // False for a settled message or a lost lock in a locked list.
+    private bool CanAct => _browser is { } b && NavState.Message is { } m && b.CanAct(m);
 
     private string RetryConfirm(MessageInfo message) => Mode is { } mode && NavState.MessageSource is { } source
         ? RetryText.Confirm(mode, source, Strings.FormatOneMessage(message.SequenceNumber), _browser?.Namespace is IHasTransactions)
@@ -265,7 +268,7 @@ else
 
     private IReadOnlyList<KeyBinding> Keys =>
     [
-        .. Mode == BrowseMode.Locked
+        .. Mode == BrowseMode.Locked && CanAct
             ? [new KeyBinding("c", $"{Icons.Complete} {Strings.Complete}", () => Run(_complete)) { Danger = true, Aliases = ["F9", "Delete"] },
                new KeyBinding("a", $"{Icons.Unlocked} {Strings.Abandon}", () => Run(_abandon)) { Aliases = ["F4"] },
                .. IsDlq ? Array.Empty<KeyBinding>()

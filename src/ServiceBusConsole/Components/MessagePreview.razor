@@ -116,16 +116,30 @@
             yield return (key, value, Color.Default);
     }
 
+    private LockedState Locked(MessageInfo m) => Browser?.StateOf(m) ?? LockedState.LockLost;
+
     private string StateText(MessageInfo m) => m.State switch
     {
-        MessageState.Locked => Browser?.IsLockHeld(m) == true ? $"{Icons.Locked} {ComponentStrings.MessagePreview_LockHeld}" : $"{Icons.Unlocked} {ComponentStrings.MessagePreview_LockLost}",
+        MessageState.Locked => Locked(m) switch
+        {
+            LockedState.Held => $"{Icons.Locked} {ComponentStrings.MessagePreview_LockHeld}",
+            LockedState.Completed => $"{Icons.Complete} {ComponentStrings.MessagePreview_Completed}",
+            LockedState.Abandoned => $"{Icons.Unlocked} {ComponentStrings.MessagePreview_Abandoned}",
+            LockedState.DeadLettered => $"{Icons.DeadLetter} {ComponentStrings.MessagePreview_DeadLettered}",
+            _ => $"{Icons.Unlocked} {ComponentStrings.MessagePreview_LockLost}",
+        },
         MessageState.Received => $"{Icons.Received} {ComponentStrings.MessagePreview_Received}",
         _ => $"{Icons.Peek} {ComponentStrings.MessagePreview_Peeked}",
     };
 
     private Color StateColor(MessageInfo m) => m.State switch
     {
-        MessageState.Locked => Browser?.IsLockHeld(m) == true ? Theme.Warning : Theme.Danger,
+        MessageState.Locked => Locked(m) switch
+        {
+            LockedState.Held => Theme.Warning,
+            LockedState.LockLost => Theme.Danger,
+            _ => Theme.Muted,
+        },
         MessageState.Received => Theme.Danger,
         _ => Theme.Accent,
     };
