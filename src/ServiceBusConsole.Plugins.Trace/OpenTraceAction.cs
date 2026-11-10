@@ -1,4 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Text.Json;
 
 namespace ServiceBusConsole.Plugins.Trace;
 
@@ -24,7 +26,7 @@ public sealed class OpenTraceAction : IMessageAction
     public async Task<ActionResult> RunAsync(MessageActionContext context, CancellationToken ct)
     {
         var trace = TraceContext.Of(context.Message)
-            ?? throw new InvalidOperationException($"Message #{context.Message.SequenceNumber} has no traceparent or Diagnostic-Id property");
+            ?? throw new InvalidOperationException($"Message #{context.Message.SequenceNumber} has no W3C trace context (traceparent) in its properties");
 
         var (url, where) = context.Settings[Url] is { Length: > 0 } template
             ? Templated(TraceLinks.FromTemplate(template, context, trace))
@@ -45,8 +47,57 @@ public sealed class OpenTraceAction : IMessageAction
     private static async Task<(string Url, string Where)> PortalAsync(MessageActionContext context, TraceContext trace, CancellationToken ct)
     {
         var resourceId = await ResourceIdAsync(context, ct);
-        return (TraceLinks.Logs(resourceId, context.Settings[Tenant], trace, context.Message), $"Application Insights {Name(resourceId)}");
+        var tenant = context.Settings[Tenant];
+        var where = $"Application Insights {Name(resourceId)}";
+        return await FirstItemAsync(context, resourceId, trace, ct) is { } item
+            ? (TraceLinks.Transaction(resourceId, tenant, item), where)
+            : (TraceLinks.Logs(resourceId, tenant, trace, context.Message), $"{where} logs");
     }
+
+    /// <summary>The record to open the transaction view on; null when az can't query or the trace has none, so the logs open instead.</summary>
+    private static async Task<TelemetryItem?> FirstItemAsync(MessageActionContext context, string resourceId, TraceContext trace, CancellationToken ct)
+    {
+        context.Progress.Report("Finding the trace…");
+        var (start, end) = TraceLinks.Window(context.Message);
+        try
+        {
+            var result = await context.Host.RunProcessAsync(new ProcessSpec(context.RequiredSetting(Cli),
+                ["monitor", "app-insights", "query", "--ids", resourceId, "--start-time", Iso(start), "--end-time", Iso(end),
+                 "--analytics-query", TraceLinks.FirstItemQuery(trace), "--output", "json"]), ct);
+            return result.ExitCode == 0 ? FirstItem(result.StandardOutput) : null;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    private static TelemetryItem? FirstItem(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var rows = document.RootElement.GetProperty("tables")[0].GetProperty("rows");
+            return rows.GetArrayLength() > 0 && rows[0] is var row
+                && row[0].GetString() is { } itemId && row[1].GetString() is { } timestamp && row[2].GetString() is { } type
+                ? new TelemetryItem(itemId, timestamp, Table(type))
+                : null;
+        }
+        catch (Exception ex) when (ex is JsonException or KeyNotFoundException or IndexOutOfRangeException or InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    private static string Table(string itemType) => itemType switch
+    {
+        "request" => "requests",
+        "dependency" => "dependencies",
+        "exception" => "exceptions",
+        _ => itemType + "s",
+    };
+
+    private static string Iso(DateTimeOffset time) => time.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
 
     private static async Task<string> ResourceIdAsync(MessageActionContext context, CancellationToken ct)
     {

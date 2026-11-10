@@ -41,6 +41,13 @@ public sealed class OpenTraceActionTests
         return Enumerable.Range(0, parts.Length / 2).ToDictionary(i => parts[2 * i], i => Uri.UnescapeDataString(parts[2 * i + 1]));
     }
 
+    private static string Rows(params string[][] rows) =>
+        System.Text.Json.JsonSerializer.Serialize(new { tables = new[] { new { rows } } });
+
+    private static Dictionary<string, string> JsonNode(string segment) =>
+        System.Text.Json.Nodes.JsonNode.Parse(Uri.UnescapeDataString(segment)).ShouldNotBeNull().AsObject()
+            .ToDictionary(p => p.Key, p => p.Value?.ToString() ?? "");
+
     private static string Gunzip(string base64)
     {
         using var gzip = new GZipStream(new MemoryStream(Convert.FromBase64String(base64)), CompressionMode.Decompress);
@@ -70,6 +77,28 @@ public sealed class OpenTraceActionTests
     }
 
     [Test]
+    [Arguments("MT-Activity-Id")]
+    [Arguments("parent-id")]
+    [Arguments("x-custom-trace")]
+    public void Of_FindsTheTraceContextInAnyProperty(string name)
+    {
+        var message = Message with { Properties = [new("tenant", "acme"), new(name, $"00-{TraceId}-00f067aa0ba902b7-01")] };
+
+        TraceContext.Of(message).ShouldBe(new TraceContext(TraceId, "00f067aa0ba902b7"));
+    }
+
+    [Test]
+    public void Of_PrefersAKnownPropertyToAnyOther()
+    {
+        var message = Message with
+        {
+            Properties = [new("x-custom-trace", "00-11111111111111111111111111111111-2222222222222222-01"), new("MT-Activity-Id", $"00-{TraceId}-00f067aa0ba902b7-01")],
+        };
+
+        TraceContext.Of(message)?.TraceId.ShouldBe(TraceId);
+    }
+
+    [Test]
     public void CanRun_OnlyForMessagesWithATraceContext()
     {
         using var host = new FakePluginHost();
@@ -79,9 +108,42 @@ public sealed class OpenTraceActionTests
     }
 
     [Test]
-    public async Task Run_OpensTheTraceQueryInTheConfiguredApplicationInsights()
+    public async Task Run_OpensTheTransactionOfTheRequestThatHandledTheMessage()
     {
-        using var host = new FakePluginHost();
+        using var host = new FakePluginHost { Run = _ => new ProcessResult(0, Rows(["3fae95c2-d788-11f1-84d9-6045bdf4ad47", "2026-11-03T09:30:01.5Z", "request"]), "") };
+
+        var result = await new OpenTraceAction().RunAsync(Context(host, settings: [("appInsights", AppInsightsId), ("tenant", "contoso.com")]), Ct);
+
+        var query = host.Processes.ShouldHaveSingleItem();
+        query.FileName.ShouldBe("az");
+        query.Arguments.Take(9).ShouldBe(
+            ["monitor", "app-insights", "query", "--ids", AppInsightsId, "--start-time", "2026-11-03T08:30:00Z", "--end-time", "2026-11-04T09:30:00Z"]);
+        query.Arguments[10].ShouldContain($"where operation_Id == \"{TraceId}\"");
+        query.Arguments[10].ShouldContain("operation_ParentId == \"00f067aa0ba902b7\"");
+        var url = host.Opened.ShouldHaveSingleItem();
+        url.ShouldStartWith("https://portal.azure.com/#@contoso.com/view/AppInsightsExtension/DetailsV2Blade/ComponentId~/");
+        var segments = url[(url.IndexOf("/DetailsV2Blade/", StringComparison.Ordinal) + "/DetailsV2Blade/".Length)..].Split('/');
+        var component = JsonNode(segments[1]);
+        component["SubscriptionId"].ShouldBe("sub-1");
+        component["ResourceGroup"].ShouldBe("rg-obs");
+        component["Name"].ShouldBe("ai-orders");
+        Uri.UnescapeDataString(component["ResourceId"]).ShouldBe(AppInsightsId);
+        segments[2].ShouldBe("DataModel~");
+        var dataModel = JsonNode(segments[3]);
+        dataModel["eventId"].ShouldBe("3fae95c2-d788-11f1-84d9-6045bdf4ad47");
+        dataModel["timestamp"].ShouldBe("2026-11-03T09:30:01.5Z");
+        dataModel["eventTable"].ShouldBe("requests");
+        result.Text.ShouldBe($"Opened trace {TraceId} in Application Insights ai-orders");
+        result.Link.ShouldNotBeNull().AbsoluteUri.ShouldBe(url);
+    }
+
+    [Test]
+    [Arguments(0, "{\"tables\":[{\"rows\":[]}]}")]
+    [Arguments(0, "")]
+    [Arguments(2, "")]
+    public async Task Run_WithoutTheTransaction_OpensTheTraceLogs(int exitCode, string output)
+    {
+        using var host = new FakePluginHost { Run = _ => new ProcessResult(exitCode, output, "ERROR: extension not installed") };
 
         var result = await new OpenTraceAction().RunAsync(Context(host, settings: [("appInsights", AppInsightsId), ("tenant", "contoso.com")]), Ct);
 
@@ -92,9 +154,7 @@ public sealed class OpenTraceActionTests
         segments["source"].ShouldBe("LogsBlade.AnalyticsShareLinkToQuery");
         Gunzip(segments["q"]).ShouldContain($"where operation_Id == \"{TraceId}\"");
         segments["timespan"].ShouldBe("2026-11-03T08:30:00.000Z/2026-11-04T09:30:00.000Z");
-        result.Text.ShouldBe($"Opened trace {TraceId} in Application Insights ai-orders");
-        result.Link.ShouldNotBeNull().AbsoluteUri.ShouldBe(url);
-        host.Processes.ShouldBeEmpty();
+        result.Text.ShouldBe($"Opened trace {TraceId} in Application Insights ai-orders logs");
     }
 
     [Test]
@@ -135,16 +195,16 @@ public sealed class OpenTraceActionTests
     [Test]
     public async Task Run_FindsTheOnlyApplicationInsightsOfTheSubscription()
     {
-        using var host = new FakePluginHost { Run = _ => new ProcessResult(0, AppInsightsId + "\n", "") };
+        using var host = new FakePluginHost { Run = spec => new ProcessResult(0, spec.Arguments[0] == "resource" ? AppInsightsId + "\n" : "", "") };
 
         var result = await new OpenTraceAction().RunAsync(Context(host), Ct);
 
-        host.Processes.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+        host.Processes.First().ShouldSatisfyAllConditions(
             spec => spec.FileName.ShouldBe("az"),
             spec => spec.Arguments.ShouldBe(
                 ["resource", "list", "--subscription", "sub-1", "--resource-type", "microsoft.insights/components", "--query", "[].id", "--output", "tsv"]));
         PortalSegments(host.Opened.ShouldHaveSingleItem())["resourceId"].ShouldBe(AppInsightsId);
-        result.Text.ShouldBe($"Opened trace {TraceId} in Application Insights ai-orders");
+        result.Text.ShouldBe($"Opened trace {TraceId} in Application Insights ai-orders logs");
     }
 
     [Test]

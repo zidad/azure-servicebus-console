@@ -2,14 +2,18 @@ using System.Text.RegularExpressions;
 
 namespace ServiceBusConsole.Plugins.Trace;
 
-/// <summary>The W3C trace context a producer put on the message: <c>traceparent</c>, or <c>Diagnostic-Id</c> as the Azure SDK sets it.</summary>
+/// <summary>
+/// The W3C trace context a producer put on the message. Known properties first: <c>traceparent</c>, <c>Diagnostic-Id</c>
+/// (Azure SDK), <c>MT-Activity-Id</c> (MassTransit), <c>parent-id</c> (Wolverine); then any property whose value is one.
+/// </summary>
 public sealed partial record TraceContext(string TraceId, string SpanId)
 {
-    public static IReadOnlyList<string> PropertyNames { get; } = ["traceparent", "Diagnostic-Id"];
+    public static IReadOnlyList<string> PropertyNames { get; } = ["traceparent", "Diagnostic-Id", "MT-Activity-Id", "parent-id"];
 
     public static TraceContext? Of(MessageInfo message) =>
         PropertyNames
             .SelectMany(name => message.Properties.Where(p => string.Equals(p.Key, name, StringComparison.OrdinalIgnoreCase)))
+            .Concat(message.Properties)
             .Select(p => Parse(p.Value))
             .FirstOrDefault(context => context is not null);
 
