@@ -213,6 +213,7 @@
     private AsyncCommand<IReadOnlyList<MessageInfo>>? _retry;
     private AsyncCommand<IReadOnlyList<MessageInfo>>? _resend;
     private AsyncCommand<MessageSource>? _purge;
+    private BrowserCommand? _startCommand;
 
     private MessageBrowser Browser => _browser ?? throw new InvalidOperationException("Message browser not initialized");
     private MessageSource Source => Entity with { IsDlq = _isDlq };
@@ -231,6 +232,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        (_startCommand, NavState.StartCommand) = (NavState.StartCommand, null);
         // Coming back from the message detail page: keep the list, selection and locks.
         _isDlq = Store.Current is { } current && current.Source with { IsDlq = Entity.IsDlq } == Entity
             ? current.Source.IsDlq
@@ -271,6 +273,11 @@
             _focusedTbody = _tbody;
             await FocusManager.FocusAsync(_tbody.FocusKey);
         }
+        if (_startCommand is { } command && _loading is null && _purge is not null && _retry is not null)
+        {
+            _startCommand = null;
+            if (_error.Length == 0) Start(command);
+        }
     }
 
     private void FocusTable()
@@ -306,6 +313,16 @@
         catch (Exception ex) { _error = ErrorText.Of(ex).Split('\n')[0]; }
         _loading = null;
         FocusTable();
+    }
+
+    // From the jump dialog: purge, or retry everything the first peek loaded.
+    private void Start(BrowserCommand command)
+    {
+        switch (command)
+        {
+            case BrowserCommand.Purge: _purge?.Invoke(Source); break;
+            case BrowserCommand.Retry when CanRetry: Browser.SelectAll(); Run(_retry); break;
+        }
     }
 
     private void Run(AsyncCommand<IReadOnlyList<MessageInfo>>? command)

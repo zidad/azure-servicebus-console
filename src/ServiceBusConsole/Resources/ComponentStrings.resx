@@ -136,6 +136,18 @@
   <data name="JumpDialog_NoMatches" xml:space="preserve">
     <value>Nothing matches.</value>
   </data>
+  <data name="JumpDialog_Actions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="JumpDialog_OpenDeadLetter" xml:space="preserve">
+    <value>Open dead-letter of {name}</value>
+  </data>
+  <data name="JumpDialog_PurgeDeadLetter" xml:space="preserve">
+    <value>Purge dead-letter of {name}</value>
+  </data>
+  <data name="JumpDialog_RetryDeadLetter" xml:space="preserve">
+    <value>Retry dead-letter of {name}</value>
+  </data>
   <data name="JumpDialog_Hints" xml:space="preserve">
     <value>⏎ open · ⇥ dead-letter · ↑↓ move · esc close</value>
   </data>
