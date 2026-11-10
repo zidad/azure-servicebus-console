@@ -232,6 +232,15 @@
   <data name="ConnectionTree_DefaultSubscription" xml:space="preserve">
     <value>{id}  (az default)</value>
   </data>
+  <data name="ConnectionTree_Opened" xml:space="preserve">
+    <value>Opened</value>
+  </data>
+  <data name="ConnectionTree_NamespaceCountOne" xml:space="preserve">
+    <value>{count} namespace</value>
+  </data>
+  <data name="ConnectionTree_NamespaceCountMany" xml:space="preserve">
+    <value>{count} namespaces</value>
+  </data>
   <data name="MessageBrowserView_AutoForwarding" xml:space="preserve">
     <value>auto-forwarding</value>
   </data>

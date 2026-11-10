@@ -12,4 +12,5 @@ namespace ServiceBusConsole.Services.Caching;
 [JsonSerializable(typeof(List<EntityTraffic>))]
 [JsonSerializable(typeof(List<bool>))]
 [JsonSerializable(typeof(List<TimeSpan>))]
+[JsonSerializable(typeof(List<RecentNamespace>))]
 internal sealed partial class CacheJsonContext : JsonSerializerContext;

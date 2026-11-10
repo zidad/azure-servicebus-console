@@ -31,6 +31,18 @@ public sealed class StartupTests
     }
 
     [Test]
+    public async Task TheOpenedNamespace_IsRecent()
+    {
+        var app = WithAzure(new("Contoso Development", "sb-orders-dev"));
+        await using var terminal = await app.StartAsync(height: 40);
+
+        await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
+
+        await terminal.WaitUntilAsync(_ => app.Recent.Items.Count == 1, AppHarness.Timeout, cancellationToken: Ct);
+        app.Recent.Items[0].Is(AppHarness.AzureSubscription, AppHarness.AzureNamespace).ShouldBeTrue();
+    }
+
+    [Test]
     public async Task OpensAsSoonAsListed_WhileLiveListingsAreStillRunning()
     {
         var app = WithAzure(new("Contoso Development", "sb-orders-dev"));

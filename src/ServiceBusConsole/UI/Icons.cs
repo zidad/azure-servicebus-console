@@ -46,6 +46,7 @@ public static class Icons
     public const string Link = "🔗";
     public const string File = "📄";
     public const string Open = "📂";
+    public const string Recent = "🕘";
 
     public static string NamespaceStatus(string? status) => status switch
     {

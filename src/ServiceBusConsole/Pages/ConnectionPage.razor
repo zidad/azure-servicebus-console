@@ -10,6 +10,7 @@
 @inject ITerminalViewport Viewport
 @inject MetricsVisibility MetricsVisibility
 @inject ExplorerTree Tree
+@inject RecentNamespaces Recents
 @inject MessageBrowserStore Store
 
 @* With the metrics panel, a column of the terminal's height keeps it at the bottom, wherever the lists end. *@
@@ -180,6 +181,7 @@
             _leaving = true;
             NavState.AzureSubscription = subscription;
             Connection.SetNamespace(ns);
+            _ = Recents.RecordAsync(subscription, ns);
             if (startup.Open is { } path) _ = OpenAsync(subscription, ns, path);
             else Nav.NavigateTo(Section.Queues.Route);
             return;

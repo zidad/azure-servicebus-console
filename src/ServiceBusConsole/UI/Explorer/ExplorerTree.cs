@@ -4,13 +4,14 @@ using static ServiceBusConsole.UI.Explorer.ExplorerNode;
 namespace ServiceBusConsole.UI.Explorer;
 
 /// <summary>
-/// The explorer's tree: subscriptions (open by default, so their namespaces list at once) › namespaces. Namespaces load
-/// the first time their subscription opens, cached first, then live. Kept for the run, so the tree is as it was after
-/// visiting a page. Changed is raised on any thread.
+/// The explorer's tree: the recently opened namespaces, then subscriptions (open by default, so their namespaces list at
+/// once) › namespaces. Namespaces load the first time their subscription opens, cached first, then live. Kept for the
+/// run, so the tree is as it was after visiting a page. Changed is raised on any thread.
 /// </summary>
 public sealed class ExplorerTree(
     SubscriptionCatalog catalog,
     INamespaceService namespaces,
+    RecentNamespaces recent,
     ILogger<ExplorerTree> logger) : IDisposable
 {
     private const string Root = "";
@@ -34,13 +35,15 @@ public sealed class ExplorerTree(
             _started = true;
         }
         catalog.Changed += SyncRoots;
+        recent.Changed += OnRecentChanged;
         _ = catalog.EnsureLoadedAsync();
+        _ = recent.EnsureLoadedAsync();
         SyncRoots();
     }
 
     public bool IsOpen(ExplorerNode node)
     {
-        lock (_sync) return node.IsBranch && _open.GetValueOrDefault(node.Key, node is Subscription);
+        lock (_sync) return node.IsBranch && _open.GetValueOrDefault(node.Key, true);
     }
 
     public void SetOpen(ExplorerNode node, bool open)
@@ -94,7 +97,7 @@ public sealed class ExplorerTree(
             var node = visible[i];
             var last = i == visible.Count - 1;
             var matched = ancestorMatched || (filter is not null && node.Matches(filter));
-            var open = node.IsBranch && (_open.GetValueOrDefault(node.Key, node is Subscription)
+            var open = node.IsBranch && (_open.GetValueOrDefault(node.Key, true)
                 || (filter is not null && !ancestorMatched && HasMatchBelow(node, filter)));
             yield return new ExplorerRow.Item(node, depth == 0 ? "" : indent + (last ? "└─ " : "├─ "), open);
             if (!open) continue;
@@ -110,11 +113,25 @@ public sealed class ExplorerTree(
     private bool HasMatchBelow(ExplorerNode node, string filter) =>
         Children(node.Key).Any(c => c.Matches(filter) || HasMatchBelow(c, filter));
 
-    // Subscriptions keep the catalog's order (emulator first); namespaces go by name.
-    private IEnumerable<ExplorerNode> Children(string key) =>
-        !_children.TryGetValue(key, out var list) ? []
-        : list.FirstOrDefault() is Namespace ? list.OrderBy(n => n.Name, StringComparer.CurrentCultureIgnoreCase)
-        : list;
+    // The recent group first, when there is one; subscriptions keep the catalog's order (emulator first); namespaces go by name.
+    private IEnumerable<ExplorerNode> Children(string key) => key switch
+    {
+        Root => [.. RecentNodes().Any() ? [RecentGroup.Instance] : Array.Empty<ExplorerNode>(), .. _children.GetValueOrDefault(Root) ?? []],
+        _ when key == RecentGroup.Instance.Key => RecentNodes(),
+        _ => !_children.TryGetValue(key, out var list) ? []
+            : list.FirstOrDefault() is Namespace ? list.OrderBy(n => n.Name, StringComparer.CurrentCultureIgnoreCase)
+            : list,
+    };
+
+    // As the tree knows them now: the subscription's current name, the namespace's live details once listed.
+    private IEnumerable<ExplorerNode> RecentNodes() => recent.Items.Select(r =>
+    {
+        var subscription = new Subscription(catalog.Subscriptions.FirstOrDefault(s => s.Id == r.Subscription.Id) ?? r.Subscription);
+        var listed = Children(subscription.Key).OfType<Namespace>().FirstOrDefault(n => n.Info.FullyQualifiedNamespace == r.Namespace.FullyQualifiedNamespace);
+        return new Recent(listed ?? new Namespace(subscription, r.Namespace), r.Opened);
+    });
+
+    private void OnRecentChanged() => Changed?.Invoke();
 
     // Subscriptions known to have no namespaces are left out, as on the connection page.
     private void SyncRoots()
@@ -181,6 +198,7 @@ public sealed class ExplorerTree(
     public void Dispose()
     {
         catalog.Changed -= SyncRoots;
+        recent.Changed -= OnRecentChanged;
         _cts.Cancel();
     }
 }

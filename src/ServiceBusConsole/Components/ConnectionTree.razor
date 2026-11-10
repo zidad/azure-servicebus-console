@@ -7,6 +7,7 @@
 @inject INamespaceOpener Opener
 @inject MessageBrowserStore Store
 @inject ExplorerTree Tree
+@inject RecentNamespaces Recents
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 
 <SelectableList Items="@_rows"
@@ -23,6 +24,7 @@
                 <SpectreTR>
                     <SpectreTH Align="Justify.Left"><Columns><Markup Content="@ComponentStrings.ConnectionTree_Name" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
                     <SpectreTH Align="Justify.Left"><Markup Content="@DetailsHeader" /></SpectreTH>
+                    <SpectreTH Align="Justify.Left"><Markup Content="@ComponentStrings.ConnectionTree_Opened" /></SpectreTH>
                 </SpectreTR>
             </SpectreTHead>
         }
@@ -35,16 +37,27 @@
                     @switch (row)
                     {
                         case ExplorerRow.Item item:
-                            <SpectreTD><Markup Content="@Label(item)" Foreground="@(IsHere(item.Node) ? Theme.Accent : Color.Default)" Decoration="@(IsHere(item.Node) ? Decoration.Bold : Decoration.None)" /></SpectreTD>
+                            <SpectreTD>
+                                @if (item.Node is Recent recent)
+                                {
+                                    <Columns><Markup Content="@Label(item)" Foreground="@(IsHere(item.Node) ? Theme.Accent : Color.Default)" Decoration="@(IsHere(item.Node) ? Decoration.Bold : Decoration.None)" /><Markup Content="@recent.Target.Parent.Name" Foreground="@Theme.Muted" /></Columns>
+                                }
+                                else
+                                {
+                                    <Markup Content="@Label(item)" Foreground="@(IsHere(item.Node) ? Theme.Accent : Color.Default)" Decoration="@(IsHere(item.Node) ? Decoration.Bold : Decoration.None)" />
+                                }
+                            </SpectreTD>
                             @if (!Compact)
                             {
-                                <SpectreTD><Markup Content="@Details(item.Node)" Foreground="@Theme.Muted" /></SpectreTD>
+                                <SpectreTD><Markup Content="@Details(item)" Foreground="@Theme.Muted" /></SpectreTD>
+                                <SpectreTD><Markup Content="@Opened(item.Node)" Foreground="@Theme.Muted" /></SpectreTD>
                             }
                             break;
                         case ExplorerRow.Note note:
                             <SpectreTD><Markup Content="@(note.Prefix + note.Text)" Foreground="@(note.IsError ? Theme.Danger : Theme.Muted)" Decoration="@Decoration.Italic" /></SpectreTD>
                             @if (!Compact)
                             {
+                                <SpectreTD></SpectreTD>
                                 <SpectreTD></SpectreTD>
                             }
                             break;
@@ -57,8 +70,8 @@
 
 @code {
     /// <summary>
-    /// The connection tree: Azure subscriptions › namespaces. Subscriptions open with → or Enter (a click in
-    /// <see cref="Compact"/> mode); a namespace opens on its queues tab. / filters (typing, in <see cref="Compact"/> mode).
+    /// The connection tree: the recently opened namespaces, then Azure subscriptions › namespaces. Subscriptions open with
+    /// → or Enter (a click in <see cref="Compact"/> mode); a namespace opens on its queues tab. / filters (typing, in <see cref="Compact"/> mode).
     /// Open subscriptions are shared by every tree (the connection page's and the header dropdown's).
     /// </summary>
     [Parameter] public int MaxRows { get; set; } = 10;
@@ -189,12 +202,22 @@
     private static string Label(ExplorerRow.Item item) =>
         $"{item.Prefix}{(item.Node.IsBranch ? item.Open ? "▾ " : "▸ " : "")}{item.Node.Icon} {item.Node.Name}";
 
-    private string Details(ExplorerNode node) => node switch
+    private string Details(ExplorerRow.Item item) => item.Node switch
     {
+        Subscription s when !item.Open && Tree.NamespacesOf(s.Value) is { Namespaces.Count: var count and > 0 } => count == 1
+            ? ComponentStrings.FormatConnectionTree_NamespaceCountOne(count)
+            : ComponentStrings.FormatConnectionTree_NamespaceCountMany(count),
         Subscription { Value.Id: { } id } => id == DefaultSubscriptionId ? ComponentStrings.FormatConnectionTree_DefaultSubscription(id) : id,
         Subscription => "localhost:5672",
-        Namespace { Info: var ns } => DetailColumns(ns.Sku ?? "", ns.Location, ns.ResourceGroup,
+        { InNamespace.Info: var ns } => DetailColumns(ns.Sku ?? "", ns.Location, ns.ResourceGroup,
             string.IsNullOrEmpty(ns.Status) ? "" : $"{Icons.NamespaceStatus(ns.Status)} {ns.Status}"),
+        _ => "",
+    };
+
+    private string Opened(ExplorerNode node) => node switch
+    {
+        Recent recent => RelativeTime.Ago(recent.Opened, Recents.Time.GetUtcNow()),
+        Namespace ns when Recents.OpenedAt(ns.Parent.Value, ns.Info) is { } opened => RelativeTime.Ago(opened, Recents.Time.GetUtcNow()),
         _ => "",
     };
 
@@ -212,11 +235,16 @@
     private bool IsHere(ExplorerNode node) => node switch
     {
         Subscription s => s.Value == NavState.AzureSubscription && Connection.Current is not null,
-        Namespace ns => ns.Parent.Value == NavState.AzureSubscription && ns.Info.FullyQualifiedNamespace == Connection.CurrentNamespace,
+        { InNamespace: { } ns } => ns.Parent.Value == NavState.AzureSubscription && ns.Info.FullyQualifiedNamespace == Connection.CurrentNamespace,
         _ => false,
     };
 
-    private static ExplorerNode? ParentOf(ExplorerNode node) => (node as Namespace)?.Parent;
+    private static ExplorerNode? ParentOf(ExplorerNode node) => node switch
+    {
+        Namespace ns => ns.Parent,
+        Recent => RecentGroup.Instance,
+        _ => null,
+    };
 
     private async Task OpenAsync(Namespace ns, Section section)
     {
@@ -227,6 +255,7 @@
             await OnPicked.InvokeAsync(false);
             return;
         }
+        _ = Recents.RecordAsync(ns.Parent.Value, ns.Info);
         if (!sameNamespace)
         {
             // The store keys browsers by queue name only; a same-named queue elsewhere must not reuse its locks.
@@ -261,7 +290,7 @@
         }
         switch (Selected)
         {
-            case Namespace ns:
+            case { InNamespace: { } ns }:
                 await OpenNamespaceAsync(ns);
                 return;
             case { IsBranch: true } branch:
