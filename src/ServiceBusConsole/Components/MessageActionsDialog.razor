@@ -9,76 +9,66 @@
 {
     case Picking picking:
         var labelWidth = picking.Actions.Max(a => a.Action.Label.Length);
-        <ModalWindow IsOpened="true">
-            <Panel Border="BoxBorder.Rounded" Title="@($"{Icons.Actions} {ComponentStrings.FormatMessageActionsDialog_Title(picking.Message.SequenceNumber)}")" BorderColor="@Theme.Accent" Padding="@(new(2, 1, 2, 1))">
-                <Rows>
-                    @for (var i = 0; i < picking.Actions.Count; i++)
-                    {
-                        var index = i;
-                        var offered = picking.Actions[i];
-                        <Columns>
-                            <KeyButton @ref="_choices[index]"
-                                       Content="@($"{offered.Action.Icon} {offered.Action.Label.PadRight(labelWidth)}")"
-                                       OnClick="@(() => Run(picking, offered))"
-                                       FocusedColor="@Theme.Accent" FocusOrder="@(PickerFocusOrder + index)" OnKeyDown="@PickerKey" />
-                            <Markup Content="@($"  {offered.Plugin.Name}")" Foreground="@Theme.Muted" />
-                        </Columns>
-                    }
-                    <Padder Padding="@(new(0, 1, 0, 0))">
-                        <Markup Content="@ComponentStrings.MessageActionsDialog_Hints" Foreground="@Theme.Muted" />
-                    </Padder>
-                </Rows>
-            </Panel>
-        </ModalWindow>
+        <Dialog Icon="@Icons.Actions" Title="@ComponentStrings.FormatMessageActionsDialog_Title(picking.Message.SequenceNumber)">
+            <ChildContent>
+                @for (var i = 0; i < picking.Actions.Count; i++)
+                {
+                    var index = i;
+                    var offered = picking.Actions[i];
+                    <Columns>
+                        <KeyButton @ref="_choices[index]"
+                                   Content="@($"{offered.Action.Icon} {offered.Action.Label.PadRight(labelWidth)}")"
+                                   OnClick="@(() => Run(picking, offered))"
+                                   FocusedColor="@Theme.Accent" FocusOrder="@(PickerFocusOrder + index)" OnKeyDown="@PickerKey" AutoFocus="@(index == 0)" />
+                        <Markup Content="@($"  {offered.Plugin.Name}")" Foreground="@Theme.Muted" />
+                    </Columns>
+                }
+            </ChildContent>
+            <Buttons>
+                <Markup Content="@ComponentStrings.MessageActionsDialog_Hints" Foreground="@Theme.Muted" />
+            </Buttons>
+        </Dialog>
         break;
 
     case Running running:
-        <ModalWindow IsOpened="true">
-            <Panel Border="BoxBorder.Rounded" Title="@($"{running.Offered.Action.Icon} {running.Offered.Action.Label}")" BorderColor="@Theme.Accent" Padding="@(new(2, 1, 2, 1))">
-                <Rows>
-                    <Columns>
-                        <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
-                        <Markup Content="@running.Status" />
-                    </Columns>
-                    <Padder Padding="@(new(0, 1, 0, 0))">
-                        <KeyButton @ref="_cancel"
-                                   Content="@(running.Cancelled ? ComponentStrings.MessageActionsDialog_Cancelling : ComponentStrings.MessageActionsDialog_Cancel)"
-                                   OnClick="Cancel" FocusedColor="@(running.Cancelled ? Theme.Warning : Theme.Muted)"
-                                   FocusOrder="@CancelFocusOrder" OnKeyDown="@RunningKey" />
-                    </Padder>
-                </Rows>
-            </Panel>
-        </ModalWindow>
+        <Dialog Icon="@running.Offered.Action.Icon" Title="@running.Offered.Action.Label">
+            <ChildContent>
+                <Columns>
+                    <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                    <Markup Content="@running.Status" />
+                </Columns>
+            </ChildContent>
+            <Buttons>
+                <KeyButton Content="@(running.Cancelled ? ComponentStrings.MessageActionsDialog_Cancelling : ComponentStrings.MessageActionsDialog_Cancel)"
+                           OnClick="Cancel" FocusedColor="@(running.Cancelled ? Theme.Warning : Theme.Muted)"
+                           FocusOrder="@CancelFocusOrder" OnKeyDown="@RunningKey" AutoFocus="true" />
+            </Buttons>
+        </Dialog>
         break;
 
     case Done done:
-        <ModalWindow IsOpened="true">
-            <Panel Border="BoxBorder.Rounded" Title="@($"{Icons.Done} {done.Offered.Plugin.Name}")" BorderColor="@Theme.Success" Padding="@(new(2, 1, 2, 1))">
-                <Rows>
-                    <Markup Content="@done.Result.Text" Foreground="@Theme.Success" />
-                    @if (done.Result.Link is { } link)
-                    {
-                        <Markup Content="@($"{Icons.Link} {link}")" />
-                    }
-                    @if (done.Result.FilePath is { } path)
-                    {
-                        <Markup Content="@($"{Icons.File} {path}")" />
-                    }
-                    <Padder Padding="@(new(0, 1, 0, 0))">
-                        <Columns>
-                            <KeyButton @ref="_ok" Key="⏎" Content="@ComponentStrings.Dialog_Ok" OnClick="Close"
-                                       FocusedColor="@Theme.Accent" FocusOrder="@ResultFocusOrder" OnKeyDown="@DoneKey" />
-                            @if (Target(done.Result) is not null)
-                            {
-                                <Markup Content="   " />
-                                <KeyButton Key="o" Content="@($"{Icons.Open} {ComponentStrings.Dialog_Open}")" OnClick="@(() => Open(done.Result))"
-                                           FocusedColor="@Theme.Accent" FocusOrder="@(ResultFocusOrder + 1)" OnKeyDown="@DoneKey" />
-                            }
-                        </Columns>
-                    </Padder>
-                </Rows>
-            </Panel>
-        </ModalWindow>
+        <Dialog Icon="@Icons.Done" Title="@done.Offered.Plugin.Name" BorderColor="@Theme.Success">
+            <ChildContent>
+                <Markup Content="@done.Result.Text" Foreground="@Theme.Success" />
+                @if (done.Result.Link is { } link)
+                {
+                    <Markup Content="@($"{Icons.Link} {link}")" />
+                }
+                @if (done.Result.FilePath is { } path)
+                {
+                    <Markup Content="@($"{Icons.File} {path}")" />
+                }
+            </ChildContent>
+            <Buttons>
+                <KeyButton Key="⏎" Content="@ComponentStrings.Dialog_Ok" OnClick="Close"
+                           FocusedColor="@Theme.Accent" FocusOrder="@ResultFocusOrder" OnKeyDown="@DoneKey" AutoFocus="true" />
+                @if (Target(done.Result) is not null)
+                {
+                    <KeyButton Key="o" Content="@($"{Icons.Open} {ComponentStrings.Dialog_Open}")" OnClick="@(() => Open(done.Result))"
+                               FocusedColor="@Theme.Accent" FocusOrder="@(ResultFocusOrder + 1)" OnKeyDown="@DoneKey" />
+                }
+            </Buttons>
+        </Dialog>
         break;
 }
 
@@ -102,9 +92,6 @@
     private State _state = new Closed();
     private string _error = "";
     private KeyButton?[] _choices = [];
-    private KeyButton? _cancel;
-    private KeyButton? _ok;
-    private bool _focusPending;
     private string? _returnFocusKey;
 
     public bool IsOpened => _state is not Closed || _error.Length > 0;
@@ -123,24 +110,7 @@
     private void Show(State state)
     {
         _state = state;
-        _focusPending = true;
         StateHasChanged();
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!_focusPending) return;
-        var target = _state switch
-        {
-            Picking => _choices.FirstOrDefault(),
-            Running => _cancel,
-            Done => _ok,
-            _ => null,
-        };
-        if (target is null) return;
-        // Once, as in ConfirmModal: a retry after the dialog moved on would replace a later request.
-        _focusPending = false;
-        await FocusManager.FocusAsync(target.FocusKey);
     }
 
     private void PickerKey(KeyboardEventArgs e)
@@ -236,7 +206,6 @@
     {
         _state = new Closed();
         _error = "";
-        _focusPending = false;
         StateHasChanged();
         if (_returnFocusKey is { } key) _ = FocusManager.FocusAsync(key);
         _ = OnClosed.InvokeAsync();

@@ -34,6 +34,7 @@ public static class Icons
     public const string Properties = "📋";
     public const string Body = "📄";
     public const string Confirm = "❓";
+    public const string Help = "❓";
     public const string Error = "❌";
     public const string Selected = "✅";
     public const string Done = "✅";
