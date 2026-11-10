@@ -138,6 +138,79 @@ public sealed class Screenshots
     }
 
     [Test]
+    public async Task PeekLock()
+    {
+        if (Environment.GetEnvironmentVariable("SCREENSHOT_DIR") is not { Length: > 0 } dir) return;
+        Directory.CreateDirectory(dir);
+        using var theme = UseScreenshotTheme();
+
+        var app = SampleApp();
+        var t0 = new DateTimeOffset(2026, 10, 26, 9, 14, 0, TimeSpan.Zero);
+        app.Messages.Messages.Clear();
+        app.Messages.Messages.AddRange(Enumerable.Range(1, 10).Select(i => Message(
+            2000 + i, i % 3 == 1 ? "order-updated" : "order-created", $"{{\"orderId\":\"A-{2000 + i}\"}}", t0.AddMinutes(i), i % 4 == 3 ? 2 : 1, "") with { DeadLetterReason = null }));
+        await using var terminal = await app.StartAsync(width: 120, height: 36);
+        await AppHarness.WaitForTableFocusAsync(terminal);
+        await app.SelectAzureNamespaceAsync(terminal, AppHarness.AzureNamespace);
+        var connectionFocus = terminal.FocusKey;
+        await AppHarness.ClickTextAsync(terminal, "1  📬 Queues");
+        await AppHarness.WaitForTableFocusAsync(terminal, connectionFocus);
+        await terminal.WaitForTextAsync("Queues (5)", AppHarness.Timeout, Ct);
+
+        await AppHarness.WaitForTableFocusAsync(terminal);
+        var queuesTable = terminal.FocusKey;
+        await terminal.SendKeyAsync(ConsoleKey.Oem1, ':', ConsoleModifiers.Shift, Ct);
+        await AppHarness.WaitForFocusAsync(terminal, "100", queuesTable);
+        await terminal.TypeAsync("orders", Ct);
+        await terminal.WaitForTextAsync("📬 orders", AppHarness.Timeout, Ct);
+        await Key(terminal, ConsoleKey.Enter, '\r');
+        await terminal.WaitForTextAsync("order-created", AppHarness.Timeout, Ct);
+        await AppHarness.WaitForTableFocusAsync(terminal);
+        await Key(terminal, ConsoleKey.D1, '1');
+        await AppHarness.WaitForSettledAsync(terminal, f => f.ContainsText("2  💀 DLQ") && f.ContainsText("order-created"));
+        await AppHarness.WaitForTableFocusAsync(terminal);
+
+        var table = terminal.FocusKey;
+        await Key(terminal, ConsoleKey.R, 'r');
+        await AppHarness.WaitForFocusAsync(terminal, "100", table);
+        await Key(terminal, ConsoleKey.Enter, '\r');
+        await AppHarness.WaitForSettledAsync(terminal, f => f.ContainsText("10 received") && f.ContainsText("10 held"));
+        await AppHarness.WaitForTableFocusAsync(terminal);
+
+        foreach (var _ in Enumerable.Range(0, 4)) await Key(terminal, ConsoleKey.DownArrow);
+        await Key(terminal, ConsoleKey.Spacebar, ' ');
+        await Key(terminal, ConsoleKey.DownArrow);
+        await Key(terminal, ConsoleKey.Spacebar, ' ');
+        await terminal.WaitForTextAsync("2 selected", AppHarness.Timeout, Ct);
+        await Key(terminal, ConsoleKey.C, 'c');
+        await terminal.WaitForTextAsync("Complete 2 messages?", AppHarness.Timeout, Ct);
+        await Key(terminal, ConsoleKey.Y, 'y');
+        await DismissAsync(terminal, "Completed 2 of 2.");
+        await Key(terminal, ConsoleKey.DownArrow);
+        await Key(terminal, ConsoleKey.A, 'a');
+        await DismissAsync(terminal, "Abandoned 1 of 1.");
+
+        foreach (var _ in Enumerable.Range(0, 5)) await Key(terminal, ConsoleKey.UpArrow);
+        foreach (var _ in Enumerable.Range(0, 3))
+        {
+            await Key(terminal, ConsoleKey.Spacebar, ' ');
+            await Key(terminal, ConsoleKey.DownArrow);
+        }
+        await Key(terminal, ConsoleKey.UpArrow);
+        await Key(terminal, ConsoleKey.UpArrow);
+        await AppHarness.WaitForSettledAsync(terminal, f => f.ContainsText("3 selected"));
+        await Save(terminal, dir, "peeklock");
+    }
+
+    private static async Task DismissAsync(HeadlessTerminal terminal, string result)
+    {
+        await terminal.WaitForTextAsync(result, AppHarness.Timeout, Ct);
+        await AppHarness.ClickTextAsync(terminal, "⏎  OK");
+        await terminal.WaitUntilAsync(f => !f.ContainsText(result), AppHarness.Timeout, cancellationToken: Ct);
+        await AppHarness.WaitForTableFocusAsync(terminal);
+    }
+
+    [Test]
     public async Task MetricsPanel()
     {
         if (Environment.GetEnvironmentVariable("SCREENSHOT_DIR") is not { Length: > 0 } dir) return;

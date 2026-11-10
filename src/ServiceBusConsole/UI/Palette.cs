@@ -15,6 +15,9 @@ public sealed record Palette
     public required Color Scheduled { get; init; }
     public required Color Transfer { get; init; }
 
+    /// <summary>Text of a row that is done with: a settled message in a locked list.</summary>
+    public required Color Settled { get; init; }
+
     /// <summary>Background of the selected row, and text on it.</summary>
     public required Color Selection { get; init; }
     public required Color OnSelection { get; init; }
@@ -55,6 +58,7 @@ public sealed record Palette
         Success = Color.Lime,
         Scheduled = Color.Aqua,
         Transfer = Color.Fuchsia,
+        Settled = Color.Grey,
         Selection = Color.Navy,
         OnSelection = Color.White,
         Chip = Color.Grey,
@@ -83,6 +87,7 @@ public sealed record Palette
         Success = Color.Green,
         Scheduled = Color.Teal,
         Transfer = Color.Purple,
+        Settled = Color.Silver,
         Selection = Color.Navy,
         OnSelection = Color.White,
         Chip = Color.Silver,

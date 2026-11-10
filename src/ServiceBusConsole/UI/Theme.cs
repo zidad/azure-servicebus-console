@@ -18,6 +18,7 @@ public static class Theme
     public static Color Success => Palette.Success;
     public static Color Scheduled => Palette.Scheduled;
     public static Color Transfer => Palette.Transfer;
+    public static Color Settled => Palette.Settled;
 
     /// <inheritdoc cref="Palette.Selection"/>
     public static Color Selection => Palette.Selection;
