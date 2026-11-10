@@ -16,29 +16,29 @@ public sealed class AppCommands
 
     private readonly Option<string?> _subscription = new("--subscription", "-s")
     {
-        Description = "Azure subscription to start in, by name or ID; emulator for the local emulator",
+        Description = CommandLineStrings.AppCommands_SubscriptionOption,
     };
 
     private readonly Option<string?> _namespace = new("--namespace", "-n")
     {
-        Description = "Namespace of that subscription to open, by name or host name; needs --subscription",
+        Description = CommandLineStrings.AppCommands_NamespaceOption,
     };
 
     private readonly Option<string?> _open = new("--open", "-o")
     {
-        Description = "Queue, topic or topic/subscription of that namespace to open, by exact name; /dlq or /active picks the tab. Or a list: queues, topics or subscriptions. Needs --namespace",
+        Description = CommandLineStrings.AppCommands_OpenOption,
     };
 
     private readonly Option<string?> _theme = new("--theme", "-t")
     {
-        Description = "Colors for a dark or light terminal background: auto (default; COLORFGBG, else dark), dark or light; overrides ui.theme",
+        Description = CommandLineStrings.AppCommands_ThemeOption,
     };
 
-    private readonly Argument<ConfigAction> _action = new("action") { Description = "get, set, unset, list or path" };
-    private readonly Argument<string?> _key = new("key") { Description = "Dotted key, such as ui.theme", Arity = ArgumentArity.ZeroOrOne };
-    private readonly Argument<string?> _value = new("value") { Description = "Value to set", Arity = ArgumentArity.ZeroOrOne };
-    private readonly Option<bool> _all = new("--all") { Description = "With list: also the known keys that are unset, with their default and description" };
-    private readonly Argument<string[]> _topic = new("command") { Description = "The command to explain", Arity = ArgumentArity.ZeroOrMore };
+    private readonly Argument<ConfigAction> _action = new("action") { Description = CommandLineStrings.AppCommands_ActionArgument };
+    private readonly Argument<string?> _key = new("key") { Description = CommandLineStrings.AppCommands_KeyArgument, Arity = ArgumentArity.ZeroOrOne };
+    private readonly Argument<string?> _value = new("value") { Description = CommandLineStrings.AppCommands_ValueArgument, Arity = ArgumentArity.ZeroOrOne };
+    private readonly Option<bool> _all = new("--all") { Description = CommandLineStrings.AppCommands_AllOption };
+    private readonly Argument<string[]> _topic = new("command") { Description = CommandLineStrings.AppCommands_CommandArgument, Arity = ArgumentArity.ZeroOrMore };
 
     private readonly Command _run;
     private readonly Command _config;
@@ -50,18 +50,13 @@ public sealed class AppCommands
     {
         _host = host;
         _plugins = plugins;
-        _run = new("run", "Open the terminal UI (the default command)") { _subscription, _namespace, _open, _theme };
-        _config = new("config", """
-            Read and write settings in the config file, like git config:
-              get <key>: print a value, exit code 1 when unset; unset <key>: remove it
-              set <key> <value>: true/false and integers are stored as such, the rest as text
-              list [--all]: print key=value lines, secrets masked; path: print the config file's path
-            """) { _action, _key, _value, _all };
-        _pluginsCommand = new("plugins", "List the plugins, whether they are enabled, and their settings");
-        var help = new Command("help", "Show help for azsb or one of its commands") { _topic };
+        _run = new("run", CommandLineStrings.AppCommands_Run) { _subscription, _namespace, _open, _theme };
+        _config = new("config", CommandLineStrings.AppCommands_Config) { _action, _key, _value, _all };
+        _pluginsCommand = new("plugins", CommandLineStrings.AppCommands_Plugins);
+        var help = new Command("help", CommandLineStrings.AppCommands_Help) { _topic };
 
         // Named azsb, not after the executable: the tool's shim runs ServiceBusConsole.
-        Root = new("azsb", "Terminal UI for browsing Azure Service Bus namespaces, queues, topics, and messages")
+        Root = new("azsb", CommandLineStrings.AppCommands_Root)
         {
             new HelpOption(), new VersionOption(), _subscription, _namespace, _open, _theme, _run, _config, _pluginsCommand, help,
         };

@@ -40,7 +40,7 @@ public sealed record StepPlot
             .Select(s => s with { Points = [.. s.Points.Where(p => double.IsFinite(p.X) && double.IsFinite(p.Y)).OrderBy(p => p.X)] })
             .ToArray();
         if (series.SelectMany(s => s.Points).ToArray() is not { Length: > 0 } points)
-            return [[new ChartRun("No data", LabelsColor)]];
+            return [[new ChartRun(UIStrings.StepPlot_NoData, LabelsColor)]];
 
         var x = new AxisRange(points.Min(p => p.X), points.Max(p => p.X));
         var y = new AxisRange(Math.Min(0, points.Min(p => p.Y)), points.Max(p => p.Y));

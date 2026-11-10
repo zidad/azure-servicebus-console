@@ -2,12 +2,12 @@
 @inject ActivityLog Activity
 
 <ModalWindow IsOpened="@IsOpened">
-    <Panel Border="BoxBorder.Rounded" Title="@($"{Icons.Error} Error")" BorderColor="@Theme.Danger" Padding="@(new(2, 1, 2, 1))">
+    <Panel Border="BoxBorder.Rounded" Title="@($"{Icons.Error} {ComponentStrings.ErrorModal_Title}")" BorderColor="@Theme.Danger" Padding="@(new(2, 1, 2, 1))">
         <Rows>
             <Markup Content="@Message" Foreground="@Theme.Danger" />
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <KeyButton @ref="_dismissButton"
-                            Key="⏎" Content="Dismiss"
+                            Key="⏎" Content="@ComponentStrings.ErrorModal_Dismiss"
                             OnClick="@(() => OnDismiss.InvokeAsync())"
                             FocusedColor="@Theme.Muted"
                             FocusOrder="1" />

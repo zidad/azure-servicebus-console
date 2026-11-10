@@ -80,7 +80,7 @@
     private RenderFragment BodyView(int height) =>
         @<Rows>
             <Columns>
-                <Markup Content="@($"{Icons.Body} BODY")" Foreground="@Theme.Muted" Decoration="@Decoration.Bold" />
+                <Markup Content="@($"{Icons.Body} {ComponentStrings.MessagePreview_Body}")" Foreground="@Theme.Muted" Decoration="@Decoration.Bold" />
                 <Markup Content="@BodySummary" Foreground="@Theme.Muted" />
             </Columns>
             <ViewHeightScrollable LinesToRender="@Math.Max(1, height - 1)" Scrollbar="@Theme.Scrollbar()" FocusOrder="@BodyFocusOrder" OnKeyDown="@OnKeyDown">
@@ -96,31 +96,31 @@
         </Rows>;
 
     private string BodySummary => string.Join(" · ",
-        new[] { Message.ContentType, $"{Message.Body.Length:N0} B" }.Where(p => p.Length > 0));
+        new[] { Message.ContentType, Strings.FormatBytes(Message.Body.Length.ToString("N0")) }.Where(p => p.Length > 0));
 
     private IEnumerable<(string Name, string Value, Color Color)> Properties()
     {
         var m = Message;
-        yield return ($"{Icons.Properties} MESSAGE", "", Color.Default);
-        yield return ("Message ID", m.MessageId, Color.Default);
-        yield return ("Sequence #", m.SequenceNumber.ToString(), Color.Default);
-        yield return ("Subject", m.Subject, Color.Default);
-        yield return ("Content Type", m.ContentType, Color.Default);
-        yield return ("Enqueued", RelativeTime.Full(m.EnqueuedTime, DateTimeOffset.UtcNow), Color.Default);
-        yield return ("Delivery Count", m.DeliveryCount.ToString(), m.DeliveryCount > 1 ? Theme.Warning : Color.Default);
-        yield return ("State", StateText(m), StateColor(m));
+        yield return ($"{Icons.Properties} {ComponentStrings.MessagePreview_MessageHeader}", "", Color.Default);
+        yield return (Strings.MessageId, m.MessageId, Color.Default);
+        yield return (Strings.SequenceNumber, m.SequenceNumber.ToString(), Color.Default);
+        yield return (Strings.Subject, m.Subject, Color.Default);
+        yield return (ComponentStrings.MessagePreview_ContentType, m.ContentType, Color.Default);
+        yield return (Strings.Enqueued, RelativeTime.Full(m.EnqueuedTime, DateTimeOffset.UtcNow), Color.Default);
+        yield return (ComponentStrings.MessagePreview_DeliveryCount, m.DeliveryCount.ToString(), m.DeliveryCount > 1 ? Theme.Warning : Color.Default);
+        yield return (Strings.State, StateText(m), StateColor(m));
         if (m.Properties.Count == 0) yield break;
         yield return ("", "", Color.Default);
-        yield return ("APPLICATION", "", Color.Default);
+        yield return (ComponentStrings.MessagePreview_ApplicationHeader, "", Color.Default);
         foreach (var (key, value) in m.Properties)
             yield return (key, value, Color.Default);
     }
 
     private string StateText(MessageInfo m) => m.State switch
     {
-        MessageState.Locked => Browser?.IsLockHeld(m) == true ? $"{Icons.Locked} Locked by this console" : $"{Icons.Unlocked} Lock lost (back on the queue)",
-        MessageState.Received => $"{Icons.Received} Received and deleted; requeue it or it is gone",
-        _ => $"{Icons.Peek} Peeked (read-only)",
+        MessageState.Locked => Browser?.IsLockHeld(m) == true ? $"{Icons.Locked} {ComponentStrings.MessagePreview_LockHeld}" : $"{Icons.Unlocked} {ComponentStrings.MessagePreview_LockLost}",
+        MessageState.Received => $"{Icons.Received} {ComponentStrings.MessagePreview_Received}",
+        _ => $"{Icons.Peek} {ComponentStrings.MessagePreview_Peeked}",
     };
 
     private Color StateColor(MessageInfo m) => m.State switch

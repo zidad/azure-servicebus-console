@@ -18,7 +18,7 @@
         <Columns>
             <Markup Content="azsb" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
             <Markup Content=" │ " Foreground="@Theme.Border" />
-            <Markup Content="@($"{Icons.Connection} Connect")" Decoration="@Decoration.Bold" />
+            <Markup Content="@($"{Icons.Connection} {PageStrings.Connection_Title}")" Decoration="@Decoration.Bold" />
         </Columns>
         <Markup Content="@(new string('─', Math.Max(1, Viewport.Width)))" Foreground="@Theme.Border" />
 
@@ -39,13 +39,13 @@
 
                 @if (Catalog.Error is { } listError)
                 {
-                    <Markup Content="@($"Could not list Azure subscriptions (az login?): {listError}")" Foreground="@Theme.Danger" />
+                    <Markup Content="@(PageStrings.FormatConnection_ListSubscriptionsFailed(listError))" Foreground="@Theme.Danger" />
                 }
                 else if (Catalog.Loading)
                 {
                     <Columns>
                         <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
-                        <Markup Content="Listing Azure subscriptions..." Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+                        <Markup Content="@PageStrings.Connection_ListingSubscriptions" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
                     </Columns>
                 }
 
@@ -56,11 +56,11 @@
 
         <Padder Padding="@(new(0, 1, 0, 0))">
             <Columns>
-                <Markup Content="@($"Cache: {FileCache.CacheDirectory}")" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+                <Markup Content="@(PageStrings.FormatConnection_CacheDirectory(FileCache.CacheDirectory))" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
                 <Markup Content="   " />
                 @if (_cacheStatus is null)
                 {
-                    <KeyButton Content="@($"{Icons.Purge} Clear cache")" OnClick="ClearCache" FocusedColor="@Theme.Danger" FocusOrder="8" OnKeyDown="@HandleKeyDown" />
+                    <KeyButton Content="@($"{Icons.Purge} {PageStrings.Connection_ClearCache}")" OnClick="ClearCache" FocusedColor="@Theme.Danger" FocusOrder="8" OnKeyDown="@HandleKeyDown" />
                 }
                 else
                 {
@@ -73,10 +73,10 @@
     @if (ShowMetrics)
     {
         <MetricsPanel @ref="_metricsPanel"
-                      Label="@($"{Icons.Namespace} namespace {ChosenNamespace?.Name}")"
+                      Label="@($"{Icons.Namespace} {PageStrings.FormatConnection_MetricsLabel(ChosenNamespace?.Name)}")"
                       Metrics="@ChartedMetrics"
                       Scope="@(ChartedMetrics is null ? null : new MetricsScope.Namespace())"
-                      Placeholder="@(ChosenNamespace is { } chosen ? $"Azure Monitor metrics aren't available for {chosen.Name}." : "Choose a namespace to chart its Azure Monitor metrics.")"
+                      Placeholder="@(ChosenNamespace is { } chosen ? PageStrings.FormatConnection_MetricsUnavailable(chosen.Name) : PageStrings.Connection_MetricsChooseNamespace)"
                       FocusOrder="9"
                       OnKeyDown="@HandleKeyDown" />
     }
@@ -168,7 +168,7 @@
         {
             if (loading) return;
             _startup = null;
-            if (!startup.IsAzureCliDefault) _startupError = $"Azure subscription \"{startup.Subscription}\" not found.";
+            if (!startup.IsAzureCliDefault) _startupError = PageStrings.FormatConnection_SubscriptionNotFound(startup.Subscription);
             SelectNode(AzureSubscription.Emulator, NamespaceInfo.Emulator);
             return;
         }
@@ -193,7 +193,7 @@
         }
         if (!done) return;
         _startup = null;
-        if (startup.Namespace is { } missing) _startupError = $"Namespace \"{missing}\" not found in {subscription.Name}.";
+        if (startup.Namespace is { } missing) _startupError = PageStrings.FormatConnection_NamespaceNotFound(missing, subscription.Name);
         SelectNode(subscription, namespaces.FirstOrDefault());
     }
 
@@ -208,11 +208,11 @@
                 Nav.NavigateTo(destination.Match(e => NavState.RouteTo(e.Target, e.Active), l => l.Section.Route));
                 return;
             }
-            _startupError = $"Nothing named \"{path}\" in {ns.Name}.";
+            _startupError = PageStrings.FormatConnection_OpenNotFound(path, ns.Name);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _startupError = $"Could not list {ns.Name}: {ErrorText.Of(ex)}";
+            _startupError = PageStrings.FormatConnection_OpenListFailed(ns.Name, ErrorText.Of(ex));
         }
         _leaving = false;
         SelectNode(subscription, ns);
@@ -256,16 +256,16 @@
     [
         .. ChosenNamespace is null ? Array.Empty<KeyBinding>() :
         [
-            new("1", $"{Icons.Queue} Queues", () => _ = Open(Section.Queues)) { Aliases = ["F1"] },
+            new("1", $"{Icons.Queue} {Strings.Queues}", () => _ = Open(Section.Queues)) { Aliases = ["F1"] },
             .. Connection.Current is IHasTopics
-                ? [new KeyBinding("2", $"{Icons.Topic} Topics", () => _ = Open(Section.Topics)) { Aliases = ["F2"] },
-                   new KeyBinding("3", $"{Icons.Subscription} All Subscriptions", () => _ = Open(Section.AllSubscriptions)) { Aliases = ["F3"] }]
+                ? [new KeyBinding("2", $"{Icons.Topic} {Strings.Topics}", () => _ = Open(Section.Topics)) { Aliases = ["F2"] },
+                   new KeyBinding("3", $"{Icons.Subscription} {Strings.AllSubscriptions}", () => _ = Open(Section.AllSubscriptions)) { Aliases = ["F3"] }]
                 : Array.Empty<KeyBinding>(),
         ],
-        new("/", $"{Icons.Filter} Filter", () => _ = _tree?.EditFilterAsync()),
-        new("m", $"{Icons.Metrics} Metrics", ToggleMetrics) { Aliases = ["F12"] },
-        new("C", $"{Icons.Purge} Clear cache", ClearCache) { InFooter = false },
-        new("?", $"{Icons.Confirm} Help", () => _help?.Open(Keys)),
+        new("/", $"{Icons.Filter} {PageStrings.Key_Filter}", () => _ = _tree?.EditFilterAsync()),
+        new("m", $"{Icons.Metrics} {PageStrings.Key_Metrics}", ToggleMetrics) { Aliases = ["F12"] },
+        new("C", $"{Icons.Purge} {PageStrings.Connection_ClearCache}", ClearCache) { InFooter = false },
+        new("?", $"{Icons.Confirm} {Strings.Help}", () => _help?.Open(Keys)),
     ];
 
     private HelpDialog? _help;
@@ -284,12 +284,17 @@
         try
         {
             var count = FileCache.Clear();
-            _cacheStatus = count == 0 ? "✓ Cache already empty" : $"✓ Cache cleared ({count} file{(count == 1 ? "" : "s")})";
+            _cacheStatus = count switch
+            {
+                0 => PageStrings.Connection_CacheEmpty,
+                1 => PageStrings.FormatConnection_CacheClearedOne(count),
+                _ => PageStrings.FormatConnection_CacheClearedMany(count),
+            };
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _cacheClearFailed = true;
-            _cacheStatus = $"Clear failed: {ex.Message}";
+            _cacheStatus = PageStrings.FormatConnection_ClearFailed(ex.Message);
         }
         StateHasChanged();
     }

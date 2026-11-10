@@ -1,9 +1,9 @@
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 
 <ModalWindow IsOpened="@IsOpened">
-    <Panel Border="BoxBorder.Rounded" Title="❓ Keys" BorderColor="@Theme.Accent" Padding="@(new(2, 1, 2, 1))">
+    <Panel Border="BoxBorder.Rounded" Title="@($"❓ {ComponentStrings.HelpDialog_Title}")" BorderColor="@Theme.Accent" Padding="@(new(2, 1, 2, 1))">
         <Rows>
-            <Markup Content="Letters act on the page; / filters. F-keys from earlier versions still work." Foreground="@Theme.Muted" />
+            <Markup Content="@ComponentStrings.HelpDialog_Intro" Foreground="@Theme.Muted" />
             <Newline />
             @foreach (var binding in _bindings)
             {
@@ -14,9 +14,9 @@
                 </Columns>
             }
             <Newline />
-            <Markup Content="Shift marks the keys that delete or move messages." Foreground="@Theme.Muted" />
+            <Markup Content="@ComponentStrings.HelpDialog_ShiftNote" Foreground="@Theme.Muted" />
             <Padder Padding="@(new(0, 1, 0, 0))">
-                <KeyButton @ref="_close" Key="esc" Content="Close" OnClick="Close" FocusOrder="1" OnKeyDown="HandleKey" />
+                <KeyButton @ref="_close" Key="esc" Content="@ComponentStrings.Dialog_Close" OnClick="Close" FocusOrder="1" OnKeyDown="HandleKey" />
             </Padder>
         </Rows>
     </Panel>

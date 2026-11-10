@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using ServiceBusConsole.Plugins.Claude.Resources;
 
 namespace ServiceBusConsole.Plugins.Claude;
 
@@ -36,7 +37,7 @@ public sealed record ClaudeSettings
         Path.GetFullPath(ExpandHome(path)) is var full && Directory.Exists(full)
             ? full
             : throw new InvalidOperationException(
-                $"Working directory {full} does not exist: azsb config set plugins.{context.PluginId}.{WorkingDirectoryKey} <path to your code>");
+                Strings.FormatClaudeSettings_NoDirectory(full, context.PluginId, WorkingDirectoryKey));
 
     private static string ExpandHome(string path) =>
         path == "~" || path.StartsWith("~/", StringComparison.Ordinal)

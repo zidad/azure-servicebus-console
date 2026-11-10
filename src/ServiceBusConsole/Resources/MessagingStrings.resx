@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="MessageBrowser_DeadLetterReason" xml:space="preserve">
+    <value>Dead-lettered manually</value>
+  </data>
+  <data name="MessageBrowser_Peeking" xml:space="preserve">
+    <value>Peeking {count}</value>
+  </data>
+  <data name="MessageBrowser_PeekStep" xml:space="preserve">
+    <value>Peek</value>
+  </data>
+  <data name="MessageBrowser_ReceivingAndDeleting" xml:space="preserve">
+    <value>Receiving and deleting {count}</value>
+  </data>
+  <data name="MessageBrowser_ReceivingWithPeekLock" xml:space="preserve">
+    <value>Receiving {count} with PeekLock</value>
+  </data>
+  <data name="MessageBrowser_ReceiveStep" xml:space="preserve">
+    <value>Receive</value>
+  </data>
+  <data name="MessageBrowser_Completing" xml:space="preserve">
+    <value>Completing {what}</value>
+  </data>
+  <data name="MessageBrowser_Completed" xml:space="preserve">
+    <value>Completed</value>
+  </data>
+  <data name="MessageBrowser_Abandoning" xml:space="preserve">
+    <value>Abandoning {what}</value>
+  </data>
+  <data name="MessageBrowser_Abandoned" xml:space="preserve">
+    <value>Abandoned</value>
+  </data>
+  <data name="MessageBrowser_DeadLettering" xml:space="preserve">
+    <value>Dead-lettering {what}</value>
+  </data>
+  <data name="MessageBrowser_DeadLettered" xml:space="preserve">
+    <value>Dead-lettered</value>
+  </data>
+  <data name="MessageBrowser_Retrying" xml:space="preserve">
+    <value>Retrying {what}</value>
+  </data>
+  <data name="MessageBrowser_Requeuing" xml:space="preserve">
+    <value>Requeuing {what}</value>
+  </data>
+  <data name="MessageBrowser_Retried" xml:space="preserve">
+    <value>Retried</value>
+  </data>
+  <data name="MessageBrowser_Sending" xml:space="preserve">
+    <value>Sending {what}</value>
+  </data>
+  <data name="MessageBrowser_SendTo" xml:space="preserve">
+    <value>Send to {target}</value>
+  </data>
+  <data name="MessageBrowser_Sent" xml:space="preserve">
+    <value>Sent</value>
+  </data>
+  <data name="MessageBrowser_Purging" xml:space="preserve">
+    <value>Purging {source}</value>
+  </data>
+  <data name="MessageBrowser_Purged" xml:space="preserve">
+    <value>Purged {count} message(s).</value>
+  </data>
+  <data name="MessageBrowser_PurgeCancelled" xml:space="preserve">
+    <value>Cancelled. Purged {count} message(s).</value>
+  </data>
+  <data name="MessageBrowser_Done" xml:space="preserve">
+    <value>Done.</value>
+  </data>
+  <data name="MessageBrowser_Cancelled" xml:space="preserve">
+    <value>Cancelled.</value>
+  </data>
+  <data name="MessageBrowser_NoLockedMessages" xml:space="preserve">
+    <value>No locked messages. Receive in PeekLock mode first.</value>
+  </data>
+  <data name="MessageBrowser_RetryNeedsDlq" xml:space="preserve">
+    <value>Retry of peeked messages works in the dead-letter queue only</value>
+  </data>
+  <data name="MessageBrowser_LockLost" xml:space="preserve">
+    <value>lock lost</value>
+  </data>
+  <data name="MessageBrowser_NotInDlq" xml:space="preserve">
+    <value>not found in the dead-letter queue (gone, or locked elsewhere)</value>
+  </data>
+  <data name="MessageBrowser_NotSent" xml:space="preserve">
+    <value>not sent: {reason}</value>
+  </data>
+  <data name="MessageBrowser_NotCompleted" xml:space="preserve">
+    <value>sent, but original not completed: {reason}</value>
+  </data>
+  <data name="MessageBrowser_NotMoved" xml:space="preserve">
+    <value>not moved: {reason}</value>
+  </data>
+  <data name="MessageBrowser_NotLocked" xml:space="preserve">
+    <value>not locked: {reason}</value>
+  </data>
+  <data name="MessageBrowser_Firewall" xml:space="preserve">
+    <value>blocked by the namespace firewall</value>
+  </data>
+  <data name="MessageBrowser_Summary" xml:space="preserve">
+    <value>{verb} {succeeded} of {total}.</value>
+  </data>
+  <data name="MessageBrowser_SummaryCancelled" xml:space="preserve">
+    <value>Cancelled. {verb} {succeeded} of {total}; the rest stay selected.</value>
+  </data>
+  <data name="MessageBrowser_SummaryFailed" xml:space="preserve">
+    <value>{verb} {succeeded} of {total}. Failed messages stay selected: {examples}</value>
+  </data>
+  <data name="MessageBrowser_MoreFailures" xml:space="preserve">
+    <value> (+{count} more)</value>
+  </data>
+  <data name="MessageBrowserStore_Peeked" xml:space="preserve">
+    <value>Peeked {count} message(s)</value>
+  </data>
+  <data name="MessageBrowserStore_ReceivedWithPeekLock" xml:space="preserve">
+    <value>Received {count} message(s) with PeekLock</value>
+  </data>
+  <data name="MessageBrowserStore_ReceivedAndDeleted" xml:space="preserve">
+    <value>Received and deleted {count} message(s)</value>
+  </data>
+  <data name="MessageBrowserStore_Cancelled" xml:space="preserve">
+    <value> (cancelled)</value>
+  </data>
+  <data name="Failure_Cancelled" xml:space="preserve">
+    <value>cancelled</value>
+  </data>
+  <data name="RetryText_Retry" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="RetryText_Requeue" xml:space="preserve">
+    <value>Requeue</value>
+  </data>
+  <data name="RetryText_RetryQuestion" xml:space="preserve">
+    <value>Retry {what}?</value>
+  </data>
+  <data name="RetryText_RequeueQuestion" xml:space="preserve">
+    <value>Requeue {what}?</value>
+  </data>
+  <data name="RetryText_RequeueTo" xml:space="preserve">
+    <value>Requeue to {target}</value>
+  </data>
+  <data name="RetryText_MoveTo" xml:space="preserve">
+    <value>Move to {target}</value>
+  </data>
+  <data name="RetryText_MarkComplete" xml:space="preserve">
+    <value>Mark complete</value>
+  </data>
+  <data name="RetryText_PeekNote" xml:space="preserve">
+    <value>Messages ahead of them in the dead-letter queue are
+locked briefly and released (delivery count +1).</value>
+  </data>
+  <data name="RetryText_ReceivedNote" xml:space="preserve">
+    <value>Receive-and-delete already removed the originals.</value>
+  </data>
+  <data name="RetryText_TransactionNote" xml:space="preserve">
+    <value>Up to 100 at a time move in one transaction:
+sent and completed together, or not at all.</value>
+  </data>
+  <data name="RetryText_SubscriptionNote" xml:space="preserve">
+    <value>Every subscription of the topic gets a copy.</value>
+  </data>
+</root>

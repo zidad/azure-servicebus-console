@@ -10,7 +10,7 @@
     case Picking picking:
         var labelWidth = picking.Actions.Max(a => a.Action.Label.Length);
         <ModalWindow IsOpened="true">
-            <Panel Border="BoxBorder.Rounded" Title="@($"{Icons.Actions} Actions on message #{picking.Message.SequenceNumber}")" BorderColor="@Theme.Accent" Padding="@(new(2, 1, 2, 1))">
+            <Panel Border="BoxBorder.Rounded" Title="@($"{Icons.Actions} {ComponentStrings.FormatMessageActionsDialog_Title(picking.Message.SequenceNumber)}")" BorderColor="@Theme.Accent" Padding="@(new(2, 1, 2, 1))">
                 <Rows>
                     @for (var i = 0; i < picking.Actions.Count; i++)
                     {
@@ -25,7 +25,7 @@
                         </Columns>
                     }
                     <Padder Padding="@(new(0, 1, 0, 0))">
-                        <Markup Content="↑/↓ choose · Enter run · Esc close" Foreground="@Theme.Muted" />
+                        <Markup Content="@ComponentStrings.MessageActionsDialog_Hints" Foreground="@Theme.Muted" />
                     </Padder>
                 </Rows>
             </Panel>
@@ -42,7 +42,7 @@
                     </Columns>
                     <Padder Padding="@(new(0, 1, 0, 0))">
                         <KeyButton @ref="_cancel"
-                                   Content="@(running.Cancelled ? "Cancelling…" : "[Esc] Cancel")"
+                                   Content="@(running.Cancelled ? ComponentStrings.MessageActionsDialog_Cancelling : ComponentStrings.MessageActionsDialog_Cancel)"
                                    OnClick="Cancel" FocusedColor="@(running.Cancelled ? Theme.Warning : Theme.Muted)"
                                    FocusOrder="@CancelFocusOrder" OnKeyDown="@RunningKey" />
                     </Padder>
@@ -66,12 +66,12 @@
                     }
                     <Padder Padding="@(new(0, 1, 0, 0))">
                         <Columns>
-                            <KeyButton @ref="_ok" Key="⏎" Content="OK" OnClick="Close"
+                            <KeyButton @ref="_ok" Key="⏎" Content="@ComponentStrings.Dialog_Ok" OnClick="Close"
                                        FocusedColor="@Theme.Accent" FocusOrder="@ResultFocusOrder" OnKeyDown="@DoneKey" />
                             @if (Target(done.Result) is not null)
                             {
                                 <Markup Content="   " />
-                                <KeyButton Key="o" Content="@($"{Icons.Open} Open")" OnClick="@(() => Open(done.Result))"
+                                <KeyButton Key="o" Content="@($"{Icons.Open} {ComponentStrings.Dialog_Open}")" OnClick="@(() => Open(done.Result))"
                                            FocusedColor="@Theme.Accent" FocusOrder="@(ResultFocusOrder + 1)" OnKeyDown="@DoneKey" />
                             }
                         </Columns>
@@ -181,7 +181,7 @@
     private async Task RunAsync(Picking picking, OfferedAction offered)
     {
         using var cancellation = new CancellationTokenSource();
-        Show(new Running(offered, cancellation, "Starting…"));
+        Show(new Running(offered, cancellation, ComponentStrings.MessageActionsDialog_Starting));
         var progress = new CallbackProgress(text => _ = InvokeAsync(() =>
         {
             if (_state is not Running running || running.Cancellation != cancellation) return;
@@ -193,12 +193,12 @@
         {
             // Off the render thread: a plugin may block before its first await.
             var result = await Task.Run(() => offered.Action.RunAsync(context, cancellation.Token), cancellation.Token);
-            ActivityLog.Record(ActivityKind.Operation, $"{offered.Plugin.Name}: {result.Text}", picking.Source);
+            ActivityLog.Record(ActivityKind.Operation, ComponentStrings.FormatMessageActionsDialog_Outcome(offered.Plugin.Name, result.Text), picking.Source);
             Show(new Done(offered, result));
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
-            ActivityLog.Record(ActivityKind.Operation, $"{offered.Plugin.Name}: {offered.Action.Label} cancelled", picking.Source);
+            ActivityLog.Record(ActivityKind.Operation, ComponentStrings.FormatMessageActionsDialog_Cancelled(offered.Plugin.Name, offered.Action.Label), picking.Source);
             Close();
         }
         catch (Exception ex)
@@ -228,7 +228,7 @@
     private void Fail(OfferedAction offered, Exception ex)
     {
         _state = new Closed();
-        _error = $"{offered.Plugin.Name}: {ErrorText.Of(ex).Split('\n')[0]}";
+        _error = ComponentStrings.FormatMessageActionsDialog_Outcome(offered.Plugin.Name, ErrorText.Of(ex).Split('\n')[0]);
         StateHasChanged();
     }
 

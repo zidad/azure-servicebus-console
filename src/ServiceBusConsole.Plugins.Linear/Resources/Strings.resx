@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="LinearPlugin_Name" xml:space="preserve">
+    <value>Linear</value>
+  </data>
+  <data name="LinearPlugin_Description" xml:space="preserve">
+    <value>Creates a Linear issue from a message</value>
+  </data>
+  <data name="LinearPlugin_ApiKeySetting" xml:space="preserve">
+    <value>Linear personal API key (Settings &gt; Security &amp; access); else {variable}</value>
+  </data>
+  <data name="LinearPlugin_TeamSetting" xml:space="preserve">
+    <value>Key of the team the issue goes to, e.g. ENG</value>
+  </data>
+  <data name="LinearPlugin_LabelsSetting" xml:space="preserve">
+    <value>Comma-separated label names to add, e.g. bug,servicebus</value>
+  </data>
+  <data name="LinearPlugin_TitleTemplateSetting" xml:space="preserve">
+    <value>Issue title: {placeholders}</value>
+  </data>
+  <data name="LinearPlugin_IncludeContextSetting" xml:space="preserve">
+    <value>Adds where the message came from and the session's recent activity to the description</value>
+  </data>
+  <data name="LinearPlugin_NoApiKey" xml:space="preserve">
+    <value>no API key; set plugins.{plugin}.{key} or {variable}</value>
+  </data>
+  <data name="CreateIssueAction_Label" xml:space="preserve">
+    <value>Create Linear issue</value>
+  </data>
+  <data name="CreateIssueAction_FindingTeam" xml:space="preserve">
+    <value>Finding team {team}…</value>
+  </data>
+  <data name="CreateIssueAction_FindingLabels" xml:space="preserve">
+    <value>Finding labels {labels}…</value>
+  </data>
+  <data name="CreateIssueAction_Creating" xml:space="preserve">
+    <value>Creating issue…</value>
+  </data>
+  <data name="CreateIssueAction_Created" xml:space="preserve">
+    <value>Created {identifier}</value>
+  </data>
+  <data name="CreateIssueAction_NoApiKey" xml:space="preserve">
+    <value>Set a Linear API key first: azsb config set plugins.{plugin}.{key} &lt;key&gt;, or set {variable}</value>
+  </data>
+  <data name="LinearClient_RejectedKey" xml:space="preserve">
+    <value>Linear rejected the API key; set plugins.{plugin}.{key} or {variable}</value>
+  </data>
+  <data name="LinearClient_NoTeam" xml:space="preserve">
+    <value>Linear has no team with key {key}</value>
+  </data>
+  <data name="LinearClient_NoLabels" xml:space="preserve">
+    <value>Linear has no label {labels} in the team or workspace</value>
+  </data>
+  <data name="LinearClient_NotCreated" xml:space="preserve">
+    <value>Linear did not create the issue</value>
+  </data>
+  <data name="LinearClient_Errors" xml:space="preserve">
+    <value>Linear: {errors}</value>
+  </data>
+  <data name="LinearClient_HttpError" xml:space="preserve">
+    <value>Linear returned HTTP {status} {reason}</value>
+  </data>
+  <data name="LinearClient_NoData" xml:space="preserve">
+    <value>Linear returned no data</value>
+  </data>
+</root>

@@ -21,7 +21,7 @@
         @if (_all.Count == 0 && _loadFailed)
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
-                <Markup Content="Failed to load. Press ^r to retry." Foreground="@Theme.Danger" />
+                <Markup Content="@PageStrings.List_LoadFailed" Foreground="@Theme.Danger" />
             </Padder>
         }
         else if (_all.Count == 0)
@@ -29,7 +29,7 @@
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
                     <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
-                    <Markup Content="Loading queues..." Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+                    <Markup Content="@PageStrings.QueueList_Loading" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
                 </Columns>
             </Padder>
         }
@@ -45,12 +45,12 @@
                     <SpectreTHead>
                         <SpectreTR>
                             <SpectreTH Width="@Gutter.Width" Padding="@Gutter.Header"></SpectreTH>
-                            <SpectreTH Align="Justify.Left" Padding="@Gutter.NextHeader"><Columns><SortHeader Label="Queue" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="Active" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="DLQ" Icon="@Icons.DeadLetter" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="Scheduled" Icon="@Icons.Scheduled" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="Transfer" Icon="@Icons.Transfer" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /></SpectreTH>
-                            @if (_traffic is not null) { <SpectreTH Align="Justify.Left">Incoming · 24 h</SpectreTH> }
+                            <SpectreTH Align="Justify.Left" Padding="@Gutter.NextHeader"><Columns><SortHeader Label="@PageStrings.List_ColumnQueue" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="@Strings.Active" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="@Strings.Dlq" Icon="@Icons.DeadLetter" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="@PageStrings.List_ColumnScheduled" Icon="@Icons.Scheduled" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="@PageStrings.List_ColumnTransfer" Icon="@Icons.Transfer" Sort="_sort" OnSorted="@(() => UpdateFilterState(_filter.Text))" /></SpectreTH>
+                            @if (_traffic is not null) { <SpectreTH Align="Justify.Left">@PageStrings.List_IncomingHeader</SpectreTH> }
                             <SpectreTH></SpectreTH>
                         </SpectreTR>
                     </SpectreTHead>
@@ -81,7 +81,7 @@
     <Footer>
         @if (ShowMetrics && Connection.Current is IHasMetrics { Metrics: var metrics })
         {
-            <MetricsPanel @ref="_metricsPanel" Metrics="@metrics" Label="@($"{Icons.Queue} queue {_focusedItem}")" Scope="@(_focusedItem is { } q ? new MetricsScope.Entity(q) : null)" OnKeyDown="@HandleKeyDown" />
+            <MetricsPanel @ref="_metricsPanel" Metrics="@metrics" Label="@($"{Icons.Queue} {PageStrings.FormatQueueList_MetricsLabel(_focusedItem)}")" Scope="@(_focusedItem is { } q ? new MetricsScope.Entity(q) : null)" OnKeyDown="@HandleKeyDown" />
         }
         <KeyHints Bindings="@Keys" FirstFocusOrder="3" OnKeyDown="@HandleKeyDown" />
     </Footer>
@@ -94,17 +94,17 @@
 @if (Connection.Current is IHasDeletion { Deletion: var deletion })
 {
     <AsyncCommand @ref="_deleteQueue" TItem="string"
-                  ConfirmMessage="@(n => $"Delete queue '{n}'? This cannot be undone.")"
+                  ConfirmMessage="@(n => PageStrings.FormatQueueList_DeleteConfirm(n))"
                   Execute="@(n => deletion.DeleteQueueAsync(n))"
-                  Activity="@(n => $"Deleted queue '{n}'")"
+                  Activity="@(n => PageStrings.FormatQueueList_Deleted(n))"
                   OnCompleted="@(n => { _all.RemoveAll(q => q.Name == n); UpdateFilterState(_filter.Text); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1)); _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex)?.Name; StateHasChanged(); return Task.CompletedTask; })" />
 }
 
 <AsyncCommand @ref="_purgeDlq" TItem="string"
-              ConfirmMessage="@(n => $"Purge ALL messages from DLQ of '{n}'? This cannot be undone.")"
+              ConfirmMessage="@(n => PageStrings.FormatList_PurgeDlqConfirm(n))"
               ConfirmByTyping="true"
               Execute="@(n => Connection.Namespace.Messages.PurgeAsync(new MessageSource.Queue(n, IsDlq: true)).LastOrDefaultAsync().AsTask())"
-              Activity="@(n => $"Purged the dead-letter queue of '{n}'")"
+              Activity="@(n => PageStrings.FormatList_PurgedDlq(n))"
               OnCompleted="@(n => { List.Update(n, q => q with { DeadLetterMessageCount = 0 }); UpdateFilterState(_filter.Text); StateHasChanged(); return Task.CompletedTask; })" />
 
 @code {
@@ -125,12 +125,12 @@
     private NavigableTBody? _tbody;
     private bool _tableAutoFocused;
     private readonly TableSort<QueueInfo> _sort = new TableSort<QueueInfo>(qs => qs.OrderBy(q => q.Name))
-        .Add("Queue", q => q.Name, StringComparer.OrdinalIgnoreCase)
-        .Add("Active", q => q.ActiveMessageCount)
-        .Add("DLQ", q => q.DeadLetterMessageCount)
-        .Add("Scheduled", q => q.ScheduledMessageCount)
-        .Add("Transfer", q => q.TransferMessageCount)
-        .SortBy("DLQ", SortDirection.Descending);
+        .Add(PageStrings.List_ColumnQueue, q => q.Name, StringComparer.OrdinalIgnoreCase)
+        .Add(Strings.Active, q => q.ActiveMessageCount)
+        .Add(Strings.Dlq, q => q.DeadLetterMessageCount)
+        .Add(PageStrings.List_ColumnScheduled, q => q.ScheduledMessageCount)
+        .Add(PageStrings.List_ColumnTransfer, q => q.TransferMessageCount)
+        .SortBy(Strings.Dlq, SortDirection.Descending);
 
     private MetricsPanel? _metricsPanel;
     private bool ShowMetrics => Connection.Current is IHasMetrics && MetricsVisibility.IsVisible(Viewport.Height);
@@ -226,20 +226,20 @@
 
     private IReadOnlyList<KeyBinding> Keys =>
     [
-        new("Enter", $"{Icons.Message} Messages", OpenFocused) { InFooter = false },
-        new("/", $"{Icons.Filter} Filter", () => { _filter.Edit(); StateHasChanged(); }) { InFooter = false },
-        new("r", $"{Icons.Refresh} Refresh", () => _ = LoadQueues()) { Ctrl = true, Aliases = ["F5"] },
+        new("Enter", $"{Icons.Message} {PageStrings.Key_Messages}", OpenFocused) { InFooter = false },
+        new("/", $"{Icons.Filter} {PageStrings.Key_Filter}", () => { _filter.Edit(); StateHasChanged(); }) { InFooter = false },
+        new("r", $"{Icons.Refresh} {PageStrings.Key_Refresh}", () => _ = LoadQueues()) { Ctrl = true, Aliases = ["F5"] },
         .. Connection.Current is IHasDeletion
-            ? [new KeyBinding("D", $"{Icons.Delete} Delete", () => OnFocused(_deleteQueue)) { Danger = true, Aliases = ["F9", "Delete", "\\"] }]
+            ? [new KeyBinding("D", $"{Icons.Delete} {PageStrings.Key_Delete}", () => OnFocused(_deleteQueue)) { Danger = true, Aliases = ["F9", "Delete", "\\"] }]
             : Array.Empty<KeyBinding>(),
-        new("P", $"{Icons.Purge} Purge DLQ", () => OnFocused(_purgeDlq)) { Danger = true, Aliases = ["F11"] },
+        new("P", $"{Icons.Purge} {PageStrings.Key_PurgeDlq}", () => OnFocused(_purgeDlq)) { Danger = true, Aliases = ["F11"] },
         .. Connection.Current is IHasMetrics
-            ? [new KeyBinding("m", $"{Icons.Metrics} Metrics", ToggleMetrics) { Aliases = ["F12"] }]
+            ? [new KeyBinding("m", $"{Icons.Metrics} {PageStrings.Key_Metrics}", ToggleMetrics) { Aliases = ["F12"] }]
             : Array.Empty<KeyBinding>(),
         .. SectionTabs.Bindings(Connection.Current, Section.Queues, Nav),
-        new(":", $"{Icons.Filter} Jump", () => _ = _jump?.OpenAsync()),
-        new("?", $"{Icons.Confirm} Help", () => _help?.Open(Keys)),
-        new("Escape", $"{Icons.Back} Back", () => Nav.NavigateTo("/")),
+        new(":", $"{Icons.Filter} {Strings.Jump}", () => _ = _jump?.OpenAsync()),
+        new("?", $"{Icons.Confirm} {Strings.Help}", () => _help?.Open(Keys)),
+        new("Escape", $"{Icons.Back} {Strings.Back}", () => Nav.NavigateTo("/")),
     ];
 
     private void OpenFocused()

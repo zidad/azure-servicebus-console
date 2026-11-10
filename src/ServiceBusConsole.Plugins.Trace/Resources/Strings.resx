@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="TracePlugin_Name" xml:space="preserve">
+    <value>Trace</value>
+  </data>
+  <data name="TracePlugin_Description" xml:space="preserve">
+    <value>Opens the message's distributed trace in Application Insights or another trace viewer</value>
+  </data>
+  <data name="TracePlugin_AppInsightsSetting" xml:space="preserve">
+    <value>Application Insights resource id, or its name in the namespace's subscription; found with az when it is the only one</value>
+  </data>
+  <data name="TracePlugin_TenantSetting" xml:space="preserve">
+    <value>Azure AD tenant (id or domain) for the portal link, when it is not your default</value>
+  </data>
+  <data name="TracePlugin_UrlSetting" xml:space="preserve">
+    <value>URL template instead of the portal: {placeholders}</value>
+  </data>
+  <data name="TracePlugin_CliSetting" xml:space="preserve">
+    <value>The Azure CLI, to find Application Insights</value>
+  </data>
+  <data name="OpenTraceAction_Label" xml:space="preserve">
+    <value>Open trace</value>
+  </data>
+  <data name="OpenTraceAction_NoTraceContext" xml:space="preserve">
+    <value>Message #{sequenceNumber} has no W3C trace context (traceparent) in its properties</value>
+  </data>
+  <data name="OpenTraceAction_OpeningBrowser" xml:space="preserve">
+    <value>Opening the browser…</value>
+  </data>
+  <data name="OpenTraceAction_Opened" xml:space="preserve">
+    <value>Opened trace {traceId} in {where}</value>
+  </data>
+  <data name="OpenTraceAction_NotAbsoluteUrl" xml:space="preserve">
+    <value>plugins.{plugin}.{key} is not an absolute URL: {url}</value>
+  </data>
+  <data name="OpenTraceAction_AppInsights" xml:space="preserve">
+    <value>Application Insights {name}</value>
+  </data>
+  <data name="OpenTraceAction_AppInsightsLogs" xml:space="preserve">
+    <value>Application Insights {name} logs</value>
+  </data>
+  <data name="OpenTraceAction_FindingTrace" xml:space="preserve">
+    <value>Finding the trace…</value>
+  </data>
+  <data name="OpenTraceAction_NoSetting" xml:space="preserve">
+    <value>Set where traces are: azsb config set plugins.{plugin}.{appInsightsKey} &lt;resource id&gt;, or plugins.{plugin}.{urlKey} &lt;template&gt;</value>
+  </data>
+  <data name="OpenTraceAction_FindingAppInsights" xml:space="preserve">
+    <value>Finding Application Insights…</value>
+  </data>
+  <data name="OpenTraceAction_NoAppInsights" xml:space="preserve">
+    <value>No Application Insights in this subscription; set one: azsb config set plugins.{plugin}.{key} &lt;resource id&gt;</value>
+  </data>
+  <data name="OpenTraceAction_AppInsightsNotFound" xml:space="preserve">
+    <value>Application Insights {name} not found in this subscription; set its resource id instead</value>
+  </data>
+  <data name="OpenTraceAction_ChooseAppInsights" xml:space="preserve">
+    <value>Choose an Application Insights ({names}): azsb config set plugins.{plugin}.{key} &lt;name&gt;</value>
+  </data>
+</root>

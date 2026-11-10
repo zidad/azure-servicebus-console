@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json;
+using ServiceBusConsole.Plugins.Trace.Resources;
 
 namespace ServiceBusConsole.Plugins.Trace;
 
@@ -17,7 +18,7 @@ public sealed class OpenTraceAction : IMessageAction
 
     public string Id => "open";
 
-    public string Label => "Open trace";
+    public string Label => Strings.OpenTraceAction_Label;
 
     public string Icon => "🔍";
 
@@ -26,15 +27,15 @@ public sealed class OpenTraceAction : IMessageAction
     public async Task<ActionResult> RunAsync(MessageActionContext context, CancellationToken ct)
     {
         var trace = TraceContext.Of(context.Message)
-            ?? throw new InvalidOperationException($"Message #{context.Message.SequenceNumber} has no W3C trace context (traceparent) in its properties");
+            ?? throw new InvalidOperationException(Strings.FormatOpenTraceAction_NoTraceContext(context.Message.SequenceNumber));
 
         var (url, where) = context.Settings[Url] is { Length: > 0 } template
             ? Templated(TraceLinks.FromTemplate(template, context, trace))
             : await PortalAsync(context, trace, ct);
 
-        context.Progress.Report("Opening the browser…");
+        context.Progress.Report(Strings.OpenTraceAction_OpeningBrowser);
         await context.Host.OpenAsync(url, ct);
-        return new ActionResult($"Opened trace {trace.TraceId} in {where}", new Uri(url));
+        return new ActionResult(Strings.FormatOpenTraceAction_Opened(trace.TraceId, where), new Uri(url));
     }
 
     public static bool IsResourceId([NotNullWhen(true)] string? value) => value?.StartsWith("/subscriptions/", StringComparison.OrdinalIgnoreCase) == true;
@@ -42,22 +43,22 @@ public sealed class OpenTraceAction : IMessageAction
     private static (string Url, string Where) Templated(string url) =>
         Uri.TryCreate(url, UriKind.Absolute, out var uri)
             ? (url, uri.Host is { Length: > 0 } host ? host : url)
-            : throw new InvalidOperationException($"plugins.{Plugin}.{Url} is not an absolute URL: {url}");
+            : throw new InvalidOperationException(Strings.FormatOpenTraceAction_NotAbsoluteUrl(Plugin, Url, url));
 
     private static async Task<(string Url, string Where)> PortalAsync(MessageActionContext context, TraceContext trace, CancellationToken ct)
     {
         var resourceId = await ResourceIdAsync(context, ct);
         var tenant = context.Settings[Tenant];
-        var where = $"Application Insights {Name(resourceId)}";
+        var name = Name(resourceId);
         return await FirstItemAsync(context, resourceId, trace, ct) is { } item
-            ? (TraceLinks.Transaction(resourceId, tenant, item), where)
-            : (TraceLinks.Logs(resourceId, tenant, trace, context.Message), $"{where} logs");
+            ? (TraceLinks.Transaction(resourceId, tenant, item), Strings.FormatOpenTraceAction_AppInsights(name))
+            : (TraceLinks.Logs(resourceId, tenant, trace, context.Message), Strings.FormatOpenTraceAction_AppInsightsLogs(name));
     }
 
     /// <summary>The record to open the transaction view on; null when az can't query or the trace has none, so the logs open instead.</summary>
     private static async Task<TelemetryItem?> FirstItemAsync(MessageActionContext context, string resourceId, TraceContext trace, CancellationToken ct)
     {
-        context.Progress.Report("Finding the trace…");
+        context.Progress.Report(Strings.OpenTraceAction_FindingTrace);
         var (start, end) = TraceLinks.Window(context.Message);
         try
         {
@@ -106,8 +107,8 @@ public sealed class OpenTraceAction : IMessageAction
 
         var subscription = context.Session.Subscription?.Id
             ?? throw new InvalidOperationException(
-                $"Set where traces are: azsb config set plugins.{Plugin}.{AppInsights} <resource id>, or plugins.{Plugin}.{Url} <template>");
-        context.Progress.Report("Finding Application Insights…");
+                Strings.FormatOpenTraceAction_NoSetting(Plugin, AppInsights, Url));
+        context.Progress.Report(Strings.OpenTraceAction_FindingAppInsights);
         var cli = context.RequiredSetting(Cli);
         var found = (await context.Host.RunProcessAsync(
                 new ProcessSpec(cli, ["resource", "list", "--subscription", subscription, "--resource-type", "microsoft.insights/components", "--query", "[].id", "--output", "tsv"]), ct))
@@ -119,10 +120,10 @@ public sealed class OpenTraceAction : IMessageAction
         {
             [var only] => only,
             [] when string.IsNullOrEmpty(setting) => throw new InvalidOperationException(
-                $"No Application Insights in this subscription; set one: azsb config set plugins.{Plugin}.{AppInsights} <resource id>"),
-            [] => throw new InvalidOperationException($"Application Insights {setting} not found in this subscription; set its resource id instead"),
+                Strings.FormatOpenTraceAction_NoAppInsights(Plugin, AppInsights)),
+            [] => throw new InvalidOperationException(Strings.FormatOpenTraceAction_AppInsightsNotFound(setting)),
             _ => throw new InvalidOperationException(
-                $"Choose an Application Insights ({string.Join(", ", found.Select(Name))}): azsb config set plugins.{Plugin}.{AppInsights} <name>"),
+                Strings.FormatOpenTraceAction_ChooseAppInsights(string.Join(", ", found.Select(Name)), Plugin, AppInsights)),
         };
     }
 

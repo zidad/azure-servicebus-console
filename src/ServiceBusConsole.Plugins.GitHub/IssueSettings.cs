@@ -1,3 +1,5 @@
+using ServiceBusConsole.Plugins.GitHub.Resources;
+
 namespace ServiceBusConsole.Plugins.GitHub;
 
 /// <summary>The plugin's settings for one run, read from <see cref="MessageActionContext.Settings"/>.</summary>
@@ -31,7 +33,7 @@ internal sealed record IssueSettings
         {
             null => true,
             var text when bool.TryParse(text, out var include) => include,
-            var text => throw new InvalidOperationException($"plugins.{context.PluginId}.{IncludeContextKey} is '{text}': set it to true or false."),
+            var text => throw new InvalidOperationException(Strings.FormatIssueSettings_NotBoolean(context.PluginId, IncludeContextKey, text)),
         },
     };
 
@@ -40,7 +42,7 @@ internal sealed record IssueSettings
         var repo = context.RequiredSetting(RepoKey).Trim();
         return repo.Split('/') is [{ Length: > 0 }, _, ..] parts && parts.All(part => part.Length > 0)
             ? repo
-            : throw new InvalidOperationException($"plugins.{context.PluginId}.{RepoKey} is '{repo}': set it to owner/name.");
+            : throw new InvalidOperationException(Strings.FormatIssueSettings_NotRepository(context.PluginId, RepoKey, repo));
     }
 
     private static string? Value(MessageActionContext context, string key) =>

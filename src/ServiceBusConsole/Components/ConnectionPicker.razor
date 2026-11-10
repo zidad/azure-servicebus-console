@@ -7,7 +7,7 @@
 @if (_open)
 {
     <div class="connection-picker" position="absolute" left="@_left" top="@_top" data-opaque="true" z-index="100">
-        <Panel Border="BoxBorder.Rounded" Title="@(string.IsNullOrEmpty(_filter) ? "Go to" : $"Go to {Icons.Filter} {_filter}")" BorderColor="@Theme.Accent" Padding="@(new(0, 0, 0, 0))">
+        <Panel Border="BoxBorder.Rounded" Title="@(string.IsNullOrEmpty(_filter) ? ComponentStrings.ConnectionPicker_Title : ComponentStrings.FormatConnectionPicker_TitleFiltered(Icons.Filter, _filter))" BorderColor="@Theme.Accent" Padding="@(new(0, 0, 0, 0))">
             <ConnectionTree Compact="true"
                             MaxRows="@Math.Max(3, Viewport.Height - _top - 3)"
                             SelectKey="@_selectKey"

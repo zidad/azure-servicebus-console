@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="List_LoadFailed" xml:space="preserve">
+    <value>Failed to load. Press ^r to retry.</value>
+  </data>
+  <data name="List_IncomingHeader" xml:space="preserve">
+    <value>Incoming · 24 h</value>
+  </data>
+  <data name="List_ColumnQueue" xml:space="preserve">
+    <value>Queue</value>
+  </data>
+  <data name="List_ColumnTopic" xml:space="preserve">
+    <value>Topic</value>
+  </data>
+  <data name="List_ColumnSubscription" xml:space="preserve">
+    <value>Subscription</value>
+  </data>
+  <data name="List_ColumnScheduled" xml:space="preserve">
+    <value>Scheduled</value>
+  </data>
+  <data name="List_ColumnTransfer" xml:space="preserve">
+    <value>Transfer</value>
+  </data>
+  <data name="List_LoadingSubscriptions" xml:space="preserve">
+    <value>Loading subscriptions...</value>
+  </data>
+  <data name="List_MetricsTopic" xml:space="preserve">
+    <value>topic {topic}</value>
+  </data>
+  <data name="List_NoTopics" xml:space="preserve">
+    <value>This namespace has no topics.</value>
+  </data>
+  <data name="List_DeleteSubscriptionConfirm" xml:space="preserve">
+    <value>Delete subscription '{subscription}' from topic '{topic}'? This cannot be undone.</value>
+  </data>
+  <data name="List_DeletedSubscription" xml:space="preserve">
+    <value>Deleted subscription '{subscription}' of topic '{topic}'</value>
+  </data>
+  <data name="List_PurgeDlqConfirm" xml:space="preserve">
+    <value>Purge ALL messages from DLQ of '{entity}'? This cannot be undone.</value>
+  </data>
+  <data name="List_PurgedDlq" xml:space="preserve">
+    <value>Purged the dead-letter queue of '{entity}'</value>
+  </data>
+  <data name="Key_Messages" xml:space="preserve">
+    <value>Messages</value>
+  </data>
+  <data name="Key_Filter" xml:space="preserve">
+    <value>Filter</value>
+  </data>
+  <data name="Key_Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="Key_Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Key_PurgeDlq" xml:space="preserve">
+    <value>Purge DLQ</value>
+  </data>
+  <data name="Key_Metrics" xml:space="preserve">
+    <value>Metrics</value>
+  </data>
+  <data name="QueueList_Loading" xml:space="preserve">
+    <value>Loading queues...</value>
+  </data>
+  <data name="QueueList_MetricsLabel" xml:space="preserve">
+    <value>queue {queue}</value>
+  </data>
+  <data name="QueueList_DeleteConfirm" xml:space="preserve">
+    <value>Delete queue '{queue}'? This cannot be undone.</value>
+  </data>
+  <data name="QueueList_Deleted" xml:space="preserve">
+    <value>Deleted queue '{queue}'</value>
+  </data>
+  <data name="TopicList_Loading" xml:space="preserve">
+    <value>Loading topics...</value>
+  </data>
+  <data name="TopicList_DeleteConfirm" xml:space="preserve">
+    <value>Delete topic '{topic}' and all its subscriptions? This cannot be undone.</value>
+  </data>
+  <data name="TopicList_Deleted" xml:space="preserve">
+    <value>Deleted topic '{topic}' and its subscriptions</value>
+  </data>
+  <data name="Connection_Title" xml:space="preserve">
+    <value>Connect</value>
+  </data>
+  <data name="Connection_ListSubscriptionsFailed" xml:space="preserve">
+    <value>Could not list Azure subscriptions (az login?): {error}</value>
+  </data>
+  <data name="Connection_ListingSubscriptions" xml:space="preserve">
+    <value>Listing Azure subscriptions...</value>
+  </data>
+  <data name="Connection_CacheDirectory" xml:space="preserve">
+    <value>Cache: {directory}</value>
+  </data>
+  <data name="Connection_ClearCache" xml:space="preserve">
+    <value>Clear cache</value>
+  </data>
+  <data name="Connection_MetricsLabel" xml:space="preserve">
+    <value>namespace {namespaceName}</value>
+  </data>
+  <data name="Connection_MetricsUnavailable" xml:space="preserve">
+    <value>Azure Monitor metrics aren't available for {namespaceName}.</value>
+  </data>
+  <data name="Connection_MetricsChooseNamespace" xml:space="preserve">
+    <value>Choose a namespace to chart its Azure Monitor metrics.</value>
+  </data>
+  <data name="Connection_SubscriptionNotFound" xml:space="preserve">
+    <value>Azure subscription "{subscription}" not found.</value>
+  </data>
+  <data name="Connection_NamespaceNotFound" xml:space="preserve">
+    <value>Namespace "{namespaceName}" not found in {subscription}.</value>
+  </data>
+  <data name="Connection_OpenNotFound" xml:space="preserve">
+    <value>Nothing named "{path}" in {namespaceName}.</value>
+  </data>
+  <data name="Connection_OpenListFailed" xml:space="preserve">
+    <value>Could not list {namespaceName}: {error}</value>
+  </data>
+  <data name="Connection_CacheEmpty" xml:space="preserve">
+    <value>✓ Cache already empty</value>
+  </data>
+  <data name="Connection_CacheClearedOne" xml:space="preserve">
+    <value>✓ Cache cleared ({count} file)</value>
+  </data>
+  <data name="Connection_CacheClearedMany" xml:space="preserve">
+    <value>✓ Cache cleared ({count} files)</value>
+  </data>
+  <data name="Connection_ClearFailed" xml:space="preserve">
+    <value>Clear failed: {error}</value>
+  </data>
+  <data name="MessageDetail_NoMessage" xml:space="preserve">
+    <value>No message selected.</value>
+  </data>
+  <data name="MessageDetail_Title" xml:space="preserve">
+    <value>Message #{sequenceNumber}</value>
+  </data>
+  <data name="MessageDetail_NoApplicationProperties" xml:space="preserve">
+    <value>No application properties.</value>
+  </data>
+  <data name="MessageDetail_CompleteConfirm" xml:space="preserve">
+    <value>Complete message #{sequenceNumber}? It is removed from {source}.</value>
+  </data>
+  <data name="MessageDetail_DeadLetterConfirm" xml:space="preserve">
+    <value>Move message #{sequenceNumber} to the dead-letter queue?</value>
+  </data>
+  <data name="MessageDetail_ResendConfirm" xml:space="preserve">
+    <value>Send a copy of message #{sequenceNumber} to {target}? The original stays.</value>
+  </data>
+  <data name="MessageDetail_TabBody" xml:space="preserve">
+    <value>Body</value>
+  </data>
+  <data name="MessageDetail_TabProperties" xml:space="preserve">
+    <value>Properties</value>
+  </data>
+  <data name="MessageDetail_TabApplication" xml:space="preserve">
+    <value>Application</value>
+  </data>
+  <data name="MessageDetail_TabApplicationCount" xml:space="preserve">
+    <value>Application {count}</value>
+  </data>
+  <data name="MessageDetail_TabRaw" xml:space="preserve">
+    <value>Raw</value>
+  </data>
+  <data name="MessageDetail_PropertyContentType" xml:space="preserve">
+    <value>Content type</value>
+  </data>
+  <data name="MessageDetail_PropertyDeliveryCount" xml:space="preserve">
+    <value>Delivery count</value>
+  </data>
+  <data name="MessageDetail_PropertyDeadLetterReason" xml:space="preserve">
+    <value>Dead-letter reason</value>
+  </data>
+  <data name="MessageDetail_PropertyDeadLetterDescription" xml:space="preserve">
+    <value>Dead-letter description</value>
+  </data>
+  <data name="MessageDetail_Position" xml:space="preserve">
+    <value>[ {position} of {count} ]</value>
+  </data>
+  <data name="MessageDetail_Copied" xml:space="preserve">
+    <value>Copied the body of #{sequenceNumber} ({size} B) to the clipboard</value>
+  </data>
+  <data name="MessageDetail_CopiedActivity" xml:space="preserve">
+    <value>Copied the body of #{sequenceNumber}</value>
+  </data>
+  <data name="MessageDetail_NoLongerLoaded" xml:space="preserve">
+    <value>This message is no longer loaded.</value>
+  </data>
+  <data name="MessageDetail_KeyPrevious" xml:space="preserve">
+    <value>◀ Previous</value>
+  </data>
+  <data name="MessageDetail_KeyNext" xml:space="preserve">
+    <value>Next ▶</value>
+  </data>
+  <data name="MessageDetail_KeyCopy" xml:space="preserve">
+    <value>Copy</value>
+  </data>
+</root>

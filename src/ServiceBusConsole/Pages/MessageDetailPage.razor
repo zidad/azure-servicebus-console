@@ -13,7 +13,7 @@
 
 @if (NavState.Message is null)
 {
-    <Markup Content="No message selected." Foreground="@Theme.Danger" />
+    <Markup Content="@PageStrings.MessageDetail_NoMessage" Foreground="@Theme.Danger" />
 }
 else
 {
@@ -23,7 +23,7 @@ else
         <ConnectionHeader Status="@Position">
             <Markup Content="@SourceLabel" Foreground="@Theme.Muted" />
             <Markup Content=" › " Foreground="@Theme.Muted" />
-            <Markup Content="@($"{Icons.Message} Message #{msg.SequenceNumber}")" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
+            <Markup Content="@($"{Icons.Message} {PageStrings.FormatMessageDetail_Title(msg.SequenceNumber)}")" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
         </ConnectionHeader>
 
         <Flex Justify="FlexJustify.SpaceBetween" FillWidth="true">
@@ -60,7 +60,7 @@ else
                         @Table(SystemProperties(msg))
                         break;
                     case 2:
-                        @if (msg.Properties.Count == 0) { <Markup Content="No application properties." Foreground="@Theme.Muted" /> }
+                        @if (msg.Properties.Count == 0) { <Markup Content="@PageStrings.MessageDetail_NoApplicationProperties" Foreground="@Theme.Muted" /> }
                         else { @Table(msg.Properties.Select(p => (p.Key, p.Value))) }
                         break;
                     default:
@@ -84,14 +84,14 @@ else
 <HelpDialog @ref="_help" OnClose="StateHasChanged" />
 
 <AsyncCommand @ref="_complete" TItem="MessageInfo"
-              ConfirmMessage="@(m => $"Complete message #{m.SequenceNumber}? It is removed from {NavState.MessageSource?.DisplayName}.")"
+              ConfirmMessage="@(m => PageStrings.FormatMessageDetail_CompleteConfirm(m.SequenceNumber, NavState.MessageSource?.DisplayName))"
               Execute="@(m => Act(m, (b, l) => b.CompleteAsync(l)))" />
 
 <AsyncCommand @ref="_abandon" TItem="MessageInfo"
               Execute="@(m => Act(m, (b, l) => b.AbandonAsync(l)))" />
 
 <AsyncCommand @ref="_deadLetter" TItem="MessageInfo"
-              ConfirmMessage="@(m => $"Move message #{m.SequenceNumber} to the dead-letter queue?")"
+              ConfirmMessage="@(m => PageStrings.FormatMessageDetail_DeadLetterConfirm(m.SequenceNumber))"
               Execute="@(m => Act(m, (b, l) => b.DeadLetterAsync(l)))" />
 
 <AsyncCommand @ref="_retry" TItem="MessageInfo"
@@ -99,7 +99,7 @@ else
               Execute="@(m => Act(m, (b, l) => b.RetryAsync(l)))" />
 
 <AsyncCommand @ref="_resend" TItem="MessageInfo"
-              ConfirmMessage="@(m => $"Send a copy of message #{m.SequenceNumber} to {NavState.MessageSource?.SendTarget}? The original stays.")"
+              ConfirmMessage="@(m => PageStrings.FormatMessageDetail_ResendConfirm(m.SequenceNumber, NavState.MessageSource?.SendTarget))"
               Execute="@(m => Act(m, (b, l) => b.ResendAsync(l)))" />
 
 @code {
@@ -116,7 +116,7 @@ else
     private bool CanRetry => _browser is not null && Mode is { } mode && RetryText.CanRetry(mode, IsDlq);
 
     private string RetryConfirm(MessageInfo message) => Mode is { } mode && NavState.MessageSource is { } source
-        ? RetryText.Confirm(mode, source, $"message #{message.SequenceNumber}", _browser?.Namespace is IHasTransactions)
+        ? RetryText.Confirm(mode, source, Strings.FormatOneMessage(message.SequenceNumber), _browser?.Namespace is IHasTransactions)
         : "";
 
     protected override void OnInitialized()
@@ -141,10 +141,17 @@ else
         Math.Max(5, Viewport.Height - 5 - (m.DeadLetterReason is null ? 0 : 1) - (_copied is null ? 0 : 1));
 
     private static IReadOnlyList<string> Tabs(MessageInfo m) =>
-        [$"{Icons.Body} Body", $"{Icons.Properties} Properties", m.Properties.Count > 0 ? $"Application {m.Properties.Count}" : "Application", "Raw"];
+        [
+            $"{Icons.Body} {PageStrings.MessageDetail_TabBody}",
+            $"{Icons.Properties} {PageStrings.MessageDetail_TabProperties}",
+            m.Properties.Count > 0 ? PageStrings.FormatMessageDetail_TabApplicationCount(m.Properties.Count) : PageStrings.MessageDetail_TabApplication,
+            PageStrings.MessageDetail_TabRaw,
+        ];
+
+    private static string BodySize(MessageInfo m) => Strings.FormatBytes(m.Body.Length.ToString("N0"));
 
     private static string BodySummary(MessageInfo m) =>
-        string.Join(" · ", new[] { m.ContentType, $"{m.Body.Length:N0} B" }.Where(p => p.Length > 0));
+        string.Join(" · ", new[] { m.ContentType, BodySize(m) }.Where(p => p.Length > 0));
 
     private static RenderFragment Table(IEnumerable<(string Name, string Value)> rows) =>
         @<SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.None">
@@ -161,20 +168,20 @@ else
 
     private static IEnumerable<(string, string)> SystemProperties(MessageInfo m) =>
     [
-        ("Message ID", m.MessageId),
-        ("Sequence #", m.SequenceNumber.ToString()),
-        ("Subject", m.Subject),
-        ("Content type", m.ContentType),
-        ("Enqueued", RelativeTime.Full(m.EnqueuedTime, DateTimeOffset.UtcNow)),
-        ("Delivery count", m.DeliveryCount.ToString()),
-        ("State", m.State.ToString()),
-        .. m.DeadLetterReason is { } reason ? [("Dead-letter reason", reason)] : Array.Empty<(string, string)>(),
-        .. m.DeadLetterErrorDescription is { } description ? [("Dead-letter description", description)] : Array.Empty<(string, string)>(),
+        (Strings.MessageId, m.MessageId),
+        (Strings.SequenceNumber, m.SequenceNumber.ToString()),
+        (Strings.Subject, m.Subject),
+        (PageStrings.MessageDetail_PropertyContentType, m.ContentType),
+        (Strings.Enqueued, RelativeTime.Full(m.EnqueuedTime, DateTimeOffset.UtcNow)),
+        (PageStrings.MessageDetail_PropertyDeliveryCount, m.DeliveryCount.ToString()),
+        (Strings.State, m.State.ToString()),
+        .. m.DeadLetterReason is { } reason ? [(PageStrings.MessageDetail_PropertyDeadLetterReason, reason)] : Array.Empty<(string, string)>(),
+        .. m.DeadLetterErrorDescription is { } description ? [(PageStrings.MessageDetail_PropertyDeadLetterDescription, description)] : Array.Empty<(string, string)>(),
     ];
 
     /// <summary>Where the message is in the browser's list: "2 of 3"; nothing without the list.</summary>
     private RenderFragment? Position => IndexInList is { } i && _browser is { } b
-        ? @<Markup Content="@($"[ {i + 1} of {b.Messages.Count} ]")" Foreground="@Theme.Muted" />
+        ? @<Markup Content="@(PageStrings.FormatMessageDetail_Position(i + 1, b.Messages.Count))" Foreground="@Theme.Muted" />
         : null;
 
     private int? IndexInList => _browser is { } b && NavState.Message is { } m
@@ -203,8 +210,8 @@ else
     {
         if (NavState.Message is not { } m) return;
         Clipboard.Copy(m.BodyText);
-        _copied = $"{Icons.Done} Copied the body of #{m.SequenceNumber} ({m.Body.Length:N0} B) to the clipboard";
-        Activity.Record(ActivityKind.Operation, $"Copied the body of #{m.SequenceNumber}", NavState.MessageSource);
+        _copied = $"{Icons.Done} {PageStrings.FormatMessageDetail_Copied(m.SequenceNumber, m.Body.Length.ToString("N0"))}";
+        Activity.Record(ActivityKind.Operation, PageStrings.FormatMessageDetail_CopiedActivity(m.SequenceNumber), NavState.MessageSource);
         StateHasChanged();
     }
 
@@ -217,7 +224,7 @@ else
     private Task Act(MessageInfo message, Func<MessageBrowser, IReadOnlyList<MessageInfo>, Task> action) =>
         _browser is { } b
             ? action(b, [message])
-            : throw new InvalidOperationException("This message is no longer loaded.");
+            : throw new InvalidOperationException(PageStrings.MessageDetail_NoLongerLoaded);
 
     private void OpenActions()
     {
@@ -259,25 +266,25 @@ else
     private IReadOnlyList<KeyBinding> Keys =>
     [
         .. Mode == BrowseMode.Locked
-            ? [new KeyBinding("c", $"{Icons.Complete} Complete", () => Run(_complete)) { Danger = true, Aliases = ["F9", "Delete"] },
-               new KeyBinding("a", $"{Icons.Unlocked} Abandon", () => Run(_abandon)) { Aliases = ["F4"] },
+            ? [new KeyBinding("c", $"{Icons.Complete} {Strings.Complete}", () => Run(_complete)) { Danger = true, Aliases = ["F9", "Delete"] },
+               new KeyBinding("a", $"{Icons.Unlocked} {Strings.Abandon}", () => Run(_abandon)) { Aliases = ["F4"] },
                .. IsDlq ? Array.Empty<KeyBinding>()
-                   : [new KeyBinding("X", $"{Icons.DeadLetter} Dead-letter", () => Run(_deadLetter)) { Danger = true, Aliases = ["F3"] }]]
+                   : [new KeyBinding("X", $"{Icons.DeadLetter} {Strings.DeadLetter}", () => Run(_deadLetter)) { Danger = true, Aliases = ["F3"] }]]
             : Array.Empty<KeyBinding>(),
         .. CanRetry
             ? [new KeyBinding("R", $"{Icons.Retry} {RetryText.Label(IsDlq)}", () => Run(_retry)) { Danger = true, Aliases = ["F10"] }]
             : Mode == BrowseMode.Peek && _browser is not null
-                ? [new KeyBinding("R", $"{Icons.Send} Resend", () => Run(_resend)) { Danger = true, Aliases = ["F10"] }]
+                ? [new KeyBinding("R", $"{Icons.Send} {Strings.Resend}", () => Run(_resend)) { Danger = true, Aliases = ["F10"] }]
                 : Array.Empty<KeyBinding>(),
         .. NavState.Message is { } msg && NavState.MessageSource is { } source && PluginActions.Any(msg, source, Session.Snapshot)
-            ? [new KeyBinding(".", $"{Icons.Actions} Actions…", OpenActions) { Aliases = ["F2"] }]
+            ? [new KeyBinding(".", $"{Icons.Actions} {Strings.Actions}", OpenActions) { Aliases = ["F2"] }]
             : Array.Empty<KeyBinding>(),
-        new("[", "◀ Previous", () => Step(-1)) { InFooter = _browser is { Messages.Count: > 1 } },
-        new("]", "Next ▶", () => Step(1)) { InFooter = _browser is { Messages.Count: > 1 } },
-        new("y", $"{Icons.Body} Copy", CopyBody),
+        new("[", PageStrings.MessageDetail_KeyPrevious, () => Step(-1)) { InFooter = _browser is { Messages.Count: > 1 } },
+        new("]", PageStrings.MessageDetail_KeyNext, () => Step(1)) { InFooter = _browser is { Messages.Count: > 1 } },
+        new("y", $"{Icons.Body} {PageStrings.MessageDetail_KeyCopy}", CopyBody),
         .. Tabs(NavState.Message ?? EmptyMessage).Select((t, i) => new KeyBinding($"{i + 1}", t, () => ShowTab(i)) { InFooter = false }),
-        new("?", $"{Icons.Confirm} Help", () => _help?.Open(Keys)),
-        new("Escape", $"{Icons.Back} Back", GoBack),
+        new("?", $"{Icons.Confirm} {Strings.Help}", () => _help?.Open(Keys)),
+        new("Escape", $"{Icons.Back} {Strings.Back}", GoBack),
     ];
 
     private static readonly MessageInfo EmptyMessage = new() { SequenceNumber = 0, State = MessageState.Peeked };

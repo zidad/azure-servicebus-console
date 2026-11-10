@@ -38,7 +38,9 @@ public sealed class MetricsRange(FileCache cache)
 
     /// <summary>"last 24 h", "last 7 d", padded to one width so the buttons around it stay put.</summary>
     public static string Label(TimeSpan span) =>
-        (span <= TimeSpan.FromDays(1) ? $"last {span.TotalHours:0} h" : $"last {span.TotalDays:0} d").PadLeft(9);
+        (span <= TimeSpan.FromDays(1)
+            ? UIStrings.FormatMetricsRange_LastHours(span.TotalHours.ToString("0"))
+            : UIStrings.FormatMetricsRange_LastDays(span.TotalDays.ToString("0"))).PadLeft(9);
 
     /// <summary>Reads the remembered span; call once at startup.</summary>
     public async Task LoadAsync()

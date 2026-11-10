@@ -9,7 +9,7 @@ public readonly record struct TimeAxis(TimeSpan Unit, string Suffix)
         : new(TimeSpan.FromDays(1), "d");
 
     /// <summary>"-60m" … "now".</summary>
-    public string Format => $"0'{Suffix}';-0'{Suffix}';'now'";
+    public string Format => $"0'{Suffix}';-0'{Suffix}';'{UIStrings.RelativeTime_Now}'";
 
     public double Value(DateTimeOffset time, DateTimeOffset end) => (time - end) / Unit;
 }

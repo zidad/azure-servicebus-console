@@ -5,8 +5,8 @@ public readonly record struct PluginStatus(bool Enabled, string? Missing)
 {
     public override string ToString() => (Enabled, Missing) switch
     {
-        (true, _) => "enabled",
-        (false, { } missing) => $"disabled ({missing})",
-        _ => "disabled",
+        (true, _) => PluginHostStrings.PluginStatus_Enabled,
+        (false, { } missing) => PluginHostStrings.FormatPluginStatus_DisabledBecause(missing),
+        _ => PluginHostStrings.PluginStatus_Disabled,
     };
 }

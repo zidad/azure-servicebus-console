@@ -5,18 +5,18 @@
 @inject NavigationState NavState
 
 <ModalWindow IsOpened="@IsOpened">
-    <Panel Title="@($"{Icons.Filter} Jump to")" BorderColor="@Theme.Accent" Border="BoxBorder.Rounded" Width="@Width" Padding="@(new(1, 0, 1, 0))">
+    <Panel Title="@($"{Icons.Filter} {ComponentStrings.JumpDialog_Title}")" BorderColor="@Theme.Accent" Border="BoxBorder.Rounded" Width="@Width" Padding="@(new(1, 0, 1, 0))">
         <Rows>
             @* No Value binding: a render that lags behind typing would overwrite it. A new input each time it opens starts empty. *@
             <TextInput @ref="_input" @key="_opened" OnInput="@OnQuery" OnSubmit="@(_ => Open())"
-                       Placeholder="queue, topic or subscription" FocusOrder="100" @onkeydown="HandleKey" FillWidth="true" />
+                       Placeholder="@ComponentStrings.JumpDialog_Placeholder" FocusOrder="100" @onkeydown="HandleKey" FillWidth="true" />
             @if (_loading)
             {
-                <Markup Content="Listing…" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+                <Markup Content="@ComponentStrings.JumpDialog_Listing" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
             }
             else if (_results.Count == 0)
             {
-                <Markup Content="Nothing matches." Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+                <Markup Content="@ComponentStrings.JumpDialog_NoMatches" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
             }
             @foreach (var (target, index) in _results.Select((t, i) => (t, i)))
             {
@@ -26,7 +26,7 @@
                 </div>
             }
             <Padder Padding="@(new(0, 1, 0, 0))">
-                <Markup Content="⏎ open · ↑↓ move · esc close" Foreground="@Theme.Muted" />
+                <Markup Content="@ComponentStrings.JumpDialog_Hints" Foreground="@Theme.Muted" />
             </Padder>
         </Rows>
     </Panel>

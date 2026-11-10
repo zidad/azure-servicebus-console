@@ -1,34 +1,34 @@
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 
 <ModalWindow IsOpened="@IsOpened">
-    <Panel Border="BoxBorder.Rounded" Title="@(IsReceive ? $"{Icons.Subscription} Receive messages" : $"{Icons.Peek} Peek messages")" BorderColor="@(IsReceive && _deleteOnReceive ? Theme.Danger : Theme.Accent)" Padding="@(new(2, 1, 2, 1))">
+    <Panel Border="BoxBorder.Rounded" Title="@(IsReceive ? $"{Icons.Subscription} {ComponentStrings.FetchDialog_ReceiveTitle}" : $"{Icons.Peek} {ComponentStrings.FetchDialog_PeekTitle}")" BorderColor="@(IsReceive && _deleteOnReceive ? Theme.Danger : Theme.Accent)" Padding="@(new(2, 1, 2, 1))">
         @* Keys reach only the focused element, so each one handles Escape. *@
         <Flex Class="rows" Direction="FlexDirection.Column">
-            <TextInput @ref="_countInput" FillWidth="true" Label="Number of messages" Value="@_count" ValueChanged="@(v => _count = v ?? "")"
+            <TextInput @ref="_countInput" FillWidth="true" Label="@ComponentStrings.FetchDialog_Count" Value="@_count" ValueChanged="@(v => _count = v ?? "")"
                        OnSubmit="@(_ => Submit())" FocusOrder="100" @onkeydown="HandleKey" />
             @if (IsReceive)
             {
                 <Padder Padding="@(new(0, 1, 0, 0))">
                     <Columns>
-                        <Markup Content="Receive mode: " />
-                        <KeyButton Content="@(_deleteOnReceive ? "ReceiveAndDelete" : "PeekLock")"
+                        <Markup Content="@ComponentStrings.FetchDialog_ReceiveMode" />
+                        <KeyButton Content="@(_deleteOnReceive ? ComponentStrings.FetchDialog_ReceiveAndDelete : Strings.PeekLock)"
                                     OnClick="@(() => _deleteOnReceive = !_deleteOnReceive)"
                                     FocusedColor="@(_deleteOnReceive ? Theme.Danger : Theme.Success)" FocusOrder="101" OnKeyDown="HandleKey" />
-                        <Markup Content="  (Enter/click to switch)" Foreground="@Theme.Muted" />
+                        <Markup Content="@ComponentStrings.FetchDialog_SwitchHint" Foreground="@Theme.Muted" />
                     </Columns>
                 </Padder>
                 @if (_deleteOnReceive)
                 {
-                    <Markup Content="Messages are deleted from the entity as they are received. Requeue them before you leave, or they are gone." Foreground="@Theme.Danger" />
+                    <Markup Content="@ComponentStrings.FetchDialog_DeleteWarning" Foreground="@Theme.Danger" />
                 }
                 else
                 {
-                    <Markup Content="Messages stay locked (renewed automatically) until you complete, abandon, dead-letter or requeue them." Foreground="@Theme.Muted" />
+                    <Markup Content="@ComponentStrings.FetchDialog_LockNote" Foreground="@Theme.Muted" />
                 }
             }
             else
             {
-                <TextInput FillWidth="true" Label="From sequence # (optional)" Value="@_from" ValueChanged="@(v => _from = v ?? "")"
+                <TextInput FillWidth="true" Label="@ComponentStrings.FetchDialog_FromSequence" Value="@_from" ValueChanged="@(v => _from = v ?? "")"
                            OnSubmit="@(_ => Submit())" FocusOrder="101" @onkeydown="HandleKey" />
             }
             @if (_error.Length > 0)
@@ -37,9 +37,9 @@
             }
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
-                    <KeyButton Key="⏎" Content="OK" OnClick="Submit" FocusedColor="@Theme.Success" FocusOrder="102" OnKeyDown="HandleKey" />
+                    <KeyButton Key="⏎" Content="@ComponentStrings.Dialog_Ok" OnClick="Submit" FocusedColor="@Theme.Success" FocusOrder="102" OnKeyDown="HandleKey" />
                     <Markup Content="   " />
-                    <KeyButton Key="esc" Content="Cancel" OnClick="Cancel" FocusedColor="@Theme.Muted" FocusOrder="103" OnKeyDown="HandleKey" />
+                    <KeyButton Key="esc" Content="@ComponentStrings.Dialog_Cancel" OnClick="Cancel" FocusedColor="@Theme.Muted" FocusOrder="103" OnKeyDown="HandleKey" />
                 </Columns>
             </Padder>
         </Flex>
@@ -94,7 +94,7 @@
         if (!IsOpened) return;
         if (!int.TryParse(_count.Trim(), out var count) || count < 1 || count > MaxCount)
         {
-            _error = $"Enter a number between 1 and {MaxCount}.";
+            _error = ComponentStrings.FormatFetchDialog_CountInvalid(MaxCount);
             return;
         }
         long? from = null;
@@ -102,7 +102,7 @@
         {
             if (!long.TryParse(_from.Trim(), out var seq) || seq < 0)
             {
-                _error = "Sequence number must be a positive number.";
+                _error = ComponentStrings.FetchDialog_SequenceInvalid;
                 return;
             }
             from = seq;

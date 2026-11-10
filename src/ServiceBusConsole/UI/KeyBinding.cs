@@ -25,8 +25,8 @@ public sealed record KeyBinding(string Key, string Label, Action Run)
     public string Display => Ctrl ? $"^{Key}" : Key switch
     {
         "Enter" => "⏎",
-        "Escape" => "esc",
-        " " => "space",
+        "Escape" => UIStrings.KeyBinding_Escape,
+        " " => UIStrings.KeyBinding_Space,
         _ => Key,
     };
 

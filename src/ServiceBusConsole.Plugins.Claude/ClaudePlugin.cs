@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using ServiceBusConsole.Plugins.Claude.Resources;
 
 namespace ServiceBusConsole.Plugins.Claude;
 
@@ -8,18 +9,18 @@ public sealed class ClaudePlugin : IPlugin
 {
     public string Id => "claude";
 
-    public string Name => "Claude Code";
+    public string Name => Strings.ClaudePlugin_Name;
 
-    public string Description => "Opens Claude Code in a new terminal window in your codebase to analyse a message (uses your Claude Code login)";
+    public string Description => Strings.ClaudePlugin_Description;
 
     public IReadOnlyList<PluginSetting> Settings { get; } =
     [
-        new(ClaudeSettings.CommandKey, "Claude Code executable", "claude"),
-        new(ClaudeSettings.WorkingDirectoryKey, "Codebase Claude Code runs in (unset: the directory azsb was started in)"),
-        new(ClaudeSettings.AllowedToolsKey, "Tools Claude Code may use without asking, comma separated (empty: it asks for each)", "Read,Grep,Glob"),
-        new(ClaudeSettings.ModelKey, "Model, e.g. sonnet or opus (unset: Claude Code's)"),
-        new(ClaudeSettings.PromptKey, "First message; placeholders {message} and {context} (Markdown), {messageFile}, {contextFile}, {entity}, {subject}, {sequenceNumber}, ..."),
-        new(ClaudeSettings.TerminalKey, "Command that opens a window running {script} in {dir} (unset: tmux window in tmux, else Terminal on macOS, Windows Terminal or cmd, x-terminal-emulator)"),
+        new(ClaudeSettings.CommandKey, Strings.ClaudePlugin_CommandSetting, "claude"),
+        new(ClaudeSettings.WorkingDirectoryKey, Strings.ClaudePlugin_WorkingDirectorySetting),
+        new(ClaudeSettings.AllowedToolsKey, Strings.ClaudePlugin_AllowedToolsSetting, "Read,Grep,Glob"),
+        new(ClaudeSettings.ModelKey, Strings.ClaudePlugin_ModelSetting),
+        new(ClaudeSettings.PromptKey, Strings.ClaudePlugin_PromptSetting),
+        new(ClaudeSettings.TerminalKey, Strings.ClaudePlugin_TerminalSetting),
     ];
 
     public void ConfigureServices(IServiceCollection services) =>

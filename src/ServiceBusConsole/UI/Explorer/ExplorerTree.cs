@@ -138,7 +138,7 @@ public sealed class ExplorerTree(
             if (node is Subscription)
             {
                 _listing.Add(node.Key);
-                _notes[node.Key] = ("Discovering namespaces…", false);
+                _notes[node.Key] = (UIStrings.ExplorerTree_Discovering, false);
             }
         }
         // Off the renderer's context, like the catalog's loading.
@@ -161,7 +161,7 @@ public sealed class ExplorerTree(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Listing namespaces of {Subscription} failed", node.Name);
-            lock (_sync) _notes[node.Key] = ($"{ErrorText.Of(ex)}  (Enter to retry)", true);
+            lock (_sync) _notes[node.Key] = (UIStrings.FormatExplorerTree_Failed(ErrorText.Of(ex)), true);
         }
         finally
         {

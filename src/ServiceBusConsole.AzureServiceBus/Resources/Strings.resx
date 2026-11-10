@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="MetricsService_NoResourceId" xml:space="preserve">
+    <value>Resource ID of the namespace unknown; reopen it from the connection page.</value>
+  </data>
+  <data name="MessageService_TooLarge" xml:space="preserve">
+    <value>Message #{sequenceNumber} is too large to send</value>
+  </data>
+  <data name="LockedMessages_NotLocked" xml:space="preserve">
+    <value>Message #{sequenceNumber} is no longer locked</value>
+  </data>
+  <data name="EmulatorCounts_ConfigNotFound" xml:space="preserve">
+    <value>emulator/Config.json not found in the working directory, the app's folder or their parents.</value>
+  </data>
+  <data name="EmulatorTopicService_TopicNotFound" xml:space="preserve">
+    <value>Topic '{topic}' not found in emulator config.</value>
+  </data>
+</root>

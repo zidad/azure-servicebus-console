@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="SessionContext_Connected" xml:space="preserve">
+    <value>Connected to namespace {ns}</value>
+  </data>
+  <data name="SessionContext_OpenedMessage" xml:space="preserve">
+    <value>Opened message #{sequenceNumber}</value>
+  </data>
+  <data name="SessionContext_OpenedPage" xml:space="preserve">
+    <value>Opened /{page}</value>
+  </data>
+  <data name="ServiceBusConnection_NoNamespace" xml:space="preserve">
+    <value>No namespace selected.</value>
+  </data>
+</root>

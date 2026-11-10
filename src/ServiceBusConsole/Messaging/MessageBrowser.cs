@@ -11,7 +11,6 @@ namespace ServiceBusConsole.Messaging;
 /// </summary>
 public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns) : IAsyncDisposable
 {
-    private const string DeadLetterReason = "Dead-lettered manually";
     private readonly IMessageService _service = ns.Messages;
     private ILockedMessages? _locked;
     private readonly RenderThrottle _progressThrottle = new(100);
@@ -78,7 +77,7 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
     {
         await ReleaseLocksAsync();
         Load([], BrowseMode.Peek);
-        await RunAsync(new($"Peeking {count:N0}", [new("Peek", count)], modal: false), async op =>
+        await RunAsync(new(MessagingStrings.FormatMessageBrowser_Peeking(N0(count)), [new(MessagingStrings.MessageBrowser_PeekStep, count)], modal: false), async op =>
         {
             var step = Start(op, 0);
             await foreach (var page in _service.PeekAsync(Source, count, fromSequenceNumber, op.Token))
@@ -93,7 +92,7 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
         if (deleteOnReceive)
         {
             Load([], BrowseMode.Received);
-            await RunAsync(new($"Receiving and deleting {count:N0}", [new("Receive", count)], modal: false), async op =>
+            await RunAsync(new(MessagingStrings.FormatMessageBrowser_ReceivingAndDeleting(N0(count)), [new(MessagingStrings.MessageBrowser_ReceiveStep, count)], modal: false), async op =>
             {
                 var step = Start(op, 0);
                 await foreach (var page in _service.ReceiveAndDeleteAsync(Source, count, op.Token))
@@ -103,7 +102,7 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
         }
 
         Load([], BrowseMode.Locked);
-        await RunAsync(new($"Receiving {count:N0} with PeekLock", [new("Receive", count)], modal: false), async op =>
+        await RunAsync(new(MessagingStrings.FormatMessageBrowser_ReceivingWithPeekLock(N0(count)), [new(MessagingStrings.MessageBrowser_ReceiveStep, count)], modal: false), async op =>
         {
             var step = Start(op, 0);
             var locked = _service.StartReceiving(Source, count, op.Token);
@@ -133,13 +132,16 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
     }
 
     public Task CompleteAsync(IReadOnlyList<MessageInfo> targets) =>
-        SettleAsync("Completing", "Mark complete", "Completed", targets, (l, m, ct) => l.CompleteAsync(m, ct));
+        SettleAsync(MessagingStrings.FormatMessageBrowser_Completing(What(targets)), MessagingStrings.RetryText_MarkComplete,
+            MessagingStrings.MessageBrowser_Completed, targets, (l, m, ct) => l.CompleteAsync(m, ct));
 
     public Task AbandonAsync(IReadOnlyList<MessageInfo> targets) =>
-        SettleAsync("Abandoning", "Abandon", "Abandoned", targets, (l, m, ct) => l.AbandonAsync(m, ct));
+        SettleAsync(MessagingStrings.FormatMessageBrowser_Abandoning(What(targets)), Strings.Abandon,
+            MessagingStrings.MessageBrowser_Abandoned, targets, (l, m, ct) => l.AbandonAsync(m, ct));
 
     public Task DeadLetterAsync(IReadOnlyList<MessageInfo> targets) =>
-        SettleAsync("Dead-lettering", "Dead-letter", "Dead-lettered", targets, (l, m, ct) => l.DeadLetterAsync(m, DeadLetterReason, ct));
+        SettleAsync(MessagingStrings.FormatMessageBrowser_DeadLettering(What(targets)), Strings.DeadLetter,
+            MessagingStrings.MessageBrowser_DeadLettered, targets, (l, m, ct) => l.DeadLetterAsync(m, MessagingStrings.MessageBrowser_DeadLetterReason, ct));
 
     /// <summary>
     /// Sends copies to the queue/topic in order and removes the originals, as a pipeline: messages go in chunks as soon as
@@ -150,9 +152,11 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
     /// </summary>
     public Task RetryAsync(IReadOnlyList<MessageInfo> targets)
     {
-        var title = $"{(Source.IsDlq ? "Retrying" : "Requeuing")} {What(targets)}";
-        var requeue = $"Requeue to {Source.SendTarget}";
-        var move = $"Move to {Source.SendTarget}";
+        var title = Source.IsDlq ? MessagingStrings.FormatMessageBrowser_Retrying(What(targets)) : MessagingStrings.FormatMessageBrowser_Requeuing(What(targets));
+        var requeue = MessagingStrings.FormatRetryText_RequeueTo(Source.SendTarget);
+        var move = MessagingStrings.FormatRetryText_MoveTo(Source.SendTarget);
+        var complete = MessagingStrings.RetryText_MarkComplete;
+        var peekLock = Strings.PeekLock;
         var n = targets.Count;
         return (Mode, Namespace) switch
         {
@@ -160,11 +164,11 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
                 op => RetryHeldAsync(op, targets, locked: null, "")),
             (BrowseMode.Locked, IHasTransactions { Transactions: var tx }) => RunAsync(new(title, [new(move, n)]),
                 op => MoveHeldAsync(op, targets, tx)),
-            (BrowseMode.Locked, _) => RunAsync(new(title, [new(requeue, n), new("Mark complete", n)]),
-                op => RetryHeldAsync(op, targets, _locked, "lock lost")),
-            (_, IHasTransactions { Transactions: var tx }) => RunAsync(new(title, [new("PeekLock", n), new(move, n)]),
+            (BrowseMode.Locked, _) => RunAsync(new(title, [new(requeue, n), new(complete, n)]),
+                op => RetryHeldAsync(op, targets, _locked, MessagingStrings.MessageBrowser_LockLost)),
+            (_, IHasTransactions { Transactions: var tx }) => RunAsync(new(title, [new(peekLock, n), new(move, n)]),
                 op => LockFirstAsync(op, targets, (run, locked, lockStep) => MoveAsync(op, run, tx, locked, lockStep))),
-            _ => RunAsync(new(title, [new("PeekLock", n), new(requeue, n), new("Mark complete", n)]),
+            _ => RunAsync(new(title, [new(peekLock, n), new(requeue, n), new(complete, n)]),
                 op => LockFirstAsync(op, targets, (run, locked, lockStep) => PipelineAsync(op, run, locked, lockStep))),
         };
     }
@@ -177,8 +181,8 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
 
     private Task MoveHeldAsync(OperationProgress op, IReadOnlyList<MessageInfo> targets, ITransactionService tx)
     {
-        var locked = _locked ?? throw new InvalidOperationException("No locked messages. Receive in PeekLock mode first.");
-        return MoveAsync(op, new RetryRun(targets, HeldInOrder(targets, locked), lockStep: null, "lock lost", Notify, op.Token), tx, locked, lockStep: null);
+        var locked = _locked ?? throw new InvalidOperationException(MessagingStrings.MessageBrowser_NoLockedMessages);
+        return MoveAsync(op, new RetryRun(targets, HeldInOrder(targets, locked), lockStep: null, MessagingStrings.MessageBrowser_LockLost, Notify, op.Token), tx, locked, lockStep: null);
     }
 
     // Locked ones only while still held.
@@ -195,7 +199,7 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
     {
         // Scanning releases the messages it passes, which bumps their delivery count. Only the dead-letter
         // queue can afford that: in an active queue it would dead-letter unrelated messages.
-        if (!Source.IsDlq) throw new InvalidOperationException("Retry of peeked messages works in the dead-letter queue only");
+        if (!Source.IsDlq) throw new InvalidOperationException(MessagingStrings.MessageBrowser_RetryNeedsDlq);
         var lockStep = op.Steps[0];
         lockStep.State = StepState.Running;
         Changed?.Invoke();
@@ -206,7 +210,7 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
             lockStep.State = StepState.Done;
             Changed?.Invoke();
         }, TaskScheduler.Default);
-        var run = new RetryRun(targets, locked.Held, lockStep, "not found in the dead-letter queue (gone, or locked elsewhere)", Notify, op.Token);
+        var run = new RetryRun(targets, locked.Held, lockStep, MessagingStrings.MessageBrowser_NotInDlq, Notify, op.Token);
         await pipeline(run, locked, lockStep);
     }
 
@@ -246,7 +250,7 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
             }
             catch (Exception ex)
             {
-                run.Fail(chunk.Skip(count), token.IsCancellationRequested ? Failure.CancelledReason : $"not sent: {Describe(ex)}");
+                run.Fail(chunk.Skip(count), token.IsCancellationRequested ? Failure.CancelledReason : MessagingStrings.FormatMessageBrowser_NotSent(Describe(ex)));
             }
             foreach (var m in chunk.Take(count))
             {
@@ -268,7 +272,7 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
                 }
                 catch (Exception ex)
                 {
-                    run.Fail([m], $"sent, but original not completed: {Describe(ex)}");
+                    run.Fail([m], MessagingStrings.FormatMessageBrowser_NotCompleted(Describe(ex)));
                 }
                 completeStep.Increment();
                 Notify(completeStep);
@@ -296,7 +300,7 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
             }
             catch (Exception ex)
             {
-                run.Fail(chunk, token.IsCancellationRequested ? Failure.CancelledReason : $"not moved: {Describe(ex)}");
+                run.Fail(chunk, token.IsCancellationRequested ? Failure.CancelledReason : MessagingStrings.FormatMessageBrowser_NotMoved(Describe(ex)));
             }
         });
         Conclude(op, run);
@@ -306,7 +310,7 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
     {
         run.FailUnseen();
         foreach (var step in op.Steps) step.State = StepState.Done;
-        Finish(op, "Retried", run.Targets, [.. run.Removed], [.. run.Failures]);
+        Finish(op, MessagingStrings.MessageBrowser_Retried, run.Targets, [.. run.Removed], [.. run.Failures]);
     }
 
     /// <summary>What a retry pipeline has seen held, removed and failed.</summary>
@@ -349,7 +353,7 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
             catch (Exception ex)
             {
                 // The scan failed or was cancelled; whatever it did not lock is failed by FailUnseen.
-                _unseenReason = token.IsCancellationRequested ? Failure.CancelledReason : $"not locked: {Describe(ex)}";
+                _unseenReason = token.IsCancellationRequested ? Failure.CancelledReason : MessagingStrings.FormatMessageBrowser_NotLocked(Describe(ex));
             }
         }
 
@@ -363,18 +367,18 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
 
     /// <summary>Sends copies to the queue/topic and leaves the originals where they are.</summary>
     public Task ResendAsync(IReadOnlyList<MessageInfo> targets) =>
-        RunAsync(new($"Sending {What(targets)}", [new($"Send to {Source.SendTarget}", targets.Count)]), async op =>
+        RunAsync(new(MessagingStrings.FormatMessageBrowser_Sending(What(targets)), [new(MessagingStrings.FormatMessageBrowser_SendTo(Source.SendTarget), targets.Count)]), async op =>
         {
             var (sent, failures) = await SendAsync(Start(op, 0), [.. targets.OrderBy(m => m.SequenceNumber)], op.Token);
             UpdateSelection(targets, failures.Select(f => f.Message));
-            Report(op, "Sent", targets.Count, sent.Count, failures);
+            Report(op, MessagingStrings.MessageBrowser_Sent, targets.Count, sent.Count, failures);
         });
 
     public async Task<int> PurgeAsync()
     {
         await ReleaseLocksAsync();
         var count = 0;
-        await RunAsync(new($"Purging {Source.DisplayName}", [new("Purge", 0)]), async op =>
+        await RunAsync(new(MessagingStrings.FormatMessageBrowser_Purging(Source.DisplayName), [new(Strings.Purge, 0)]), async op =>
         {
             var step = Start(op, 0);
             try
@@ -385,11 +389,11 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
                     step.Report(n);
                     Notify(step);
                 }
-                op.Finish($"Purged {count:N0} message(s).", OperationOutcome.Succeeded);
+                op.Finish(MessagingStrings.FormatMessageBrowser_Purged(N0(count)), OperationOutcome.Succeeded);
             }
             catch (OperationCanceledException) when (op.Cancelled)
             {
-                op.Finish($"Cancelled. Purged {count:N0} message(s).", OperationOutcome.Cancelled);
+                op.Finish(MessagingStrings.FormatMessageBrowser_PurgeCancelled(N0(count)), OperationOutcome.Cancelled);
             }
             finally
             {
@@ -438,15 +442,15 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
         }
         catch (Exception ex)
         {
-            var reason = ex is OperationCanceledException ? Failure.CancelledReason : $"not sent: {Describe(ex)}";
+            var reason = ex is OperationCanceledException ? Failure.CancelledReason : MessagingStrings.FormatMessageBrowser_NotSent(Describe(ex));
             return ([.. messages.Take(sent)], [.. messages.Skip(sent).Select(m => new Failure(m, reason))]);
         }
     }
 
-    private Task SettleAsync(string verbing, string stepName, string pastVerb, IReadOnlyList<MessageInfo> targets, Func<ILockedMessages, MessageInfo, CancellationToken, Task> settle) =>
-        RunAsync(new($"{verbing} {What(targets)}", [new(stepName, targets.Count)]), async op =>
+    private Task SettleAsync(string title, string stepName, string pastVerb, IReadOnlyList<MessageInfo> targets, Func<ILockedMessages, MessageInfo, CancellationToken, Task> settle) =>
+        RunAsync(new(title, [new(stepName, targets.Count)]), async op =>
         {
-            var locked = _locked ?? throw new InvalidOperationException("No locked messages. Receive in PeekLock mode first.");
+            var locked = _locked ?? throw new InvalidOperationException(MessagingStrings.MessageBrowser_NoLockedMessages);
             var failures = new ConcurrentBag<Failure>();
             var done = await RunParallelAsync(Start(op, 0), targets, async (m, ct) =>
             {
@@ -480,12 +484,12 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
         try
         {
             await body(operation);
-            if (operation.Modal && !operation.Finished) operation.Finish("Done.", OperationOutcome.Succeeded);
+            if (operation.Modal && !operation.Finished) operation.Finish(MessagingStrings.MessageBrowser_Done, OperationOutcome.Succeeded);
         }
         catch (OperationCanceledException) when (operation.Cancelled)
         {
             // Stopped on request; what was done so far stays.
-            if (operation.Modal && !operation.Finished) operation.Finish("Cancelled.", OperationOutcome.Cancelled);
+            if (operation.Modal && !operation.Finished) operation.Finish(MessagingStrings.MessageBrowser_Cancelled, OperationOutcome.Cancelled);
         }
         catch (Exception ex) when (operation.Modal)
         {
@@ -507,7 +511,9 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
     }
 
     private static string What(IReadOnlyList<MessageInfo> targets) =>
-        targets is [var single] ? $"message #{single.SequenceNumber}" : $"{targets.Count} messages";
+        targets is [var single] ? Strings.FormatOneMessage(single.SequenceNumber) : Strings.FormatMessages(targets.Count);
+
+    private static string N0(int count) => count.ToString("N0");
 
     private void Finish(OperationProgress op, string pastVerb, IReadOnlyList<MessageInfo> targets, IReadOnlyCollection<MessageInfo> removed, IReadOnlyCollection<Failure> failures)
     {
@@ -540,20 +546,20 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
 
     private static string Summary(string pastVerb, int total, int succeeded, IReadOnlyCollection<Failure> failures) => failures switch
     {
-        { Count: 0 } => $"{pastVerb} {succeeded} of {total}.",
-        _ when failures.All(f => f.IsCancelled) => $"Cancelled. {pastVerb} {succeeded} of {total}; the rest stay selected.",
-        _ => $"{pastVerb} {succeeded} of {total}. Failed messages stay selected: {Examples(failures)}",
+        { Count: 0 } => MessagingStrings.FormatMessageBrowser_Summary(pastVerb, succeeded, total),
+        _ when failures.All(f => f.IsCancelled) => MessagingStrings.FormatMessageBrowser_SummaryCancelled(pastVerb, succeeded, total),
+        _ => MessagingStrings.FormatMessageBrowser_SummaryFailed(pastVerb, succeeded, total, Examples(failures)),
     };
 
     private static string Examples(IReadOnlyCollection<Failure> failures) =>
         string.Join("; ", failures.OrderBy(f => f.Message.SequenceNumber).Take(3).Select(f => $"#{f.Message.SequenceNumber} {f.Reason}"))
-        + (failures.Count > 3 ? $" (+{failures.Count - 3} more)" : "");
+        + (failures.Count > 3 ? MessagingStrings.FormatMessageBrowser_MoreFailures(failures.Count - 3) : "");
 
     private static string Describe(Exception ex) => ex switch
     {
         OperationCanceledException => Failure.CancelledReason,
-        MessageLockLostException => "lock lost",
-        _ when ErrorText.IsFirewall(ex) => "blocked by the namespace firewall",
+        MessageLockLostException => MessagingStrings.MessageBrowser_LockLost,
+        _ when ErrorText.IsFirewall(ex) => MessagingStrings.MessageBrowser_Firewall,
         _ => ex.Message.Split('\n')[0],
     };
 

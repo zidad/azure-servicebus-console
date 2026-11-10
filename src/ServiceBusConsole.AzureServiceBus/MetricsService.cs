@@ -3,6 +3,7 @@ using Azure.Core;
 using Azure.ResourceManager;
 using Azure.ResourceManager.Monitor;
 using Microsoft.Extensions.Logging;
+using ServiceBusConsole.AzureServiceBus.Resources;
 
 namespace ServiceBusConsole.AzureServiceBus;
 
@@ -11,7 +12,7 @@ internal sealed class MetricsService(NamespaceInfo ns, ArmClient armClient, ILog
     public async IAsyncEnumerable<MessageMetrics> GetMetricsAsync(MetricsScope scope, MetricsWindow window, [EnumeratorCancellation] CancellationToken ct = default)
     {
         var resource = new ResourceIdentifier(ns.ResourceId
-            ?? throw new InvalidOperationException("Resource ID of the namespace unknown; reopen it from the connection page."));
+            ?? throw new InvalidOperationException(Strings.MetricsService_NoResourceId));
 
         logger.LogInformation("Loading metrics of {Scope} in {Namespace}", scope, ns.Name);
         var results = await Task.WhenAll(MonitorMetrics.Queries(scope, window)
@@ -26,7 +27,7 @@ internal sealed class MetricsService(NamespaceInfo ns, ArmClient armClient, ILog
     public async IAsyncEnumerable<EntityTraffic> GetIncomingByEntityAsync(MetricsWindow window, [EnumeratorCancellation] CancellationToken ct = default)
     {
         var resource = new ResourceIdentifier(ns.ResourceId
-            ?? throw new InvalidOperationException("Resource ID of the namespace unknown; reopen it from the connection page."));
+            ?? throw new InvalidOperationException(Strings.MetricsService_NoResourceId));
 
         logger.LogInformation("Loading incoming messages per entity in {Namespace}", ns.Name);
         var metrics = await armClient.GetMonitorMetricsAsync(resource, MonitorMetrics.IncomingByEntity(window), ct).ToListAsync(ct);

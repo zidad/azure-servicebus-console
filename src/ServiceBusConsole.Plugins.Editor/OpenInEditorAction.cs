@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using ServiceBusConsole.Plugins.Editor.Resources;
 
 namespace ServiceBusConsole.Plugins.Editor;
 
@@ -15,7 +16,7 @@ public sealed class OpenInEditorAction : IMessageAction
 
     public string Id => "open";
 
-    public string Label => "Open in editor";
+    public string Label => Strings.OpenInEditorAction_Label;
 
     public string Icon => "📝";
 
@@ -27,7 +28,7 @@ public sealed class OpenInEditorAction : IMessageAction
         await File.WriteAllTextAsync(file, MessageJson.Format(context.Message) + "\n", ct);
 
         var spec = Process(context, file);
-        context.Progress.Report($"Opening in {spec.FileName}…");
+        context.Progress.Report(Strings.FormatOpenInEditorAction_Opening(spec.FileName));
         try
         {
             (await context.Host.RunProcessAsync(spec, ct)).EnsureSuccess(spec.FileName);
@@ -35,9 +36,9 @@ public sealed class OpenInEditorAction : IMessageAction
         catch (Exception e) when (e is Win32Exception || e.InnerException is Win32Exception)
         {
             throw new InvalidOperationException(
-                $"Could not start {spec.FileName}; set your editor: azsb config set plugins.{Plugin}.{Command} <cmd>", e);
+                Strings.FormatOpenInEditorAction_CouldNotStart(spec.FileName, Plugin, Command), e);
         }
-        return new ActionResult($"Opened in {spec.FileName}", FilePath: file);
+        return new ActionResult(Strings.FormatOpenInEditorAction_Opened(spec.FileName), FilePath: file);
     }
 
     public static string FilePath(MessageActionContext context) =>

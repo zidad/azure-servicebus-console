@@ -1,3 +1,5 @@
+using ServiceBusConsole.Plugins.Resources;
+
 namespace ServiceBusConsole.Plugins;
 
 /// <summary>What a plugin can check for on this machine, to decide whether it is on by default.</summary>
@@ -8,8 +10,8 @@ public sealed record PluginEnvironment(Func<string, bool> CommandExists, Func<st
     /// <summary>For <see cref="IPlugin.Missing"/>: null when <paramref name="command"/> is on the <c>PATH</c> or an executable's path.</summary>
     public string? MissingCommand(string? command) => command switch
     {
-        null or "" => "no command set",
+        null or "" => Strings.PluginEnvironment_NoCommand,
         _ when CommandExists(command) => null,
-        _ => $"{command} not found",
+        _ => Strings.FormatPluginEnvironment_CommandNotFound(command),
     };
 }

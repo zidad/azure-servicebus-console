@@ -87,7 +87,7 @@ public sealed partial class ConfigFile(string filePath)
     private static string[] Segments(string key) =>
         KeyPattern().IsMatch(key)
             ? key.ToLowerInvariant().Split('.')
-            : throw new ArgumentException($"Invalid key '{key}': use dotted names such as ui.theme.");
+            : throw new ArgumentException(ConfigurationStrings.FormatConfigFile_InvalidKey(key));
 
     private JsonObject Load()
     {
@@ -96,7 +96,7 @@ public sealed partial class ConfigFile(string filePath)
         return string.IsNullOrWhiteSpace(text)
             ? new JsonObject(NodeOptions)
             : JsonNode.Parse(text, NodeOptions, DocumentOptions) as JsonObject
-              ?? throw new InvalidDataException($"{FilePath} does not hold a JSON object.");
+              ?? throw new InvalidDataException(ConfigurationStrings.FormatConfigFile_NotAnObject(FilePath));
     }
 
     private void Save(JsonObject root)

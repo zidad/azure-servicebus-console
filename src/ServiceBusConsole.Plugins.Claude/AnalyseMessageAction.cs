@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using ServiceBusConsole.Plugins.Claude.Resources;
 
 namespace ServiceBusConsole.Plugins.Claude;
 
@@ -14,7 +15,7 @@ public sealed class AnalyseMessageAction(string pluginId, ClaudePlatform platfor
 
     public string Id => "analyse";
 
-    public string Label => "Analyse with Claude Code";
+    public string Label => Strings.AnalyseMessageAction_Label;
 
     public string Icon => "🤖";
 
@@ -30,7 +31,7 @@ public sealed class AnalyseMessageAction(string pluginId, ClaudePlatform platfor
         await run.WriteAsync(context, prompt, ClaudeCommand.Script(settings, run, claude, prompt), ct);
 
         var terminal = TerminalCommand.For(settings.Terminal, platform, run.ScriptFile, settings.WorkingDirectory);
-        context.Progress.Report($"Opening Claude Code in {settings.WorkingDirectory}…");
+        context.Progress.Report(Strings.FormatAnalyseMessageAction_Opening(settings.WorkingDirectory));
         try
         {
             (await context.Host.RunProcessAsync(terminal, ct)).EnsureSuccess(terminal.FileName);
@@ -38,8 +39,8 @@ public sealed class AnalyseMessageAction(string pluginId, ClaudePlatform platfor
         catch (InvalidOperationException e) when (e.InnerException is Win32Exception)
         {
             throw new InvalidOperationException(
-                $"Could not open a terminal with {terminal.FileName}: azsb config set plugins.{PluginId}.{ClaudeSettings.TerminalKey} \"<command> {TerminalCommand.ScriptPlaceholder}\"", e);
+                Strings.FormatAnalyseMessageAction_CouldNotOpenTerminal(terminal.FileName, PluginId, ClaudeSettings.TerminalKey, TerminalCommand.ScriptPlaceholder), e);
         }
-        return new ActionResult($"Claude Code opened in a new window, in {settings.WorkingDirectory}", FilePath: run.PromptFile);
+        return new ActionResult(Strings.FormatAnalyseMessageAction_Opened(settings.WorkingDirectory), FilePath: run.PromptFile);
     }
 }

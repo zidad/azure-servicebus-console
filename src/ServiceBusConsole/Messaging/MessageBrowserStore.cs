@@ -26,16 +26,16 @@ public sealed class MessageBrowserStore(ServiceBusConnection connection, Activit
         var (kind, text) = op switch
         {
             { Result: { } result } => (op.Outcome == OperationOutcome.Failed ? ActivityKind.Error : ActivityKind.Operation, $"{op.Title}: {result}"),
-            _ => (ActivityKind.Loaded, Loaded(browser.Mode, browser.Messages.Count) + (op.Cancelled ? " (cancelled)" : "")),
+            _ => (ActivityKind.Loaded, Loaded(browser.Mode, browser.Messages.Count) + (op.Cancelled ? MessagingStrings.MessageBrowserStore_Cancelled : "")),
         };
         activity.Record(kind, text, browser.Source);
     }
 
     private static string Loaded(BrowseMode mode, int count) => mode switch
     {
-        BrowseMode.Locked => $"Received {count:N0} message(s) with PeekLock",
-        BrowseMode.Received => $"Received and deleted {count:N0} message(s)",
-        _ => $"Peeked {count:N0} message(s)",
+        BrowseMode.Locked => MessagingStrings.FormatMessageBrowserStore_ReceivedWithPeekLock(count.ToString("N0")),
+        BrowseMode.Received => MessagingStrings.FormatMessageBrowserStore_ReceivedAndDeleted(count.ToString("N0")),
+        _ => MessagingStrings.FormatMessageBrowserStore_Peeked(count.ToString("N0")),
     };
 
     public async Task CloseAsync()
