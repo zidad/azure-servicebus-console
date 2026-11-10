@@ -1,26 +1,22 @@
-@inject RazorConsole.Core.Focus.FocusManager FocusManager
-
-<ModalWindow IsOpened="@IsOpened">
-    <Panel Border="BoxBorder.Rounded" Title="@($"❓ {ComponentStrings.HelpDialog_Title}")" BorderColor="@Theme.Accent" Padding="@(new(2, 1, 2, 1))">
-        <Rows>
-            <Markup Content="@ComponentStrings.HelpDialog_Intro" Foreground="@Theme.Muted" />
-            <Newline />
-            @foreach (var binding in _bindings)
-            {
-                <Columns>
-                    <Markup Content="@($" {binding.Display} ".PadLeft(8))" Background="@(binding.Danger ? Theme.Danger : Theme.Chip)" Foreground="@(binding.Danger ? Theme.OnDanger : Theme.OnChip)" Decoration="@Decoration.Bold" />
-                    <Markup Content="@binding.Label" />
-                    @if (binding.Aliases.Count > 0) { <Markup Content="@string.Join(" ", binding.Aliases)" Foreground="@Theme.Muted" /> }
-                </Columns>
-            }
-            <Newline />
-            <Markup Content="@ComponentStrings.HelpDialog_ShiftNote" Foreground="@Theme.Muted" />
-            <Padder Padding="@(new(0, 1, 0, 0))">
-                <KeyButton @ref="_close" Key="esc" Content="@ComponentStrings.Dialog_Close" OnClick="Close" FocusOrder="1" OnKeyDown="HandleKey" />
-            </Padder>
-        </Rows>
-    </Panel>
-</ModalWindow>
+<Dialog IsOpened="@IsOpened" Icon="@Icons.Help" Title="@ComponentStrings.HelpDialog_Title">
+    <ChildContent>
+        <Markup Content="@ComponentStrings.HelpDialog_Intro" Foreground="@Theme.Muted" />
+        <Newline />
+        @foreach (var binding in _bindings)
+        {
+            <Columns>
+                <Markup Content="@($" {binding.Display} ".PadLeft(8))" Background="@(binding.Danger ? Theme.Danger : Theme.Chip)" Foreground="@(binding.Danger ? Theme.OnDanger : Theme.OnChip)" Decoration="@Decoration.Bold" />
+                <Markup Content="@binding.Label" />
+                @if (binding.Aliases.Count > 0) { <Markup Content="@string.Join(" ", binding.Aliases)" Foreground="@Theme.Muted" /> }
+            </Columns>
+        }
+        <Newline />
+        <Markup Content="@ComponentStrings.HelpDialog_ShiftNote" Foreground="@Theme.Muted" />
+    </ChildContent>
+    <Buttons>
+        <KeyButton Key="esc" Content="@ComponentStrings.Dialog_Close" OnClick="Close" FocusOrder="1" OnKeyDown="HandleKey" AutoFocus="true" />
+    </Buttons>
+</Dialog>
 
 @code {
     /// <summary>The page's keys, opened with <c>?</c>: every <see cref="KeyBinding"/>, also those not in the footer.</summary>
@@ -30,22 +26,12 @@
     [Parameter] public EventCallback OnClose { get; set; }
 
     private IReadOnlyList<KeyBinding> _bindings = [];
-    private KeyButton? _close;
-    private bool _focusPending;
 
     public void Open(IEnumerable<KeyBinding> bindings)
     {
         _bindings = [.. bindings];
         IsOpened = true;
-        _focusPending = true;
         StateHasChanged();
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!_focusPending || _close is null) return;
-        _focusPending = false;
-        await FocusManager.FocusAsync(_close.FocusKey);
     }
 
     private void HandleKey(KeyboardEventArgs e)

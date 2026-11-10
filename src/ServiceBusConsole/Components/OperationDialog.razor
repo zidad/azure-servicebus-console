@@ -1,56 +1,50 @@
-@inject RazorConsole.Core.Focus.FocusManager FocusManager
-
 @if (Operation is { Modal: true } op)
 {
     var nameWidth = op.Steps.Max(s => s.Name.Length);
-    <ModalWindow IsOpened="true">
-        <Panel Border="BoxBorder.Rounded" Title="@op.Title" BorderColor="@(op.Finished ? OutcomeColor(op.Outcome) : Theme.Accent)" Padding="@(new(2, 1, 2, 1))">
-            <Rows>
-                @foreach (var step in op.Steps)
-                {
-                    <Columns>
-                        <Markup Content="@StateIcon(step)" Foreground="@Theme.Muted" />
-                        <Markup Content="@step.Name.PadRight(nameWidth)" Foreground="@(step.State == StepState.Pending ? Theme.Muted : Color.Default)" />
-                        @if (step.Total > 0)
-                        {
-                            <Markup Content="@Bar(step)" Foreground="@(step.State == StepState.Done ? Theme.Success : Theme.Accent)" />
-                            <Markup Content="@($"{step.Done:N0}/{step.Total:N0}")" Foreground="@Theme.Muted" />
-                        }
-                        else if (step.Done > 0)
-                        {
-                            <Markup Content="@ComponentStrings.FormatOperationDialog_SoFar(step.Done.ToString("N0"))" Foreground="@Theme.Muted" />
-                        }
-                    </Columns>
-                }
+    <Dialog Title="@op.Title" BorderColor="@(op.Finished ? OutcomeColor(op.Outcome) : Theme.Accent)">
+        <ChildContent>
+            @foreach (var step in op.Steps)
+            {
+                <Columns>
+                    <Markup Content="@StateIcon(step)" Foreground="@Theme.Muted" />
+                    <Markup Content="@step.Name.PadRight(nameWidth)" Foreground="@(step.State == StepState.Pending ? Theme.Muted : Color.Default)" />
+                    @if (step.Total > 0)
+                    {
+                        <Markup Content="@Bar(step)" Foreground="@(step.State == StepState.Done ? Theme.Success : Theme.Accent)" />
+                        <Markup Content="@($"{step.Done:N0}/{step.Total:N0}")" Foreground="@Theme.Muted" />
+                    }
+                    else if (step.Done > 0)
+                    {
+                        <Markup Content="@ComponentStrings.FormatOperationDialog_SoFar(step.Done.ToString("N0"))" Foreground="@Theme.Muted" />
+                    }
+                </Columns>
+            }
+            @if (op.Finished)
+            {
                 <Padder Padding="@(new(0, 1, 0, 0))">
-                    @if (op.Finished)
-                    {
-                        <Rows>
-                            <Markup Content="@($"{OutcomeIcon(op.Outcome)} {op.Result}")" Foreground="@OutcomeColor(op.Outcome)" />
-                            <Padder Padding="@(new(0, 1, 0, 0))">
-                                <KeyButton @ref="_ok" Key="⏎" Content="@ComponentStrings.Dialog_Ok" OnClick="@(() => OnDismiss.InvokeAsync())"
-                                            FocusedColor="@Theme.Accent" FocusOrder="1" OnKeyDown="@OkKeyDown" />
-                            </Padder>
-                        </Rows>
-                    }
-                    else
-                    {
-                        @if (op.Cancelled)
-                        {
-                            <Markup Content="@ComponentStrings.OperationDialog_Cancelling" Foreground="@Theme.Warning" />
-                        }
-                        else
-                        {
-                            <Columns>
-                                <Markup Content=" esc " Background="@Theme.Chip" Foreground="@Theme.OnChip" Decoration="@Decoration.Bold" />
-                                <Markup Content="@ComponentStrings.Dialog_Cancel" Foreground="@Theme.Muted" />
-                            </Columns>
-                        }
-                    }
+                    <Markup Content="@($"{OutcomeIcon(op.Outcome)} {op.Result}")" Foreground="@OutcomeColor(op.Outcome)" />
                 </Padder>
-            </Rows>
-        </Panel>
-    </ModalWindow>
+            }
+        </ChildContent>
+        <Buttons>
+            @if (op.Finished)
+            {
+                <KeyButton Key="⏎" Content="@ComponentStrings.Dialog_Ok" OnClick="@(() => OnDismiss.InvokeAsync())"
+                           FocusedColor="@Theme.Accent" FocusOrder="1" OnKeyDown="@OkKeyDown" AutoFocus="true" />
+            }
+            else if (op.Cancelled)
+            {
+                <Markup Content="@ComponentStrings.OperationDialog_Cancelling" Foreground="@Theme.Warning" />
+            }
+            else
+            {
+                <Columns>
+                    <Markup Content=" esc " Background="@Theme.Chip" Foreground="@Theme.OnChip" Decoration="@Decoration.Bold" />
+                    <Markup Content="@ComponentStrings.Dialog_Cancel" Foreground="@Theme.Muted" />
+                </Columns>
+            }
+        </Buttons>
+    </Dialog>
 }
 
 @code {
@@ -61,18 +55,6 @@
 
     /// <summary>OK (or Esc) on a finished operation.</summary>
     [Parameter] public EventCallback OnDismiss { get; set; }
-
-    private KeyButton? _ok;
-    private OperationProgress? _focused;
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (Operation is { Modal: true, Finished: true } op && op != _focused && _ok is not null)
-        {
-            _focused = op;
-            await FocusManager.FocusAsync(_ok.FocusKey);
-        }
-    }
 
     private void OkKeyDown(KeyboardEventArgs e)
     {

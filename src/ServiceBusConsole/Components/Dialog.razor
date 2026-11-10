@@ -1,0 +1,25 @@
+<ModalWindow IsOpened="@IsOpened">
+    <Panel Border="BoxBorder.Rounded" Title="@(Icon is { } icon ? $"{icon} {Title}" : Title)" BorderColor="@BorderColor"Padding="@(new(2, 1, 2, 1))">
+        <Rows>
+            @ChildContent
+            @if (Buttons is { } buttons)
+            {
+                <Padder Padding="@(new(0, 1, 0, 0))">
+                    <Flex Direction="FlexDirection.Row" Gap="3">@buttons</Flex>
+                </Padder>
+            }
+        </Rows>
+    </Panel>
+</ModalWindow>
+
+@code {
+    /// <summary>The frame every dialog shares: icon and title in a rounded border colored by meaning, the body, a row of buttons.</summary>
+    [Parameter, EditorRequired] public required string Title { get; set; }
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public Color BorderColor { get; set; } = Theme.Accent;
+    [Parameter] public bool IsOpened { get; set; } = true;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Primary first, then the plain one; a line of hints fits here too.</summary>
+    [Parameter] public RenderFragment? Buttons { get; set; }
+}
