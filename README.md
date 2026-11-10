@@ -1,4 +1,4 @@
-# azure-servicebus-console
+# azsb – Azure Service Bus CLI and terminal UI
 
 [![Build](https://github.com/zidad/azure-servicebus-console/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/zidad/azure-servicebus-console/actions/workflows/build.yml)
 [![NuGet](https://img.shields.io/nuget/v/Net.Azure.ServiceBusConsole?logo=nuget)](https://www.nuget.org/packages/Net.Azure.ServiceBusConsole)
@@ -7,7 +7,9 @@
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet)](https://dotnet.microsoft.com/download)
 [![License: MIT](https://img.shields.io/github/license/zidad/azure-servicebus-console)](LICENSE)
 
-A terminal UI browser for Azure Service Bus — explore namespaces, queues, topics, and messages directly from your terminal.
+`azsb` is a command-line tool for Azure Service Bus: browse namespaces, queues, topics and subscriptions, peek and receive messages, and resend or retry dead-letter messages, all from your terminal. A keyboard-driven alternative to the Azure portal's Service Bus Explorer and the standalone Service Bus Explorer app, on Linux, macOS and Windows.
+
+![azsb browsing an Azure Service Bus queue's messages in the terminal](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/message-browser.png)
 
 Built with [RazorConsole](https://github.com/RazorConsole/RazorConsole): Blazor Razor components rendered to the terminal via Spectre.Console.
 

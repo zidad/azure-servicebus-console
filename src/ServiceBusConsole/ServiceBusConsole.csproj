@@ -5,7 +5,9 @@
     <ToolCommandName>azsb</ToolCommandName>
     <PackageId>Net.Azure.ServiceBusConsole</PackageId>
     <Authors>zidad</Authors>
-    <Description>Terminal UI for browsing Azure Service Bus namespaces, queues, topics, and messages.</Description>
+    <Description>Azure Service Bus CLI and terminal UI: browse namespaces, queues, topics and subscriptions, peek messages, and resend or retry dead-letter messages from the terminal.</Description>
+    <PackageTags>azure;servicebus;azure-service-bus;service-bus;cli;tui;terminal;dead-letter;dlq;service-bus-explorer;dotnet-tool</PackageTags>
+    <PackageProjectUrl>https://zidad.github.io/azure-servicebus-console/</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/zidad/azure-servicebus-console</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
