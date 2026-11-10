@@ -17,6 +17,9 @@ public sealed class NavigationState
     /// <summary>The next queue or subscription browser opens on its Active tab instead of dead letters; it takes and clears this.</summary>
     public bool StartActive { get; set; }
 
+    /// <summary>The next browser runs this once its first peek is in; it takes and clears this.</summary>
+    public BrowserCommand? StartCommand { get; set; }
+
     /// <summary>Sets what <paramref name="target"/>'s page reads and returns its route.</summary>
     public string RouteTo(JumpTarget target, bool active = false)
     {
