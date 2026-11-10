@@ -1,0 +1,13 @@
+@{ var labelWidth = Fields.Max(f => f.Label.Length) + 2; }
+<Grid Columns="2">
+    @foreach (var field in Fields)
+    {
+        <Markup Content="@field.Label.PadRight(labelWidth)" Foreground="@Theme.Muted" />
+        <Markup Content="@field.Value" Foreground="@(field.Warning ? Theme.Warning : Color.Default)" />
+    }
+</Grid>
+
+@code {
+    /// <summary>A dialog's label grid: muted labels, values beside them.</summary>
+    [Parameter, EditorRequired] public required IReadOnlyList<DialogField> Fields { get; set; }
+}

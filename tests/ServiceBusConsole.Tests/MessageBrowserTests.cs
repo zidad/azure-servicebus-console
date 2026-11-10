@@ -123,7 +123,9 @@ public sealed class MessageBrowserTests
         terminal.CurrentFrame.ContainsText("R  🔁 Retry").ShouldBeTrue(terminal.CurrentFrame.ScreenText);
 
         await terminal.SendKeyAsync(ConsoleKey.F10, '\0', cancellationToken: Ct);
-        await terminal.WaitForTextAsync("2 messages → PeekLock → Requeue to orders → Mark complete", AppHarness.Timeout, Ct);
+        var confirm = await terminal.WaitForTextAsync("PeekLock → Requeue to orders → Mark complete", AppHarness.Timeout, Ct);
+        confirm.ContainsText("From    orders DLQ").ShouldBeTrue(confirm.ScreenText);
+        confirm.ContainsText("Sent, then completed: at least once.").ShouldBeTrue(confirm.ScreenText);
         await terminal.SendKeyAsync(ConsoleKey.Y, 'y', cancellationToken: Ct);
 
         var frame = await terminal.WaitUntilAsync(f => !f.ContainsText("first") && !f.ContainsText("third") && f.ContainsText("second"), AppHarness.Timeout, cancellationToken: Ct);
@@ -140,8 +142,8 @@ public sealed class MessageBrowserTests
         await using var _ = terminal;
 
         await terminal.SendKeyAsync(ConsoleKey.F10, '\0', cancellationToken: Ct);
-        var frame = await terminal.WaitForTextAsync("2 messages → PeekLock → Move to orders", AppHarness.Timeout, Ct);
-        frame.ContainsText("move in one transaction").ShouldBeTrue(frame.ScreenText);
+        var frame = await terminal.WaitForTextAsync("PeekLock → Move to orders", AppHarness.Timeout, Ct);
+        frame.ContainsText("Up to 100 per transaction").ShouldBeTrue(frame.ScreenText);
         frame.ContainsText("Mark complete").ShouldBeFalse(frame.ScreenText);
         await terminal.SendKeyAsync(ConsoleKey.Y, 'y', cancellationToken: Ct);
 

@@ -166,17 +166,33 @@
     <value>Mark complete</value>
   </data>
   <data name="RetryText_PeekNote" xml:space="preserve">
-    <value>Messages ahead of them in the dead-letter queue are
-locked briefly and released (delivery count +1).</value>
+    <value>Messages ahead of them are locked briefly
+and released (their delivery count goes up by 1).</value>
   </data>
   <data name="RetryText_ReceivedNote" xml:space="preserve">
     <value>Receive-and-delete already removed the originals.</value>
   </data>
   <data name="RetryText_TransactionNote" xml:space="preserve">
-    <value>Up to 100 at a time move in one transaction:
-sent and completed together, or not at all.</value>
+    <value>Up to 100 per transaction: sent and
+completed together, or not at all.</value>
   </data>
   <data name="RetryText_SubscriptionNote" xml:space="preserve">
     <value>Every subscription of the topic gets a copy.</value>
+  </data>
+  <data name="RetryText_AtLeastOnceNote" xml:space="preserve">
+    <value>Sent, then completed: at least once.
+A failure in between can send one twice.</value>
+  </data>
+  <data name="RetryText_From" xml:space="preserve">
+    <value>From</value>
+  </data>
+  <data name="RetryText_To" xml:space="preserve">
+    <value>To</value>
+  </data>
+  <data name="RetryText_How" xml:space="preserve">
+    <value>How</value>
+  </data>
+  <data name="RetryText_Note" xml:space="preserve">
+    <value>Note</value>
   </data>
 </root>

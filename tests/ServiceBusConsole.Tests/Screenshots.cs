@@ -84,7 +84,7 @@ public sealed class Screenshots
         await Save(terminal, dir, "message-browser");
 
         await Key(terminal, ConsoleKey.F10);
-        await terminal.WaitForTextAsync("move in one transaction", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("per transaction", AppHarness.Timeout, Ct);
         await Save(terminal, dir, "retry-confirm");
         await Key(terminal, ConsoleKey.N, 'n');
         await terminal.WaitUntilAsync(f => !f.ContainsText("move in one transaction"), AppHarness.Timeout, cancellationToken: Ct);
@@ -100,7 +100,7 @@ public sealed class Screenshots
         // Retry the two selected messages, holding the transaction so the progress dialog can be captured.
         app.Services.Transactions.Hold = new TaskCompletionSource();
         await Key(terminal, ConsoleKey.F10);
-        await terminal.WaitForTextAsync("move in one transaction", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("per transaction", AppHarness.Timeout, Ct);
         await Key(terminal, ConsoleKey.Y, 'y');
         await terminal.WaitForTextAsync("Retrying 2 messages", AppHarness.Timeout, Ct);
         await Save(terminal, dir, "retry-progress");

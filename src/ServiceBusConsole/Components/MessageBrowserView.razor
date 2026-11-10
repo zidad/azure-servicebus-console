@@ -170,7 +170,8 @@
               Execute="@(l => Browser.DeadLetterAsync(l))" />
 
 <AsyncCommand @ref="_retry" TItem="IReadOnlyList<MessageInfo>"
-              ConfirmMessage="@(l => RetryText.Confirm(Mode, Source, Count(l), Browser.Namespace is IHasTransactions))"
+              ConfirmMessage="@(l => RetryText.Question(Source, Count(l)))"
+              ConfirmFields="@(_ => RetryText.Fields(Mode, Source, Browser.Namespace is IHasTransactions))"
               Execute="@(l => Browser.RetryAsync(l))" />
 
 <AsyncCommand @ref="_resend" TItem="IReadOnlyList<MessageInfo>"
