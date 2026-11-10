@@ -114,6 +114,9 @@
   <data name="MessageBrowser_Firewall" xml:space="preserve">
     <value>blocked by the namespace firewall</value>
   </data>
+  <data name="MessageBrowser_Settled" xml:space="preserve">
+    <value>{verb} {what}</value>
+  </data>
   <data name="MessageBrowser_Summary" xml:space="preserve">
     <value>{verb} {succeeded} of {total}.</value>
   </data>

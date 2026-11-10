@@ -13,6 +13,8 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
 {
     private readonly IMessageService _service = ns.Messages;
     private ILockedMessages? _locked;
+    // Settled in Locked mode: the rows stay, marked with what was done to them.
+    private readonly ConcurrentDictionary<long, LockedState> _settled = new();
     private readonly RenderThrottle _progressThrottle = new(100);
 
     /// <summary>The namespace this browser reads and its locks belong to.</summary>
@@ -24,6 +26,9 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
     public int Cursor { get; set; }
     /// <summary>The batch operation in progress or finished (until <see cref="Dismiss"/>), for the progress dialog; null when idle.</summary>
     public OperationProgress? Operation { get; private set; }
+
+    /// <summary>The last complete, abandon or dead-letter, for the status line under the list; null after a new load.</summary>
+    public OperationProgress? Settled { get; private set; }
 
     public event Action? Changed;
 
@@ -40,23 +45,38 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
 
     public MessageInfo? Focused => Messages.ElementAtOrDefault(Cursor);
 
-    /// <summary>The selected messages in list order, or the focused one when nothing is selected.</summary>
+    /// <summary>The selected messages in list order, or the focused one when nothing is selected; only ones that can be acted on.</summary>
     public IReadOnlyList<MessageInfo> Targets =>
-        Selected.Count > 0 ? [.. Messages.Where(IsSelected)]
-        : Focused is { } f ? [f] : [];
+        Messages.Where(m => IsSelected(m) && CanAct(m)).ToList() is { Count: > 0 } selected ? selected
+        : Focused is { } f && CanAct(f) ? [f] : [];
 
     public bool IsSelected(MessageInfo m) => Selected.Contains(m.SequenceNumber);
     public bool IsLockHeld(MessageInfo m) => _locked?.IsHeld(m.SequenceNumber) == true;
     public int LockedCount => _locked is null ? 0 : Messages.Count(IsLockHeld);
 
+    /// <summary>Selected messages that can be acted on: what the selection commands count.</summary>
+    public int SelectedCount => Messages.Count(m => IsSelected(m) && CanAct(m));
+
+    /// <summary>False for a locked list's settled rows and lost locks: nothing more can be done to them.</summary>
+    public bool CanAct(MessageInfo m) => Mode != BrowseMode.Locked || IsLockHeld(m);
+
+    public LockedState StateOf(MessageInfo m) =>
+        _settled.TryGetValue(m.SequenceNumber, out var settled) ? settled
+        : IsLockHeld(m) ? LockedState.Held : LockedState.LockLost;
+
+    /// <summary>How many rows of a locked list were settled each way.</summary>
+    public IReadOnlyList<(LockedState State, int Count)> SettledCounts =>
+        [.. _settled.Values.GroupBy(s => s).OrderBy(g => g.Key).Select(g => (g.Key, g.Count()))];
+
     public void Toggle(MessageInfo m)
     {
+        if (!CanAct(m)) return;
         if (!Selected.Remove(m.SequenceNumber)) Selected.Add(m.SequenceNumber);
     }
 
-    public void SelectAll() => Selected.UnionWith(Messages.Select(m => m.SequenceNumber));
+    public void SelectAll() => Selected.UnionWith(Messages.Where(CanAct).Select(m => m.SequenceNumber));
 
-    public bool AllSelected => Messages.Count > 0 && Messages.All(IsSelected);
+    public bool AllSelected => Messages.Any(CanAct) && Messages.Where(CanAct).All(IsSelected);
 
     /// <summary>Selects every message, or clears the selection when all are already selected.</summary>
     public void ToggleAll()
@@ -67,7 +87,7 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
 
     public void InvertSelection()
     {
-        var inverted = Messages.Select(m => m.SequenceNumber).Where(id => !Selected.Contains(id)).ToList();
+        var inverted = Messages.Where(CanAct).Select(m => m.SequenceNumber).Where(id => !Selected.Contains(id)).ToList();
         Selected.Clear();
         Selected.UnionWith(inverted);
     }
@@ -133,15 +153,15 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
 
     public Task CompleteAsync(IReadOnlyList<MessageInfo> targets) =>
         SettleAsync(MessagingStrings.FormatMessageBrowser_Completing(What(targets)), MessagingStrings.RetryText_MarkComplete,
-            MessagingStrings.MessageBrowser_Completed, targets, (l, m, ct) => l.CompleteAsync(m, ct));
+            MessagingStrings.MessageBrowser_Completed, LockedState.Completed, targets, (l, m, ct) => l.CompleteAsync(m, ct));
 
     public Task AbandonAsync(IReadOnlyList<MessageInfo> targets) =>
         SettleAsync(MessagingStrings.FormatMessageBrowser_Abandoning(What(targets)), Strings.Abandon,
-            MessagingStrings.MessageBrowser_Abandoned, targets, (l, m, ct) => l.AbandonAsync(m, ct));
+            MessagingStrings.MessageBrowser_Abandoned, LockedState.Abandoned, targets, (l, m, ct) => l.AbandonAsync(m, ct));
 
     public Task DeadLetterAsync(IReadOnlyList<MessageInfo> targets) =>
         SettleAsync(MessagingStrings.FormatMessageBrowser_DeadLettering(What(targets)), Strings.DeadLetter,
-            MessagingStrings.MessageBrowser_DeadLettered, targets, (l, m, ct) => l.DeadLetterAsync(m, MessagingStrings.MessageBrowser_DeadLetterReason, ct));
+            MessagingStrings.MessageBrowser_DeadLettered, LockedState.DeadLettered, targets, (l, m, ct) => l.DeadLetterAsync(m, MessagingStrings.MessageBrowser_DeadLetterReason, ct));
 
     /// <summary>
     /// Sends copies to the queue/topic in order and removes the originals, as a pipeline: messages go in chunks as soon as
@@ -447,6 +467,8 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
     {
         Messages = messages;
         Mode = mode;
+        _settled.Clear();
+        Settled = null;
         Selected.Clear();
         Cursor = 0;
         Changed?.Invoke();
@@ -476,18 +498,29 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
         }
     }
 
-    private Task SettleAsync(string title, string stepName, string pastVerb, IReadOnlyList<MessageInfo> targets, Func<ILockedMessages, MessageInfo, CancellationToken, Task> settle) =>
-        RunAsync(new(title, [new(stepName, targets.Count)]), async op =>
+    // Settled rows stay in the list, marked; failed ones stay selected. Reports in the status line, not a dialog.
+    private Task SettleAsync(string title, string stepName, string pastVerb, LockedState settledAs, IReadOnlyList<MessageInfo> targets,
+        Func<ILockedMessages, MessageInfo, CancellationToken, Task> settle) =>
+        RunAsync(new(title, [new(stepName, targets.Count)], modal: false), async op =>
         {
+            Settled = null;
             var locked = _locked ?? throw new InvalidOperationException(MessagingStrings.MessageBrowser_NoLockedMessages);
             var failures = new ConcurrentBag<Failure>();
             var done = await RunParallelAsync(Start(op, 0), targets, async (m, ct) =>
             {
                 if (op.Cancelled) { failures.Add(new(m, Failure.CancelledReason)); return false; }
-                try { await settle(locked, m, ct); return true; }
+                try
+                {
+                    await settle(locked, m, ct);
+                    _settled[m.SequenceNumber] = settledAs;
+                    return true;
+                }
                 catch (Exception ex) { failures.Add(new(m, Describe(ex))); return false; }
             });
-            Finish(op, pastVerb, targets, done, [.. failures]);
+            UpdateSelection(targets, failures.Select(f => f.Message));
+            if (failures.IsEmpty) op.Finish(MessagingStrings.FormatMessageBrowser_Settled(pastVerb, What(targets)), OperationOutcome.Succeeded);
+            else Report(op, pastVerb, targets.Count, done.Count, [.. failures]);
+            Settled = op;
         });
 
     private async Task<IReadOnlyList<MessageInfo>> RunParallelAsync(OperationStep step, IReadOnlyList<MessageInfo> items, Func<MessageInfo, CancellationToken, Task<bool>> op)

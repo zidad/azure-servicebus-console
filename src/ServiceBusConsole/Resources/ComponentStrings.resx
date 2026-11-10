@@ -160,6 +160,15 @@
   <data name="MessagePreview_LockLost" xml:space="preserve">
     <value>Lock lost (back on the queue)</value>
   </data>
+  <data name="MessagePreview_Completed" xml:space="preserve">
+    <value>Completed (removed)</value>
+  </data>
+  <data name="MessagePreview_Abandoned" xml:space="preserve">
+    <value>Abandoned (back on the queue)</value>
+  </data>
+  <data name="MessagePreview_DeadLettered" xml:space="preserve">
+    <value>Dead-lettered (moved to the dead-letter queue)</value>
+  </data>
   <data name="MessagePreview_Received" xml:space="preserve">
     <value>Received and deleted; requeue it or it is gone</value>
   </data>
@@ -253,11 +262,35 @@
   <data name="MessageBrowserView_Lock" xml:space="preserve">
     <value>Lock</value>
   </data>
-  <data name="MessageBrowserView_LockHeld" xml:space="preserve">
+  <data name="MessageBrowserView_LockRenewing" xml:space="preserve">
+    <value>auto-renew</value>
+  </data>
+  <data name="MessageBrowserView_State" xml:space="preserve">
+    <value>State</value>
+  </data>
+  <data name="MessageBrowserView_StateHeld" xml:space="preserve">
     <value>held</value>
   </data>
-  <data name="MessageBrowserView_LockLost" xml:space="preserve">
-    <value>lost</value>
+  <data name="MessageBrowserView_StateCompleted" xml:space="preserve">
+    <value>completed</value>
+  </data>
+  <data name="MessageBrowserView_StateAbandoned" xml:space="preserve">
+    <value>abandoned</value>
+  </data>
+  <data name="MessageBrowserView_StateDeadLettered" xml:space="preserve">
+    <value>dead-lettered</value>
+  </data>
+  <data name="MessageBrowserView_StateLockLost" xml:space="preserve">
+    <value>lock lost</value>
+  </data>
+  <data name="MessageBrowserView_StateCount" xml:space="preserve">
+    <value>{count} {state}</value>
+  </data>
+  <data name="MessageBrowserView_StillHeld" xml:space="preserve">
+    <value>{count} still held</value>
+  </data>
+  <data name="MessageBrowserView_Received" xml:space="preserve">
+    <value>{count} received</value>
   </data>
   <data name="MessageBrowserView_PreviewTitle" xml:space="preserve">
     <value>#{sequenceNumber} · {position} of {count} · ⏎ zoom</value>
@@ -326,10 +359,7 @@
     <value>read-only · {count} loaded</value>
   </data>
   <data name="MessageBrowserView_LockedStrip" xml:space="preserve">
-    <value>{count} locked message(s), {held} held · locks renew automatically · esc abandons the rest</value>
-  </data>
-  <data name="MessageBrowserView_LockedCount" xml:space="preserve">
-    <value>{count} locked message(s), {held} held</value>
+    <value>{held} held · locks renew automatically · esc abandons the rest</value>
   </data>
   <data name="MessageBrowserView_ReceivedCount" xml:space="preserve">
     <value>{count} message(s) already deleted, requeue them or they are gone</value>

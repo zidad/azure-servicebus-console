@@ -232,6 +232,14 @@ public sealed class FakeMessageService : IMessageService
 
     // Completes run in parallel, so recording must be thread-safe.
     public System.Collections.Concurrent.ConcurrentQueue<long> Completed { get; } = [];
+    public System.Collections.Concurrent.ConcurrentQueue<long> Abandoned { get; } = [];
+    public System.Collections.Concurrent.ConcurrentQueue<long> DeadLettered { get; } = [];
+
+    /// <summary>Sequence numbers whose complete, abandon or dead-letter fails while they stay held.</summary>
+    public HashSet<long> FailSettle { get; } = [];
+
+    /// <summary>The last PeekLock receive, to lose a lock in a test.</summary>
+    public FakeLockedMessages? Received { get; private set; }
 
     /// <summary>When set, the lock scan stops after <see cref="PauseScanAfter"/> messages until it completes.</summary>
     public TaskCompletionSource? PauseScan { get; set; }
@@ -243,7 +251,7 @@ public sealed class FakeMessageService : IMessageService
     public ILockedMessages StartReceiving(MessageSource source, int count, CancellationToken ct = default)
     {
         var batch = Messages.Take(count).Select(m => m with { State = MessageState.Locked }).ToList();
-        return new FakeLockedMessages(this, batch, batch.ToAsyncEnumerable());
+        return Received = new FakeLockedMessages(this, batch, batch.ToAsyncEnumerable());
     }
 
     public ILockedMessages StartLocking(MessageSource source, IReadOnlyCollection<long> sequenceNumbers, CancellationToken ct = default)
@@ -318,13 +326,22 @@ public sealed class FakeLockedMessages(FakeMessageService service, IEnumerable<M
     public Task AbandonAsync(MessageInfo message, CancellationToken ct = default)
     {
         Settle(message);
+        service.Abandoned.Enqueue(message.SequenceNumber);
         return Task.CompletedTask;
     }
 
     public Task DeadLetterAsync(MessageInfo message, string reason, CancellationToken ct = default)
     {
         Settle(message);
+        service.DeadLettered.Enqueue(message.SequenceNumber);
         return Task.CompletedTask;
+    }
+
+    /// <summary>Drops the lock like an expired renewal would.</summary>
+    public void LoseLock(long sequenceNumber)
+    {
+        lock (_held) _held.Remove(sequenceNumber);
+        _lockLost.Writer.TryWrite(sequenceNumber);
     }
 
     public ValueTask DisposeAsync()
@@ -354,6 +371,7 @@ public sealed class FakeLockedMessages(FakeMessageService service, IEnumerable<M
 
     private void Settle(MessageInfo message)
     {
+        if (service.FailSettle.Contains(message.SequenceNumber)) throw new InvalidOperationException("Service Bus is busy");
         bool removed;
         lock (_held) removed = _held.Remove(message.SequenceNumber);
         if (!removed)

@@ -37,7 +37,8 @@
         }
         else if (browser.Messages.Count > 0)
         {
-            var showChecks = browser.Selected.Count > 0;
+            var showChecks = browser.SelectedCount > 0;
+            var locked = browser.Mode == BrowseMode.Locked;
             @if (browser.Mode != BrowseMode.Peek && browser.Operation is not { Modal: false })
             {
                 @* Locked or already deleted: a full-width strip, hard to miss. *@
@@ -47,9 +48,9 @@
             {
                 <Columns>
                     <Markup Content="@StatusCount(browser)" />
-                    @if (browser.Selected.Count > 0)
+                    @if (browser.SelectedCount > 0)
                     {
-                        <Markup Content="@($"· {Icons.Selected} {ComponentStrings.FormatMessageBrowserView_Selected(browser.Selected.Count)}")" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
+                        <Markup Content="@($"· {Icons.Selected} {ComponentStrings.FormatMessageBrowserView_Selected(browser.SelectedCount)}")" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
                     }
                     @if (browser.Operation is { Modal: false } load)
                     {
@@ -77,10 +78,14 @@
                             <SpectreTH Align="Justify.Right" Width="@SequenceWidth(browser)">#</SpectreTH>
                             <SpectreTH Align="Justify.Left">@Strings.MessageId</SpectreTH>
                             <SpectreTH Align="Justify.Left">@Strings.Subject</SpectreTH>
+                            @if (locked)
+                            {
+                                <SpectreTH Align="Justify.Left">@ComponentStrings.MessageBrowserView_State</SpectreTH>
+                                <SpectreTH Align="Justify.Left">@ComponentStrings.MessageBrowserView_Lock</SpectreTH>
+                            }
                             @if (_isDlq) { <SpectreTH Align="Justify.Left">@ComponentStrings.MessageBrowserView_Reason</SpectreTH> }
                             <SpectreTH Align="Justify.Left">@Strings.Enqueued</SpectreTH>
                             <SpectreTH Align="Justify.Right">@ComponentStrings.MessageBrowserView_Delivery</SpectreTH>
-                            @if (browser.Mode == BrowseMode.Locked) { <SpectreTH Align="Justify.Left">@ComponentStrings.MessageBrowserView_Lock</SpectreTH> }
                         </SpectreTR>
                     </SpectreTHead>
                     <NavigableTBody @ref="_tbody"
@@ -92,26 +97,28 @@
                             var idx = i++;
                             var isCursor = context.CurrentOffset + idx == browser.Cursor;
                             var selected = browser.IsSelected(m);
+                            @* Settled rows and lost locks stay, dimmed: nothing more can be done to them. *@
+                            var done = !browser.CanAct(m);
+                            var text = done ? Theme.Settled : Color.Default;
                             <SelectableRow @key="m.SequenceNumber" RowIndex="@idx">
                                 <SpectreTD data-padding="@Gutter.Cell">
-                                    @if (showChecks || isCursor)
+                                    @if ((showChecks || isCursor) && !done)
                                     {
                                         <div class="check" @onclick="@ToggleHandler(m)" @onclick:stopPropagation="true"><RowCheck Checked="@selected" /></div>
                                     }
                                 </SpectreTD>
-                                <SpectreTD Align="Justify.Right">@m.SequenceNumber</SpectreTD>
-                                <SpectreTD>@Truncate(m.MessageId, 30)</SpectreTD>
-                                <SpectreTD>@Truncate(m.Subject, 25)</SpectreTD>
-                                @if (_isDlq) { <SpectreTD><Markup Content="@Truncate(m.DeadLetterReason ?? "", 25)" Foreground="@Theme.Danger" /></SpectreTD> }
-                                <SpectreTD><Markup Content="@RelativeTime.Ago(m.EnqueuedTime, DateTimeOffset.UtcNow)" Foreground="@Theme.Muted" /></SpectreTD>
-                                <SpectreTD Align="Justify.Right"><Markup Content="@m.DeliveryCount.ToString()" Foreground="@(m.DeliveryCount > 1 ? Theme.Warning : Theme.Muted)" /></SpectreTD>
-                                @if (browser.Mode == BrowseMode.Locked)
+                                <SpectreTD Align="Justify.Right"><Markup Content="@m.SequenceNumber.ToString(CultureInfo.InvariantCulture)" Foreground="@text" /></SpectreTD>
+                                <SpectreTD><Markup Content="@Truncate(m.MessageId, 30)" Foreground="@text" /></SpectreTD>
+                                <SpectreTD><Markup Content="@Truncate(m.Subject, 25)" Foreground="@text" /></SpectreTD>
+                                @if (locked)
                                 {
-                                    <SpectreTD>
-                                        <Markup Content="@(browser.IsLockHeld(m) ? $"{Icons.Locked} {ComponentStrings.MessageBrowserView_LockHeld}" : $"{Icons.Unlocked} {ComponentStrings.MessageBrowserView_LockLost}")"
-                                                Foreground="@(browser.IsLockHeld(m) ? Theme.Success : Theme.Danger)" />
-                                    </SpectreTD>
+                                    var state = browser.StateOf(m);
+                                    <SpectreTD><Markup Content="@StateText(state)" Foreground="@StateColor(state)" /></SpectreTD>
+                                    <SpectreTD><Markup Content="@(state == LockedState.Held ? $"{Icons.Refresh} {ComponentStrings.MessageBrowserView_LockRenewing}" : "")" Foreground="@Theme.Muted" /></SpectreTD>
                                 }
+                                @if (_isDlq) { <SpectreTD><Markup Content="@Truncate(m.DeadLetterReason ?? "", 25)" Foreground="@(done ? text : Theme.Danger)" /></SpectreTD> }
+                                <SpectreTD><Markup Content="@RelativeTime.Ago(m.EnqueuedTime, DateTimeOffset.UtcNow)" Foreground="@(done ? text : Theme.Muted)" /></SpectreTD>
+                                <SpectreTD Align="Justify.Right"><Markup Content="@m.DeliveryCount.ToString()" Foreground="@(done ? text : m.DeliveryCount > 1 ? Theme.Warning : Theme.Muted)" /></SpectreTD>
                             </SelectableRow>
                         }
                     </NavigableTBody>
@@ -122,6 +129,10 @@
             {
                 <MessagePreview Message="@focused" Browser="@browser" Width="@Viewport.Width" Height="@PreviewHeight(browser)" BodyFocusOrder="2" OnKeyDown="@HandleKeyDown"
                                 Title="@($"{Icons.Message} {ComponentStrings.FormatMessageBrowserView_PreviewTitle(focused.SequenceNumber, browser.Cursor + 1, browser.Messages.Count)}")" />
+            }
+            @if (browser.Settled is { Finished: true } settled)
+            {
+                <Markup Content="@SettledStatus(browser, settled)" Foreground="@OutcomeColor(settled.Outcome)" />
             }
         }
         else
@@ -209,7 +220,8 @@
     private BrowserSplit Split => FullscreenLayout.Browser(Viewport.Height);
 
     // A short list leaves rows unused; the preview takes them.
-    private int PreviewHeight(MessageBrowser browser) => Split.Preview + Math.Max(0, Split.Rows - browser.Messages.Count);
+    private int PreviewHeight(MessageBrowser browser) =>
+        Split.Preview + Math.Max(0, Split.Rows - browser.Messages.Count) - (browser.Settled is { Finished: true } ? 1 : 0);
     private string TopicNote => Source is MessageSource.Subscription ? ComponentStrings.MessageBrowserView_TopicNote : "";
 
     private IEnumerable<AsyncCommand<IReadOnlyList<MessageInfo>>?> ListCommands => [_complete, _abandon, _deadLetter, _retry, _resend];
@@ -336,7 +348,7 @@
     }
 
     /// <summary>How many messages the selection commands act on, after their label: " 2"; none for the message under the cursor.</summary>
-    private string Targets => _browser is { Selected.Count: > 0 and var n } ? $" {n}" : "";
+    private string Targets => _browser is { SelectedCount: > 0 and var n } ? $" {n}" : "";
 
     private IReadOnlyList<KeyBinding> Keys =>
     [
@@ -404,7 +416,7 @@
         if (ListCommands.Any(c => c?.HandleKey(e) == true) || _purge?.HandleKey(e) == true) return;
         if (e.Key == "Escape")
         {
-            if (_browser is { Selected.Count: > 0 } b) { b.Selected.Clear(); StateHasChanged(); }
+            if (_browser is { SelectedCount: > 0 } b) { b.Selected.Clear(); StateHasChanged(); }
             else GoBack();
             return;
         }
@@ -432,6 +444,7 @@
     private string ModeNote(BrowseMode mode) => mode switch
     {
         BrowseMode.Peek => _browser is { Messages.Count: var n } ? ComponentStrings.FormatMessageBrowserView_ReadOnlyLoaded(n.ToString("N0")) : ComponentStrings.MessageBrowserView_ReadOnly,
+        BrowseMode.Locked when _browser is { } b => LockedCounts(b),
         _ => "",
     };
 
@@ -444,9 +457,52 @@
 
     private static string ModeStrip(MessageBrowser b) => b.Mode switch
     {
-        BrowseMode.Locked => $" {ModeBadge(b.Mode)}  {ComponentStrings.FormatMessageBrowserView_LockedStrip(b.Messages.Count.ToString("N0"), b.LockedCount.ToString("N0"))}",
+        BrowseMode.Locked => $" {ModeBadge(b.Mode)}  {ComponentStrings.FormatMessageBrowserView_LockedStrip(b.LockedCount.ToString("N0"))}",
         _ => $" {ModeBadge(b.Mode)}  {ComponentStrings.FormatMessageBrowserView_ReceivedCount(b.Messages.Count.ToString("N0"))}",
-    } + (b.Selected.Count > 0 ? $" · {Icons.Selected} {ComponentStrings.FormatMessageBrowserView_Selected(b.Selected.Count)}" : "");
+    } + (b.SelectedCount > 0 ? $" · {Icons.Selected} {ComponentStrings.FormatMessageBrowserView_Selected(b.SelectedCount)}" : "");
+
+    /// <summary>"25 received · 2 completed · 1 abandoned"; the strip says how many are held.</summary>
+    private static string LockedCounts(MessageBrowser b) => string.Join(" · ",
+    [
+        ComponentStrings.FormatMessageBrowserView_Received(b.Messages.Count.ToString("N0")),
+        .. b.SettledCounts.Select(s => ComponentStrings.FormatMessageBrowserView_StateCount(s.Count.ToString("N0"), StateName(s.State))),
+    ]);
+
+    /// <summary>"✅ Completed 2 messages · 22 still held".</summary>
+    private static string SettledStatus(MessageBrowser b, OperationProgress settled) =>
+        $"{settled.Outcome switch { OperationOutcome.Succeeded => Icons.Done, OperationOutcome.Cancelled => Icons.Cancelled, _ => Icons.Error }} {settled.Result} · {ComponentStrings.FormatMessageBrowserView_StillHeld(b.LockedCount.ToString("N0"))}";
+
+    private static Color OutcomeColor(OperationOutcome outcome) => outcome switch
+    {
+        OperationOutcome.Succeeded => Theme.Success,
+        OperationOutcome.Cancelled => Theme.Warning,
+        _ => Theme.Danger,
+    };
+
+    private static string StateName(LockedState state) => state switch
+    {
+        LockedState.Held => ComponentStrings.MessageBrowserView_StateHeld,
+        LockedState.Completed => ComponentStrings.MessageBrowserView_StateCompleted,
+        LockedState.Abandoned => ComponentStrings.MessageBrowserView_StateAbandoned,
+        LockedState.DeadLettered => ComponentStrings.MessageBrowserView_StateDeadLettered,
+        _ => ComponentStrings.MessageBrowserView_StateLockLost,
+    };
+
+    private static string StateText(LockedState state) => state switch
+    {
+        LockedState.Held => Icons.Locked,
+        LockedState.Completed => Icons.Complete,
+        LockedState.Abandoned => Icons.Unlocked,
+        LockedState.DeadLettered => Icons.DeadLetter,
+        _ => Icons.Error,
+    } + " " + StateName(state);
+
+    private static Color StateColor(LockedState state) => state switch
+    {
+        LockedState.Held => Theme.Warning,
+        LockedState.LockLost => Theme.Danger,
+        _ => Theme.Settled,
+    };
 
     private static Color ModeColor(BrowseMode mode) => mode switch
     {
@@ -463,7 +519,7 @@
 
     private static string StatusCount(MessageBrowser b) => b.Mode switch
     {
-        BrowseMode.Locked => $"{Icons.Message} {ComponentStrings.FormatMessageBrowserView_LockedCount(b.Messages.Count, b.LockedCount)}",
+        BrowseMode.Locked => $"{Icons.Message} {LockedCounts(b)} · {ComponentStrings.FormatMessageBrowserView_StateCount(b.LockedCount.ToString("N0"), StateName(LockedState.Held))}",
         BrowseMode.Received => $"{Icons.Received} {ComponentStrings.FormatMessageBrowserView_ReceivedCount(b.Messages.Count)}",
         _ => $"{Icons.Message} {ComponentStrings.FormatMessageBrowserView_Count(b.Messages.Count)}",
     };

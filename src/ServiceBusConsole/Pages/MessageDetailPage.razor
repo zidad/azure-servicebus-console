@@ -85,14 +85,14 @@ else
 
 <AsyncCommand @ref="_complete" TItem="MessageInfo"
               ConfirmMessage="@(m => PageStrings.FormatMessageDetail_CompleteConfirm(m.SequenceNumber, NavState.MessageSource?.DisplayName))"
-              Execute="@(m => Act(m, (b, l) => b.CompleteAsync(l)))" />
+              Execute="@(m => Act(m, (b, l) => b.CompleteAsync(l)))" OnCompleted="@BackToStatus" />
 
 <AsyncCommand @ref="_abandon" TItem="MessageInfo"
-              Execute="@(m => Act(m, (b, l) => b.AbandonAsync(l)))" />
+              Execute="@(m => Act(m, (b, l) => b.AbandonAsync(l)))" OnCompleted="@BackToStatus" />
 
 <AsyncCommand @ref="_deadLetter" TItem="MessageInfo"
               ConfirmMessage="@(m => PageStrings.FormatMessageDetail_DeadLetterConfirm(m.SequenceNumber))"
-              Execute="@(m => Act(m, (b, l) => b.DeadLetterAsync(l)))" />
+              Execute="@(m => Act(m, (b, l) => b.DeadLetterAsync(l)))" OnCompleted="@BackToStatus" />
 
 <AsyncCommand @ref="_retry" TItem="MessageInfo"
               ConfirmMessage="@(m => RetryConfirm(m))"
@@ -113,7 +113,10 @@ else
 
     private bool IsDlq => NavState.MessageSource?.IsDlq == true;
     private BrowseMode? Mode => NavState.Message is null ? null : _browser?.Mode;
-    private bool CanRetry => _browser is not null && Mode is { } mode && RetryText.CanRetry(mode, IsDlq);
+    private bool CanRetry => CanAct && Mode is { } mode && RetryText.CanRetry(mode, IsDlq);
+
+    // False for a settled message or a lost lock in a locked list.
+    private bool CanAct => _browser is { } b && NavState.Message is { } m && b.CanAct(m);
 
     private string RetryConfirm(MessageInfo message) => Mode is { } mode && NavState.MessageSource is { } source
         ? RetryText.Confirm(mode, source, Strings.FormatOneMessage(message.SequenceNumber), _browser?.Namespace is IHasTransactions)
@@ -236,6 +239,13 @@ else
         if (NavState.Message is { } message) command?.Invoke(message);
     }
 
+    // Settling reports in the list's status line, failures included.
+    private Task BackToStatus(MessageInfo _)
+    {
+        GoBack();
+        return Task.CompletedTask;
+    }
+
     // The message is handled: back to the list. After a failure or cancel it is still here.
     private void DismissOperation()
     {
@@ -265,7 +275,7 @@ else
 
     private IReadOnlyList<KeyBinding> Keys =>
     [
-        .. Mode == BrowseMode.Locked
+        .. Mode == BrowseMode.Locked && CanAct
             ? [new KeyBinding("c", $"{Icons.Complete} {Strings.Complete}", () => Run(_complete)) { Danger = true, Aliases = ["F9", "Delete"] },
                new KeyBinding("a", $"{Icons.Unlocked} {Strings.Abandon}", () => Run(_abandon)) { Aliases = ["F4"] },
                .. IsDlq ? Array.Empty<KeyBinding>()
