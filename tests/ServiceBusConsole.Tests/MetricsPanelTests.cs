@@ -297,7 +297,7 @@ public sealed class MetricsPanelTests
         await AppHarness.WaitForTableFocusAsync(terminal);
         var emulator = await terminal.WaitUntilAsync(
             f => f.ContainsText(AppHarness.AzureSubscription.Name) && !f.ContainsText("Listing Azure subscriptions")
-                && f.ContainsText("aren't available for localhost"),
+                && f.ContainsText("🌐 sb-orders-dev") && f.ContainsText("aren't available for localhost"),
             AppHarness.Timeout, cancellationToken: Ct);
 
         await app.SelectAzureNamespaceAsync(terminal, AppHarness.AzureNamespace);
