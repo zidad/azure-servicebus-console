@@ -1,0 +1,286 @@
+@typeparam TItem where TItem : class
+@implements IDisposable
+
+@inject NavigationManager Nav
+@inject ServiceBusConnection Connection
+@inject RazorConsole.Core.Focus.FocusManager FocusManager
+@inject ITerminalViewport Viewport
+@inject LiveCountsOptions LiveCounts
+@inject MetricsVisibility MetricsVisibility
+@inject ILogger<EntityList<TItem>> Logger
+
+<FullscreenPage OnKeyDown="HandleKeyDown">
+    <Header>
+        @Crumb
+        @if (All.Count > 0) { <Markup Content="@ConnectionHeader.Count(View.Items.Count, All.Count)" Foreground="@Theme.Muted" /> }
+    </Header>
+    <Status>@if (_live is { } live) { <LiveStatus List="@live" /> }</Status>
+    <Content>
+        @if (Section is { } section) { <SectionTabs Current="@section" Count="@(All.Count > 0 ? All.Count : null)" /> }
+        @if (All.Count == 0 && _loadFailed)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Markup Content="@PageStrings.List_LoadFailed" Foreground="@Theme.Danger" />
+            </Padder>
+        }
+        else if (All.Count == 0)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <Columns>
+                    <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
+                    <Markup Content="@LoadingText" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+                </Columns>
+            </Padder>
+        }
+        else
+        {
+            <SelectableList Items="@View.Items"
+                        PageSize="@PageSize"
+                        Scrollbar="@Theme.Scrollbar()"
+                        SelectedIndex="@View.SelectedIndex"
+                        SelectedIndexChanged="@View.Select"
+                        OnActivate="OpenFocused">
+                <SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.Rounded" ColumnSeparators="false">
+                    <SpectreTHead>
+                        <SpectreTR>
+                            @Headers(this)
+                            @if (_traffic is not null) { <SpectreTH Align="Justify.Left">@PageStrings.List_IncomingHeader</SpectreTH> }
+                            <SpectreTH></SpectreTH>
+                        </SpectreTR>
+                    </SpectreTHead>
+                    <NavigableTBody @ref="_tbody" TakeKey="@(View.Filterable ? EndsFilterEdit : null)"
+                                  FocusOrder="1"
+                                  OnKeyDown="@HandleKeyDown">
+                        @{ var i = 0; }
+                        @foreach (var item in context.Items)
+                        {
+                            var idx = i++;
+                            <SelectableRow @key="Key(item)" RowIndex="@idx">
+                                @Row(item)
+                                @if (_traffic is { } traffic && TrafficEntity is { } entity) { <SpectreTD><Sparkline Points="@traffic.Of(entity(item))" /></SpectreTD> }
+                                <SpectreTD>@if (IsRefreshing(item)) { <Spinner /> }</SpectreTD>
+                            </SelectableRow>
+                        }
+                        <FillerRows Count="@(PageSize - context.Items.Count)" />
+                    </NavigableTBody>
+                </SpectreTable>
+            </SelectableList>
+        }
+    </Content>
+    <Footer>
+        @if (ShowMetrics && Connection.Current is IHasMetrics { Metrics: var metrics })
+        {
+            var entity = MetricsEntity(View);
+            <MetricsPanel @ref="_metricsPanel" Metrics="@metrics" Label="@MetricsLabel(entity)" Scope="@(entity is { } e ? new MetricsScope.Entity(e) : null)" OnKeyDown="@HandleKeyDown" />
+        }
+        <KeyHints Bindings="@Keys" FirstFocusOrder="3" OnKeyDown="@HandleKeyDown" />
+    </Footer>
+</FullscreenPage>
+
+<ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
+<HelpDialog @ref="_help" OnClose="FocusTable" />
+@if (Section is not null) { <JumpDialog @ref="_jump" OnCancel="FocusTable" /> }
+
+@code {
+    /// <summary>
+    /// A section list page: a live, sortable table of entities (<see cref="LiveList{T}"/>) with the loading and failed
+    /// states, the incoming sparkline column, the metrics panel, help, jump and the keys every list has.
+    /// The page gives its columns, cells and commands.
+    /// </summary>
+    [Parameter, EditorRequired] public required RenderFragment Crumb { get; set; }
+
+    /// <summary>A section of the namespace: its tabs, their keys and <c>:</c> to jump.</summary>
+    [Parameter] public Section? Section { get; set; }
+
+    [Parameter, EditorRequired] public required string LoadingText { get; set; }
+    [Parameter, EditorRequired] public required Func<CancellationToken, IAsyncEnumerable<TItem>> Load { get; set; }
+    [Parameter, EditorRequired] public required Func<TItem, string> Key { get; set; }
+
+    /// <summary>A cached row, still loading live.</summary>
+    [Parameter, EditorRequired] public required Func<TItem, bool> IsRefreshing { get; set; }
+
+    /// <summary>A cached row that stopped refreshing because the live load failed.</summary>
+    [Parameter, EditorRequired] public required Func<TItem, TItem> Stale { get; set; }
+
+    [Parameter, EditorRequired] public required CountChanges<TItem> Changes { get; set; }
+    [Parameter, EditorRequired] public required TableSort<TItem> Sort { get; set; }
+
+    /// <summary>Whether a row matches the <c>/</c> filter; without it the list has no filter.</summary>
+    [Parameter] public Func<TItem, string, bool>? Matches { get; set; }
+
+    /// <summary>The row to select first (<see cref="ListView{T}.Focus"/>).</summary>
+    [Parameter] public string? Focus { get; set; }
+
+    /// <summary>The row to select once it loads (<see cref="ListView{T}.Restore"/>).</summary>
+    [Parameter] public string? RestoreFocus { get; set; }
+
+    /// <summary>Header cells before the incoming and spinner columns; sort headers take <see cref="Sorted"/>.</summary>
+    [Parameter, EditorRequired] public required RenderFragment<EntityList<TItem>> Headers { get; set; }
+
+    /// <summary>A row's cells before the incoming and spinner columns.</summary>
+    [Parameter, EditorRequired] public required RenderFragment<TItem> Row { get; set; }
+
+    /// <summary>The Azure Monitor entity of a row, for the incoming sparkline; without it no sparkline column.</summary>
+    [Parameter] public Func<TItem, string>? TrafficEntity { get; set; }
+
+    /// <summary>The entity the metrics panel charts.</summary>
+    [Parameter, EditorRequired] public required Func<ListView<TItem>, string?> MetricsEntity { get; set; }
+
+    [Parameter, EditorRequired] public required Func<string?, string> MetricsLabel { get; set; }
+
+    [Parameter, EditorRequired] public required string OpenLabel { get; set; }
+    [Parameter, EditorRequired] public required Action<TItem> OnOpen { get; set; }
+
+    /// <summary>The page's own keys, after refresh.</summary>
+    [Parameter] public IEnumerable<KeyBinding> Commands { get; set; } = [];
+
+    /// <summary>Sees keys first, for the page's <see cref="AsyncCommand{TItem}.HandleKey"/>s; true takes the key.</summary>
+    [Parameter] public Func<KeyboardEventArgs, bool>? CommandKey { get; set; }
+
+    [Parameter] public string BackTo { get; set; } = "/";
+
+    private ListView<TItem>? _view;
+    private LiveList<TItem>? _live;
+    private IncomingTraffic? _traffic;
+    private MetricsPanel? _metricsPanel;
+    private NavigableTBody? _tbody;
+    private HelpDialog? _help;
+    private JumpDialog? _jump;
+    private string _error = string.Empty;
+    private bool _loadFailed;
+    private bool _tableAutoFocused;
+
+    private const int MinTrafficWidth = 110;
+
+    public ListView<TItem> View => _view ?? throw new InvalidOperationException("List not initialized");
+
+    public ListFilter Filter => View.Filter;
+
+    /// <summary>For <see cref="SortHeader.OnSorted"/>.</summary>
+    public EventCallback Sorted => EventCallback.Factory.Create(this, Refresh);
+
+    private List<TItem> All => (_live ?? throw new InvalidOperationException("List not initialized")).All;
+
+    private bool ShowMetrics => Connection.Current is IHasMetrics && MetricsVisibility.IsVisible(Viewport.Height);
+
+    private int PageSize => FullscreenLayout.PageSizeRoundedTable(Viewport.Height, ShowMetrics, tabs: Section is not null);
+
+    /// <summary>After a row was deleted: selects the one now in its place.</summary>
+    public void Remove(string rowKey)
+    {
+        All.RemoveAll(x => Key(x) == rowKey);
+        View.Removed(All);
+        StateHasChanged();
+    }
+
+    /// <summary>Replaces a row, e.g. a count reset after a purge.</summary>
+    public void Update(string rowKey, Func<TItem, TItem> change)
+    {
+        _live?.Update(rowKey, change);
+        Refresh();
+        StateHasChanged();
+    }
+
+    protected override void OnInitialized()
+    {
+        _view = new ListView<TItem>(Key, Sort, Matches);
+        StartTraffic();
+        _live = new LiveList<TItem>(Load, Key, IsRefreshing, Stale, Changes, LiveCounts, Logger)
+        {
+            Changed = () => { Refresh(); return InvokeAsync(StateHasChanged); },
+            Render = StateHasChanged,
+            LoadFailed = ex => { _loadFailed = true; _error = ErrorText.Of(ex); return InvokeAsync(StateHasChanged); },
+        };
+        _view.Focus(Focus);
+        _view.Restore(RestoreFocus);
+        // Not awaited: a startup target opens a list page during the app's first render, which waits for lifecycle tasks.
+        _ = Reload();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_tableAutoFocused && _tbody is not null && View.Items.Count > 0)
+        {
+            _tableAutoFocused = true;
+            await FocusManager.FocusAsync(_tbody.FocusKey);
+        }
+    }
+
+    public void Dispose()
+    {
+        _live?.Dispose();
+        _traffic?.Dispose();
+    }
+
+    private void StartTraffic()
+    {
+        if (TrafficEntity is null || Connection.Current is not IHasMetrics { Metrics: var metrics } || Viewport.Width < MinTrafficWidth) return;
+        _traffic = new IncomingTraffic(metrics, LiveCounts, Logger) { Changed = () => InvokeAsync(StateHasChanged) };
+        _ = _traffic.RunAsync();
+    }
+
+    private Task Reload()
+    {
+        _error = string.Empty;
+        _loadFailed = false;
+        _metricsPanel?.Reload();
+        return _live?.LoadAsync() ?? Task.CompletedTask;
+    }
+
+    private void Refresh() => View.Update(All);
+
+    private void ToggleMetrics()
+    {
+        if (Connection.Current is not IHasMetrics) return;
+        _ = MetricsVisibility.ToggleAsync(Viewport.Height);
+        StateHasChanged();
+    }
+
+    private IReadOnlyList<KeyBinding> Keys =>
+    [
+        new("Enter", OpenLabel, OpenFocused) { InFooter = false },
+        .. View.Filterable
+            ? [new KeyBinding("/", $"{Icons.Filter} {PageStrings.Key_Filter}", () => { Filter.Edit(); StateHasChanged(); }) { InFooter = false }]
+            : Array.Empty<KeyBinding>(),
+        new("r", $"{Icons.Refresh} {PageStrings.Key_Refresh}", () => _ = Reload()) { Ctrl = true, Aliases = ["F5"] },
+        .. Commands,
+        .. Connection.Current is IHasMetrics
+            ? [new KeyBinding("m", $"{Icons.Metrics} {PageStrings.Key_Metrics}", ToggleMetrics) { Aliases = ["F12"] }]
+            : Array.Empty<KeyBinding>(),
+        .. Section is { } section
+            ? [.. SectionTabs.Bindings(Connection.Current, section, Nav), new KeyBinding(":", $"{Icons.Filter} {Strings.Jump}", () => _ = _jump?.OpenAsync())]
+            : Array.Empty<KeyBinding>(),
+        new("?", $"{Icons.Confirm} {Strings.Help}", () => _help?.Open(Keys)),
+        new("Escape", $"{Icons.Back} {Strings.Back}", () => Nav.NavigateTo(BackTo)),
+    ];
+
+    private void OpenFocused()
+    {
+        if (View.Focused is { } item) OnOpen(item);
+    }
+
+    private bool EndsFilterEdit(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter" || !Filter.Editing) return false;
+        Filter.Handle(e);
+        StateHasChanged();
+        return true;
+    }
+
+    private Task FocusTable() => _tbody is { } table ? FocusManager.FocusAsync(table.FocusKey) : Task.CompletedTask;
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (CommandKey?.Invoke(e) == true) return;
+        if (View.Filterable)
+        {
+            switch (Filter.Handle(e))
+            {
+                case FilterKey.Changed: View.Refilter(All); StateHasChanged(); return;
+                case FilterKey.Handled: StateHasChanged(); return;
+            }
+        }
+        if (MetricsRange.StepOf(e) is { } step && _metricsPanel?.StepRange(step) == true) return;
+        KeyBinding.Dispatch(Keys, e);
+    }
+}
