@@ -28,10 +28,10 @@ public sealed class SessionContext(NavigationState navState, ServiceBusConnectio
             switched = ns != _namespace;
             _namespace = ns;
         }
-        if (switched && ns is not null) log.Record(ActivityKind.Navigated, $"Connected to namespace {ns.FullyQualifiedNamespace}");
+        if (switched && ns is not null) log.Record(ActivityKind.Navigated, ServiceStrings.FormatSessionContext_Connected(ns.FullyQualifiedNamespace));
         if (page == DetailPath && navState.Message is { } message)
-            log.Record(ActivityKind.Navigated, $"Opened message #{message.SequenceNumber}", navState.MessageSource);
-        else log.Record(ActivityKind.Navigated, $"Opened /{page}");
+            log.Record(ActivityKind.Navigated, ServiceStrings.FormatSessionContext_OpenedMessage(message.SequenceNumber), navState.MessageSource);
+        else log.Record(ActivityKind.Navigated, ServiceStrings.FormatSessionContext_OpenedPage(page));
     }
 
     public SessionSnapshot Snapshot()

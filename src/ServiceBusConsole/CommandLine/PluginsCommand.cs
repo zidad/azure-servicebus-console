@@ -6,7 +6,7 @@ public static class PluginsCommand
     public static bool Execute(PluginsInput input)
     {
         IEnumerable<string> lines = input.Catalog.Plugins.Count == 0
-            ? ["No plugins installed."]
+            ? [CommandLineStrings.PluginsCommand_NoPlugins]
             : input.Catalog.Plugins.SelectMany((p, i) => i == 0 ? Describe(p, input) : Describe(p, input).Prepend(""));
         foreach (var line in lines) input.Out.WriteLine(line);
         return true;
@@ -16,7 +16,8 @@ public static class PluginsCommand
     [
         $"{plugin.Id}  {plugin.Name}  {input.Catalog.Status(plugin, input.Configuration)}",
         $"  {plugin.Description}",
-        .. PluginCatalog.KeysOf(plugin).Select(key => $"  {key.Key}={Value(key, input)}  (default: {key.Default ?? "none"}; {key.Description})"),
+        .. PluginCatalog.KeysOf(plugin).Select(key => CommandLineStrings.FormatPluginsCommand_Setting(
+            key.Key, Value(key, input), key.Default ?? CommandLineStrings.PluginsCommand_NoDefault, key.Description)),
     ];
 
     private static string Value(ConfigKey key, PluginsInput input) => input.Configuration[key.ConfigurationPath] switch

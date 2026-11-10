@@ -4,14 +4,14 @@
 {
     <Columns>
         <Markup Content="●" Foreground="@Theme.Success" />
-        <Markup Content="@($"live · {at.ToLocalTime():HH:mm:ss}")" Foreground="@Theme.Muted" />
+        <Markup Content="@ComponentStrings.FormatLiveStatus_Live(at.ToLocalTime().ToString("HH:mm:ss"))" Foreground="@Theme.Muted" />
     </Columns>
 }
 else if (List.All.Count > 0)
 {
     <Columns>
         <Markup Content="◐" Foreground="@Theme.Muted" />
-        <Markup Content="cached" Foreground="@Theme.Muted" />
+        <Markup Content="@ComponentStrings.LiveStatus_Cached" Foreground="@Theme.Muted" />
     </Columns>
 }
 

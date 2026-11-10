@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using ServiceBusConsole.Plugins.Resources;
 
 namespace ServiceBusConsole.Plugins;
 
@@ -24,5 +25,5 @@ public sealed record MessageActionContext
     public string RequiredSetting(string key) =>
         Settings[key] is { Length: > 0 } value
             ? value
-            : throw new InvalidOperationException($"Set plugins.{PluginId}.{key} first: azsb config set plugins.{PluginId}.{key} <value>");
+            : throw new InvalidOperationException(Strings.FormatMessageActionContext_SettingRequired(PluginId, key));
 }

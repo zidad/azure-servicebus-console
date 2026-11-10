@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="JumpTarget_Queue" xml:space="preserve">
+    <value>queue</value>
+  </data>
+  <data name="JumpTarget_Topic" xml:space="preserve">
+    <value>topic</value>
+  </data>
+  <data name="JumpTarget_Subscription" xml:space="preserve">
+    <value>subscription</value>
+  </data>
+  <data name="KeyBinding_Escape" xml:space="preserve">
+    <value>esc</value>
+  </data>
+  <data name="KeyBinding_Space" xml:space="preserve">
+    <value>space</value>
+  </data>
+  <data name="ErrorText_Firewall" xml:space="preserve">
+    <value>The namespace's firewall blocks this computer's IP address. Connect through an allowed network (VPN), or add the IP under Networking for the namespace in the Azure portal.</value>
+  </data>
+  <data name="ExplorerTree_Discovering" xml:space="preserve">
+    <value>Discovering namespaces…</value>
+  </data>
+  <data name="ExplorerTree_Failed" xml:space="preserve">
+    <value>{error}  (Enter to retry)</value>
+  </data>
+  <data name="StepPlot_NoData" xml:space="preserve">
+    <value>No data</value>
+  </data>
+  <data name="MetricsRange_LastHours" xml:space="preserve">
+    <value>last {hours} h</value>
+  </data>
+  <data name="MetricsRange_LastDays" xml:space="preserve">
+    <value>last {days} d</value>
+  </data>
+  <data name="RelativeTime_Now" xml:space="preserve">
+    <value>now</value>
+  </data>
+  <data name="RelativeTime_SecondsAgo" xml:space="preserve">
+    <value>{seconds} s ago</value>
+  </data>
+  <data name="RelativeTime_MinutesAgo" xml:space="preserve">
+    <value>{minutes} min ago</value>
+  </data>
+  <data name="RelativeTime_HoursAgo" xml:space="preserve">
+    <value>{hours} h ago</value>
+  </data>
+  <data name="RelativeTime_DaysAgo" xml:space="preserve">
+    <value>{days} d ago</value>
+  </data>
+</root>

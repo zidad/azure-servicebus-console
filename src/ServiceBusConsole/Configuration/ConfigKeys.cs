@@ -6,7 +6,7 @@ public static class ConfigKeys
     public const string PluginPrefix = "plugins.";
 
     public static ConfigKey Theme { get; } =
-        new("ui.theme", "Colors for a dark or light terminal background: auto (COLORFGBG, else dark), dark or light", "auto");
+        new("ui.theme", ConfigurationStrings.ConfigKeys_Theme, "auto");
 
     public static IReadOnlyList<ConfigKey> App { get; } = [Theme];
 

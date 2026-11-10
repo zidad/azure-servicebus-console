@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="EditorPlugin_Name" xml:space="preserve">
+    <value>Editor</value>
+  </data>
+  <data name="EditorPlugin_Description" xml:space="preserve">
+    <value>Opens a message as a JSON file in your editor</value>
+  </data>
+  <data name="EditorPlugin_CommandSetting" xml:space="preserve">
+    <value>Editor executable, found on PATH (Windows: code.cmd)</value>
+  </data>
+  <data name="EditorPlugin_ArgumentsSetting" xml:space="preserve">
+    <value>Arguments, split on spaces; {placeholder} is the message file, appended when absent</value>
+  </data>
+  <data name="EditorPlugin_DirectorySetting" xml:space="preserve">
+    <value>Folder for the message files instead of the state directory's messages folder</value>
+  </data>
+  <data name="OpenInEditorAction_Label" xml:space="preserve">
+    <value>Open in editor</value>
+  </data>
+  <data name="OpenInEditorAction_Opening" xml:space="preserve">
+    <value>Opening in {editor}…</value>
+  </data>
+  <data name="OpenInEditorAction_CouldNotStart" xml:space="preserve">
+    <value>Could not start {editor}; set your editor: azsb config set plugins.{plugin}.{key} &lt;cmd&gt;</value>
+  </data>
+  <data name="OpenInEditorAction_Opened" xml:space="preserve">
+    <value>Opened in {editor}</value>
+  </data>
+</root>

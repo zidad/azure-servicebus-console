@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Logging;
+using ServiceBusConsole.AzureServiceBus.Resources;
 
 namespace ServiceBusConsole.AzureServiceBus;
 
@@ -87,7 +88,7 @@ internal sealed class MessageService(ServiceBusClient bus, ILoggerFactory logger
             while (sent + added < messages.Count && batch.TryAddMessage(new ServiceBusMessage(ServiceBusMessageInfo.RawOf(messages[sent + added]))))
                 added++;
             if (added == 0)
-                throw new InvalidOperationException($"Message #{messages[sent].SequenceNumber} is too large to send");
+                throw new InvalidOperationException(Strings.FormatMessageService_TooLarge(messages[sent].SequenceNumber));
             await sender.SendMessagesAsync(batch, ct);
             sent += added;
             yield return sent;

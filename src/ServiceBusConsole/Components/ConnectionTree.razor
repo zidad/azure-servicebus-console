@@ -21,7 +21,7 @@
         {
             <SpectreTHead>
                 <SpectreTR>
-                    <SpectreTH Align="Justify.Left"><Columns><Markup Content="Name" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
+                    <SpectreTH Align="Justify.Left"><Columns><Markup Content="@ComponentStrings.ConnectionTree_Name" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
                     <SpectreTH Align="Justify.Left"><Markup Content="@DetailsHeader" /></SpectreTH>
                 </SpectreTR>
             </SpectreTHead>
@@ -191,7 +191,7 @@
 
     private string Details(ExplorerNode node) => node switch
     {
-        Subscription { Value.Id: { } id } => id == DefaultSubscriptionId ? $"{id}  (az default)" : id,
+        Subscription { Value.Id: { } id } => id == DefaultSubscriptionId ? ComponentStrings.FormatConnectionTree_DefaultSubscription(id) : id,
         Subscription => "localhost:5672",
         Namespace { Info: var ns } => DetailColumns(ns.Sku ?? "", ns.Location, ns.ResourceGroup,
             string.IsNullOrEmpty(ns.Status) ? "" : $"{Icons.NamespaceStatus(ns.Status)} {ns.Status}"),
@@ -201,7 +201,7 @@
     // One cell, padded into columns: a namespace's SKU, region, resource group and status line up under the header.
     private const int SkuWidth = 10, RegionWidth = 15, GroupWidth = 22;
 
-    private static string DetailsHeader => DetailColumns("SKU", "Region", "Resource group", "Status");
+    private static string DetailsHeader => DetailColumns(ComponentStrings.ConnectionTree_Sku, ComponentStrings.ConnectionTree_Region, ComponentStrings.ConnectionTree_ResourceGroup, ComponentStrings.ConnectionTree_Status);
 
     private static string DetailColumns(string sku, string region, string group, string status) =>
         $"{Fit(sku, SkuWidth)}{Fit(region, RegionWidth)}{Fit(group, GroupWidth)}{status}";

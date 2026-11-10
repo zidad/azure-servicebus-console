@@ -20,17 +20,17 @@
                     <Markup Content="@CellText.Fit(Label, HalfWidth - ThroughputLegendWidth - 6)" Decoration="@Decoration.Bold" />
                     <Markup Content=" " />
                     <Markup Content="──" Foreground="@Theme.Incoming" />
-                    <Markup Content="incoming" Foreground="@Theme.Muted" />
+                    <Markup Content="@ComponentStrings.MetricsPanel_Incoming" Foreground="@Theme.Muted" />
                     <Markup Content="──" Foreground="@Theme.Outgoing" />
-                    <Markup Content="outgoing" Foreground="@Theme.Muted" />
+                    <Markup Content="@ComponentStrings.MetricsPanel_Outgoing" Foreground="@Theme.Muted" />
                 </Columns>
             </Flex>
             <Flex Direction="FlexDirection.Row" Width="@HalfWidth" Justify="FlexJustify.SpaceBetween">
                 <Columns>
                     <Markup Content="──" Foreground="@Theme.Backlog" />
-                    <Markup Content="active" Foreground="@Theme.Muted" />
+                    <Markup Content="@ComponentStrings.MetricsPanel_Active" Foreground="@Theme.Muted" />
                     <Markup Content="──" Foreground="@Theme.Danger" />
-                    <Markup Content="@(HalfWidth >= FullBacklogLegendWidth ? "dead-lettered" : "DLQ")" Foreground="@Theme.Muted" />
+                    <Markup Content="@(HalfWidth >= FullBacklogLegendWidth ? ComponentStrings.MetricsPanel_DeadLettered : Strings.Dlq)" Foreground="@Theme.Muted" />
                 </Columns>
                 <Columns>
                     @if (_metrics?.IsRefreshing == true) { <Spinner /> } else { <Markup Content=" " /> }
@@ -57,7 +57,7 @@
         {
             <Columns>
                 <Spinner />
-                <Markup Content="Loading metrics..." Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+                <Markup Content="@ComponentStrings.MetricsPanel_Loading" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
             </Columns>
         }
     }
@@ -205,5 +205,5 @@
 
     // Azure errors span many lines (status, content, headers); the first says what went wrong.
     private string ErrorLine(Exception ex) =>
-        CellText.Fit($"Metrics unavailable: {ex.Message.Split('\n')[0].Trim()}", Viewport.Width - 1);
+        CellText.Fit(ComponentStrings.FormatMetricsPanel_Unavailable(ex.Message.Split('\n')[0].Trim()), Viewport.Width - 1);
 }

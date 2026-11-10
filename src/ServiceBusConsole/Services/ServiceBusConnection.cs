@@ -10,7 +10,7 @@ public sealed class ServiceBusConnection(INamespaceOpener opener) : IAsyncDispos
     public IServiceBusNamespace? Current { get; private set; }
 
     /// <summary>The current namespace, for work that needs one.</summary>
-    public IServiceBusNamespace Namespace => Current ?? throw new InvalidOperationException("No namespace selected.");
+    public IServiceBusNamespace Namespace => Current ?? throw new InvalidOperationException(ServiceStrings.ServiceBusConnection_NoNamespace);
 
     public string? CurrentNamespace => Current?.Info.FullyQualifiedNamespace;
 

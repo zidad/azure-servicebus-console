@@ -38,7 +38,7 @@
             _ = RunAsync(item);
             return;
         }
-        _pending = new(item, ConfirmMessage(item), ConfirmByTyping ? "yes" : null);
+        _pending = new(item, ConfirmMessage(item), ConfirmByTyping ? ComponentStrings.AsyncCommand_ConfirmWord : null);
         StateHasChanged();
     }
 

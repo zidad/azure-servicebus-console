@@ -1,3 +1,5 @@
+using ServiceBusConsole.Plugins.GitHub.Resources;
+
 namespace ServiceBusConsole.Plugins.GitHub;
 
 /// <summary>Creates an issue for the message with <c>gh issue create</c>, signed in as the user's GitHub CLI login.</summary>
@@ -7,7 +9,7 @@ internal sealed class CreateIssueAction : IMessageAction
 
     public string Id => "create-issue";
 
-    public string Label => "Create GitHub issue";
+    public string Label => Strings.CreateIssueAction_Label;
 
     public string Icon => "🐙";
 
@@ -19,13 +21,13 @@ internal sealed class CreateIssueAction : IMessageAction
         var bodyFile = Path.Combine(PluginFiles.PluginDirectory(context), PluginFiles.MessageFileName(context, "md"));
         await File.WriteAllTextAsync(bodyFile, IssueBody.Format(context, settings.IncludeContext), ct);
 
-        context.Progress.Report($"Creating an issue in {settings.Repo}…");
+        context.Progress.Report(Strings.FormatCreateIssueAction_Creating(settings.Repo));
         var spec = Spec(settings, IssueTitle.Format(settings.TitleTemplate, context), bodyFile);
         var command = $"{settings.Cli} issue create";
         var result = (await RunCliAsync(context, spec, ct)).EnsureSuccess(command);
         var url = IssueUrl(result.StandardOutput)
-            ?? throw new InvalidOperationException($"{command} printed no issue URL: {result.StandardOutput.Trim()}");
-        return new ActionResult($"Created issue #{url.Segments[^1]}", Link: url);
+            ?? throw new InvalidOperationException(Strings.FormatCreateIssueAction_NoIssueUrl(command, result.StandardOutput.Trim()));
+        return new ActionResult(Strings.FormatCreateIssueAction_Created(url.Segments[^1]), Link: url);
     }
 
     public static ProcessSpec Spec(IssueSettings settings, string title, string bodyFile) => new(settings.Cli,
@@ -55,8 +57,7 @@ internal sealed class CreateIssueAction : IMessageAction
         catch (InvalidOperationException e)
         {
             throw new InvalidOperationException(
-                $"Could not run the GitHub CLI ({spec.FileName}): install it from https://cli.github.com and sign in with gh auth login, " +
-                $"or point to it: azsb config set plugins.{context.PluginId}.{IssueSettings.CliKey} <path>", e);
+                Strings.FormatCreateIssueAction_CouldNotRunCli(spec.FileName, context.PluginId, IssueSettings.CliKey), e);
         }
     }
 }

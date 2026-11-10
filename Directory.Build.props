@@ -8,4 +8,8 @@
   <PropertyGroup Condition="!$(MSBuildProjectName.EndsWith('.Tests'))">
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
+  <!-- Displayed text lives in Resources/*.resx; the generator makes a strongly typed class per file (Format* methods for placeholders). -->
+  <ItemGroup Condition="Exists('$(MSBuildProjectDirectory)/Resources')">
+    <PackageReference Include="Microsoft.CodeAnalysis.ResxSourceGenerator" PrivateAssets="all" />
+  </ItemGroup>
 </Project>

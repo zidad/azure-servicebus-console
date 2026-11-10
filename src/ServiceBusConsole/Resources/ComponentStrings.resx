@@ -1,0 +1,346 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="Dialog_Ok" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="Dialog_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Dialog_Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Dialog_Yes" xml:space="preserve">
+    <value>Yes</value>
+  </data>
+  <data name="Dialog_No" xml:space="preserve">
+    <value>No</value>
+  </data>
+  <data name="Dialog_Open" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="App_NotFound" xml:space="preserve">
+    <value>Page not found.</value>
+  </data>
+  <data name="ColumnFilter_TypeToFilter" xml:space="preserve">
+    <value>type to filter</value>
+  </data>
+  <data name="ColumnFilter_SlashToFilter" xml:space="preserve">
+    <value>/ to filter</value>
+  </data>
+  <data name="LiveStatus_Live" xml:space="preserve">
+    <value>live · {time}</value>
+  </data>
+  <data name="LiveStatus_Cached" xml:space="preserve">
+    <value>cached</value>
+  </data>
+  <data name="ErrorModal_Title" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="ErrorModal_Dismiss" xml:space="preserve">
+    <value>Dismiss</value>
+  </data>
+  <data name="ConnectionPicker_Title" xml:space="preserve">
+    <value>Go to</value>
+  </data>
+  <data name="ConnectionPicker_TitleFiltered" xml:space="preserve">
+    <value>Go to {icon} {filter}</value>
+  </data>
+  <data name="ConnectionHeader_Count" xml:space="preserve">
+    <value>({total})</value>
+  </data>
+  <data name="ConnectionHeader_CountFiltered" xml:space="preserve">
+    <value>({shown} of {total})</value>
+  </data>
+  <data name="SourceTabs_DeadLetter" xml:space="preserve">
+    <value>Dead-letter</value>
+  </data>
+  <data name="HelpDialog_Title" xml:space="preserve">
+    <value>Keys</value>
+  </data>
+  <data name="HelpDialog_Intro" xml:space="preserve">
+    <value>Letters act on the page; / filters. F-keys from earlier versions still work.</value>
+  </data>
+  <data name="HelpDialog_ShiftNote" xml:space="preserve">
+    <value>Shift marks the keys that delete or move messages.</value>
+  </data>
+  <data name="ConfirmModal_Title" xml:space="preserve">
+    <value>Confirm</value>
+  </data>
+  <data name="ConfirmModal_TypeToConfirm" xml:space="preserve">
+    <value>Type {word} to confirm</value>
+  </data>
+  <data name="AsyncCommand_ConfirmWord" xml:space="preserve">
+    <value>yes</value>
+  </data>
+  <data name="OperationDialog_SoFar" xml:space="preserve">
+    <value>{done} so far</value>
+  </data>
+  <data name="OperationDialog_Cancelling" xml:space="preserve">
+    <value>Cancelling… finishing what is in flight</value>
+  </data>
+  <data name="FetchDialog_ReceiveTitle" xml:space="preserve">
+    <value>Receive messages</value>
+  </data>
+  <data name="FetchDialog_PeekTitle" xml:space="preserve">
+    <value>Peek messages</value>
+  </data>
+  <data name="FetchDialog_Count" xml:space="preserve">
+    <value>Number of messages</value>
+  </data>
+  <data name="FetchDialog_ReceiveMode" xml:space="preserve">
+    <value>Receive mode: </value>
+  </data>
+  <data name="FetchDialog_ReceiveAndDelete" xml:space="preserve">
+    <value>ReceiveAndDelete</value>
+  </data>
+  <data name="FetchDialog_SwitchHint" xml:space="preserve">
+    <value>  (Enter/click to switch)</value>
+  </data>
+  <data name="FetchDialog_DeleteWarning" xml:space="preserve">
+    <value>Messages are deleted from the entity as they are received. Requeue them before you leave, or they are gone.</value>
+  </data>
+  <data name="FetchDialog_LockNote" xml:space="preserve">
+    <value>Messages stay locked (renewed automatically) until you complete, abandon, dead-letter or requeue them.</value>
+  </data>
+  <data name="FetchDialog_FromSequence" xml:space="preserve">
+    <value>From sequence # (optional)</value>
+  </data>
+  <data name="FetchDialog_CountInvalid" xml:space="preserve">
+    <value>Enter a number between 1 and {max}.</value>
+  </data>
+  <data name="FetchDialog_SequenceInvalid" xml:space="preserve">
+    <value>Sequence number must be a positive number.</value>
+  </data>
+  <data name="JumpDialog_Title" xml:space="preserve">
+    <value>Jump to</value>
+  </data>
+  <data name="JumpDialog_Placeholder" xml:space="preserve">
+    <value>queue, topic or subscription</value>
+  </data>
+  <data name="JumpDialog_Listing" xml:space="preserve">
+    <value>Listing…</value>
+  </data>
+  <data name="JumpDialog_NoMatches" xml:space="preserve">
+    <value>Nothing matches.</value>
+  </data>
+  <data name="JumpDialog_Hints" xml:space="preserve">
+    <value>⏎ open · ↑↓ move · esc close</value>
+  </data>
+  <data name="MessagePreview_Body" xml:space="preserve">
+    <value>BODY</value>
+  </data>
+  <data name="MessagePreview_MessageHeader" xml:space="preserve">
+    <value>MESSAGE</value>
+  </data>
+  <data name="MessagePreview_ContentType" xml:space="preserve">
+    <value>Content Type</value>
+  </data>
+  <data name="MessagePreview_DeliveryCount" xml:space="preserve">
+    <value>Delivery Count</value>
+  </data>
+  <data name="MessagePreview_ApplicationHeader" xml:space="preserve">
+    <value>APPLICATION</value>
+  </data>
+  <data name="MessagePreview_LockHeld" xml:space="preserve">
+    <value>Locked by this console</value>
+  </data>
+  <data name="MessagePreview_LockLost" xml:space="preserve">
+    <value>Lock lost (back on the queue)</value>
+  </data>
+  <data name="MessagePreview_Received" xml:space="preserve">
+    <value>Received and deleted; requeue it or it is gone</value>
+  </data>
+  <data name="MessagePreview_Peeked" xml:space="preserve">
+    <value>Peeked (read-only)</value>
+  </data>
+  <data name="MetricsPanel_Incoming" xml:space="preserve">
+    <value>incoming</value>
+  </data>
+  <data name="MetricsPanel_Outgoing" xml:space="preserve">
+    <value>outgoing</value>
+  </data>
+  <data name="MetricsPanel_Active" xml:space="preserve">
+    <value>active</value>
+  </data>
+  <data name="MetricsPanel_DeadLettered" xml:space="preserve">
+    <value>dead-lettered</value>
+  </data>
+  <data name="MetricsPanel_Loading" xml:space="preserve">
+    <value>Loading metrics...</value>
+  </data>
+  <data name="MetricsPanel_Unavailable" xml:space="preserve">
+    <value>Metrics unavailable: {error}</value>
+  </data>
+  <data name="MessageActionsDialog_Title" xml:space="preserve">
+    <value>Actions on message #{sequenceNumber}</value>
+  </data>
+  <data name="MessageActionsDialog_Hints" xml:space="preserve">
+    <value>↑/↓ choose · Enter run · Esc close</value>
+  </data>
+  <data name="MessageActionsDialog_Starting" xml:space="preserve">
+    <value>Starting…</value>
+  </data>
+  <data name="MessageActionsDialog_Cancelling" xml:space="preserve">
+    <value>Cancelling…</value>
+  </data>
+  <data name="MessageActionsDialog_Cancel" xml:space="preserve">
+    <value>[Esc] Cancel</value>
+  </data>
+  <data name="MessageActionsDialog_Outcome" xml:space="preserve">
+    <value>{plugin}: {text}</value>
+  </data>
+  <data name="MessageActionsDialog_Cancelled" xml:space="preserve">
+    <value>{plugin}: {action} cancelled</value>
+  </data>
+  <data name="ConnectionTree_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="ConnectionTree_Sku" xml:space="preserve">
+    <value>SKU</value>
+  </data>
+  <data name="ConnectionTree_Region" xml:space="preserve">
+    <value>Region</value>
+  </data>
+  <data name="ConnectionTree_ResourceGroup" xml:space="preserve">
+    <value>Resource group</value>
+  </data>
+  <data name="ConnectionTree_Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="ConnectionTree_DefaultSubscription" xml:space="preserve">
+    <value>{id}  (az default)</value>
+  </data>
+  <data name="MessageBrowserView_AutoForwarding" xml:space="preserve">
+    <value>auto-forwarding</value>
+  </data>
+  <data name="MessageBrowserView_AutoForwardingEnabled" xml:space="preserve">
+    <value>Auto-forwarding enabled — messages are forwarded to another entity.</value>
+  </data>
+  <data name="MessageBrowserView_Loading" xml:space="preserve">
+    <value>Loading…</value>
+  </data>
+  <data name="MessageBrowserView_EscCancels" xml:space="preserve">
+    <value>· Esc cancels</value>
+  </data>
+  <data name="MessageBrowserView_LoadProgress" xml:space="preserve">
+    <value>{title}: {done} so far · Esc cancels</value>
+  </data>
+  <data name="MessageBrowserView_Selected" xml:space="preserve">
+    <value>{count} selected</value>
+  </data>
+  <data name="MessageBrowserView_SelectHints" xml:space="preserve">
+    <value>· space select, ^a all, i invert</value>
+  </data>
+  <data name="MessageBrowserView_Reason" xml:space="preserve">
+    <value>Reason</value>
+  </data>
+  <data name="MessageBrowserView_Delivery" xml:space="preserve">
+    <value>Delivery</value>
+  </data>
+  <data name="MessageBrowserView_Lock" xml:space="preserve">
+    <value>Lock</value>
+  </data>
+  <data name="MessageBrowserView_LockHeld" xml:space="preserve">
+    <value>held</value>
+  </data>
+  <data name="MessageBrowserView_LockLost" xml:space="preserve">
+    <value>lost</value>
+  </data>
+  <data name="MessageBrowserView_PreviewTitle" xml:space="preserve">
+    <value>#{sequenceNumber} · {position} of {count} · ⏎ zoom</value>
+  </data>
+  <data name="MessageBrowserView_ConfirmComplete" xml:space="preserve">
+    <value>Complete {messages}? They are removed from {source}.</value>
+  </data>
+  <data name="MessageBrowserView_ConfirmDeadLetter" xml:space="preserve">
+    <value>Move {messages} to the dead-letter queue?</value>
+  </data>
+  <data name="MessageBrowserView_ConfirmResend" xml:space="preserve">
+    <value>Send copies of {messages} to {target}? The originals stay in {source}.{topicNote}</value>
+  </data>
+  <data name="MessageBrowserView_TopicNote" xml:space="preserve">
+    <value> Every subscription of the topic gets a copy.</value>
+  </data>
+  <data name="MessageBrowserView_ConfirmPurge" xml:space="preserve">
+    <value>Purge ALL messages from {source}? This cannot be undone.</value>
+  </data>
+  <data name="MessageBrowserView_Peeking" xml:space="preserve">
+    <value>Peeking messages…</value>
+  </data>
+  <data name="MessageBrowserView_ReceivingAndDeleting" xml:space="preserve">
+    <value>Receiving and deleting messages…</value>
+  </data>
+  <data name="MessageBrowserView_ReceivingAndLocking" xml:space="preserve">
+    <value>Receiving and locking messages…</value>
+  </data>
+  <data name="MessageBrowserView_Peek" xml:space="preserve">
+    <value>Peek…</value>
+  </data>
+  <data name="MessageBrowserView_Receive" xml:space="preserve">
+    <value>Receive…</value>
+  </data>
+  <data name="MessageBrowserView_Select" xml:space="preserve">
+    <value>Select</value>
+  </data>
+  <data name="MessageBrowserView_SelectAll" xml:space="preserve">
+    <value>Select all</value>
+  </data>
+  <data name="MessageBrowserView_InvertSelection" xml:space="preserve">
+    <value>Invert the selection</value>
+  </data>
+  <data name="MessageBrowserView_ModeLocked" xml:space="preserve">
+    <value>locked</value>
+  </data>
+  <data name="MessageBrowserView_ModeReceived" xml:space="preserve">
+    <value>received and deleted</value>
+  </data>
+  <data name="MessageBrowserView_ModePeek" xml:space="preserve">
+    <value>peek</value>
+  </data>
+  <data name="MessageBrowserView_BadgeLocked" xml:space="preserve">
+    <value>LOCKED</value>
+  </data>
+  <data name="MessageBrowserView_BadgeReceived" xml:space="preserve">
+    <value>RECEIVED AND DELETED</value>
+  </data>
+  <data name="MessageBrowserView_BadgePeek" xml:space="preserve">
+    <value>PEEK</value>
+  </data>
+  <data name="MessageBrowserView_ReadOnly" xml:space="preserve">
+    <value>read-only</value>
+  </data>
+  <data name="MessageBrowserView_ReadOnlyLoaded" xml:space="preserve">
+    <value>read-only · {count} loaded</value>
+  </data>
+  <data name="MessageBrowserView_LockedStrip" xml:space="preserve">
+    <value>{count} locked message(s), {held} held · locks renew automatically · esc abandons the rest</value>
+  </data>
+  <data name="MessageBrowserView_LockedCount" xml:space="preserve">
+    <value>{count} locked message(s), {held} held</value>
+  </data>
+  <data name="MessageBrowserView_ReceivedCount" xml:space="preserve">
+    <value>{count} message(s) already deleted, requeue them or they are gone</value>
+  </data>
+  <data name="MessageBrowserView_Count" xml:space="preserve">
+    <value>{count} message(s)</value>
+  </data>
+  <data name="MessageBrowserView_Empty" xml:space="preserve">
+    <value>No messages. Press p to peek or r to receive.</value>
+  </data>
+  <data name="MessageBrowserView_EmptyLeft" xml:space="preserve">
+    <value>No messages left. Press p to peek or r to receive more.</value>
+  </data>
+</root>

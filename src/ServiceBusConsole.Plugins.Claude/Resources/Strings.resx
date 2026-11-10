@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ClaudePlugin_Name" xml:space="preserve">
+    <value>Claude Code</value>
+  </data>
+  <data name="ClaudePlugin_Description" xml:space="preserve">
+    <value>Opens Claude Code in a new terminal window in your codebase to analyse a message (uses your Claude Code login)</value>
+  </data>
+  <data name="ClaudePlugin_CommandSetting" xml:space="preserve">
+    <value>Claude Code executable</value>
+  </data>
+  <data name="ClaudePlugin_WorkingDirectorySetting" xml:space="preserve">
+    <value>Codebase Claude Code runs in (unset: the directory azsb was started in)</value>
+  </data>
+  <data name="ClaudePlugin_AllowedToolsSetting" xml:space="preserve">
+    <value>Tools Claude Code may use without asking, comma separated (empty: it asks for each)</value>
+  </data>
+  <data name="ClaudePlugin_ModelSetting" xml:space="preserve">
+    <value>Model, e.g. sonnet or opus (unset: Claude Code's)</value>
+  </data>
+  <data name="ClaudePlugin_PromptSetting" xml:space="preserve">
+    <value>First message; placeholders {message} and {context} (Markdown), {messageFile}, {contextFile}, {entity}, {subject}, {sequenceNumber}, ...</value>
+  </data>
+  <data name="ClaudePlugin_TerminalSetting" xml:space="preserve">
+    <value>Command that opens a window running {script} in {dir} (unset: tmux window in tmux, else Terminal on macOS, Windows Terminal or cmd, x-terminal-emulator)</value>
+  </data>
+  <data name="AnalyseMessageAction_Label" xml:space="preserve">
+    <value>Analyse with Claude Code</value>
+  </data>
+  <data name="AnalyseMessageAction_Opening" xml:space="preserve">
+    <value>Opening Claude Code in {directory}…</value>
+  </data>
+  <data name="AnalyseMessageAction_CouldNotOpenTerminal" xml:space="preserve">
+    <value>Could not open a terminal with {terminal}: azsb config set plugins.{plugin}.{key} "&lt;command&gt; {script}"</value>
+  </data>
+  <data name="AnalyseMessageAction_Opened" xml:space="preserve">
+    <value>Claude Code opened in a new window, in {directory}</value>
+  </data>
+  <data name="ClaudeSettings_NoDirectory" xml:space="preserve">
+    <value>Working directory {directory} does not exist: azsb config set plugins.{plugin}.{key} &lt;path to your code&gt;</value>
+  </data>
+</root>

@@ -1,26 +1,26 @@
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 
 <ModalWindow IsOpened="@IsOpened">
-    <Panel Border="BoxBorder.Rounded" Title="@($"{Icons.Confirm} Confirm")" BorderColor="@Theme.Danger" Padding="@(new(2, 1, 2, 1))">
+    <Panel Border="BoxBorder.Rounded" Title="@($"{Icons.Confirm} {ComponentStrings.ConfirmModal_Title}")" BorderColor="@Theme.Danger" Padding="@(new(2, 1, 2, 1))">
         <Rows>
             <Markup Content="@Message" />
             @if (MustType is { } text)
             {
                 <Padder Padding="@(new(0, 1, 0, 0))">
-                    <TextInput @ref="_input" @key="_opened" Label="@($"Type {text} to confirm")" OnInput="@(v => _typed = v ?? "")"
+                    <TextInput @ref="_input" @key="_opened" Label="@ComponentStrings.FormatConfirmModal_TypeToConfirm(text)" OnInput="@(v => _typed = v ?? "")"
                                OnSubmit="@(_ => Confirm())" FocusOrder="0" @onkeydown="HandleTypingKey" FillWidth="true" />
                 </Padder>
             }
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
                     <KeyButton @ref="_confirmButton"
-                                Key="@(MustType is null ? "y" : "⏎")" Danger="true" Content="Yes"
+                                Key="@(MustType is null ? "y" : "⏎")" Danger="true" Content="@ComponentStrings.Dialog_Yes"
                                 OnClick="Confirm"
                                 OnKeyDown="HandleKey"
                                 FocusedColor="@Theme.Danger"
                                 FocusOrder="@(MustType is null ? 0 : 1)" />
                     <Markup Content="   " />
-                    <KeyButton Key="@(MustType is null ? "n" : "esc")" Content="No"
+                    <KeyButton Key="@(MustType is null ? "n" : "esc")" Content="@ComponentStrings.Dialog_No"
                                 OnClick="@(() => OnCancel.InvokeAsync())"
                                 OnKeyDown="HandleKey"
                                 FocusedColor="@Theme.Muted"

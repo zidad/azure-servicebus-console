@@ -1,5 +1,6 @@
 using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Logging;
+using ServiceBusConsole.AzureServiceBus.Resources;
 
 namespace ServiceBusConsole.AzureServiceBus.Emulator;
 
@@ -33,7 +34,7 @@ internal sealed class EmulatorTopicService(ServiceBusClient bus, ILogger<Emulato
 
     private static IEnumerable<(string Topic, string Subscription)> Subscriptions(string topicName) =>
         (EmulatorCounts.Config().Topics.FirstOrDefault(t => t.Name == topicName)
-            ?? throw new InvalidOperationException($"Topic '{topicName}' not found in emulator config."))
+            ?? throw new InvalidOperationException(Strings.FormatEmulatorTopicService_TopicNotFound(topicName)))
         .Subscriptions.Select(s => (topicName, s.Name));
 
     private async Task<SubscriptionInfo> PeekSubscriptionAsync((string Topic, string Subscription) entity, CancellationToken ct)

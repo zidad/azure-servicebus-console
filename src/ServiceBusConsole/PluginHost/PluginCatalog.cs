@@ -45,7 +45,7 @@ public sealed partial class PluginCatalog
 
     public static IEnumerable<ConfigKey> KeysOf(IPlugin plugin) =>
     [
-        new(EnabledKey(plugin), $"Turns the {plugin.Name} plugin on or off; auto: on when what it needs is found", AutoEnabled),
+        new(EnabledKey(plugin), PluginHostStrings.FormatPluginCatalog_EnabledKey(plugin.Name), AutoEnabled),
         .. plugin.Settings.Select(s => new ConfigKey(Key(plugin, s), s.Description, s.Default) { IsSecret = s.IsSecret }),
     ];
 

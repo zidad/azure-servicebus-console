@@ -3,6 +3,7 @@ using System.Threading.Channels;
 using System.Transactions;
 using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Logging;
+using ServiceBusConsole.AzureServiceBus.Resources;
 
 namespace ServiceBusConsole.AzureServiceBus;
 
@@ -136,7 +137,7 @@ internal sealed class LockedMessages : ILockedMessages
     {
         var held = messages.Select(m => _held.TryGetValue(m.SequenceNumber, out var h)
             ? h.Message
-            : throw new InvalidOperationException($"Message #{m.SequenceNumber} is no longer locked")).ToList();
+            : throw new InvalidOperationException(Strings.FormatLockedMessages_NotLocked(m.SequenceNumber))).ToList();
         using (var scope = new TransactionScope(TransactionScopeOption.RequiresNew, TransactionScopeAsyncFlowOption.Enabled))
         {
             await first(ct);
@@ -162,7 +163,7 @@ internal sealed class LockedMessages : ILockedMessages
     private async Task SettleAsync(MessageInfo message, Func<ServiceBusReceivedMessage, Task> settle)
     {
         if (!_held.TryGetValue(message.SequenceNumber, out var held))
-            throw new InvalidOperationException($"Message #{message.SequenceNumber} is no longer locked");
+            throw new InvalidOperationException(Strings.FormatLockedMessages_NotLocked(message.SequenceNumber));
         try
         {
             await settle(held.Message);

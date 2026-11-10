@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="DeadLetter" xml:space="preserve">
+    <value>Dead-letter</value>
+  </data>
+  <data name="Dlq" xml:space="preserve">
+    <value>DLQ</value>
+  </data>
+  <data name="Abandon" xml:space="preserve">
+    <value>Abandon</value>
+  </data>
+  <data name="OneMessage" xml:space="preserve">
+    <value>message #{sequenceNumber}</value>
+  </data>
+  <data name="Active" xml:space="preserve">
+    <value>Active</value>
+  </data>
+  <data name="PeekLock" xml:space="preserve">
+    <value>PeekLock</value>
+  </data>
+  <data name="MessageId" xml:space="preserve">
+    <value>Message ID</value>
+  </data>
+  <data name="Subject" xml:space="preserve">
+    <value>Subject</value>
+  </data>
+  <data name="Enqueued" xml:space="preserve">
+    <value>Enqueued</value>
+  </data>
+  <data name="Bytes" xml:space="preserve">
+    <value>{size} B</value>
+  </data>
+  <data name="SequenceNumber" xml:space="preserve">
+    <value>Sequence #</value>
+  </data>
+  <data name="State" xml:space="preserve">
+    <value>State</value>
+  </data>
+  <data name="Complete" xml:space="preserve">
+    <value>Complete</value>
+  </data>
+  <data name="Resend" xml:space="preserve">
+    <value>Resend</value>
+  </data>
+  <data name="Purge" xml:space="preserve">
+    <value>Purge</value>
+  </data>
+  <data name="Actions" xml:space="preserve">
+    <value>Actions…</value>
+  </data>
+  <data name="Jump" xml:space="preserve">
+    <value>Jump</value>
+  </data>
+  <data name="Help" xml:space="preserve">
+    <value>Help</value>
+  </data>
+  <data name="Back" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="Messages" xml:space="preserve">
+    <value>{count} messages</value>
+  </data>
+  <data name="Queues" xml:space="preserve">
+    <value>Queues</value>
+  </data>
+  <data name="Topics" xml:space="preserve">
+    <value>Topics</value>
+  </data>
+  <data name="AllSubscriptions" xml:space="preserve">
+    <value>All Subscriptions</value>
+  </data>
+  <data name="Subscriptions" xml:space="preserve">
+    <value>Subscriptions</value>
+  </data>
+</root>

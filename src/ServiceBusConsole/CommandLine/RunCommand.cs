@@ -11,12 +11,12 @@ public static class RunCommand
     {
         if (input is { Subscription: null, Namespace: not null })
         {
-            AnsiConsole.MarkupLine("[red]Invalid usage:[/] --namespace needs --subscription. See [italic]azsb help run[/].");
+            InvalidUsage(CommandLineStrings.FormatRunCommand_Needs("--namespace", "--subscription", HelpRun));
             return false;
         }
         if (input is { Namespace: null, Open: not null })
         {
-            AnsiConsole.MarkupLine("[red]Invalid usage:[/] --open needs --namespace. See [italic]azsb help run[/].");
+            InvalidUsage(CommandLineStrings.FormatRunCommand_Needs("--open", "--namespace", HelpRun));
             return false;
         }
 
@@ -24,7 +24,7 @@ public static class RunCommand
         var theme = input.ThemeSetting(host.Services.GetRequiredService<IConfiguration>());
         if (Palette.For(theme, Environment.GetEnvironmentVariable("COLORFGBG")) is not { } palette)
         {
-            AnsiConsole.MarkupLine($"[red]Invalid usage:[/] theme '{Markup.Escape(theme ?? "")}' is not auto, dark or light (--theme, else {ConfigKeys.Theme.Key}).");
+            InvalidUsage(CommandLineStrings.FormatRunCommand_InvalidTheme(Markup.Escape(theme ?? ""), ConfigKeys.Theme.Key));
             host.Dispose();
             return false;
         }
@@ -36,4 +36,9 @@ public static class RunCommand
         await host.RunAsync();
         return true;
     }
+
+    private const string HelpRun = "[italic]azsb help run[/]";
+
+    private static void InvalidUsage(string markup) =>
+        AnsiConsole.MarkupLine($"[red]{Markup.Escape(CommandLineStrings.RunCommand_InvalidUsage)}[/] {markup}");
 }

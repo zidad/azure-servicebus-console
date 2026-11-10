@@ -48,6 +48,7 @@
   </ItemGroup>
   <ItemGroup>
     <Using Include="ServiceBusConsole.Abstractions" />
+    <Using Include="ServiceBusConsole.Resources" />
     <Using Include="ServiceBusConsole.PluginHost" />
     <Using Include="ServiceBusConsole.Plugins" />
     <Using Include="ServiceBusConsole.CommandLine" />

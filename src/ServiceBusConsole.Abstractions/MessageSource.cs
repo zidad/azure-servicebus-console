@@ -1,3 +1,5 @@
+using ServiceBusConsole.Abstractions.Resources;
+
 namespace ServiceBusConsole.Abstractions;
 
 /// <summary>Where messages are read: a queue or a topic subscription, active or dead-letter.</summary>
@@ -19,5 +21,9 @@ public abstract record MessageSource(bool IsDlq)
     /// <summary>Where copies go: the queue itself, or the topic of a subscription.</summary>
     public string SendTarget => Match(q => q.Name, s => s.Topic);
 
-    public string DisplayName => Match(q => q.Name, s => $"{s.Topic}/{s.Name}") + (IsDlq ? " DLQ" : "");
+    public string DisplayName => Match(q => q.Name, s => $"{s.Topic}/{s.Name}") switch
+    {
+        var name when IsDlq => Strings.FormatMessageSource_DeadLetterName(name),
+        var name => name,
+    };
 }

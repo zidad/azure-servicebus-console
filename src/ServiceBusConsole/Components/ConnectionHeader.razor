@@ -54,5 +54,5 @@
     public void OpenSections(int top) => _picker?.Open(SubscriptionX - 1, top, NamespaceNode?.Key);
 
     /// <summary>Item count for a page header: "(3)", or "(1 of 3)" while filtered.</summary>
-    public static string Count(int shown, int total) => shown == total ? $"({total})" : $"({shown} of {total})";
+    public static string Count(int shown, int total) => shown == total ? ComponentStrings.FormatConnectionHeader_Count(total) : ComponentStrings.FormatConnectionHeader_CountFiltered(shown, total);
 }

@@ -1,0 +1,6 @@
+<Project>
+  <!-- After the SDK's default EmbeddedResource items, which an Update in Directory.Build.props would not see. -->
+  <ItemGroup Condition="Exists('$(MSBuildProjectDirectory)/Resources')">
+    <EmbeddedResource Update="Resources/*.resx" EmitFormatMethods="true" />
+  </ItemGroup>
+</Project>

@@ -4,11 +4,11 @@
 <Flex Justify="FlexJustify.SpaceBetween" FillWidth="true">
     <Flex Gap="1">
         <div class="source-tab" @onclick="@(() => Switch(false))">
-            <Markup Content="@($" 1 {Icons.Queue} Active{CountText(_counts?.Active)} ")" Background="@(IsDlq ? Color.Default : Theme.Selection)"
+            <Markup Content="@($" 1 {Icons.Queue} {Strings.Active}{CountText(_counts?.Active)} ")" Background="@(IsDlq ? Color.Default : Theme.Selection)"
                     Foreground="@(IsDlq ? Theme.Muted : Theme.OnSelection)" Decoration="@(IsDlq ? Decoration.None : Decoration.Bold)" />
         </div>
         <div class="source-tab" @onclick="@(() => Switch(true))">
-            <Markup Content="@($" 2 {Icons.DeadLetter} Dead-letter{CountText(_counts?.DeadLetter)} ")" Background="@(IsDlq ? Theme.Selection : Color.Default)"
+            <Markup Content="@($" 2 {Icons.DeadLetter} {ComponentStrings.SourceTabs_DeadLetter}{CountText(_counts?.DeadLetter)} ")" Background="@(IsDlq ? Theme.Selection : Color.Default)"
                     Foreground="@(IsDlq ? Theme.OnSelection : Theme.Muted)" Decoration="@(IsDlq ? Decoration.Bold : Decoration.None)" />
         </div>
     </Flex>

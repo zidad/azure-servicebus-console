@@ -8,7 +8,7 @@ else if (!Filter.IsEmpty)
 }
 else
 {
-    <Markup Content="@(Filter.TypeToFilter ? $"{Icons.Filter} type to filter" : $"{Icons.Filter} / to filter")" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+    <Markup Content="@($"{Icons.Filter} {(Filter.TypeToFilter ? ComponentStrings.ColumnFilter_TypeToFilter : ComponentStrings.ColumnFilter_SlashToFilter)}")" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
 }
 
 @code {

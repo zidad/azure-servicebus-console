@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using ServiceBusConsole.Plugins.Linear.Resources;
 
 namespace ServiceBusConsole.Plugins.Linear;
 
@@ -10,8 +11,8 @@ internal sealed class LinearClient(HttpClient http)
 {
     public static readonly Uri Endpoint = new("https://api.linear.app/graphql");
 
-    public const string RejectedKey =
-        $"Linear rejected the API key; set plugins.{LinearPlugin.PluginId}.{LinearSettings.ApiKey} or {LinearPlugin.ApiKeyVariable}";
+    public static string RejectedKey =>
+        Strings.FormatLinearClient_RejectedKey(LinearPlugin.PluginId, LinearSettings.ApiKey, LinearPlugin.ApiKeyVariable);
 
     private const string TeamQuery =
         "query Team($key: String!) { teams(filter: { key: { eqIgnoreCase: $key } }) { nodes { id key } } }";
@@ -26,7 +27,7 @@ internal sealed class LinearClient(HttpClient http)
     {
         var data = await QueryAsync(apiKey, TeamQuery, new JsonObject { ["key"] = key }, ct);
         return Nodes(data["teams"]).Select(n => n?["id"]?.GetValue<string>()).OfType<string>().FirstOrDefault()
-            ?? throw new LinearException($"Linear has no team with key {key}");
+            ?? throw new LinearException(Strings.FormatLinearClient_NoTeam(key));
     }
 
     /// <summary>The ids of the labels named, the team's label over a workspace one of the same name.</summary>
@@ -45,7 +46,7 @@ internal sealed class LinearClient(HttpClient http)
                 .FirstOrDefault()))
             .ToList();
         return found.Where(f => f.Id is null).Select(f => f.Name).ToList() is { Count: > 0 } missing
-            ? throw new LinearException($"Linear has no label {string.Join(", ", missing)} in the team or workspace")
+            ? throw new LinearException(Strings.FormatLinearClient_NoLabels(string.Join(", ", missing)))
             : [.. found.Select(f => f.Id).OfType<string>().Distinct()];
     }
 
@@ -64,7 +65,7 @@ internal sealed class LinearClient(HttpClient http)
                && node["identifier"]?.GetValue<string>() is { } identifier
                && Uri.TryCreate(node["url"]?.GetValue<string>(), UriKind.Absolute, out var url)
             ? new CreatedIssue(identifier, url)
-            : throw new LinearException("Linear did not create the issue");
+            : throw new LinearException(Strings.LinearClient_NotCreated);
     }
 
     private async Task<JsonObject> QueryAsync(string apiKey, string query, JsonObject variables, CancellationToken ct)
@@ -84,10 +85,10 @@ internal sealed class LinearClient(HttpClient http)
         if (response.StatusCode == HttpStatusCode.Unauthorized || errors.Any(IsAuthenticationError))
             throw new LinearException(RejectedKey);
         if (errors.Select(e => e?["message"]?.GetValue<string>()).OfType<string>().ToList() is { Count: > 0 } messages)
-            throw new LinearException($"Linear: {string.Join("; ", messages)}");
+            throw new LinearException(Strings.FormatLinearClient_Errors(string.Join("; ", messages)));
         if (!response.IsSuccessStatusCode)
-            throw new LinearException($"Linear returned HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
-        return json?["data"] as JsonObject ?? throw new LinearException("Linear returned no data");
+            throw new LinearException(Strings.FormatLinearClient_HttpError((int)response.StatusCode, response.ReasonPhrase));
+        return json?["data"] as JsonObject ?? throw new LinearException(Strings.LinearClient_NoData);
     }
 
     private static bool IsAuthenticationError(JsonNode? error) =>

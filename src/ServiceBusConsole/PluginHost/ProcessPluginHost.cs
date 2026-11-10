@@ -66,11 +66,11 @@ public sealed class ProcessPluginHost(string stateDirectory) : IPluginHost
     {
         try
         {
-            return Process.Start(info) ?? throw new InvalidOperationException($"Could not start {info.FileName}.");
+            return Process.Start(info) ?? throw new InvalidOperationException(PluginHostStrings.FormatProcessPluginHost_CouldNotStart(info.FileName));
         }
         catch (Win32Exception e)
         {
-            throw new InvalidOperationException($"Could not start {info.FileName}: {e.Message}", e);
+            throw new InvalidOperationException(PluginHostStrings.FormatProcessPluginHost_CouldNotStartBecause(info.FileName, e.Message), e);
         }
     }
 

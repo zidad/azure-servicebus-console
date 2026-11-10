@@ -21,7 +21,7 @@
         @if (_all.Count == 0 && _loadFailed)
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
-                <Markup Content="Failed to load. Press ^r to retry." Foreground="@Theme.Danger" />
+                <Markup Content="@PageStrings.List_LoadFailed" Foreground="@Theme.Danger" />
             </Padder>
         }
         else if (_all.Count == 0)
@@ -29,7 +29,7 @@
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Columns>
                     <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
-                    <Markup Content="Loading subscriptions..." Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+                    <Markup Content="@PageStrings.List_LoadingSubscriptions" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
                 </Columns>
             </Padder>
         }
@@ -45,12 +45,12 @@
                     <SpectreTHead>
                         <SpectreTR>
                             <SpectreTH Width="@Gutter.Width" Padding="@Gutter.Header"></SpectreTH>
-                            <SpectreTH Align="Justify.Left" Padding="@Gutter.NextHeader"><Columns><SortHeader Label="Topic" Sort="_sort" OnSorted="SortAndUpdateFilterState" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
-                            <SpectreTH Align="Justify.Left"><SortHeader Label="Subscription" Sort="_sort" OnSorted="SortAndUpdateFilterState" /></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="Active" Sort="_sort" OnSorted="SortAndUpdateFilterState" /></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="DLQ" Icon="@Icons.DeadLetter" Sort="_sort" OnSorted="SortAndUpdateFilterState" /></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="Transfer" Icon="@Icons.Transfer" Sort="_sort" OnSorted="SortAndUpdateFilterState" /></SpectreTH>
-                            @if (_traffic is not null) { <SpectreTH Align="Justify.Left">Incoming · 24 h</SpectreTH> }
+                            <SpectreTH Align="Justify.Left" Padding="@Gutter.NextHeader"><Columns><SortHeader Label="@PageStrings.List_ColumnTopic" Sort="_sort" OnSorted="SortAndUpdateFilterState" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
+                            <SpectreTH Align="Justify.Left"><SortHeader Label="@PageStrings.List_ColumnSubscription" Sort="_sort" OnSorted="SortAndUpdateFilterState" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="@Strings.Active" Sort="_sort" OnSorted="SortAndUpdateFilterState" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="@Strings.Dlq" Icon="@Icons.DeadLetter" Sort="_sort" OnSorted="SortAndUpdateFilterState" /></SpectreTH>
+                            <SpectreTH Align="Justify.Right"><SortHeader Label="@PageStrings.List_ColumnTransfer" Icon="@Icons.Transfer" Sort="_sort" OnSorted="SortAndUpdateFilterState" /></SpectreTH>
+                            @if (_traffic is not null) { <SpectreTH Align="Justify.Left">@PageStrings.List_IncomingHeader</SpectreTH> }
                             <SpectreTH></SpectreTH>
                         </SpectreTR>
                     </SpectreTHead>
@@ -81,7 +81,7 @@
     <Footer>
         @if (ShowMetrics && Connection.Current is IHasMetrics { Metrics: var metrics })
         {
-            <MetricsPanel @ref="_metricsPanel" Metrics="@metrics" Label="@($"{Icons.Topic} topic {_focusedItem?.TopicName}")" Scope="@(_focusedItem is { } s ? new MetricsScope.Entity(s.TopicName) : null)" OnKeyDown="@HandleKeyDown" />
+            <MetricsPanel @ref="_metricsPanel" Metrics="@metrics" Label="@($"{Icons.Topic} {PageStrings.FormatList_MetricsTopic(_focusedItem?.TopicName)}")" Scope="@(_focusedItem is { } s ? new MetricsScope.Entity(s.TopicName) : null)" OnKeyDown="@HandleKeyDown" />
         }
         <KeyHints Bindings="@Keys" FirstFocusOrder="3" OnKeyDown="@HandleKeyDown" />
     </Footer>
@@ -94,21 +94,21 @@
 @if (Connection.Current is IHasDeletion { Deletion: var deletion })
 {
     <AsyncCommand @ref="_deleteSub" TItem="SubscriptionInfo"
-                  ConfirmMessage="@(s => $"Delete subscription '{s.Name}' from topic '{s.TopicName}'? This cannot be undone.")"
+                  ConfirmMessage="@(s => PageStrings.FormatList_DeleteSubscriptionConfirm(s.Name, s.TopicName))"
                   Execute="@(s => deletion.DeleteSubscriptionAsync(s.TopicName, s.Name))"
-                  Activity="@(s => $"Deleted subscription '{s.Name}' of topic '{s.TopicName}'")"
+                  Activity="@(s => PageStrings.FormatList_DeletedSubscription(s.Name, s.TopicName))"
                   OnCompleted="@(s => { _all.RemoveAll(x => x.TopicName == s.TopicName && x.Name == s.Name); _focusedItem = null; SortAndUpdateFilterState(); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1)); _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex); StateHasChanged(); return Task.CompletedTask; })" />
 }
 
 <AsyncCommand @ref="_purgeDlq" TItem="SubscriptionInfo"
-              ConfirmMessage="@(s => $"Purge ALL messages from DLQ of '{s.TopicName}/{s.Name}'? This cannot be undone.")"
+              ConfirmMessage="@(s => PageStrings.FormatList_PurgeDlqConfirm(Key(s)))"
               ConfirmByTyping="true"
               Execute="@(s => Connection.Namespace.Messages.PurgeAsync(new MessageSource.Subscription(s.TopicName, s.Name, IsDlq: true)).LastOrDefaultAsync().AsTask())"
-              Activity="@(s => $"Purged the dead-letter queue of '{s.TopicName}/{s.Name}'")"
+              Activity="@(s => PageStrings.FormatList_PurgedDlq(Key(s)))"
               OnCompleted="@(s => { List.Update(Key(s), x => x with { DeadLetterMessageCount = 0 }); SortAndUpdateFilterState(); StateHasChanged(); return Task.CompletedTask; })" />
 
 @code {
-    private ITopicService Topics => Connection.Current is IHasTopics { Topics: var topics } ? topics : throw new InvalidOperationException("This namespace has no topics.");
+    private ITopicService Topics => Connection.Current is IHasTopics { Topics: var topics } ? topics : throw new InvalidOperationException(PageStrings.List_NoTopics);
 
     private LiveList<SubscriptionInfo>? _live;
     private LiveList<SubscriptionInfo> List => _live ?? throw new InvalidOperationException("Subscription list not initialized");
@@ -127,12 +127,12 @@
     private NavigableTBody? _tbody;
     private bool _tableAutoFocused;
     private readonly TableSort<SubscriptionInfo> _sort = new TableSort<SubscriptionInfo>(ss => ss.OrderBy(s => s.TopicName).ThenBy(s => s.Name))
-        .Add("Topic", s => s.TopicName, StringComparer.OrdinalIgnoreCase)
-        .Add("Subscription", s => s.Name, StringComparer.OrdinalIgnoreCase)
-        .Add("Active", s => s.ActiveMessageCount)
-        .Add("DLQ", s => s.DeadLetterMessageCount)
-        .Add("Transfer", s => s.TransferMessageCount)
-        .SortBy("DLQ", SortDirection.Descending);
+        .Add(PageStrings.List_ColumnTopic, s => s.TopicName, StringComparer.OrdinalIgnoreCase)
+        .Add(PageStrings.List_ColumnSubscription, s => s.Name, StringComparer.OrdinalIgnoreCase)
+        .Add(Strings.Active, s => s.ActiveMessageCount)
+        .Add(Strings.Dlq, s => s.DeadLetterMessageCount)
+        .Add(PageStrings.List_ColumnTransfer, s => s.TransferMessageCount)
+        .SortBy(Strings.Dlq, SortDirection.Descending);
 
     private MetricsPanel? _metricsPanel;
     private bool ShowMetrics => Connection.Current is IHasMetrics && MetricsVisibility.IsVisible(Viewport.Height);
@@ -236,20 +236,20 @@
 
     private IReadOnlyList<KeyBinding> Keys =>
     [
-        new("Enter", $"{Icons.Message} Messages", OpenFocused) { InFooter = false },
-        new("/", $"{Icons.Filter} Filter", () => { _filter.Edit(); StateHasChanged(); }) { InFooter = false },
-        new("r", $"{Icons.Refresh} Refresh", () => _ = LoadSubscriptions()) { Ctrl = true, Aliases = ["F5"] },
+        new("Enter", $"{Icons.Message} {PageStrings.Key_Messages}", OpenFocused) { InFooter = false },
+        new("/", $"{Icons.Filter} {PageStrings.Key_Filter}", () => { _filter.Edit(); StateHasChanged(); }) { InFooter = false },
+        new("r", $"{Icons.Refresh} {PageStrings.Key_Refresh}", () => _ = LoadSubscriptions()) { Ctrl = true, Aliases = ["F5"] },
         .. Connection.Current is IHasDeletion
-            ? [new KeyBinding("D", $"{Icons.Delete} Delete", () => OnFocused(_deleteSub)) { Danger = true, Aliases = ["F9", "Delete", "\\"] }]
+            ? [new KeyBinding("D", $"{Icons.Delete} {PageStrings.Key_Delete}", () => OnFocused(_deleteSub)) { Danger = true, Aliases = ["F9", "Delete", "\\"] }]
             : Array.Empty<KeyBinding>(),
-        new("P", $"{Icons.Purge} Purge DLQ", () => OnFocused(_purgeDlq)) { Danger = true, Aliases = ["F11"] },
+        new("P", $"{Icons.Purge} {PageStrings.Key_PurgeDlq}", () => OnFocused(_purgeDlq)) { Danger = true, Aliases = ["F11"] },
         .. Connection.Current is IHasMetrics
-            ? [new KeyBinding("m", $"{Icons.Metrics} Metrics", ToggleMetrics) { Aliases = ["F12"] }]
+            ? [new KeyBinding("m", $"{Icons.Metrics} {PageStrings.Key_Metrics}", ToggleMetrics) { Aliases = ["F12"] }]
             : Array.Empty<KeyBinding>(),
         .. SectionTabs.Bindings(Connection.Current, Section.AllSubscriptions, Nav),
-        new(":", $"{Icons.Filter} Jump", () => _ = _jump?.OpenAsync()),
-        new("?", $"{Icons.Confirm} Help", () => _help?.Open(Keys)),
-        new("Escape", $"{Icons.Back} Back", () => Nav.NavigateTo("/")),
+        new(":", $"{Icons.Filter} {Strings.Jump}", () => _ = _jump?.OpenAsync()),
+        new("?", $"{Icons.Confirm} {Strings.Help}", () => _help?.Open(Keys)),
+        new("Escape", $"{Icons.Back} {Strings.Back}", () => Nav.NavigateTo("/")),
     ];
 
     private void OpenFocused()

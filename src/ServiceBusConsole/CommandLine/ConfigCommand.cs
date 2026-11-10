@@ -21,7 +21,7 @@ public static class ConfigCommand
         }
         catch (Exception e) when (e is ArgumentException or JsonException or InvalidDataException or IOException)
         {
-            input.Error.WriteLine($"error: {e.Message}");
+            input.Error.WriteLine(CommandLineStrings.FormatConfigCommand_Error(e.Message));
             return false;
         }
     }
@@ -32,7 +32,7 @@ public static class ConfigCommand
     {
         input.File.Set(key, value);
         if (!ConfigKeys.IsKnown(key, input.Keys))
-            input.Error.WriteLine($"warning: unknown key '{key}', set anyway");
+            input.Error.WriteLine(CommandLineStrings.FormatConfigCommand_UnknownKey(key));
         return true;
     }
 
@@ -57,7 +57,7 @@ public static class ConfigCommand
 
     private static bool PrintUsage(ConfigInput input)
     {
-        input.Error.WriteLine("usage: azsb config get <key> | set <key> <value> | unset <key> | list [--all] | path");
+        input.Error.WriteLine(CommandLineStrings.ConfigCommand_Usage);
         return false;
     }
 }

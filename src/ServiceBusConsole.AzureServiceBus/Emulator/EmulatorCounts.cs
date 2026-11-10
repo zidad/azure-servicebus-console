@@ -1,5 +1,6 @@
 using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Logging;
+using ServiceBusConsole.AzureServiceBus.Resources;
 
 namespace ServiceBusConsole.AzureServiceBus.Emulator;
 
@@ -33,5 +34,5 @@ internal static class EmulatorCounts
 
     public static EmulatorNamespaceDef Config() =>
         EmulatorConfigReader.TryLoad()
-            ?? throw new InvalidOperationException("emulator/Config.json not found in the working directory, the app's folder or their parents.");
+            ?? throw new InvalidOperationException(Strings.EmulatorCounts_ConfigNotFound);
 }

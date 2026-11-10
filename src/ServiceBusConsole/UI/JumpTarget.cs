@@ -26,7 +26,7 @@ public abstract record JumpTarget
 
     public string Label => Match(q => $"{Icons.Queue} {q.Info.Name}", t => $"{Icons.Topic} {t.Info.Name}", s => $"{Icons.Subscription} {s.Info.TopicName} › {s.Info.Name}");
 
-    public string Kind => Match(_ => "queue", _ => "topic", _ => "subscription");
+    public string Kind => Match(_ => UIStrings.JumpTarget_Queue, _ => UIStrings.JumpTarget_Topic, _ => UIStrings.JumpTarget_Subscription);
 
     public long DeadLetters => Match(q => q.Info.DeadLetterMessageCount, _ => 0, s => s.Info.DeadLetterMessageCount);
 }

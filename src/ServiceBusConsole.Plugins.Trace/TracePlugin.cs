@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using ServiceBusConsole.Plugins.Trace.Resources;
 
 namespace ServiceBusConsole.Plugins.Trace;
 
@@ -6,16 +7,16 @@ public sealed class TracePlugin : IPlugin
 {
     public string Id => OpenTraceAction.Plugin;
 
-    public string Name => "Trace";
+    public string Name => Strings.TracePlugin_Name;
 
-    public string Description => "Opens the message's distributed trace in Application Insights or another trace viewer";
+    public string Description => Strings.TracePlugin_Description;
 
     public IReadOnlyList<PluginSetting> Settings { get; } =
     [
-        new(OpenTraceAction.AppInsights, "Application Insights resource id, or its name in the namespace's subscription; found with az when it is the only one"),
-        new(OpenTraceAction.Tenant, "Azure AD tenant (id or domain) for the portal link, when it is not your default"),
-        new(OpenTraceAction.Url, "URL template instead of the portal: {traceId}, {spanId}, {start}, {end}, {startMs}, {endMs}"),
-        new(OpenTraceAction.Cli, "The Azure CLI, to find Application Insights", "az"),
+        new(OpenTraceAction.AppInsights, Strings.TracePlugin_AppInsightsSetting),
+        new(OpenTraceAction.Tenant, Strings.TracePlugin_TenantSetting),
+        new(OpenTraceAction.Url, Strings.FormatTracePlugin_UrlSetting("{traceId}, {spanId}, {start}, {end}, {startMs}, {endMs}")),
+        new(OpenTraceAction.Cli, Strings.TracePlugin_CliSetting, "az"),
     ];
 
     public void ConfigureServices(IServiceCollection services) => services.AddSingleton<IMessageAction, OpenTraceAction>();

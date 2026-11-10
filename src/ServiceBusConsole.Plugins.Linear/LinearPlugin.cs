@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using ServiceBusConsole.Plugins.Linear.Resources;
 
 namespace ServiceBusConsole.Plugins.Linear;
 
@@ -10,17 +11,19 @@ public sealed class LinearPlugin : IPlugin
 
     public string Id => PluginId;
 
-    public string Name => "Linear";
+    public string Name => Strings.LinearPlugin_Name;
 
-    public string Description => "Creates a Linear issue from a message";
+    public string Description => Strings.LinearPlugin_Description;
 
     public IReadOnlyList<PluginSetting> Settings { get; } =
     [
-        new(LinearSettings.ApiKey, $"Linear personal API key (Settings > Security & access); else {ApiKeyVariable}", IsSecret: true),
-        new(LinearSettings.Team, "Key of the team the issue goes to, e.g. ENG"),
-        new(LinearSettings.Labels, "Comma-separated label names to add, e.g. bug,servicebus"),
-        new(LinearSettings.TitleTemplate, "Issue title: {entity}, {subject}, {messageId}, {sequenceNumber}, {namespace}, {deadLetterReason}", LinearSettings.DefaultTitleTemplate),
-        new(LinearSettings.IncludeContext, "Adds where the message came from and the session's recent activity to the description", "true"),
+        new(LinearSettings.ApiKey, Strings.FormatLinearPlugin_ApiKeySetting(ApiKeyVariable), IsSecret: true),
+        new(LinearSettings.Team, Strings.LinearPlugin_TeamSetting),
+        new(LinearSettings.Labels, Strings.LinearPlugin_LabelsSetting),
+        new(LinearSettings.TitleTemplate,
+            Strings.FormatLinearPlugin_TitleTemplateSetting("{entity}, {subject}, {messageId}, {sequenceNumber}, {namespace}, {deadLetterReason}"),
+            LinearSettings.DefaultTitleTemplate),
+        new(LinearSettings.IncludeContext, Strings.LinearPlugin_IncludeContextSetting, "true"),
     ];
 
     public void ConfigureServices(IServiceCollection services) =>
@@ -32,5 +35,5 @@ public sealed class LinearPlugin : IPlugin
     public string? Missing(IConfiguration settings, PluginEnvironment environment) =>
         settings[LinearSettings.ApiKey] is { Length: > 0 } || environment.Variable(ApiKeyVariable) is { Length: > 0 }
             ? null
-            : $"no API key; set plugins.{PluginId}.{LinearSettings.ApiKey} or {ApiKeyVariable}";
+            : Strings.FormatLinearPlugin_NoApiKey(PluginId, LinearSettings.ApiKey, ApiKeyVariable);
 }
