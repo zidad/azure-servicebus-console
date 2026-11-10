@@ -28,5 +28,7 @@ public abstract record JumpTarget
 
     public string Kind => Match(_ => UIStrings.JumpTarget_Queue, _ => UIStrings.JumpTarget_Topic, _ => UIStrings.JumpTarget_Subscription);
 
+    public JumpKind Group => Match(_ => JumpKind.Queue, _ => JumpKind.Topic, _ => JumpKind.Subscription);
+
     public long DeadLetters => Match(q => q.Info.DeadLetterMessageCount, _ => 0, s => s.Info.DeadLetterMessageCount);
 }

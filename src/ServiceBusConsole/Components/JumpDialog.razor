@@ -8,8 +8,9 @@
     <Panel Title="@($"{Icons.Filter} {ComponentStrings.JumpDialog_Title}")" BorderColor="@Theme.Accent" Border="BoxBorder.Rounded" Width="@Width" Padding="@(new(1, 0, 1, 0))">
         <Rows>
             @* No Value binding: a render that lags behind typing would overwrite it. A new input each time it opens starts empty. *@
-            <TextInput @ref="_input" @key="_opened" OnInput="@OnQuery" OnSubmit="@(_ => Open())"
-                       Placeholder="@ComponentStrings.JumpDialog_Placeholder" FocusOrder="100" @onkeydown="HandleKey" FillWidth="true" />
+            <TextInput @ref="_input" @key="_opened" OnInput="@OnQuery" OnSubmit="@(_ => Open(deadLetters: false))"
+                       Placeholder="@ComponentStrings.JumpDialog_Placeholder" FocusOrder="100" @onkeydown="HandleKey" FillWidth="true"
+                       OnBlur="KeepFocus" />
             @if (_loading)
             {
                 <Markup Content="@ComponentStrings.JumpDialog_Listing" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
@@ -18,12 +19,17 @@
             {
                 <Markup Content="@ComponentStrings.JumpDialog_NoMatches" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
             }
-            @foreach (var (target, index) in _results.Select((t, i) => (t, i)))
+            @{ var index = 0; }
+            @foreach (var group in _groups)
             {
-                var current = index == _cursor;
-                <div class="jump-result" @onclick="@(() => Open(target))">
-                    <Markup Content="@Line(target)" Background="@(current ? Theme.Selection : Color.Default)" Foreground="@(current ? Theme.OnSelection : Color.Default)" />
-                </div>
+                <Markup Content="@($" {group.Title.ToUpper(System.Globalization.CultureInfo.CurrentCulture)}")" Foreground="@Theme.Muted" Decoration="@Decoration.Bold" />
+                @foreach (var target in group.Targets)
+                {
+                    var current = index++ == _cursor;
+                    <div class="jump-result" @onclick="@(() => Open(target, deadLetters: false))">
+                        <Markup Content="@Line(target)" Background="@(current ? Theme.Selection : Color.Default)" Foreground="@(current ? Theme.OnSelection : Color.Default)" />
+                    </div>
+                }
             }
             <Padder Padding="@(new(0, 1, 0, 0))">
                 <Markup Content="@ComponentStrings.JumpDialog_Hints" Foreground="@Theme.Muted" />
@@ -35,7 +41,7 @@
 @code {
     /// <summary>
     /// Opened with <c>:</c>: finds a queue, topic or subscription of the current namespace by name (<see cref="JumpIndex"/>)
-    /// and opens it. Lists from the cached listings, or live when one isn't cached yet.
+    /// and opens it, or with Tab its dead-letter queue. Lists from the cached listings, or live when one isn't cached yet.
     /// </summary>
     public bool IsOpened { get; private set; }
 
@@ -51,6 +57,8 @@
     private int _opened;
     private int _cursor;
     private IReadOnlyList<JumpTarget> _targets = [];
+    private IReadOnlyList<JumpGroup> _groups = [];
+    // In display order, which the cursor follows.
     private IReadOnlyList<JumpTarget> _results = [];
 
     public async Task OpenAsync()
@@ -78,6 +86,9 @@
         await FocusManager.FocusAsync(_input.FocusKey);
     }
 
+    // Modal: focus stays in the input while it is open.
+    private Task KeepFocus() => IsOpened && _input is { } input ? FocusManager.FocusAsync(input.FocusKey) : Task.CompletedTask;
+
     private void OnQuery(string? query)
     {
         // The : that opened the dialog can reach the input when focus moves first.
@@ -86,7 +97,11 @@
         Search();
     }
 
-    private void Search() => _results = JumpIndex.Search(_query, _targets);
+    private void Search()
+    {
+        _groups = JumpIndex.Grouped(_query, _targets);
+        _results = [.. _groups.SelectMany(g => g.Targets)];
+    }
 
     private string Line(JumpTarget t)
     {
@@ -100,20 +115,23 @@
         switch (e.Key)
         {
             case "Escape": _ = Close(); return;
+            // RazorConsole moves focus on Tab after this handler; with nothing to open, KeepFocus takes it back.
+            case "Tab": Open(deadLetters: true); return;
             case "ArrowDown": _cursor = Math.Min(_cursor + 1, Math.Max(0, _results.Count - 1)); StateHasChanged(); return;
             case "ArrowUp": _cursor = Math.Max(0, _cursor - 1); StateHasChanged(); return;
         }
     }
 
-    private void Open()
+    private void Open(bool deadLetters)
     {
-        if (_results.ElementAtOrDefault(_cursor) is { } target) Open(target);
+        if (_results.ElementAtOrDefault(_cursor) is { } target) Open(target, deadLetters);
     }
 
-    private void Open(JumpTarget target)
+    /// <summary>A queue or subscription on its Active tab, or its dead-letter queue; a topic has none and opens itself.</summary>
+    private void Open(JumpTarget target, bool deadLetters)
     {
         IsOpened = false;
-        Nav.NavigateTo(NavState.RouteTo(target));
+        Nav.NavigateTo(NavState.RouteTo(target, active: !deadLetters));
     }
 
     private async Task Close()

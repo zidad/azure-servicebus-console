@@ -19,6 +19,10 @@ public static class JumpIndex
             .Select(r => r.Target)];
     }
 
+    /// <summary>The <see cref="Search"/> results by kind (queues, topics, subscriptions), keeping their rank within each.</summary>
+    public static IReadOnlyList<JumpGroup> Grouped(string? query, IEnumerable<JumpTarget> targets, int max = 12) =>
+        [.. Search(query, targets, max).GroupBy(t => t.Group).OrderBy(g => g.Key).Select(g => new JumpGroup(g.Key, [.. g]))];
+
     /// <summary>0 prefix, 1 contains, 2 letters in order, null no match; any name matches an empty query.</summary>
     public static int? Rank(string name, string query) => query.Length == 0 ? 0
         : name.StartsWith(query, StringComparison.OrdinalIgnoreCase) ? 0
