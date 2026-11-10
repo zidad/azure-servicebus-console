@@ -13,8 +13,8 @@
     /// <summary>Confirm prompt for the item; without it the command runs at once.</summary>
     [Parameter] public Func<TItem, string>? ConfirmMessage { get; set; }
 
-    /// <summary>What the user types to confirm, e.g. the entity a purge empties; with it, y doesn't confirm.</summary>
-    [Parameter] public Func<TItem, string>? ConfirmByTyping { get; set; }
+    /// <summary>The user types yes to confirm (purges); y alone doesn't confirm then.</summary>
+    [Parameter] public bool ConfirmByTyping { get; set; }
     [Parameter, EditorRequired] public required Func<TItem, Task> Execute { get; set; }
     [Parameter] public Func<TItem, Task>? OnCompleted { get; set; }
     [Parameter] public Func<Exception, string>? FormatError { get; set; }
@@ -38,7 +38,7 @@
             _ = RunAsync(item);
             return;
         }
-        _pending = new(item, ConfirmMessage(item), ConfirmByTyping?.Invoke(item));
+        _pending = new(item, ConfirmMessage(item), ConfirmByTyping ? "yes" : null);
         StateHasChanged();
     }
 

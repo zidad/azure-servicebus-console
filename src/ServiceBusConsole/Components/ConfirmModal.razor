@@ -37,7 +37,7 @@
     [Parameter] public EventCallback OnConfirm { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
 
-    /// <summary>Text to type before Yes works, e.g. the name of what a purge empties; y and n are typing then.</summary>
+    /// <summary>Word to type before Yes works, ignoring case; y and n are typing then.</summary>
     [Parameter] public string? MustType { get; set; }
 
     private KeyButton? _confirmButton;
@@ -47,7 +47,7 @@
     private string _typed = "";
 
     /// <summary>Whether Yes may run: always, or once <see cref="MustType"/> is typed.</summary>
-    public bool CanConfirm => MustType is null || _typed.Trim() == MustType;
+    public bool CanConfirm => MustType is null || string.Equals(_typed.Trim(), MustType, StringComparison.OrdinalIgnoreCase);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

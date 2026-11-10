@@ -92,9 +92,9 @@ public sealed class SessionContextTests
 
         var table = terminal.FocusKey;
         await terminal.SendKeyAsync(ConsoleKey.F11, '\0', cancellationToken: Ct);
-        await terminal.WaitForTextAsync("Type orders to confirm", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("Type yes to confirm", AppHarness.Timeout, Ct);
         await AppHarness.WaitForFocusAsync(terminal, "0", table);
-        await terminal.TypeAsync("orders\r", Ct);
+        await terminal.TypeAsync("yes\r", Ct);
 
         await terminal.WaitUntilAsync(_ => session.Activity.Entries[^1].Kind == ActivityKind.Operation, AppHarness.Timeout, cancellationToken: Ct);
         session.Activity.Entries[^1].ShouldBe(new ActivityEntry(
