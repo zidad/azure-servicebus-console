@@ -1,60 +1,59 @@
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 @inject ServiceBusConnection Connection
 @inject FileCache Cache
-@inject NavigationManager Nav
 @inject NavigationState NavState
 @inject SubscriptionCatalog Catalog
-@inject MessageBrowserStore Store
+@inject NamespaceSwitcher Switcher
 
-<ModalWindow IsOpened="@IsOpened">
-    <Panel Title="@($"{Icons.Filter} {ComponentStrings.JumpDialog_Title}")" BorderColor="@Theme.Accent" Border="BoxBorder.Rounded" Width="@Width" Padding="@(new(1, 0, 1, 0))">
-        <Rows>
-            @* No Value binding: a render that lags behind typing would overwrite it. A new input each time it opens starts empty. *@
-            <TextInput @ref="_input" @key="_opened" OnInput="@OnQuery" OnSubmit="@(_ => Activate())"
-                       Placeholder="@ComponentStrings.JumpDialog_Placeholder" FocusOrder="100" @onkeydown="HandleKey" FillWidth="true"
-                       OnBlur="KeepFocus" />
-            @if (Connection.Current is { } here)
+<Dialog IsOpened="@IsOpened" Icon="@Icons.Filter" Title="@ComponentStrings.JumpDialog_Title" Width="@Width" Padding="@(new(1, 0, 1, 0))">
+    <ChildContent>
+        @* No Value binding: a render that lags behind typing would overwrite it. A new input each time it opens starts empty.
+           preventDefault leaves Tab and Enter to HandleKey; on a div, since Razor rejects it on a component. *@
+        <div @onkeydown:preventDefault="true">
+            <TextInput @ref="_input" @key="_opened" OnInput="@OnQuery"
+                       Placeholder="@ComponentStrings.JumpDialog_Placeholder" FocusOrder="100" @onkeydown="HandleKey" FillWidth="true" />
+        </div>
+        @if (Connection.Current is { } here)
+        {
+            <Markup Content="@((_everywhere ? ComponentStrings.FormatJumpDialog_ScopeAll(here.Info.Name) : ComponentStrings.FormatJumpDialog_ScopeHere(here.Info.Name)).PadLeft(Width - 4))"
+                    Foreground="@Theme.Muted" />
+        }
+        @if (_loading)
+        {
+            <Markup Content="@ComponentStrings.JumpDialog_Listing" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+        }
+        else if (_results.Count == 0)
+        {
+            <Markup Content="@ComponentStrings.JumpDialog_NoMatches" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+        }
+        @{ var index = 0; }
+        @foreach (var group in _groups)
+        {
+            <Markup Content="@($" {group.Title.ToUpper(System.Globalization.CultureInfo.CurrentCulture)}")" Foreground="@Theme.Muted" Decoration="@Decoration.Bold" />
+            @foreach (var target in group.Targets)
             {
-                <Markup Content="@((_everywhere ? ComponentStrings.FormatJumpDialog_ScopeAll(here.Info.Name) : ComponentStrings.FormatJumpDialog_ScopeHere(here.Info.Name)).PadLeft(Width - 4))"
-                        Foreground="@Theme.Muted" />
+                var current = index++ == _cursor;
+                <div class="jump-result" @onclick="@(() => Open(target, deadLetters: false))">
+                    <Markup Content="@Line(target)" Background="@(current ? Theme.Selection : Color.Default)" Foreground="@(current ? Theme.OnSelection : Color.Default)" />
+                </div>
             }
-            @if (_loading)
+        }
+        @if (Actions is { Count: > 0 } actions)
+        {
+            <Markup Content="@($" {ComponentStrings.JumpDialog_Actions.ToUpper(System.Globalization.CultureInfo.CurrentCulture)}")" Foreground="@Theme.Muted" Decoration="@Decoration.Bold" />
+            @foreach (var action in actions)
             {
-                <Markup Content="@ComponentStrings.JumpDialog_Listing" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+                var current = index++ == _cursor;
+                <div class="jump-result" @onclick="@action.Run">
+                    <Markup Content="@Line(action)" Background="@(current ? Theme.Selection : Color.Default)" Foreground="@(current ? Theme.OnSelection : Color.Default)" />
+                </div>
             }
-            else if (_results.Count == 0)
-            {
-                <Markup Content="@ComponentStrings.JumpDialog_NoMatches" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
-            }
-            @{ var index = 0; }
-            @foreach (var group in _groups)
-            {
-                <Markup Content="@($" {group.Title.ToUpper(System.Globalization.CultureInfo.CurrentCulture)}")" Foreground="@Theme.Muted" Decoration="@Decoration.Bold" />
-                @foreach (var target in group.Targets)
-                {
-                    var current = index++ == _cursor;
-                    <div class="jump-result" @onclick="@(() => Open(target, deadLetters: false))">
-                        <Markup Content="@Line(target)" Background="@(current ? Theme.Selection : Color.Default)" Foreground="@(current ? Theme.OnSelection : Color.Default)" />
-                    </div>
-                }
-            }
-            @if (Actions is { Count: > 0 } actions)
-            {
-                <Markup Content="@($" {ComponentStrings.JumpDialog_Actions.ToUpper(System.Globalization.CultureInfo.CurrentCulture)}")" Foreground="@Theme.Muted" Decoration="@Decoration.Bold" />
-                @foreach (var action in actions)
-                {
-                    var current = index++ == _cursor;
-                    <div class="jump-result" @onclick="@action.Run">
-                        <Markup Content="@Line(action)" Background="@(current ? Theme.Selection : Color.Default)" Foreground="@(current ? Theme.OnSelection : Color.Default)" />
-                    </div>
-                }
-            }
-            <Padder Padding="@(new(0, 1, 0, 0))">
-                <Markup Content="@ComponentStrings.JumpDialog_Hints" Foreground="@Theme.Muted" />
-            </Padder>
-        </Rows>
-    </Panel>
-</ModalWindow>
+        }
+    </ChildContent>
+    <Buttons>
+        <Markup Content="@ComponentStrings.JumpDialog_Hints" Foreground="@Theme.Muted" />
+    </Buttons>
+</Dialog>
 
 @code {
     /// <summary>
@@ -126,9 +125,6 @@
         await FocusManager.FocusAsync(_input.FocusKey);
     }
 
-    // Modal: focus stays in the input while it is open.
-    private Task KeepFocus() => IsOpened && _input is { } input ? FocusManager.FocusAsync(input.FocusKey) : Task.CompletedTask;
-
     private void OnQuery(string? query)
     {
         // The : that opened the dialog can reach the input when focus moves first.
@@ -164,7 +160,7 @@
         switch (e.Key)
         {
             case "Escape": _ = Close(); return;
-            // RazorConsole moves focus on Tab after this handler; with nothing to open, KeepFocus takes it back.
+            case "Enter": Activate(); return;
             case "Tab": Open(deadLetters: true); return;
             case "ArrowDown": Move(+1); return;
             case "ArrowUp": Move(-1); return;
@@ -224,15 +220,8 @@
     {
         IsOpened = false;
         var route = NavState.RouteTo(target, active: !deadLetters);
-        if (target.OtherNamespace is { } place)
-        {
-            // The store keys browsers by entity name only; a same-named one elsewhere must not reuse its locks.
-            await Store.CloseAsync();
-            NavState.AzureSubscription = place.Subscription;
-            Connection.SetNamespace(place.Info);
-        }
-        if ("/" + Nav.ToBaseRelativePath(Nav.Uri) == route) NavState.Reload();
-        else Nav.NavigateTo(route);
+        if (target.OtherNamespace is { } place) await Switcher.OpenAsync(place.Subscription, place.Info, route);
+        else Switcher.Show(route);
     }
 
     private async Task Close()

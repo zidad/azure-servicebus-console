@@ -5,7 +5,7 @@
 @inject NavigationState NavState
 @inject ServiceBusConnection Connection
 @inject INamespaceOpener Opener
-@inject MessageBrowserStore Store
+@inject NamespaceSwitcher Switcher
 @inject ExplorerTree Tree
 @inject RecentNamespaces Recents
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
@@ -248,31 +248,21 @@
 
     private async Task OpenAsync(Namespace ns, Section section)
     {
-        var sameNamespace = ns.Info.FullyQualifiedNamespace == Connection.CurrentNamespace && ns.Parent.Value == NavState.AzureSubscription;
-        var onSection = "/" + Nav.ToBaseRelativePath(Nav.Uri) == section.Route;
-        if (sameNamespace && onSection)
+        if (Switcher.IsCurrent(ns.Parent.Value, ns.Info) && "/" + Nav.ToBaseRelativePath(Nav.Uri) == section.Route)
         {
             await OnPicked.InvokeAsync(false);
             return;
         }
-        _ = Recents.RecordAsync(ns.Parent.Value, ns.Info);
-        if (!sameNamespace)
-        {
-            // The store keys browsers by queue name only; a same-named queue elsewhere must not reuse its locks.
-            await Store.CloseAsync();
-            NavState.AzureSubscription = ns.Parent.Value;
-            Connection.SetNamespace(ns.Info);
-        }
+        await Switcher.SwitchAsync(ns.Parent.Value, ns.Info);
         await OnPicked.InvokeAsync(true);
-        if (onSection) NavState.Reload();
-        else Nav.NavigateTo(section.Route);
+        Switcher.Show(section.Route);
     }
 
     // A namespace opens on its queues tab, or from a list page on that list when it has one; the open one stays as it is.
     private async Task OpenNamespaceAsync(Namespace ns)
     {
         var route = "/" + Nav.ToBaseRelativePath(Nav.Uri);
-        if (route != "/" && ns.Info.FullyQualifiedNamespace == Connection.CurrentNamespace && ns.Parent.Value == NavState.AzureSubscription)
+        if (route != "/" && Switcher.IsCurrent(ns.Parent.Value, ns.Info))
         {
             await OnPicked.InvokeAsync(false);
             return;

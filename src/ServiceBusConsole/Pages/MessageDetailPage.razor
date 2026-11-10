@@ -100,7 +100,8 @@ else
               Execute="@(m => Act(m, (b, l) => b.RetryAsync(l)))" />
 
 <AsyncCommand @ref="_resend" TItem="MessageInfo"
-              ConfirmMessage="@(m => PageStrings.FormatMessageDetail_ResendConfirm(m.SequenceNumber, NavState.MessageSource?.SendTarget))"
+              ConfirmMessage="@(m => RetryText.ResendQuestion(Strings.FormatOneMessage(m.SequenceNumber)))"
+              ConfirmFields="@(_ => NavState.MessageSource is { } source ? RetryText.ResendFields(source) : [])"
               Execute="@(m => Act(m, (b, l) => b.ResendAsync(l)))" />
 
 @code {

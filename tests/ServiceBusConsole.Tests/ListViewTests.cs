@@ -34,11 +34,24 @@ public sealed class ListViewTests
     }
 
     [Test]
-    public void Restore_WaitsForTheRow_WhileNothingIsSelected()
+    public void Focus_WaitsForTheRow()
     {
         var view = View();
-        view.Restore("c");
-        view.FocusedKey.ShouldBeNull();
+        view.Focus("c");
+
+        view.Update([Queue("a")]);
+        view.Focused?.Name.ShouldBe("a");
+
+        view.Update([Queue("a"), Queue("b"), Queue("c")]);
+
+        view.Focused?.Name.ShouldBe("c");
+    }
+
+    [Test]
+    public void Focus_WaitsForTheRow_ThroughAFilter()
+    {
+        var view = View();
+        view.Focus("c");
 
         view.Refilter([Queue("a"), Queue("b")]);
         view.Focused?.Name.ShouldBe("a");
@@ -48,6 +61,19 @@ public sealed class ListViewTests
         view.Refilter([Queue("a"), Queue("b"), Queue("c")]);
 
         view.Focused?.Name.ShouldBe("c");
+    }
+
+    [Test]
+    public void Focus_GivesWayToTheUsersSelection()
+    {
+        var view = View();
+        view.Focus("c");
+        view.Update([Queue("a"), Queue("b")]);
+
+        view.Select(1);
+        view.Update([Queue("a"), Queue("b"), Queue("c")]);
+
+        view.Focused?.Name.ShouldBe("b");
     }
 
     [Test]

@@ -108,11 +108,8 @@
     /// <summary>Whether a row matches the <c>/</c> filter; without it the list has no filter.</summary>
     [Parameter] public Func<TItem, string, bool>? Matches { get; set; }
 
-    /// <summary>The row to select first (<see cref="ListView{T}.Focus"/>).</summary>
+    /// <summary>The row to select once it loads (<see cref="ListView{T}.Focus"/>).</summary>
     [Parameter] public string? Focus { get; set; }
-
-    /// <summary>The row to select once it loads (<see cref="ListView{T}.Restore"/>).</summary>
-    [Parameter] public string? RestoreFocus { get; set; }
 
     /// <summary>Header cells before the incoming and spinner columns; sort headers take <see cref="Sorted"/>.</summary>
     [Parameter, EditorRequired] public required RenderFragment<EntityList<TItem>> Headers { get; set; }
@@ -192,7 +189,6 @@
             LoadFailed = ex => { _loadFailed = true; _error = ErrorText.Of(ex); return InvokeAsync(StateHasChanged); },
         };
         _view.Focus(Focus);
-        _view.Restore(RestoreFocus);
         // Not awaited: a startup target opens a list page during the app's first render, which waits for lifecycle tasks.
         _ = Reload();
     }

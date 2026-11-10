@@ -328,12 +328,6 @@
   <data name="MessageBrowserView_ConfirmDeadLetter" xml:space="preserve">
     <value>Move {messages} to the dead-letter queue?</value>
   </data>
-  <data name="MessageBrowserView_ConfirmResend" xml:space="preserve">
-    <value>Send copies of {messages} to {target}? The originals stay in {source}.{topicNote}</value>
-  </data>
-  <data name="MessageBrowserView_TopicNote" xml:space="preserve">
-    <value> Every subscription of the topic gets a copy.</value>
-  </data>
   <data name="MessageBrowserView_ConfirmPurge" xml:space="preserve">
     <value>Purge ALL messages from {source}? This cannot be undone.</value>
   </data>

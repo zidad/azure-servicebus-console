@@ -1,6 +1,6 @@
 namespace ServiceBusConsole.Messaging;
 
-/// <summary>Label and confirm text for F10, shared by the browser and the detail page.</summary>
+/// <summary>Label and confirm text for F10 (retry, requeue, resend), shared by the browser and the detail page.</summary>
 public static class RetryText
 {
     /// <summary>Retry/Requeue is available in a dead-letter queue, and for received-and-deleted messages.</summary>
@@ -10,6 +10,8 @@ public static class RetryText
 
     public static string Question(MessageSource source, string what) =>
         source.IsDlq ? MessagingStrings.FormatRetryText_RetryQuestion(what) : MessagingStrings.FormatRetryText_RequeueQuestion(what);
+
+    public static string ResendQuestion(string what) => MessagingStrings.FormatRetryText_ResendQuestion(what);
 
     /// <summary>
     /// From / To / How / Note, in short lines so the confirm dialog stays narrow; How starts with the progress steps.
@@ -31,18 +33,26 @@ public static class RetryText
             string.Join(" → ", steps),
             mode == BrowseMode.Received ? null : transactional ? MessagingStrings.RetryText_TransactionNote : MessagingStrings.RetryText_AtLeastOnceNote,
         ];
-        string?[] notes =
+        return Grid(source, string.Join('\n', how.OfType<string>()),
         [
             mode == BrowseMode.Peek ? MessagingStrings.RetryText_PeekNote : null,
             mode == BrowseMode.Received ? MessagingStrings.RetryText_ReceivedNote : null,
-            source is MessageSource.Subscription ? MessagingStrings.RetryText_SubscriptionNote : null,
-        ];
-        return
-        [
-            new(MessagingStrings.RetryText_From, source.DisplayName),
-            new(MessagingStrings.RetryText_To, source.SendTarget),
-            new(MessagingStrings.RetryText_How, string.Join('\n', how.OfType<string>())),
-            .. notes.OfType<string>().Select((note, i) => new DialogField(i == 0 ? MessagingStrings.RetryText_Note : "", note, Warning: true)),
-        ];
+            TopicNote(source),
+        ]);
     }
+
+    /// <summary>From / To / How / Note for Resend on an active queue or subscription: copies go out, the originals stay.</summary>
+    public static IReadOnlyList<DialogField> ResendFields(MessageSource source) =>
+        Grid(source, MessagingStrings.FormatRetryText_SendCopiesTo(source.SendTarget),
+            [MessagingStrings.FormatRetryText_OriginalsStay(source.DisplayName), TopicNote(source)]);
+
+    private static string? TopicNote(MessageSource source) => source is MessageSource.Subscription ? MessagingStrings.RetryText_SubscriptionNote : null;
+
+    private static IReadOnlyList<DialogField> Grid(MessageSource source, string how, IEnumerable<string?> notes) =>
+    [
+        new(MessagingStrings.RetryText_From, source.DisplayName),
+        new(MessagingStrings.RetryText_To, source.SendTarget),
+        new(MessagingStrings.RetryText_How, how),
+        .. notes.OfType<string>().Select((note, i) => new DialogField(i == 0 ? MessagingStrings.RetryText_Note : "", note, Warning: true)),
+    ];
 }

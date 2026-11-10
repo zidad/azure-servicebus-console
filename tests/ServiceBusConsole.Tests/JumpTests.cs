@@ -217,7 +217,7 @@ public sealed class JumpTests
     }
 
     [Test]
-    public async Task ANamespaceOfAnotherSubscription_SwitchesTheConnection()
+    public async Task ANamespaceOfAnotherSubscription_SwitchesTheConnection_AndShowsInRecent()
     {
         var (app, terminal) = await JumpFromDevelopmentAsync();
         await using var _ = terminal;
@@ -231,6 +231,8 @@ public sealed class JumpTests
         await terminal.WaitUntilAsync(f => f.GetLine(0).Contains("sb-payments-prd") && f.GetLine(0).Contains("Contoso Production"), AppHarness.Timeout, cancellationToken: Ct);
         app.Connection.CurrentNamespace.ShouldBe(Production.Info.FullyQualifiedNamespace);
         app.NavState.AzureSubscription.ShouldBe(Production.Subscription);
+        await terminal.WaitUntilAsync(_ => app.Recent.Items is [var newest, ..] && newest.Is(Production.Subscription, Production.Info), AppHarness.Timeout, cancellationToken: Ct);
+        app.Recent.Items.Select(r => r.Namespace.Name).ShouldBe(["sb-payments-prd", "sb-orders-dev"]);
     }
 
     [Test]

@@ -1,11 +1,11 @@
 <ModalWindow IsOpened="@IsOpened">
-    <Panel Border="BoxBorder.Rounded" Title="@(Icon is { } icon ? $"{icon} {Title}" : Title)" BorderColor="@BorderColor"Padding="@(new(2, 1, 2, 1))">
+    <Panel Border="BoxBorder.Rounded" Title="@(Icon is { } icon ? $"{icon} {Title}" : Title)" BorderColor="@BorderColor" Width="@Width" Padding="@Padding">
         <Rows>
             @ChildContent
             @if (Buttons is { } buttons)
             {
                 <Padder Padding="@(new(0, 1, 0, 0))">
-                    <Flex Direction="FlexDirection.Row" Gap="3">@buttons</Flex>
+                    <Columns Gap="3">@buttons</Columns>
                 </Padder>
             }
         </Rows>
@@ -18,6 +18,8 @@
     [Parameter] public string? Icon { get; set; }
     [Parameter] public Color BorderColor { get; set; } = Theme.Accent;
     [Parameter] public bool IsOpened { get; set; } = true;
+    [Parameter] public int? Width { get; set; }
+    [Parameter] public Padding Padding { get; set; } = new(2, 1, 2, 1);
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
     /// <summary>Primary first, then the plain one; a line of hints fits here too.</summary>

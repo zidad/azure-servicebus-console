@@ -86,6 +86,7 @@ public sealed class AppHarness
                     services.AddSingleton<SessionContext>();
                     services.AddSingleton(Cache);
                     services.AddSingleton(Recent);
+                    services.AddSingleton<NamespaceSwitcher>();
                     services.AddSingleton<SubscriptionCatalog>();
                     services.AddSingleton<INamespaceOpener>(new FakeNamespaceOpener(info => OpenNamespace(info)));
                     services.AddSingleton<ExplorerTree>();

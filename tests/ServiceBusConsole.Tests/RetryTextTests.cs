@@ -38,4 +38,33 @@ public sealed class RetryTextTests
             ("", "Every subscription of the topic gets a copy."),
         ]);
     }
+
+    [Test]
+    public void ResendFields_FromAQueue_SendCopiesAndKeepTheOriginals()
+    {
+        var fields = RetryText.ResendFields(new MessageSource.Queue("orders"));
+
+        fields.Select(f => (f.Label, f.Value, f.Warning)).ShouldBe(
+        [
+            ("From", "orders", false),
+            ("To", "orders", false),
+            ("How", "Send copies to orders", false),
+            ("Note", "The originals stay in orders.", true),
+        ]);
+    }
+
+    [Test]
+    public void ResendFields_FromASubscription_SendToTheTopic()
+    {
+        var fields = RetryText.ResendFields(new MessageSource.Subscription("events", "audit"));
+
+        fields.Select(f => (f.Label, f.Value)).ShouldBe(
+        [
+            ("From", "events/audit"),
+            ("To", "events"),
+            ("How", "Send copies to events"),
+            ("Note", "The originals stay in events/audit."),
+            ("", "Every subscription of the topic gets a copy."),
+        ]);
+    }
 }
