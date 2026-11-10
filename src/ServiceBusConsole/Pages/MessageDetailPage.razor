@@ -85,14 +85,14 @@ else
 
 <AsyncCommand @ref="_complete" TItem="MessageInfo"
               ConfirmMessage="@(m => PageStrings.FormatMessageDetail_CompleteConfirm(m.SequenceNumber, NavState.MessageSource?.DisplayName))"
-              Execute="@(m => Act(m, (b, l) => b.CompleteAsync(l)))" />
+              Execute="@(m => Act(m, (b, l) => b.CompleteAsync(l)))" OnCompleted="@BackToStatus" />
 
 <AsyncCommand @ref="_abandon" TItem="MessageInfo"
-              Execute="@(m => Act(m, (b, l) => b.AbandonAsync(l)))" />
+              Execute="@(m => Act(m, (b, l) => b.AbandonAsync(l)))" OnCompleted="@BackToStatus" />
 
 <AsyncCommand @ref="_deadLetter" TItem="MessageInfo"
               ConfirmMessage="@(m => PageStrings.FormatMessageDetail_DeadLetterConfirm(m.SequenceNumber))"
-              Execute="@(m => Act(m, (b, l) => b.DeadLetterAsync(l)))" />
+              Execute="@(m => Act(m, (b, l) => b.DeadLetterAsync(l)))" OnCompleted="@BackToStatus" />
 
 <AsyncCommand @ref="_retry" TItem="MessageInfo"
               ConfirmMessage="@(m => RetryConfirm(m))"
@@ -237,6 +237,13 @@ else
     private void Run(AsyncCommand<MessageInfo>? command)
     {
         if (NavState.Message is { } message) command?.Invoke(message);
+    }
+
+    // Settling reports in the list's status line, failures included.
+    private Task BackToStatus(MessageInfo _)
+    {
+        GoBack();
+        return Task.CompletedTask;
     }
 
     // The message is handled: back to the list. After a failure or cancel it is still here.

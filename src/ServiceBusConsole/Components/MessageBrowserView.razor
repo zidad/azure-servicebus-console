@@ -130,6 +130,10 @@
                 <MessagePreview Message="@focused" Browser="@browser" Width="@Viewport.Width" Height="@PreviewHeight(browser)" BodyFocusOrder="2" OnKeyDown="@HandleKeyDown"
                                 Title="@($"{Icons.Message} {ComponentStrings.FormatMessageBrowserView_PreviewTitle(focused.SequenceNumber, browser.Cursor + 1, browser.Messages.Count)}")" />
             }
+            @if (browser.Settled is { Finished: true } settled)
+            {
+                <Markup Content="@SettledStatus(browser, settled)" Foreground="@OutcomeColor(settled.Outcome)" />
+            }
         }
         else
         {
@@ -216,7 +220,8 @@
     private BrowserSplit Split => FullscreenLayout.Browser(Viewport.Height);
 
     // A short list leaves rows unused; the preview takes them.
-    private int PreviewHeight(MessageBrowser browser) => Split.Preview + Math.Max(0, Split.Rows - browser.Messages.Count);
+    private int PreviewHeight(MessageBrowser browser) =>
+        Split.Preview + Math.Max(0, Split.Rows - browser.Messages.Count) - (browser.Settled is { Finished: true } ? 1 : 0);
     private string TopicNote => Source is MessageSource.Subscription ? ComponentStrings.MessageBrowserView_TopicNote : "";
 
     private IEnumerable<AsyncCommand<IReadOnlyList<MessageInfo>>?> ListCommands => [_complete, _abandon, _deadLetter, _retry, _resend];
@@ -462,6 +467,17 @@
         ComponentStrings.FormatMessageBrowserView_Received(b.Messages.Count.ToString("N0")),
         .. b.SettledCounts.Select(s => ComponentStrings.FormatMessageBrowserView_StateCount(s.Count.ToString("N0"), StateName(s.State))),
     ]);
+
+    /// <summary>"✅ Completed 2 messages · 22 still held".</summary>
+    private static string SettledStatus(MessageBrowser b, OperationProgress settled) =>
+        $"{settled.Outcome switch { OperationOutcome.Succeeded => Icons.Done, OperationOutcome.Cancelled => Icons.Cancelled, _ => Icons.Error }} {settled.Result} · {ComponentStrings.FormatMessageBrowserView_StillHeld(b.LockedCount.ToString("N0"))}";
+
+    private static Color OutcomeColor(OperationOutcome outcome) => outcome switch
+    {
+        OperationOutcome.Succeeded => Theme.Success,
+        OperationOutcome.Cancelled => Theme.Warning,
+        _ => Theme.Danger,
+    };
 
     private static string StateName(LockedState state) => state switch
     {

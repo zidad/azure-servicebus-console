@@ -227,6 +227,9 @@ public sealed class FakeMessageService : IMessageService
     public System.Collections.Concurrent.ConcurrentQueue<long> Abandoned { get; } = [];
     public System.Collections.Concurrent.ConcurrentQueue<long> DeadLettered { get; } = [];
 
+    /// <summary>Sequence numbers whose complete, abandon or dead-letter fails while they stay held.</summary>
+    public HashSet<long> FailSettle { get; } = [];
+
     /// <summary>The last PeekLock receive, to lose a lock in a test.</summary>
     public FakeLockedMessages? Received { get; private set; }
 
@@ -351,6 +354,7 @@ public sealed class FakeLockedMessages(FakeMessageService service, IEnumerable<M
 
     private void Settle(MessageInfo message)
     {
+        if (service.FailSettle.Contains(message.SequenceNumber)) throw new InvalidOperationException("Service Bus is busy");
         bool removed;
         lock (_held) removed = _held.Remove(message.SequenceNumber);
         if (!removed)
