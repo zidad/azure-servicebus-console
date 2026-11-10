@@ -80,6 +80,7 @@ public sealed class NamespaceOpenerTests
             public IAsyncEnumerable<TopicInfo> GetTopicsAsync(CancellationToken ct = default) => inner.GetTopicsAsync(ct);
             public IAsyncEnumerable<SubscriptionInfo> GetSubscriptionsAsync(string topicName, CancellationToken ct = default) => inner.GetSubscriptionsAsync(topicName, ct);
             public IAsyncEnumerable<SubscriptionInfo> GetAllSubscriptionsAsync(CancellationToken ct = default) => inner.GetAllSubscriptionsAsync(ct);
+            public IAsyncEnumerable<SubscriptionForwarding> GetForwardingAsync(CancellationToken ct = default) => inner.GetForwardingAsync(ct);
         }
 
         public sealed class Metrics(IMetricsService inner) : IMetricsService

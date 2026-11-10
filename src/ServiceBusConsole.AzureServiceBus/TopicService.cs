@@ -47,5 +47,20 @@ internal sealed class TopicService(ServiceBusAdministrationClient admin, ILogger
             ActiveMessageCount = runtime.ActiveMessageCount,
             DeadLetterMessageCount = runtime.DeadLetterMessageCount,
             TransferMessageCount = runtime.TransferMessageCount,
+            AccessedAt = runtime.AccessedAt,
         });
+
+    public IAsyncEnumerable<SubscriptionForwarding> GetForwardingAsync(CancellationToken ct = default)
+    {
+        logger.LogInformation("Listing subscription forwarding across all topics");
+        return AsyncParallel.MapAsync(
+                admin.GetTopicsAsync(ct).Select(t => t.Name),
+                (topic, token) => admin.GetSubscriptionsAsync(topic, token)
+                    .Select(s => new SubscriptionForwarding(topic, s.SubscriptionName, Blank(s.ForwardTo), Blank(s.ForwardDeadLetteredMessagesTo)))
+                    .ToListAsync(token).AsTask(),
+                MaxConcurrency, ct)
+            .SelectMany(subs => subs.ToAsyncEnumerable());
+    }
+
+    private static string? Blank(string? value) => string.IsNullOrEmpty(value) ? null : value;
 }

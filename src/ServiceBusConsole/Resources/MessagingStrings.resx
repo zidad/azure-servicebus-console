@@ -54,6 +54,12 @@
   <data name="MessageBrowser_Requeuing" xml:space="preserve">
     <value>Requeuing {what}</value>
   </data>
+  <data name="MessageBrowser_Deleting" xml:space="preserve">
+    <value>Deleting {what}</value>
+  </data>
+  <data name="MessageBrowser_Deleted" xml:space="preserve">
+    <value>Deleted</value>
+  </data>
   <data name="MessageBrowser_Retried" xml:space="preserve">
     <value>Retried</value>
   </data>

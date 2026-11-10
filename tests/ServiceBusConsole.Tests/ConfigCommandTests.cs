@@ -114,7 +114,12 @@ public sealed class ConfigCommandTests
     {
         Run("list", "--all").ShouldBeTrue();
 
-        Lines(_out).ShouldBe([$"# ui.theme=auto  ({ConfigKeys.Theme.Description})"]);
+        Lines(_out).ShouldBe([
+            $"# ui.theme=auto  ({ConfigKeys.Theme.Description})",
+            $"# cli.protect=  ({ConfigKeys.Protect.Description})",
+            $"# cli.redact.namespaces=  ({ConfigKeys.RedactNamespaces.Description})",
+            $"# cli.redact.fields=  ({ConfigKeys.RedactFields.Description})",
+        ]);
     }
 
     [Test]
@@ -124,7 +129,7 @@ public sealed class ConfigCommandTests
 
         Run("list", "--all").ShouldBeTrue();
 
-        Lines(_out).ShouldBe(["ui.theme=dark"]);
+        Lines(_out).ShouldBe(["ui.theme=dark", .. ConfigKeys.App.Skip(1).Select(k => $"# {k.Key}=  ({k.Description})")]);
     }
 
     [Test]

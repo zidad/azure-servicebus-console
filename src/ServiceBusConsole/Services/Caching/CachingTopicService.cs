@@ -10,4 +10,6 @@ public sealed class CachingTopicService(ITopicService inner, NamespaceInfo ns, F
 
     public IAsyncEnumerable<SubscriptionInfo> GetAllSubscriptionsAsync(CancellationToken ct = default) =>
         cache.CachedThenLiveAsync(CacheKeys.AllSubscriptions(ns), () => inner.GetAllSubscriptionsAsync(ct), s => s with { IsRefreshing = true }, ct);
+
+    public IAsyncEnumerable<SubscriptionForwarding> GetForwardingAsync(CancellationToken ct = default) => inner.GetForwardingAsync(ct);
 }
