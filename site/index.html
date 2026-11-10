@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>azsb – Azure Service Bus CLI and terminal UI</title>
+<meta name="description" content="azsb is an open-source Azure Service Bus CLI and terminal UI: browse queues, topics and subscriptions, peek messages, and resend or retry dead-letter messages from your terminal. A keyboard-driven Service Bus Explorer alternative for Linux, macOS and Windows.">
+<link rel="canonical" href="https://zidad.github.io/azure-servicebus-console/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="azsb – Azure Service Bus CLI and terminal UI">
+<meta property="og:description" content="Browse Azure Service Bus queues, topics and dead-letter queues from your terminal. Peek, resend and retry messages.">
+<meta property="og:url" content="https://zidad.github.io/azure-servicebus-console/">
+<meta property="og:image" content="https://zidad.github.io/azure-servicebus-console/screenshots/message-browser.png">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "azsb",
+  "alternateName": "Azure Service Bus Console",
+  "description": "Azure Service Bus CLI and terminal UI: browse queues, topics and subscriptions, peek messages, and resend or retry dead-letter messages.",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Linux, macOS, Windows",
+  "license": "https://opensource.org/licenses/MIT",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "downloadUrl": "https://www.nuget.org/packages/Net.Azure.ServiceBusConsole",
+  "codeRepository": "https://github.com/zidad/azure-servicebus-console",
+  "screenshot": "https://zidad.github.io/azure-servicebus-console/screenshots/message-browser.png"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How do I browse Azure Service Bus messages from the command line?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Install azsb with dotnet tool install -g Net.Azure.ServiceBusConsole, sign in with az login and run azsb. Pick a namespace, open a queue or subscription and peek its active or dead-letter messages." }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I retry dead-letter messages in Azure Service Bus?",
+      "acceptedAnswer": { "@type": "Answer", "text": "In azsb, open the queue or subscription, switch to the dead-letter tab, select the messages and press Shift+R. On Standard and Premium namespaces each batch moves back in one transaction." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does azsb need a connection string?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. azsb signs in with your Azure CLI login (az login) and lists the namespaces of your subscriptions. It also connects to the local Service Bus emulator." }
+    }
+  ]
+}
+</script>
+<style>
+:root {
+  --bg: #ffffff; --fg: #1b1f24; --muted: #57606a; --accent: #0969da; --code-bg: #f3f4f6; --border: #d0d7de;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1117; --fg: #e6edf3; --muted: #8d96a0; --accent: #4493f8; --code-bg: #161b22; --border: #30363d;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1117; --fg: #e6edf3; --muted: #8d96a0; --accent: #4493f8; --code-bg: #161b22; --border: #30363d;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 960px; margin: 0 auto; padding: 48px 16px 64px; }
+h1 { font-size: clamp(28px, 5vw, 42px); line-height: 1.15; margin: 0 0 12px; }
+h2 { font-size: 24px; margin: 48px 0 12px; }
+h3 { font-size: 18px; margin: 24px 0 4px; }
+p.lead { font-size: 19px; color: var(--muted); margin: 0 0 24px; }
+a { color: var(--accent); }
+pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font: 15px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+img { max-width: 100%; height: auto; border: 1px solid var(--border); border-radius: 8px; display: block; }
+figure { margin: 24px 0; }
+figcaption { color: var(--muted); font-size: 15px; margin-top: 6px; }
+.links { display: flex; flex-wrap: wrap; gap: 16px; margin: 0 0 24px; }
+ul { padding-left: 22px; }
+li { margin: 4px 0; }
+footer { color: var(--muted); font-size: 15px; border-top: 1px solid var(--border); margin-top: 64px; padding-top: 16px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>azsb – Azure Service Bus CLI and terminal UI</h1>
+  <p class="lead">Browse Azure Service Bus namespaces, queues, topics and subscriptions, peek and receive messages, and resend or retry dead-letter messages, all from your terminal.</p>
+  <div class="links">
+    <a href="https://github.com/zidad/azure-servicebus-console">GitHub</a>
+    <a href="https://www.nuget.org/packages/Net.Azure.ServiceBusConsole">NuGet</a>
+    <a href="https://github.com/zidad/azure-servicebus-console/releases/latest">Downloads</a>
+  </div>
+
+<pre><code>dotnet tool install -g Net.Azure.ServiceBusConsole
+az login
+azsb</code></pre>
+
+  <figure>
+    <img src="screenshots/message-browser.png" alt="azsb showing an Azure Service Bus queue's messages with a JSON preview" width="1108" height="892">
+    <figcaption>The message browser: messages on top, the selected message's properties and JSON body below.</figcaption>
+  </figure>
+
+  <h2>What it does</h2>
+  <ul>
+    <li>Lists the Azure subscriptions of your <code>az login</code> and their Service Bus namespaces; no connection strings</li>
+    <li>Queues, topics and subscriptions with live active, dead-letter, scheduled and transfer counts</li>
+    <li>Peek, receive (PeekLock) or receive-and-delete messages; complete, abandon or dead-letter locked ones</li>
+    <li>Retry dead-letter messages to their queue or topic, in transactions on Standard and Premium namespaces</li>
+    <li>Resend copies of messages, purge queues, delete entities</li>
+    <li>Azure Monitor charts of throughput and backlog, from 1 hour to 30 days</li>
+    <li>Works with the local Service Bus emulator</li>
+    <li>Native executables for Linux, macOS and Windows (x64 and arm64)</li>
+  </ul>
+
+  <figure>
+    <img src="screenshots/queues.png" alt="azsb listing Azure Service Bus queues with message and dead-letter counts" width="1108" height="892">
+    <figcaption>Queues with live counts; dead letters in red.</figcaption>
+  </figure>
+
+  <h2>A Service Bus Explorer alternative for the terminal</h2>
+  <p>The Azure portal's Service Bus Explorer and the standalone Service Bus Explorer app need a browser or Windows. azsb does the same day-to-day work (finding the queue with dead letters, reading why messages failed, sending them back) from any terminal, over SSH too, with the keyboard or the mouse.</p>
+
+  <figure>
+    <img src="screenshots/retry-result.png" alt="azsb after retrying dead-letter messages back to their queue" width="1108" height="892">
+    <figcaption>Retrying dead-letter messages.</figcaption>
+  </figure>
+
+  <h2>Questions</h2>
+  <h3>How do I browse Azure Service Bus messages from the command line?</h3>
+  <p>Install azsb, run <code>az login</code>, then <code>azsb</code>. Pick a namespace, open a queue or subscription and peek its active or dead-letter messages. <code>azsb -s "My subscription" -n my-namespace -o orders/dlq</code> opens a dead-letter queue directly.</p>
+  <h3>How do I retry dead-letter messages in Azure Service Bus?</h3>
+  <p>Open the queue or subscription, switch to the dead-letter tab, select the messages and press <kbd>Shift</kbd>+<kbd>R</kbd>. On Standard and Premium namespaces each batch moves in one transaction.</p>
+  <h3>Does azsb need a connection string?</h3>
+  <p>No. It signs in with your Azure CLI login and also connects to the local Service Bus emulator.</p>
+
+  <footer>
+    MIT licensed · <a href="https://github.com/zidad/azure-servicebus-console">zidad/azure-servicebus-console</a>
+  </footer>
+</main>
+</body>
+</html>
