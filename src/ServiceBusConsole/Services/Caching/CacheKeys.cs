@@ -5,6 +5,7 @@ namespace ServiceBusConsole.Services.Caching;
 /// <summary>Where a namespace's listings are cached, so deleting an entity can drop it from them.</summary>
 public static class CacheKeys
 {
+    public static string Namespaces(string subscriptionId) => $"{subscriptionId}/namespaces.json";
     public static string Queues(NamespaceInfo ns) => $"{ns.FullyQualifiedNamespace}/queues.json";
     public static string Topics(NamespaceInfo ns) => $"{ns.FullyQualifiedNamespace}/topics.json";
     public static string AllSubscriptions(NamespaceInfo ns) => $"{ns.FullyQualifiedNamespace}/all-subscriptions.json";

@@ -128,13 +128,19 @@
     <value>Jump to</value>
   </data>
   <data name="JumpDialog_Placeholder" xml:space="preserve">
-    <value>queue, topic or subscription</value>
+    <value>queue, topic, subscription or namespace</value>
   </data>
   <data name="JumpDialog_Listing" xml:space="preserve">
     <value>Listing…</value>
   </data>
   <data name="JumpDialog_NoMatches" xml:space="preserve">
     <value>Nothing matches.</value>
+  </data>
+  <data name="JumpDialog_ScopeHere" xml:space="preserve">
+    <value>in {namespaceName} · ^a all namespaces</value>
+  </data>
+  <data name="JumpDialog_ScopeAll" xml:space="preserve">
+    <value>in all namespaces · ^a {namespaceName} only</value>
   </data>
   <data name="JumpDialog_Actions" xml:space="preserve">
     <value>Actions</value>

@@ -3,6 +3,8 @@
 @inject FileCache Cache
 @inject NavigationManager Nav
 @inject NavigationState NavState
+@inject SubscriptionCatalog Catalog
+@inject MessageBrowserStore Store
 
 <ModalWindow IsOpened="@IsOpened">
     <Panel Title="@($"{Icons.Filter} {ComponentStrings.JumpDialog_Title}")" BorderColor="@Theme.Accent" Border="BoxBorder.Rounded" Width="@Width" Padding="@(new(1, 0, 1, 0))">
@@ -11,6 +13,11 @@
             <TextInput @ref="_input" @key="_opened" OnInput="@OnQuery" OnSubmit="@(_ => Activate())"
                        Placeholder="@ComponentStrings.JumpDialog_Placeholder" FocusOrder="100" @onkeydown="HandleKey" FillWidth="true"
                        OnBlur="KeepFocus" />
+            @if (Connection.Current is { } here)
+            {
+                <Markup Content="@((_everywhere ? ComponentStrings.FormatJumpDialog_ScopeAll(here.Info.Name) : ComponentStrings.FormatJumpDialog_ScopeHere(here.Info.Name)).PadLeft(Width - 4))"
+                        Foreground="@Theme.Muted" />
+            }
             @if (_loading)
             {
                 <Markup Content="@ComponentStrings.JumpDialog_Listing" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
@@ -54,6 +61,7 @@
     /// Opened with <c>:</c>: finds a queue, topic or subscription of the current namespace by name (<see cref="JumpIndex"/>)
     /// and opens it, or with Tab its dead-letter queue. Lists from the cached listings, or live when one isn't cached yet.
     /// The match under the cursor with dead letters adds actions on them, run by the dead-letter browser it opens.
+    /// Other namespaces are matches too, and <c>^a</c> adds their cached entities; opening one switches the connection.
     /// </summary>
     public bool IsOpened { get; private set; }
 
@@ -69,6 +77,10 @@
     private int _opened;
     private int _cursor;
     private IReadOnlyList<JumpTarget> _targets = [];
+    private IReadOnlyList<JumpNamespace> _namespaces = [];
+    // The other namespaces' entities, loaded on the first ^a.
+    private IReadOnlyList<JumpTarget>? _elsewhere;
+    private bool _everywhere;
     private IReadOnlyList<JumpGroup> _groups = [];
     // In display order, which the cursor follows.
     private IReadOnlyList<JumpTarget> _results = [];
@@ -91,12 +103,18 @@
         _cursor = _subject = 0;
         _focusPending = true;
         _loading = true;
+        (_everywhere, _elsewhere) = (false, null);
         StateHasChanged();
         _targets = await LoadAsync();
+        var here = Here;
+        _namespaces = [.. (await JumpTargets.NamespacesAsync(Catalog.Subscriptions, Cache))
+            .Where(ns => !ns.Is(here?.Subscription, here?.Info.FullyQualifiedNamespace))];
         _loading = false;
         Search();
         StateHasChanged();
     }
+
+    private JumpNamespace? Here => Connection.Current is { } current && NavState.AzureSubscription is { } subscription ? new(subscription, current.Info) : null;
 
     private Task<IReadOnlyList<JumpTarget>> LoadAsync() =>
         Connection.Current is { } current ? JumpTargets.LoadAsync(current, Cache) : Task.FromResult<IReadOnlyList<JumpTarget>>([]);
@@ -121,16 +139,19 @@
 
     private void Search()
     {
-        _groups = JumpIndex.Grouped(_query, _targets);
+        _groups = JumpIndex.Grouped(_query, [.. _targets, .. _everywhere ? _elsewhere ?? [] : [], .. _namespaces.Select(ns => new JumpTarget.Namespace(ns))]);
         _results = [.. _groups.SelectMany(g => g.Targets)];
     }
 
-    private string Line(JumpTarget t)
+    // Kind, or for another namespace's entity that namespace, or for a namespace its subscription.
+    private static string Line(JumpTarget t)
     {
         var info = t.DeadLetters > 0 ? $"{Icons.DeadLetter} {t.DeadLetters:N0}" : "";
-        var name = t.Label.Length > 54 ? t.Label[..53] + "…" : t.Label;
-        return $" {name.PadRight(56)}{t.Kind.PadRight(14)}{info}".PadRight(Width - 4);
+        var where = t is JumpTarget.Namespace n ? n.Place.Subscription.Name : t.Elsewhere?.Info.Name ?? t.Kind;
+        return $" {Fit(t.Label, 46)}{Fit(where, 22)}{info}".PadRight(Width - 4);
     }
+
+    private static string Fit(string text, int width) => (text.Length < width ? text : text[..(width - 2)] + "…").PadRight(width);
 
     private static string Line(JumpAction a)
     {
@@ -149,7 +170,18 @@
             case "ArrowUp": Move(-1); return;
             case "P" when e.CtrlKey: RunOnSubject(BrowserCommand.Purge); return;
             case "R" when e.CtrlKey: RunOnSubject(BrowserCommand.Retry); return;
+            case "A" when e.CtrlKey: _ = ToggleEverywhereAsync(); return;
         }
+    }
+
+    private async Task ToggleEverywhereAsync()
+    {
+        _everywhere = !_everywhere;
+        if (_everywhere && _elsewhere is null)
+            _elsewhere = [.. (await Task.WhenAll(_namespaces.Select(ns => JumpTargets.CachedAsync(ns, Cache)))).SelectMany(t => t)];
+        _cursor = _subject = 0;
+        Search();
+        StateHasChanged();
     }
 
     private void Move(int by)
@@ -182,11 +214,25 @@
         Open(target, deadLetters: true);
     }
 
-    /// <summary>A queue or subscription on its Active tab, or its dead-letter queue; a topic has none and opens itself.</summary>
-    private void Open(JumpTarget target, bool deadLetters)
+    private void Open(JumpTarget target, bool deadLetters) => _ = OpenAsync(target, deadLetters);
+
+    /// <summary>
+    /// A queue or subscription on its Active tab, or its dead-letter queue; a topic has none and opens itself. In another
+    /// namespace, or a namespace itself (its queues), switches to it first, as the header's picker does.
+    /// </summary>
+    private async Task OpenAsync(JumpTarget target, bool deadLetters)
     {
         IsOpened = false;
-        Nav.NavigateTo(NavState.RouteTo(target, active: !deadLetters));
+        var route = NavState.RouteTo(target, active: !deadLetters);
+        if (target.OtherNamespace is { } place)
+        {
+            // The store keys browsers by entity name only; a same-named one elsewhere must not reuse its locks.
+            await Store.CloseAsync();
+            NavState.AzureSubscription = place.Subscription;
+            Connection.SetNamespace(place.Info);
+        }
+        if ("/" + Nav.ToBaseRelativePath(Nav.Uri) == route) NavState.Reload();
+        else Nav.NavigateTo(route);
     }
 
     private async Task Close()
