@@ -46,4 +46,6 @@ var builder = Host.CreateDefaultBuilder(args)
         }))
     .ConfigureServices((context, services) => services.AddPlugins(plugins, context.Configuration));
 
-return await AppCommands.ExecuteAsync(builder, plugins, args);
+return await AppCommands.ExecuteAsync(builder, plugins, () => CommandServices.Create(logging => logging
+    .AddProvider(new FileLoggerProvider(logFile))
+    .SetMinimumLevel(LogLevel.Information)), args);

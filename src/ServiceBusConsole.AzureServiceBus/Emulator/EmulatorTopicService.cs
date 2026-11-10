@@ -32,6 +32,11 @@ internal sealed class EmulatorTopicService(ServiceBusClient bus, ILogger<Emulato
             PeekSubscriptionAsync, MaxConcurrency, ct);
     }
 
+    public IAsyncEnumerable<SubscriptionForwarding> GetForwardingAsync(CancellationToken ct = default) =>
+        EmulatorCounts.Config().Topics
+            .SelectMany(t => t.Subscriptions.Select(s => new SubscriptionForwarding(t.Name, s.Name, null, null)))
+            .ToAsyncEnumerable();
+
     private static IEnumerable<(string Topic, string Subscription)> Subscriptions(string topicName) =>
         (EmulatorCounts.Config().Topics.FirstOrDefault(t => t.Name == topicName)
             ?? throw new InvalidOperationException(Strings.FormatEmulatorTopicService_TopicNotFound(topicName)))

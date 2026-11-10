@@ -365,6 +365,35 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
         public void FailUnseen() => Fail(targets.Where(m => !_seen.Contains(m.SequenceNumber)), _unseenReason);
     }
 
+    /// <summary>
+    /// Deletes peeked dead-lettered messages: locks them by a scan (<see cref="IMessageService.StartLocking"/>), then completes
+    /// each as it is held. Only in a dead-letter queue, like <see cref="RetryAsync"/>.
+    /// </summary>
+    public Task DeleteAsync(IReadOnlyList<MessageInfo> targets) =>
+        RunAsync(new(MessagingStrings.FormatMessageBrowser_Deleting(What(targets)), [new(Strings.PeekLock, targets.Count), new(MessagingStrings.RetryText_MarkComplete, targets.Count)]), op =>
+            LockFirstAsync(op, targets, async (run, locked, lockStep) =>
+            {
+                var completeStep = op.Steps[1];
+                await run.ChunksAsync(SendChunk, chunk => Parallel.ForEachAsync(chunk, new ParallelOptions { MaxDegreeOfParallelism = CompleteParallelism }, async (m, ct) =>
+                {
+                    completeStep.State = StepState.Running;
+                    try
+                    {
+                        await locked.CompleteAsync(m, ct);
+                        run.Removed.Enqueue(m);
+                    }
+                    catch (Exception ex)
+                    {
+                        run.Fail([m], MessagingStrings.FormatMessageBrowser_NotCompleted(Describe(ex)));
+                    }
+                    completeStep.Increment();
+                    Notify(completeStep);
+                }));
+                run.FailUnseen();
+                foreach (var step in op.Steps) step.State = StepState.Done;
+                Finish(op, MessagingStrings.MessageBrowser_Deleted, run.Targets, [.. run.Removed], [.. run.Failures]);
+            }));
+
     /// <summary>Sends copies to the queue/topic and leaves the originals where they are.</summary>
     public Task ResendAsync(IReadOnlyList<MessageInfo> targets) =>
         RunAsync(new(MessagingStrings.FormatMessageBrowser_Sending(What(targets)), [new(MessagingStrings.FormatMessageBrowser_SendTo(Source.SendTarget), targets.Count)]), async op =>
@@ -534,7 +563,7 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
             { Count: 0 } => OperationOutcome.Succeeded,
             _ when failures.All(f => f.IsCancelled) => OperationOutcome.Cancelled,
             _ => OperationOutcome.Failed,
-        });
+        }, [.. failures]);
 
     // Acted-on messages leave the selection and failed ones are selected for a retry; the rest of the
     // selection stays, so acting on one message from its detail page keeps the others selected.

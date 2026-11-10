@@ -21,4 +21,13 @@
   <data name="ConfigFile_NotAnObject" xml:space="preserve">
     <value>{path} does not hold a JSON object.</value>
   </data>
+  <data name="ConfigKeys_Protect" xml:space="preserve">
+    <value>Namespaces where retry, delete, purge and send need --confirm with the namespace's name: comma-separated names or patterns (* and ?)</value>
+  </data>
+  <data name="ConfigKeys_RedactNamespaces" xml:space="preserve">
+    <value>Namespaces whose message bodies peek redacts, with no flag to turn it off: comma-separated names or patterns (* and ?)</value>
+  </data>
+  <data name="ConfigKeys_RedactFields" xml:space="preserve">
+    <value>JSON fields peek redacts in those namespaces, comma-separated: name, identifier.value, value* (wildcards), title:scalar (only text and numbers); also application property names. A body that isn't JSON is withheld</value>
+  </data>
 </root>

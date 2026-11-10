@@ -182,6 +182,14 @@ public sealed class FakeTopicService : ITopicService
         await Task.Yield();
         foreach (var s in Subscriptions.ToList()) yield return s;
     }
+
+    public List<SubscriptionForwarding> Forwarding { get; } = [];
+
+    public async IAsyncEnumerable<SubscriptionForwarding> GetForwardingAsync([EnumeratorCancellation] CancellationToken ct = default)
+    {
+        await Task.Yield();
+        foreach (var f in Forwarding.ToList()) yield return f;
+    }
 }
 
 public sealed class FakeMessageService : IMessageService
@@ -263,6 +271,15 @@ public sealed class FakeMessageService : IMessageService
     {
         if (HoldSend is { } hold) await hold.Task.WaitAsync(ct);
         Sent.AddRange(messages.Select(m => (source, m.SequenceNumber)));
+        yield return messages.Count;
+    }
+
+    public List<(string QueueOrTopic, OutgoingMessage Message)> SentNew { get; } = [];
+
+    public async IAsyncEnumerable<int> SendAsync(string queueOrTopic, IReadOnlyList<OutgoingMessage> messages, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        await Task.Yield();
+        SentNew.AddRange(messages.Select(m => (queueOrTopic, m)));
         yield return messages.Count;
     }
 

@@ -24,6 +24,9 @@ public interface IMessageService
     /// </summary>
     IAsyncEnumerable<int> SendCopiesAsync(MessageSource source, IReadOnlyList<MessageInfo> messages, CancellationToken ct = default);
 
+    /// <summary>Sends new messages to a queue or topic, in order and in as few batches as fit; yields the running total after each batch.</summary>
+    IAsyncEnumerable<int> SendAsync(string queueOrTopic, IReadOnlyList<OutgoingMessage> messages, CancellationToken ct = default);
+
     /// <summary>Deletes every message; yields the running total.</summary>
     IAsyncEnumerable<int> PurgeAsync(MessageSource source, CancellationToken ct = default);
 }

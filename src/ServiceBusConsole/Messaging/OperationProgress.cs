@@ -25,11 +25,15 @@ public sealed class OperationProgress(string title, IReadOnlyList<OperationStep>
 
     public OperationOutcome Outcome { get; private set; }
 
+    /// <summary>The messages a finished batch operation could not handle.</summary>
+    public IReadOnlyList<Failure> Failures { get; private set; } = [];
+
     [System.Diagnostics.CodeAnalysis.MemberNotNullWhen(true, nameof(Result))]
     public bool Finished => Result is not null;
 
-    public void Finish(string result, OperationOutcome outcome)
+    public void Finish(string result, OperationOutcome outcome, IReadOnlyList<Failure>? failures = null)
     {
+        Failures = failures ?? [];
         foreach (var step in Steps.Where(s => s.State == StepState.Running)) step.State = StepState.Done;
         Outcome = outcome;
         Result = result;

@@ -95,6 +95,41 @@ internal sealed class MessageService(ServiceBusClient bus, ILoggerFactory logger
         }
     }
 
+    public async IAsyncEnumerable<int> SendAsync(string queueOrTopic, IReadOnlyList<OutgoingMessage> messages,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        await using var sender = bus.CreateSender(queueOrTopic);
+        var sent = 0;
+        while (sent < messages.Count)
+        {
+            using var batch = await sender.CreateMessageBatchAsync(ct);
+            var added = 0;
+            while (sent + added < messages.Count && batch.TryAddMessage(ToServiceBus(messages[sent + added])))
+                added++;
+            if (added == 0)
+                throw new InvalidOperationException(Strings.FormatMessageService_NewTooLarge(sent + 1));
+            await sender.SendMessagesAsync(batch, ct);
+            sent += added;
+            _logger.LogInformation("Sent {Sent}/{Total} new messages to {Target}", sent, messages.Count, queueOrTopic);
+            yield return sent;
+        }
+    }
+
+    private static ServiceBusMessage ToServiceBus(OutgoingMessage message)
+    {
+        var sb = new ServiceBusMessage(message.Body)
+        {
+            ContentType = Unset(message.ContentType),
+            Subject = Unset(message.Subject),
+            CorrelationId = Unset(message.CorrelationId),
+        };
+        if (message.MessageId.Length > 0) sb.MessageId = message.MessageId;
+        foreach (var (key, value) in message.Properties) sb.ApplicationProperties[key] = value;
+        return sb;
+    }
+
+    private static string? Unset(string value) => value.Length == 0 ? null : value;
+
     // Order does not matter when deleting everything, so several receivers drain in parallel.
     private const int PurgeReceivers = 4;
 

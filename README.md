@@ -50,6 +50,39 @@ azsb help                                                            # all flags
 - Without `--subscription`, the Azure CLI's current subscription (`az account set`) is preselected; the subscription list marks it `(az default)`
 - `azsb help` lists the flags and commands; `azsb help <command>` (or `--help`) explains one
 
+## Scripting
+
+The same tool runs non-interactive commands for scripts, CI and agents. They print plain text, or JSON with `--json`, and exit with `0` (ok), `1` (failed), `2` (usage, or a protected namespace without `--confirm`) or `3` (subscription, namespace, entity or a requested message not found). Errors and progress go to standard error, so standard output stays parseable.
+
+```bash
+azsb check -s "Contoso Development" -n sb-orders-dev     # sign-in, DNS (private or public), AMQP port, a peek
+azsb list --dead-letters                                 # queues and subscriptions with dead letters
+azsb list subscriptions --json                           # with last access and forward target (and whether it exists)
+azsb peek orders --dlq --max 20                          # dead-lettered messages: properties, reason, body
+azsb peek events/billing --dlq --json                    # topic/subscription; Azure paths like events/Subscriptions/billing/$DeadLetterQueue work too
+azsb retry orders --message-id 01a1777fb2e0731d9048      # back to the queue, out of the dead-letter queue
+azsb retry orders --all --limit 500 --dry-run            # what --all would retry
+azsb delete orders --dlq --sequence 102 --sequence 117   # remove dead-lettered messages
+azsb purge orders --dlq --yes                            # every dead-lettered message
+azsb send orders --body '{"id":1}' --content-type application/json --property source=cli
+cat order.json | azsb send orders                        # body from standard input (or --file)
+```
+
+- `-s` / `-n` as for the UI; without `-s` the Azure CLI's current subscription, without `-n` the subscription's only namespace. `-n` also takes a pattern with `*` that must match one namespace (`-n 'sb-orders-*-prd'`)
+- `retry` and `delete` pick messages with `--message-id` (every message with that ID), `--sequence` or `--all`, among the first `--limit` (default 1000). They work like Retry in the UI: only on a dead-letter queue, locked first, moved in transactions on Standard and Premium. A message held under someone else's lock is reported as failed, not missing
+- `--dry-run` lists the matching messages and changes nothing
+- `azsb help <command>` lists every option
+
+**Guarding a namespace.** Two settings, kept in the config file so a script or agent can't skip them with a flag:
+
+```bash
+azsb config set cli.protect 'sb-*-prd'                         # retry, delete, purge and send need --confirm <namespace>
+azsb config set cli.redact.namespaces 'sb-*-prd'               # peek redacts message content there
+azsb config set cli.redact.fields 'name,birthDate,identifier.value,value*,text:scalar'
+```
+
+Redacted fields are JSON property paths matched from the end (`identifier.value` is a `value` inside an `identifier`), with `*` wildcards; `:scalar` redacts only text and numbers, not objects. Application properties are matched by name. A body that isn't JSON is withheld entirely.
+
 ## Configuration
 
 Settings live in a JSON file, read and written like `git config`:
@@ -70,6 +103,9 @@ azsb config path                 # the file's location
 | Key | Default | Description |
 |---|---|---|
 | `ui.theme` | `auto` | Colors for a dark or light terminal background: `auto` (`COLORFGBG`, else dark), `dark` or `light`; `--theme` overrides it |
+| `cli.protect` | | Namespaces (names or `*` patterns, comma-separated) where `retry`, `delete`, `purge` and `send` need `--confirm` with the namespace's name |
+| `cli.redact.namespaces` | | Namespaces whose messages `peek` redacts, with no flag to turn it off |
+| `cli.redact.fields` | | JSON fields and application properties `peek` redacts there; see [Scripting](#scripting) |
 
 `azsb config list --all` also shows the plugins' keys; `list` masks secret ones (tokens).
 

@@ -8,7 +8,16 @@ public static class ConfigKeys
     public static ConfigKey Theme { get; } =
         new("ui.theme", ConfigurationStrings.ConfigKeys_Theme, "auto");
 
-    public static IReadOnlyList<ConfigKey> App { get; } = [Theme];
+    public static ConfigKey Protect { get; } =
+        new("cli.protect", ConfigurationStrings.ConfigKeys_Protect);
+
+    public static ConfigKey RedactNamespaces { get; } =
+        new("cli.redact.namespaces", ConfigurationStrings.ConfigKeys_RedactNamespaces);
+
+    public static ConfigKey RedactFields { get; } =
+        new("cli.redact.fields", ConfigurationStrings.ConfigKeys_RedactFields);
+
+    public static IReadOnlyList<ConfigKey> App { get; } = [Theme, Protect, RedactNamespaces, RedactFields];
 
     /// <summary>The app's keys and <paramref name="extra"/> ones, such as a plugin's.</summary>
     public static IReadOnlyList<ConfigKey> With(IEnumerable<ConfigKey> extra) => [.. App, .. extra];

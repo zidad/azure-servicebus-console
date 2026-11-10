@@ -18,6 +18,9 @@
   <data name="MessageService_TooLarge" xml:space="preserve">
     <value>Message #{sequenceNumber} is too large to send</value>
   </data>
+  <data name="MessageService_NewTooLarge" xml:space="preserve">
+    <value>Message {position} is too large to send</value>
+  </data>
   <data name="LockedMessages_NotLocked" xml:space="preserve">
     <value>Message #{sequenceNumber} is no longer locked</value>
   </data>

@@ -13,7 +13,7 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="AppCommands_Root" xml:space="preserve">
-    <value>Terminal UI for browsing Azure Service Bus namespaces, queues, topics, and messages</value>
+    <value>Azure Service Bus CLI and terminal UI: browse, peek, retry and send messages</value>
   </data>
   <data name="AppCommands_Run" xml:space="preserve">
     <value>Open the terminal UI (the default command)</value>
@@ -83,5 +83,281 @@
   </data>
   <data name="PluginsCommand_NoDefault" xml:space="preserve">
     <value>none</value>
+  </data>
+  <data name="AppCommands_Check" xml:space="preserve">
+    <value>Check that a namespace can be used from here: Azure sign-in, DNS, the AMQP port and a peek</value>
+  </data>
+  <data name="AppCommands_List" xml:space="preserve">
+    <value>List queues and subscriptions (or one kind) with their message counts</value>
+  </data>
+  <data name="AppCommands_Peek" xml:space="preserve">
+    <value>Print messages of a queue or subscription without changing them</value>
+  </data>
+  <data name="AppCommands_Retry" xml:space="preserve">
+    <value>Send dead-lettered messages back to their queue or topic and remove them from the dead-letter queue</value>
+  </data>
+  <data name="AppCommands_Delete" xml:space="preserve">
+    <value>Delete dead-lettered messages by message ID or sequence number</value>
+  </data>
+  <data name="AppCommands_Purge" xml:space="preserve">
+    <value>Delete every message of a queue or subscription, or of its dead-letter queue</value>
+  </data>
+  <data name="AppCommands_Send" xml:space="preserve">
+    <value>Send a new message to a queue or topic</value>
+  </data>
+  <data name="AppCommands_ScriptSubscriptionOption" xml:space="preserve">
+    <value>Azure subscription, by name or ID; emulator for the local emulator. Default: the Azure CLI's current subscription</value>
+  </data>
+  <data name="AppCommands_ScriptNamespaceOption" xml:space="preserve">
+    <value>Namespace, by name, host name or a pattern with * that matches one. Default: the subscription's only namespace</value>
+  </data>
+  <data name="AppCommands_JsonOption" xml:space="preserve">
+    <value>Write JSON to standard output</value>
+  </data>
+  <data name="AppCommands_ConfirmOption" xml:space="preserve">
+    <value>The namespace's name: needed for changes in a namespace listed in cli.protect</value>
+  </data>
+  <data name="AppCommands_ListKindArgument" xml:space="preserve">
+    <value>queues, topics or subscriptions; default: queues and subscriptions</value>
+  </data>
+  <data name="AppCommands_DeadLettersOption" xml:space="preserve">
+    <value>Only entities with dead-lettered messages</value>
+  </data>
+  <data name="AppCommands_EntityArgument" xml:space="preserve">
+    <value>Queue or topic/subscription; topic/Subscriptions/subscription and a /$DeadLetterQueue suffix work too</value>
+  </data>
+  <data name="AppCommands_SendTargetArgument" xml:space="preserve">
+    <value>Queue or topic to send to</value>
+  </data>
+  <data name="AppCommands_DlqOption" xml:space="preserve">
+    <value>The dead-letter queue</value>
+  </data>
+  <data name="AppCommands_MaxOption" xml:space="preserve">
+    <value>Most messages to peek</value>
+  </data>
+  <data name="AppCommands_FromSequenceOption" xml:space="preserve">
+    <value>Peek from this sequence number on</value>
+  </data>
+  <data name="AppCommands_FullOption" xml:space="preserve">
+    <value>Print whole bodies; longer ones are cut at 4 KB otherwise</value>
+  </data>
+  <data name="AppCommands_MessageIdOption" xml:space="preserve">
+    <value>Message ID to act on, repeatable; every message with that ID</value>
+  </data>
+  <data name="AppCommands_SequenceOption" xml:space="preserve">
+    <value>Sequence number to act on, repeatable</value>
+  </data>
+  <data name="AppCommands_AllMessagesOption" xml:space="preserve">
+    <value>Every message among the first --limit</value>
+  </data>
+  <data name="AppCommands_LimitOption" xml:space="preserve">
+    <value>How many messages from the front to look through</value>
+  </data>
+  <data name="AppCommands_DryRunOption" xml:space="preserve">
+    <value>Show which messages match without changing anything</value>
+  </data>
+  <data name="AppCommands_YesOption" xml:space="preserve">
+    <value>Confirm the purge</value>
+  </data>
+  <data name="AppCommands_BodyOption" xml:space="preserve">
+    <value>Message body</value>
+  </data>
+  <data name="AppCommands_FileOption" xml:space="preserve">
+    <value>File with the message body; without --body or --file the body is read from standard input</value>
+  </data>
+  <data name="AppCommands_SendMessageIdOption" xml:space="preserve">
+    <value>Message ID; default: a new one</value>
+  </data>
+  <data name="AppCommands_ContentTypeOption" xml:space="preserve">
+    <value>Content type, such as application/json</value>
+  </data>
+  <data name="AppCommands_SubjectOption" xml:space="preserve">
+    <value>Subject (label)</value>
+  </data>
+  <data name="AppCommands_CorrelationIdOption" xml:space="preserve">
+    <value>Correlation ID</value>
+  </data>
+  <data name="AppCommands_PropertyOption" xml:space="preserve">
+    <value>Application property as key=value, repeatable</value>
+  </data>
+  <data name="CheckCommand_Namespace" xml:space="preserve">
+    <value>Namespace</value>
+  </data>
+  <data name="CheckCommand_SignInHint" xml:space="preserve">
+    <value>Sign in with az login, or pass --subscription and --namespace</value>
+  </data>
+  <data name="CheckCommand_Dns" xml:space="preserve">
+    <value>DNS</value>
+  </data>
+  <data name="CheckCommand_NoAddress" xml:space="preserve">
+    <value>{host} has no address</value>
+  </data>
+  <data name="CheckCommand_DnsHint" xml:space="preserve">
+    <value>Check the host name; a namespace behind a private endpoint resolves only inside its network (VPN)</value>
+  </data>
+  <data name="CheckCommand_Private" xml:space="preserve">
+    <value>private</value>
+  </data>
+  <data name="CheckCommand_Public" xml:space="preserve">
+    <value>public</value>
+  </data>
+  <data name="CheckCommand_Port" xml:space="preserve">
+    <value>AMQP port</value>
+  </data>
+  <data name="CheckCommand_PortPrivateHint" xml:space="preserve">
+    <value>The address is private but unreachable: connect the VPN, or check the network rules</value>
+  </data>
+  <data name="CheckCommand_PortPublicHint" xml:space="preserve">
+    <value>A firewall blocks the port; or the namespace accepts only private endpoint traffic and its DNS should resolve to a private address (connect the VPN)</value>
+  </data>
+  <data name="CheckCommand_Peek" xml:space="preserve">
+    <value>Peek</value>
+  </data>
+  <data name="CheckCommand_Peeked" xml:space="preserve">
+    <value>{count} message(s) from {source}</value>
+  </data>
+  <data name="CheckCommand_NothingToPeek" xml:space="preserve">
+    <value>no queues or subscriptions to peek</value>
+  </data>
+  <data name="CheckCommand_PeekHint" xml:space="preserve">
+    <value>Needs the Azure Service Bus Data Receiver (or Owner) role on the namespace, its resource group or subscription; a namespace that only takes private endpoint traffic fails the same way from outside its network</value>
+  </data>
+  <data name="CommandContext_Protected" xml:space="preserve">
+    <value>{namespaceName} is protected ({key}): add --confirm {namespaceName} to change it</value>
+  </data>
+  <data name="DeleteCommand_NeedsDlq" xml:space="preserve">
+    <value>delete removes dead-lettered messages only: add --dlq</value>
+  </data>
+  <data name="DeleteCommand_Done" xml:space="preserve">
+    <value>Deleted {done} of {total} message(s) from {source}</value>
+  </data>
+  <data name="DeleteCommand_DryRun" xml:space="preserve">
+    <value>Dry run, nothing changed: {count} message(s) in {source} would be deleted</value>
+  </data>
+  <data name="RetryCommand_NeedsDlq" xml:space="preserve">
+    <value>retry takes dead-lettered messages</value>
+  </data>
+  <data name="RetryCommand_Done" xml:space="preserve">
+    <value>Retried {done} of {total} message(s) from {source}</value>
+  </data>
+  <data name="RetryCommand_DryRun" xml:space="preserve">
+    <value>Dry run, nothing changed: {count} message(s) in {source} would be retried</value>
+  </data>
+  <data name="EntityPath_NotFound" xml:space="preserve">
+    <value>No queue or subscription {entity}</value>
+  </data>
+  <data name="ListCommand_Path" xml:space="preserve">
+    <value>PATH</value>
+  </data>
+  <data name="ListCommand_Active" xml:space="preserve">
+    <value>ACTIVE</value>
+  </data>
+  <data name="ListCommand_DeadLetter" xml:space="preserve">
+    <value>DLQ</value>
+  </data>
+  <data name="ListCommand_Scheduled" xml:space="preserve">
+    <value>SCHEDULED</value>
+  </data>
+  <data name="ListCommand_Subscriptions" xml:space="preserve">
+    <value>SUBSCRIPTIONS</value>
+  </data>
+  <data name="ListCommand_Accessed" xml:space="preserve">
+    <value>ACCESSED (UTC)</value>
+  </data>
+  <data name="ListCommand_ForwardTo" xml:space="preserve">
+    <value>FORWARD TO</value>
+  </data>
+  <data name="ListCommand_ForwardMissing" xml:space="preserve">
+    <value>{target} (missing)</value>
+  </data>
+  <data name="ListCommand_Empty" xml:space="preserve">
+    <value>Nothing to list</value>
+  </data>
+  <data name="ListCommand_NoTopics" xml:space="preserve">
+    <value>This namespace has no topics</value>
+  </data>
+  <data name="MessageOutcome_Selection" xml:space="preserve">
+    <value>Pick messages with --message-id or --sequence, or --all</value>
+  </data>
+  <data name="MessageOutcome_Limit" xml:space="preserve">
+    <value>--limit must be positive</value>
+  </data>
+  <data name="MessageOutcome_Missing" xml:space="preserve">
+    <value>Not among the first {limit} messages: {missing}</value>
+  </data>
+  <data name="NamespaceCommand_Cancelled" xml:space="preserve">
+    <value>Cancelled</value>
+  </data>
+  <data name="NamespaceTarget_NoSubscription" xml:space="preserve">
+    <value>No --subscription, and the Azure CLI has no current subscription: run az login</value>
+  </data>
+  <data name="NamespaceTarget_SubscriptionNotFound" xml:space="preserve">
+    <value>No subscription {subscription} for the signed-in account</value>
+  </data>
+  <data name="NamespaceTarget_NoNamespaces" xml:space="preserve">
+    <value>Subscription {subscription} has no Service Bus namespaces</value>
+  </data>
+  <data name="NamespaceTarget_PickNamespace" xml:space="preserve">
+    <value>Subscription {subscription} has several namespaces, pick one with --namespace: {names}</value>
+  </data>
+  <data name="NamespaceTarget_NamespaceNotFound" xml:space="preserve">
+    <value>No namespace {namespaceName} in subscription {subscription}</value>
+  </data>
+  <data name="NamespaceTarget_Ambiguous" xml:space="preserve">
+    <value>{pattern} matches several namespaces: {names}</value>
+  </data>
+  <data name="PeekCommand_Peeked" xml:space="preserve">
+    <value>{count} message(s) from {source}</value>
+  </data>
+  <data name="PeekCommand_Redacted" xml:space="preserve">
+    <value>Message content redacted for {namespaceName} (cli.redact.namespaces)</value>
+  </data>
+  <data name="PeekCommand_Enqueued" xml:space="preserve">
+    <value>Enqueued</value>
+  </data>
+  <data name="PeekCommand_DeliveryCount" xml:space="preserve">
+    <value>Delivery count</value>
+  </data>
+  <data name="PeekCommand_Subject" xml:space="preserve">
+    <value>Subject</value>
+  </data>
+  <data name="PeekCommand_ContentType" xml:space="preserve">
+    <value>Content type</value>
+  </data>
+  <data name="PeekCommand_Reason" xml:space="preserve">
+    <value>Dead-letter reason</value>
+  </data>
+  <data name="PeekCommand_Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="PeekCommand_Properties" xml:space="preserve">
+    <value>Properties</value>
+  </data>
+  <data name="PeekCommand_Body" xml:space="preserve">
+    <value>Body</value>
+  </data>
+  <data name="PeekCommand_Truncated" xml:space="preserve">
+    <value>… {bytes} more characters; --full prints them</value>
+  </data>
+  <data name="PurgeCommand_NeedsYes" xml:space="preserve">
+    <value>purge deletes every message: add --yes</value>
+  </data>
+  <data name="PurgeCommand_Purged" xml:space="preserve">
+    <value>Purged {count} message(s) from {source}</value>
+  </data>
+  <data name="Redaction_BodyWithheld" xml:space="preserve">
+    <value>[withheld: not JSON]</value>
+  </data>
+  <data name="SendCommand_Sent" xml:space="preserve">
+    <value>Sent 1 message to {target}</value>
+  </data>
+  <data name="SendCommand_NoBody" xml:space="preserve">
+    <value>No body: pass --body or --file, or pipe it in</value>
+  </data>
+  <data name="SendCommand_OneBody" xml:space="preserve">
+    <value>Pass --body or --file, not both</value>
+  </data>
+  <data name="SendCommand_BadProperty" xml:space="preserve">
+    <value>{property} is not key=value</value>
   </data>
 </root>
