@@ -137,7 +137,7 @@
     <value>Nothing matches.</value>
   </data>
   <data name="JumpDialog_Hints" xml:space="preserve">
-    <value>⏎ open · ↑↓ move · esc close</value>
+    <value>⏎ open · ⇥ dead-letter · ↑↓ move · esc close</value>
   </data>
   <data name="MessagePreview_Body" xml:space="preserve">
     <value>BODY</value>
