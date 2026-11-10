@@ -30,6 +30,9 @@
   <data name="ErrorText_Firewall" xml:space="preserve">
     <value>The namespace's firewall blocks this computer's IP address. Connect through an allowed network (VPN), or add the IP under Networking for the namespace in the Azure portal.</value>
   </data>
+  <data name="ExplorerTree_Recent" xml:space="preserve">
+    <value>Recent</value>
+  </data>
   <data name="ExplorerTree_Discovering" xml:space="preserve">
     <value>Discovering namespaces…</value>
   </data>

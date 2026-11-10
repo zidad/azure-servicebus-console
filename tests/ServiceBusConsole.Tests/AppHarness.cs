@@ -54,6 +54,15 @@ public sealed class AppHarness
 
     /// <summary>Per-test cache folder, so tests never touch the user's real cache.</summary>
     public string CacheDirectory { get; set; } = Path.Combine(Path.GetTempPath(), "sb-console-tests", Guid.NewGuid().ToString("N"));
+
+    /// <summary>The app's clock for recently opened namespaces.</summary>
+    public TimeProvider Time { get; set; } = TimeProvider.System;
+
+    /// <summary>In <see cref="CacheDirectory"/>; created on first use, so set that first.</summary>
+    public FileCache Cache => field ??= new(NullLogger<FileCache>.Instance, CacheDirectory);
+
+    /// <summary>The recently opened namespaces; record some before starting to show them.</summary>
+    public RecentNamespaces Recent => field ??= new(Cache, Time);
     public ConsoleNavigationManager Navigation { get; } = new();
     public ServiceBusConnection Connection { get; }
 
@@ -75,7 +84,8 @@ public sealed class AppHarness
                     services.AddSingleton<ActivityLog>();
                     services.AddSingleton(new Clipboard { Write = Copied.Enqueue });
                     services.AddSingleton<SessionContext>();
-                    services.AddSingleton(new FileCache(NullLogger<FileCache>.Instance, CacheDirectory));
+                    services.AddSingleton(Cache);
+                    services.AddSingleton(Recent);
                     services.AddSingleton<SubscriptionCatalog>();
                     services.AddSingleton<INamespaceOpener>(new FakeNamespaceOpener(info => OpenNamespace(info)));
                     services.AddSingleton<ExplorerTree>();
@@ -133,9 +143,10 @@ public sealed class AppHarness
     {
         var target = $"{Icons.Namespace} {ns.Name}";
         var frame = await terminal.WaitUntilAsync(f => f.ContainsText(target) && !f.ContainsText("Discovering"), Timeout, cancellationToken: Ct);
-        // One tree row per line.
+        // One tree row per line; the recent namespaces above the subscriptions may list both again.
         var lines = Enumerable.Range(0, frame.Height).Select(frame.GetLine).ToList();
-        var rows = lines.FindIndex(l => l.Contains(target)) - lines.FindIndex(l => l.Contains($"{Icons.Namespace} localhost"));
+        var start = lines.FindLastIndex(l => l.Contains($"{Icons.Namespace} localhost"));
+        var rows = lines.FindIndex(start, l => l.Contains(target)) - start;
         foreach (var _ in Enumerable.Range(0, rows)) await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
         await terminal.WaitUntilAsync(_ => Connection.CurrentNamespace == ns.FullyQualifiedNamespace, Timeout, cancellationToken: Ct);
     }

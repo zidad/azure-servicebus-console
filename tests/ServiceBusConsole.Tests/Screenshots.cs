@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using RazorConsole.Testing;
 using Spectre.Console;
 
@@ -21,9 +22,14 @@ public sealed class Screenshots
 
         var app = SampleApp();
         app.LiveCounts.Interval = TimeSpan.FromMilliseconds(200);
+        await SeedRecentAsync(app);
         await using var terminal = await app.StartAsync(width: 120, height: 36);
         await AppHarness.WaitForTableFocusAsync(terminal);
         await app.SelectAzureNamespaceAsync(terminal, AppHarness.AzureNamespace);
+        var tree = terminal.Services.GetRequiredService<ExplorerTree>();
+        foreach (var name in new[] { "Contoso Production", "Contoso Sandbox" })
+            tree.SetOpen(new ExplorerNode.Subscription(app.Namespaces.Subscriptions.Single(s => s.Name == name)), false);
+        await terminal.WaitUntilAsync(f => f.ContainsText("▸ 🔑 Contoso Sandbox"), AppHarness.Timeout, cancellationToken: Ct);
         await Save(terminal, dir, "connection");
 
         var connectionFocus = terminal.FocusKey;
@@ -237,6 +243,18 @@ public sealed class Screenshots
         for (var i = 0; i < 6; i++) await Key(terminal, ConsoleKey.OemPlus, '+');
         await terminal.WaitUntilAsync(f => f.ContainsText("last 1 h") && f.ContainsText("-60m"), AppHarness.Timeout, cancellationToken: Ct);
         await Save(terminal, dir, "queues-1h");
+    }
+
+    // Opened the emulator yesterday and sb-orders-dev two hours ago.
+    private static async Task SeedRecentAsync(AppHarness app)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var time = new FixedTime(now.AddDays(-1));
+        app.Time = time;
+        await app.Recent.RecordAsync(AzureSubscription.Emulator, NamespaceInfo.Emulator);
+        time.Now = now.AddHours(-2);
+        await app.Recent.RecordAsync(AppHarness.AzureSubscription, AppHarness.AzureNamespace);
+        time.Now = now;
     }
 
     private static AppHarness SampleApp()
