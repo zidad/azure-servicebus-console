@@ -95,7 +95,8 @@ else
               Execute="@(m => Act(m, (b, l) => b.DeadLetterAsync(l)))" OnCompleted="@BackToStatus" />
 
 <AsyncCommand @ref="_retry" TItem="MessageInfo"
-              ConfirmMessage="@(m => RetryConfirm(m))"
+              ConfirmMessage="@(m => NavState.MessageSource is { } source ? RetryText.Question(source, Strings.FormatOneMessage(m.SequenceNumber)) : "")"
+              ConfirmFields="@(_ => Mode is { } mode && NavState.MessageSource is { } source ? RetryText.Fields(mode, source, _browser?.Namespace is IHasTransactions) : [])"
               Execute="@(m => Act(m, (b, l) => b.RetryAsync(l)))" />
 
 <AsyncCommand @ref="_resend" TItem="MessageInfo"
@@ -117,10 +118,6 @@ else
 
     // False for a settled message or a lost lock in a locked list.
     private bool CanAct => _browser is { } b && NavState.Message is { } m && b.CanAct(m);
-
-    private string RetryConfirm(MessageInfo message) => Mode is { } mode && NavState.MessageSource is { } source
-        ? RetryText.Confirm(mode, source, Strings.FormatOneMessage(message.SequenceNumber), _browser?.Namespace is IHasTransactions)
-        : "";
 
     protected override void OnInitialized()
     {

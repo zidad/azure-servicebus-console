@@ -3,6 +3,12 @@
 <Dialog IsOpened="@IsOpened" Icon="@Icons.Confirm" Title="@ComponentStrings.ConfirmModal_Title" BorderColor="@Theme.Danger">
     <ChildContent>
         <Markup Content="@Message" />
+        @if (Fields.Count > 0)
+        {
+            <Padder Padding="@(new(0, 1, 0, 0))">
+                <DialogFields Fields="@Fields" />
+            </Padder>
+        }
         @if (MustType is { } text)
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
@@ -22,6 +28,7 @@
 @code {
     [Parameter, EditorRequired] public bool IsOpened { get; set; }
     [Parameter, EditorRequired] public string Message { get; set; } = "";
+    [Parameter] public IReadOnlyList<DialogField> Fields { get; set; } = [];
     [Parameter] public EventCallback OnConfirm { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
 

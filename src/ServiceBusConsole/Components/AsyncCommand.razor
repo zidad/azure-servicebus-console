@@ -3,6 +3,7 @@
 
 <ConfirmModal IsOpened="@(_pending is not null)"
               Message="@(_pending?.Text ?? "")"
+              Fields="@(_pending?.Fields ?? [])"
               MustType="@_pending?.MustType"
               OnConfirm="ExecuteConfirmed"
               OnCancel="Cancel" />
@@ -13,6 +14,9 @@
     /// <summary>Confirm prompt for the item; without it the command runs at once.</summary>
     [Parameter] public Func<TItem, string>? ConfirmMessage { get; set; }
 
+    /// <summary>The label grid below the confirm prompt: From, To, How, Note.</summary>
+    [Parameter] public Func<TItem, IReadOnlyList<DialogField>>? ConfirmFields { get; set; }
+
     /// <summary>The user types yes to confirm (purges); y alone doesn't confirm then.</summary>
     [Parameter] public bool ConfirmByTyping { get; set; }
     [Parameter, EditorRequired] public required Func<TItem, Task> Execute { get; set; }
@@ -21,7 +25,7 @@
     /// <summary>What a successful run did, for the session's activity log; commands that record their own outcome omit it.</summary>
     [Parameter] public Func<TItem, string>? Activity { get; set; }
 
-    private sealed record Pending(TItem Item, string Text, string? MustType);
+    private sealed record Pending(TItem Item, string Text, IReadOnlyList<DialogField> Fields, string? MustType);
 
     private Pending? _pending;
     private bool _running;
@@ -38,7 +42,7 @@
             _ = RunAsync(item);
             return;
         }
-        _pending = new(item, ConfirmMessage(item), ConfirmByTyping ? ComponentStrings.AsyncCommand_ConfirmWord : null);
+        _pending = new(item, ConfirmMessage(item), ConfirmFields?.Invoke(item) ?? [], ConfirmByTyping ? ComponentStrings.AsyncCommand_ConfirmWord : null);
         StateHasChanged();
     }
 

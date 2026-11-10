@@ -8,31 +8,41 @@ public static class RetryText
 
     public static string Label(bool isDlq) => isDlq ? MessagingStrings.RetryText_Retry : MessagingStrings.RetryText_Requeue;
 
+    public static string Question(MessageSource source, string what) =>
+        source.IsDlq ? MessagingStrings.FormatRetryText_RetryQuestion(what) : MessagingStrings.FormatRetryText_RequeueQuestion(what);
+
     /// <summary>
-    /// Short lines, so the confirm dialog stays narrow: question, the steps as a flow, notes. <paramref name="transactional"/>:
-    /// the namespace moves held messages in transactions (received-and-deleted ones have no originals left to complete).
+    /// From / To / How / Note, in short lines so the confirm dialog stays narrow; How starts with the progress steps.
+    /// <paramref name="transactional"/>: the namespace moves held messages in transactions (received-and-deleted ones
+    /// have no originals left to complete).
     /// </summary>
-    public static string Confirm(BrowseMode mode, MessageSource source, string what, bool transactional)
+    public static IReadOnlyList<DialogField> Fields(BrowseMode mode, MessageSource source, bool transactional)
     {
         var requeue = MessagingStrings.FormatRetryText_RequeueTo(source.SendTarget);
         string[] retry = transactional ? [MessagingStrings.FormatRetryText_MoveTo(source.SendTarget)] : [requeue, MessagingStrings.RetryText_MarkComplete];
         string[] steps = mode switch
         {
-            BrowseMode.Peek => [what, Strings.PeekLock, .. retry],
-            BrowseMode.Locked => [what, .. retry],
-            _ => [what, requeue],
+            BrowseMode.Peek => [Strings.PeekLock, .. retry],
+            BrowseMode.Locked => retry,
+            _ => [requeue],
         };
+        string?[] how =
+        [
+            string.Join(" → ", steps),
+            mode == BrowseMode.Received ? null : transactional ? MessagingStrings.RetryText_TransactionNote : MessagingStrings.RetryText_AtLeastOnceNote,
+        ];
         string?[] notes =
         [
             mode == BrowseMode.Peek ? MessagingStrings.RetryText_PeekNote : null,
             mode == BrowseMode.Received ? MessagingStrings.RetryText_ReceivedNote : null,
-            transactional && mode != BrowseMode.Received ? MessagingStrings.RetryText_TransactionNote : null,
             source is MessageSource.Subscription ? MessagingStrings.RetryText_SubscriptionNote : null,
         ];
-        var question = source.IsDlq ? MessagingStrings.FormatRetryText_RetryQuestion(what) : MessagingStrings.FormatRetryText_RequeueQuestion(what);
-        return string.Join('\n', [
-            question, "", string.Join(" → ", steps),
-            .. notes.OfType<string>().SelectMany(note => new[] { "", note }),
-        ]);
+        return
+        [
+            new(MessagingStrings.RetryText_From, source.DisplayName),
+            new(MessagingStrings.RetryText_To, source.SendTarget),
+            new(MessagingStrings.RetryText_How, string.Join('\n', how.OfType<string>())),
+            .. notes.OfType<string>().Select((note, i) => new DialogField(i == 0 ? MessagingStrings.RetryText_Note : "", note, Warning: true)),
+        ];
     }
 }
