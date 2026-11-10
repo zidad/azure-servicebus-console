@@ -1,95 +1,45 @@
 @page "/subscriptions"
-@implements IDisposable
 
 @inject NavigationManager Nav
 @inject NavigationState NavState
 @inject ServiceBusConnection Connection
-@inject RazorConsole.Core.Focus.FocusManager FocusManager
-@inject ITerminalViewport Viewport
-@inject LiveCountsOptions LiveCounts
-@inject MetricsVisibility MetricsVisibility
-@inject Microsoft.Extensions.Logging.ILogger<AllSubscriptionsPage> Logger
 
-<FullscreenPage OnKeyDown="HandleKeyDown">
-    <Header>
-        <SectionCrumb Section="@Section.AllSubscriptions" Current="true" />
-        @if (_all.Count > 0) { <Markup Content="@ConnectionHeader.Count(_filtered.Count, _all.Count)" Foreground="@Theme.Muted" /> }
-    </Header>
-    <Status>@if (_live is { } live) { <LiveStatus List="@live" /> }</Status>
-    <Content>
-        <SectionTabs Current="@Section.AllSubscriptions" Count="@(_all.Count > 0 ? _all.Count : null)" />
-        @if (_all.Count == 0 && _loadFailed)
-        {
-            <Padder Padding="@(new(0, 1, 0, 0))">
-                <Markup Content="@PageStrings.List_LoadFailed" Foreground="@Theme.Danger" />
-            </Padder>
-        }
-        else if (_all.Count == 0)
-        {
-            <Padder Padding="@(new(0, 1, 0, 0))">
-                <Columns>
-                    <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
-                    <Markup Content="@PageStrings.List_LoadingSubscriptions" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
-                </Columns>
-            </Padder>
-        }
-        else
-        {
-            <SelectableList Items="@_filtered"
-                        PageSize="@FullscreenLayout.PageSizeRoundedTable(Viewport.Height, ShowMetrics, tabs: true)"
-                        Scrollbar="@Theme.Scrollbar()"
-                        SelectedIndex="@_selectedIndex"
-                        SelectedIndexChanged="@(i => { _selectedIndex = i; _focusedItem = _filtered.ElementAtOrDefault(i); })"
-                        OnActivate="OpenFocused">
-                <SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.Rounded" ColumnSeparators="false">
-                    <SpectreTHead>
-                        <SpectreTR>
-                            <SpectreTH Width="@Gutter.Width" Padding="@Gutter.Header"></SpectreTH>
-                            <SpectreTH Align="Justify.Left" Padding="@Gutter.NextHeader"><Columns><SortHeader Label="@PageStrings.List_ColumnTopic" Sort="_sort" OnSorted="SortAndUpdateFilterState" /><ColumnFilter Filter="@_filter" /></Columns></SpectreTH>
-                            <SpectreTH Align="Justify.Left"><SortHeader Label="@PageStrings.List_ColumnSubscription" Sort="_sort" OnSorted="SortAndUpdateFilterState" /></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="@Strings.Active" Sort="_sort" OnSorted="SortAndUpdateFilterState" /></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="@Strings.Dlq" Icon="@Icons.DeadLetter" Sort="_sort" OnSorted="SortAndUpdateFilterState" /></SpectreTH>
-                            <SpectreTH Align="Justify.Right"><SortHeader Label="@PageStrings.List_ColumnTransfer" Icon="@Icons.Transfer" Sort="_sort" OnSorted="SortAndUpdateFilterState" /></SpectreTH>
-                            @if (_traffic is not null) { <SpectreTH Align="Justify.Left">@PageStrings.List_IncomingHeader</SpectreTH> }
-                            <SpectreTH></SpectreTH>
-                        </SpectreTR>
-                    </SpectreTHead>
-                    <NavigableTBody @ref="_tbody" TakeKey="@EndsFilterEdit"
-                                  FocusOrder="1"
-                                  OnKeyDown="@HandleKeyDown">
-                        @{ var i = 0; }
-                        @foreach (var s in context.Items)
-                        {
-                            var idx = i++;
-                            <SelectableRow @key="@($"{s.TopicName}/{s.Name}")" RowIndex="@idx">
-                                <SpectreTD data-padding="@Gutter.Cell"><DeadLetterMark Count="@s.DeadLetterMessageCount" /></SpectreTD>
-                                <SpectreTD data-padding="@Gutter.NextCell">@s.TopicName</SpectreTD>
-                                <SpectreTD>@s.Name</SpectreTD>
-                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.ActiveMessageCount" Highlight="@List.Changes.Highlight(s, "Active")" /></SpectreTD>
-                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.DeadLetterMessageCount" Color="@Theme.Danger" Bold="true" Highlight="@List.Changes.Highlight(s, "DLQ")" /></SpectreTD>
-                                <SpectreTD Align="Justify.Right"><CountCell Value="@s.TransferMessageCount" Color="@Theme.Transfer" Highlight="@List.Changes.Highlight(s, "Transfer")" /></SpectreTD>
-                                @if (_traffic is { } traffic) { <SpectreTD><Sparkline Points="@traffic.Of(s.TopicName)" /></SpectreTD> }
-                                <SpectreTD>@if (s.IsRefreshing) { <Spinner /> }</SpectreTD>
-                            </SelectableRow>
-                        }
-                        <FillerRows Count="@(FullscreenLayout.PageSizeRoundedTable(Viewport.Height, ShowMetrics, tabs: true) - context.Items.Count)" />
-                    </NavigableTBody>
-                </SpectreTable>
-            </SelectableList>
-        }
-    </Content>
-    <Footer>
-        @if (ShowMetrics && Connection.Current is IHasMetrics { Metrics: var metrics })
-        {
-            <MetricsPanel @ref="_metricsPanel" Metrics="@metrics" Label="@($"{Icons.Topic} {PageStrings.FormatList_MetricsTopic(_focusedItem?.TopicName)}")" Scope="@(_focusedItem is { } s ? new MetricsScope.Entity(s.TopicName) : null)" OnKeyDown="@HandleKeyDown" />
-        }
-        <KeyHints Bindings="@Keys" FirstFocusOrder="3" OnKeyDown="@HandleKeyDown" />
-    </Footer>
-</FullscreenPage>
-
-<ErrorModal Message="@_error" OnDismiss="@(() => _error = string.Empty)" />
-<HelpDialog @ref="_help" OnClose="FocusTable" />
-<JumpDialog @ref="_jump" OnCancel="FocusTable" />
+<EntityList @ref="_list" TItem="SubscriptionInfo"
+            Section="@Section.AllSubscriptions"
+            LoadingText="@PageStrings.List_LoadingSubscriptions"
+            Load="@(ct => Topics.GetAllSubscriptionsAsync(ct))"
+            Key="@Key"
+            IsRefreshing="@(s => s.IsRefreshing)"
+            Stale="@(s => s with { IsRefreshing = false })"
+            Changes="@_changes"
+            Sort="@_sort"
+            Matches="@((s, text) => s.TopicName.Contains(text, StringComparison.OrdinalIgnoreCase) || s.Name.Contains(text, StringComparison.OrdinalIgnoreCase))"
+            RestoreFocus="@(NavState is { TopicName: { } topic, SubscriptionName: { } name } ? $"{topic}/{name}" : null)"
+            TrafficEntity="@(s => s.TopicName)"
+            MetricsEntity="@(view => view.Focused?.TopicName)"
+            MetricsLabel="@(t => $"{Icons.Topic} {PageStrings.FormatList_MetricsTopic(t)}")"
+            OpenLabel="@($"{Icons.Message} {PageStrings.Key_Messages}")"
+            OnOpen="@Open"
+            Commands="@Commands"
+            CommandKey="@(e => _deleteSub?.HandleKey(e) == true || _purgeDlq?.HandleKey(e) == true)">
+    <Crumb><SectionCrumb Section="@Section.AllSubscriptions" Current="true" /></Crumb>
+    <Headers Context="list">
+        <SpectreTH Width="@Gutter.Width" Padding="@Gutter.Header"></SpectreTH>
+        <SpectreTH Align="Justify.Left" Padding="@Gutter.NextHeader"><Columns><SortHeader Label="@PageStrings.List_ColumnTopic" Sort="_sort" OnSorted="@list.Sorted" /><ColumnFilter Filter="@list.Filter" /></Columns></SpectreTH>
+        <SpectreTH Align="Justify.Left"><SortHeader Label="@PageStrings.List_ColumnSubscription" Sort="_sort" OnSorted="@list.Sorted" /></SpectreTH>
+        <SpectreTH Align="Justify.Right"><SortHeader Label="@Strings.Active" Sort="_sort" OnSorted="@list.Sorted" /></SpectreTH>
+        <SpectreTH Align="Justify.Right"><SortHeader Label="@Strings.Dlq" Icon="@Icons.DeadLetter" Sort="_sort" OnSorted="@list.Sorted" /></SpectreTH>
+        <SpectreTH Align="Justify.Right"><SortHeader Label="@PageStrings.List_ColumnTransfer" Icon="@Icons.Transfer" Sort="_sort" OnSorted="@list.Sorted" /></SpectreTH>
+    </Headers>
+    <Row Context="s">
+        <SpectreTD data-padding="@Gutter.Cell"><DeadLetterMark Count="@s.DeadLetterMessageCount" /></SpectreTD>
+        <SpectreTD data-padding="@Gutter.NextCell">@s.TopicName</SpectreTD>
+        <SpectreTD>@s.Name</SpectreTD>
+        <SpectreTD Align="Justify.Right"><CountCell Value="@s.ActiveMessageCount" Highlight="@_changes.Highlight(s, "Active")" /></SpectreTD>
+        <SpectreTD Align="Justify.Right"><CountCell Value="@s.DeadLetterMessageCount" Color="@Theme.Danger" Bold="true" Highlight="@_changes.Highlight(s, "DLQ")" /></SpectreTD>
+        <SpectreTD Align="Justify.Right"><CountCell Value="@s.TransferMessageCount" Color="@Theme.Transfer" Highlight="@_changes.Highlight(s, "Transfer")" /></SpectreTD>
+    </Row>
+</EntityList>
 
 @if (Connection.Current is IHasDeletion { Deletion: var deletion })
 {
@@ -97,7 +47,7 @@
                   ConfirmMessage="@(s => PageStrings.FormatList_DeleteSubscriptionConfirm(s.Name, s.TopicName))"
                   Execute="@(s => deletion.DeleteSubscriptionAsync(s.TopicName, s.Name))"
                   Activity="@(s => PageStrings.FormatList_DeletedSubscription(s.Name, s.TopicName))"
-                  OnCompleted="@(s => { _all.RemoveAll(x => x.TopicName == s.TopicName && x.Name == s.Name); _focusedItem = null; SortAndUpdateFilterState(); _selectedIndex = Math.Min(_selectedIndex, Math.Max(0, _filtered.Count - 1)); _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex); StateHasChanged(); return Task.CompletedTask; })" />
+                  OnCompleted="@(s => { _list?.Remove(Key(s)); return Task.CompletedTask; })" />
 }
 
 <AsyncCommand @ref="_purgeDlq" TItem="SubscriptionInfo"
@@ -105,27 +55,18 @@
               ConfirmByTyping="true"
               Execute="@(s => Connection.Namespace.Messages.PurgeAsync(new MessageSource.Subscription(s.TopicName, s.Name, IsDlq: true)).LastOrDefaultAsync().AsTask())"
               Activity="@(s => PageStrings.FormatList_PurgedDlq(Key(s)))"
-              OnCompleted="@(s => { List.Update(Key(s), x => x with { DeadLetterMessageCount = 0 }); SortAndUpdateFilterState(); StateHasChanged(); return Task.CompletedTask; })" />
+              OnCompleted="@(s => { _list?.Update(Key(s), x => x with { DeadLetterMessageCount = 0 }); return Task.CompletedTask; })" />
 
 @code {
     private ITopicService Topics => Connection.Current is IHasTopics { Topics: var topics } ? topics : throw new InvalidOperationException(PageStrings.List_NoTopics);
 
-    private LiveList<SubscriptionInfo>? _live;
-    private LiveList<SubscriptionInfo> List => _live ?? throw new InvalidOperationException("Subscription list not initialized");
-    private List<SubscriptionInfo> _all => List.All;
-    private List<SubscriptionInfo> _filtered = [];
-    private readonly ListFilter _filter = new();
-    private HelpDialog? _help;
-    private JumpDialog? _jump;
-    private int _selectedIndex;
-    private SubscriptionInfo? _focusedItem;
-    private string _error = string.Empty;
+    private EntityList<SubscriptionInfo>? _list;
     private AsyncCommand<SubscriptionInfo>? _deleteSub;
     private AsyncCommand<SubscriptionInfo>? _purgeDlq;
-    private bool _loadFailed;
-    private string? _restoreFocusKey;
-    private NavigableTBody? _tbody;
-    private bool _tableAutoFocused;
+
+    private readonly CountChanges<SubscriptionInfo> _changes = new(Key,
+        ("Active", s => s.ActiveMessageCount), ("DLQ", s => s.DeadLetterMessageCount), ("Transfer", s => s.TransferMessageCount));
+
     private readonly TableSort<SubscriptionInfo> _sort = new TableSort<SubscriptionInfo>(ss => ss.OrderBy(s => s.TopicName).ThenBy(s => s.Name))
         .Add(PageStrings.List_ColumnTopic, s => s.TopicName, StringComparer.OrdinalIgnoreCase)
         .Add(PageStrings.List_ColumnSubscription, s => s.Name, StringComparer.OrdinalIgnoreCase)
@@ -134,153 +75,30 @@
         .Add(PageStrings.List_ColumnTransfer, s => s.TransferMessageCount)
         .SortBy(Strings.Dlq, SortDirection.Descending);
 
-    private MetricsPanel? _metricsPanel;
-    private bool ShowMetrics => Connection.Current is IHasMetrics && MetricsVisibility.IsVisible(Viewport.Height);
-
-    public void Dispose()
-    {
-        _live?.Dispose();
-        _traffic?.Dispose();
-    }
-
-    private IncomingTraffic? _traffic;
-
-    /// <summary>The sparkline column: with Azure Monitor metrics and room for it.</summary>
-    private void StartTraffic()
-    {
-        if (Connection.Current is not IHasMetrics { Metrics: var metrics } || Viewport.Width < MinTrafficWidth) return;
-        _traffic = new IncomingTraffic(metrics, LiveCounts, Logger) { Changed = () => InvokeAsync(StateHasChanged) };
-        _ = _traffic.RunAsync();
-    }
-
-    private const int MinTrafficWidth = 110;
-
+    private static string Key(SubscriptionInfo s) => $"{s.TopicName}/{s.Name}";
 
     protected override void OnInitialized()
     {
-        StartTraffic();
-        _live = new LiveList<SubscriptionInfo>(ct => Topics.GetAllSubscriptionsAsync(ct), Key, s => s.IsRefreshing, s => s with { IsRefreshing = false },
-            new(Key, ("Active", s => s.ActiveMessageCount), ("DLQ", s => s.DeadLetterMessageCount), ("Transfer", s => s.TransferMessageCount)),
-            LiveCounts, Logger)
-        {
-            Changed = () => { SortAndUpdateFilterState(); return InvokeAsync(StateHasChanged); },
-            Render = StateHasChanged,
-            LoadFailed = ex => { _loadFailed = true; _error = ErrorText.Of(ex); return InvokeAsync(StateHasChanged); },
-        };
         if (Connection.Current is not IHasTopics)
             Nav.NavigateTo("/");
-        if (NavState.TopicName is not null && NavState.SubscriptionName is not null)
-            _restoreFocusKey = $"{NavState.TopicName}/{NavState.SubscriptionName}";
     }
 
-    protected override async Task OnInitializedAsync() => await LoadSubscriptions();
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!_tableAutoFocused && _tbody is not null && _filtered.Count > 0)
-        {
-            _tableAutoFocused = true;
-            await FocusManager.FocusAsync(_tbody.FocusKey);
-        }
-    }
-
-    private Task LoadSubscriptions()
-    {
-        _error = string.Empty;
-        _loadFailed = false;
-        _metricsPanel?.Reload();
-        return List.LoadAsync();
-    }
-
-    private static string Key(SubscriptionInfo s) => $"{s.TopicName}/{s.Name}";
-
-    private void SortAndUpdateFilterState()
-    {
-        var focused = _focusedItem;
-        _filtered = _sort.Apply(string.IsNullOrWhiteSpace(_filter.Text) ? _all
-            : _all.Where(s => s.TopicName.Contains(_filter.Text, StringComparison.OrdinalIgnoreCase)
-                            || s.Name.Contains(_filter.Text, StringComparison.OrdinalIgnoreCase)));
-        if (focused is null && _restoreFocusKey is not null)
-        {
-            focused = _filtered.FirstOrDefault(s => $"{s.TopicName}/{s.Name}" == _restoreFocusKey);
-            if (focused is not null) _restoreFocusKey = null;
-        }
-        if (focused is not null)
-        {
-            var newIdx = _filtered.FindIndex(s => s.TopicName == focused.TopicName && s.Name == focused.Name);
-            if (newIdx >= 0) _selectedIndex = newIdx;
-        }
-        _focusedItem = _filtered.ElementAtOrDefault(_selectedIndex);
-
-    }
-
-    private void ApplyFilter(string? value)
-    {
-        _selectedIndex = 0;
-        _focusedItem = null;
-        SortAndUpdateFilterState();
-        StateHasChanged();
-    }
+    private IEnumerable<KeyBinding> Commands =>
+    [
+        .. Connection.Current is IHasDeletion ? [ListKeys.Delete(() => OnFocused(_deleteSub))] : Array.Empty<KeyBinding>(),
+        ListKeys.PurgeDlq(() => OnFocused(_purgeDlq)),
+    ];
 
     private void OnFocused(AsyncCommand<SubscriptionInfo>? command)
     {
-        if (_focusedItem is { } item) command?.Invoke(item);
+        if (_list?.View.Focused is { } item) command?.Invoke(item);
     }
 
-    private void ToggleMetrics()
+    private void Open(SubscriptionInfo s)
     {
-        if (Connection.Current is not IHasMetrics) return;
-        _ = MetricsVisibility.ToggleAsync(Viewport.Height);
-        StateHasChanged();
-    }
-
-    private IReadOnlyList<KeyBinding> Keys =>
-    [
-        new("Enter", $"{Icons.Message} {PageStrings.Key_Messages}", OpenFocused) { InFooter = false },
-        new("/", $"{Icons.Filter} {PageStrings.Key_Filter}", () => { _filter.Edit(); StateHasChanged(); }) { InFooter = false },
-        new("r", $"{Icons.Refresh} {PageStrings.Key_Refresh}", () => _ = LoadSubscriptions()) { Ctrl = true, Aliases = ["F5"] },
-        .. Connection.Current is IHasDeletion
-            ? [new KeyBinding("D", $"{Icons.Delete} {PageStrings.Key_Delete}", () => OnFocused(_deleteSub)) { Danger = true, Aliases = ["F9", "Delete", "\\"] }]
-            : Array.Empty<KeyBinding>(),
-        new("P", $"{Icons.Purge} {PageStrings.Key_PurgeDlq}", () => OnFocused(_purgeDlq)) { Danger = true, Aliases = ["F11"] },
-        .. Connection.Current is IHasMetrics
-            ? [new KeyBinding("m", $"{Icons.Metrics} {PageStrings.Key_Metrics}", ToggleMetrics) { Aliases = ["F12"] }]
-            : Array.Empty<KeyBinding>(),
-        .. SectionTabs.Bindings(Connection.Current, Section.AllSubscriptions, Nav),
-        new(":", $"{Icons.Filter} {Strings.Jump}", () => _ = _jump?.OpenAsync()),
-        new("?", $"{Icons.Confirm} {Strings.Help}", () => _help?.Open(Keys)),
-        new("Escape", $"{Icons.Back} {Strings.Back}", () => Nav.NavigateTo("/")),
-    ];
-
-    private void OpenFocused()
-    {
-        if (_filtered.ElementAtOrDefault(_selectedIndex) is not { } s) return;
         NavState.TopicName = s.TopicName;
         NavState.SubscriptionName = s.Name;
         NavState.ReturnPath = "/subscriptions";
         Nav.NavigateTo("/subscription-browser");
-    }
-
-    private bool EndsFilterEdit(KeyboardEventArgs e)
-    {
-        if (e.Key != "Enter" || !_filter.Editing) return false;
-        _filter.Handle(e);
-        StateHasChanged();
-        return true;
-    }
-
-    private Task FocusTable() => _tbody is { } table ? FocusManager.FocusAsync(table.FocusKey) : Task.CompletedTask;
-
-    private void HandleKeyDown(KeyboardEventArgs e)
-    {
-        if (_deleteSub?.HandleKey(e) == true) return;
-        if (_purgeDlq?.HandleKey(e) == true) return;
-        switch (_filter.Handle(e))
-        {
-            case FilterKey.Changed: ApplyFilter(_filter.Text); return;
-            case FilterKey.Handled: StateHasChanged(); return;
-        }
-        if (MetricsRange.StepOf(e) is { } step && _metricsPanel?.StepRange(step) == true) return;
-        KeyBinding.Dispatch(Keys, e);
     }
 }
