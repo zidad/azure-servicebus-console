@@ -15,7 +15,7 @@ Built with [RazorConsole](https://github.com/RazorConsole/RazorConsole): Blazor 
 
 ## Install
 
-Requires [.NET 10 SDK](https://dotnet.microsoft.com/download) and an active Azure CLI login.
+Requires [.NET 11 SDK](https://dotnet.microsoft.com/download) and an active Azure CLI login.
 
 ```bash
 dotnet tool install -g Net.Azure.ServiceBusConsole
@@ -29,7 +29,7 @@ To update to the latest version:
 dotnet tool update -g Net.Azure.ServiceBusConsole
 ```
 
-The tool installs as a native executable on Linux, macOS and Windows (x64 and arm64); on other platforms it runs on the .NET 10 runtime. Without the .NET SDK, download the executable for your platform from the [releases](https://github.com/zidad/azure-servicebus-console/releases) (`SHA256SUMS` lists the checksums).
+The tool installs as a native executable on Linux, macOS and Windows (x64 and arm64); on other platforms it runs on the .NET 11 runtime. Without the .NET SDK, download the executable for your platform from the [releases](https://github.com/zidad/azure-servicebus-console/releases) (`SHA256SUMS` lists the checksums).
 
 ## Command line
 
@@ -364,7 +364,7 @@ Actions apply to the selected messages, or to the focused one when nothing is se
 
 ## Prerequisites
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download)
+- [.NET 11 SDK](https://dotnet.microsoft.com/download)
 - [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) logged in:
 
 ```bash
@@ -378,8 +378,6 @@ Authentication uses `AzureCliCredential` — no connection strings or API keys a
 
 ## Running from source
 
-The .NET 10 SDK builds and runs the app, also from a folder whose `global.json` pins SDK 10. With the [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0) (`global.json`), RazorConsole also builds for `net11.0`.
-
 ```bash
 git clone --recurse-submodules https://github.com/zidad/azure-servicebus-console
 cd azure-servicebus-console
@@ -388,7 +386,7 @@ dotnet run --project src/ServiceBusConsole
 dotnet run --project src/ServiceBusConsole -- -s emulator   # command-line flags go after --
 ```
 
-Logs are written to `logs/session-<timestamp>.log` next to the app's binaries (`src/ServiceBusConsole/bin/Debug/net10.0/logs/` when run from source).
+Logs are written to `logs/session-<timestamp>.log` next to the app's binaries (`src/ServiceBusConsole/bin/Debug/net11.0/logs/` when run from source).
 
 ### Local emulator
 

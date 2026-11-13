@@ -1,8 +1,10 @@
 <Project>
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- BL0012 assumes a handler runs from its own component's event; ours also run from forwarded keys (KeyBinding.Dispatch, OnKeyDown). -->
+    <NoWarn>$(NoWarn);BL0012</NoWarn>
   </PropertyGroup>
   <!-- The app ships as Native AOT: trim and AOT analyzers on every shipped project. -->
   <PropertyGroup Condition="!$(MSBuildProjectName.EndsWith('.Tests'))">

@@ -73,11 +73,11 @@ The app stays publishable with `PublishAot=true`: no reflection the trimmer can'
 - Blazor's router scans the app assembly for `@page` components: it is a `TrimmerRootAssembly`
 - Shipped as a RID-specific tool (`ToolPackageRuntimeIdentifiers`): `Net.Azure.ServiceBusConsole` points to a Native AOT package per platform (`dotnet pack -r <rid>`, each on its own OS) and the framework-dependent `.any` (a plain `dotnet pack`, which also makes the top-level package). `tool-packages.yml` packs them all, on every PR too, with an archive per platform for the release; NuGet gets the platform packages before the top-level one
 - Libraries are `IsAotCompatible` (`Directory.Build.props`), so trim and AOT warnings show in a normal build
-- A local native pack on macOS with Homebrew's OpenSSL needs `LIBRARY_PATH=/opt/homebrew/opt/openssl@3/lib:/opt/homebrew/opt/brotli/lib`
+- A local native pack on macOS with Homebrew's OpenSSL needs `LIBRARY_PATH=/opt/homebrew/opt/openssl@3/lib:/opt/homebrew/opt/brotli/lib:/opt/homebrew/opt/zstd/lib`
 
 ## Prerequisites
 
-The repo pins the .NET 11 SDK (`global.json`); the app targets `net10.0` and also builds with SDK 10 (e.g. `dotnet run --project` from a folder pinning SDK 10). The submodule adds `net11.0` only under SDK 11; keep that condition.
+The repo pins the .NET 11 SDK (`global.json`); everything targets `net11.0`. ASP.NET Core 11's BL0012 is off: handlers here also run from forwarded keys, outside their own component's event.
 
 Requires an active Azure CLI login before running:
 ```bash
@@ -88,7 +88,7 @@ Authentication uses `AzureCliCredential` — no connection strings or keys are u
 
 ## Architecture
 
-This is a .NET 10 terminal UI app that browses Azure Service Bus namespaces, queues, topics, and messages. The UI runs entirely in the terminal using **RazorConsole.Core** — a library that renders Blazor-style Razor components to the terminal via Spectre.Console.
+This is a .NET 11 terminal UI app that browses Azure Service Bus namespaces, queues, topics, and messages. The UI runs entirely in the terminal using **RazorConsole.Core** — a library that renders Blazor-style Razor components to the terminal via Spectre.Console.
 
 **Layout:** `src/ServiceBusConsole` (the UI, packed as the `azsb` tool), `src/ServiceBusConsole.Abstractions`, `src/ServiceBusConsole.AzureServiceBus`, `src/ServiceBusConsole.Plugins` (plugin contracts), bundled plugins `src/ServiceBusConsole.Plugins.<Name>`, listed in `src/ServiceBusConsole.BundledPlugins`, a test project per tested project under `tests/`, `lib/RazorConsole` (fork submodule). Shared build settings in `Directory.Build.props`, package versions in `Directory.Packages.props` (central package management). One type per file; namespaces follow project and folders (`ServiceBusConsole.<Folder>`, `ServiceBusConsole.AzureServiceBus.Emulator`), imported globally via `<Using>` in the csproj and `_Imports.razor`.
 
