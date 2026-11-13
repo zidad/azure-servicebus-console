@@ -40,7 +40,6 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
-          dotnet-version: '10.0.x' # runtime for the net10.0 tests
 
       # TUnit uploads its HTML report as an artifact itself, with the runner's artifact token.
       - name: Enable TUnit HTML report upload
@@ -70,7 +69,7 @@ jobs:
         if: failure()
         with:
           name: test-results
-          path: tests/*/bin/Release/net10.0/TestResults/
+          path: tests/*/bin/Release/net11.0/TestResults/
 
   # UI races show on slow machines: repeat the UI tests on 2 cores, so a racy test fails on its PR, not later on main.
   ui-stress:
@@ -88,7 +87,6 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
-          dotnet-version: '10.0.x'
 
       - run: dotnet build tests/ServiceBusConsole.Tests --configuration Release
 
