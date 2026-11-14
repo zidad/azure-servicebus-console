@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -22,6 +23,7 @@ var builder = Host.CreateDefaultBuilder(args)
         // Blazor logs every component render at Debug: hundreds of MB per session.
         .AddFilter("Microsoft.AspNetCore.Components", LogLevel.Information))
     .ConfigureServices(services => services
+        .AddSingleton(sp => AzureSettings.Read(sp.GetRequiredService<IConfiguration>()))
         .AddAzureServiceBus()
         .AddSingleton<INamespaceDecorator, CachingNamespaceDecorator>()
         .AddSingleton<ServiceBusConnection>()

@@ -30,4 +30,13 @@
   <data name="ConfigKeys_RedactFields" xml:space="preserve">
     <value>JSON fields peek redacts in those namespaces, comma-separated: name, identifier.value, value* (wildcards), title:scalar (only text and numbers); also application property names. A body that isn't JSON is withheld</value>
   </data>
+  <data name="ConfigKeys_AzureAuth" xml:space="preserve">
+    <value>How to sign in to Azure: cli (az login), browser (a browser window each run) or default (environment variables, managed identity, then developer tools)</value>
+  </data>
+  <data name="ConfigKeys_AzureTransport" xml:space="preserve">
+    <value>How messages reach Azure: tcp (AMQP, port 5671) or websockets (port 443, for networks that block 5671)</value>
+  </data>
+  <data name="AzureSettings_Invalid" xml:space="preserve">
+    <value>{value} is not a valid {key}: use {allowed}</value>
+  </data>
 </root>

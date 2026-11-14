@@ -43,6 +43,7 @@
     <PackageReference Include="System.CommandLine" />
     <PackageReference Include="Spectre.Console" />
     <ProjectReference Include="../ServiceBusConsole.Abstractions/ServiceBusConsole.Abstractions.csproj" />
+    <ProjectReference Include="../ServiceBusConsole.Core/ServiceBusConsole.Core.csproj" />
     <ProjectReference Include="../ServiceBusConsole.AzureServiceBus/ServiceBusConsole.AzureServiceBus.csproj" />
     <ProjectReference Include="../ServiceBusConsole.BundledPlugins/ServiceBusConsole.BundledPlugins.csproj" />
     <ProjectReference Include="../ServiceBusConsole.Plugins/ServiceBusConsole.Plugins.csproj" />
@@ -57,9 +58,11 @@
     <Using Include="ServiceBusConsole.Configuration" />
     <Using Include="ServiceBusConsole.Extensions" />
     <Using Include="ServiceBusConsole.Logging" />
-    <Using Include="ServiceBusConsole.Messaging" />
+    <Using Include="ServiceBusConsole.Core.Messaging" />
+    <Using Include="ServiceBusConsole.Core.Services" />
+    <Using Include="ServiceBusConsole.Core.Services.Caching" />
+    <Using Include="ServiceBusConsole.Core.UI" />
     <Using Include="ServiceBusConsole.Services" />
-    <Using Include="ServiceBusConsole.Services.Caching" />
     <Using Include="ServiceBusConsole.Syntax" />
     <Using Include="ServiceBusConsole.UI" />
     <Using Include="ServiceBusConsole.UI.Explorer" />

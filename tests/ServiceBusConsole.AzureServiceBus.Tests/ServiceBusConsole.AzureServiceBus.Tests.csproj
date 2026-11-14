@@ -5,6 +5,7 @@
     <PackageReference Include="Azure.Messaging.ServiceBus" />
     <PackageReference Include="Azure.ResourceManager" />
     <PackageReference Include="Azure.ResourceManager.Monitor" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="ServiceBusConsole.Abstractions" />

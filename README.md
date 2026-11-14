@@ -15,7 +15,7 @@ Built with [RazorConsole](https://github.com/RazorConsole/RazorConsole): Blazor 
 
 ## Install
 
-Requires [.NET 11 SDK](https://dotnet.microsoft.com/download) and an active Azure CLI login.
+Requires [.NET 11 SDK](https://dotnet.microsoft.com/download) and an active Azure CLI login (or another sign-in, see `azure.auth` under [Configuration](#configuration)).
 
 ```bash
 dotnet tool install -g Net.Azure.ServiceBusConsole
@@ -103,6 +103,8 @@ azsb config path                 # the file's location
 | Key | Default | Description |
 |---|---|---|
 | `ui.theme` | `auto` | Colors for a dark or light terminal background: `auto` (`COLORFGBG`, else dark), `dark` or `light`; `--theme` overrides it |
+| `azure.auth` | `cli` | How to sign in to Azure: `cli` (`az login`), `browser` (a browser window each run) or `default` (the Azure SDK's chain: environment variables, workload or managed identity, then developer tools) |
+| `azure.transport` | `tcp` | How messages reach Azure: `tcp` (AMQP, port 5671) or `websockets` (port 443, for networks that block 5671). The emulator always uses TCP |
 | `cli.protect` | | Namespaces (names or `*` patterns, comma-separated) where `retry`, `delete`, `purge` and `send` need `--confirm` with the namespace's name |
 | `cli.redact.namespaces` | | Namespaces whose messages `peek` redacts, with no flag to turn it off |
 | `cli.redact.fields` | | JSON fields and application properties `peek` redacts there; see [Scripting](#scripting) |
@@ -371,7 +373,7 @@ Actions apply to the selected messages, or to the focused one when nothing is se
 az login
 ```
 
-Authentication uses `AzureCliCredential` — no connection strings or API keys are stored. The subscriptions you see are the ones your `az login` account can access.
+Authentication uses Microsoft Entra ID, by default through the Azure CLI (`azure.auth` picks a browser sign-in or the Azure SDK's default chain instead) — no connection strings or API keys are stored. The subscriptions you see are the ones the signed-in account can access.
 
 - The metrics panel reads `Microsoft.Insights/metrics/read` on the namespace: Reader and Monitoring Reader include it, the Azure Service Bus Data roles don't. Without it the panel shows the error in one line
 - A namespace firewall must allow your IP. When it doesn't, the app says so: connect through an allowed network (VPN), or add your IP under Networking for the namespace in the Azure portal

@@ -17,7 +17,13 @@ public static class ConfigKeys
     public static ConfigKey RedactFields { get; } =
         new("cli.redact.fields", ConfigurationStrings.ConfigKeys_RedactFields);
 
-    public static IReadOnlyList<ConfigKey> App { get; } = [Theme, Protect, RedactNamespaces, RedactFields];
+    public static ConfigKey AzureAuth { get; } =
+        new("azure.auth", ConfigurationStrings.ConfigKeys_AzureAuth, "cli");
+
+    public static ConfigKey AzureTransport { get; } =
+        new("azure.transport", ConfigurationStrings.ConfigKeys_AzureTransport, "tcp");
+
+    public static IReadOnlyList<ConfigKey> App { get; } = [Theme, AzureAuth, AzureTransport, Protect, RedactNamespaces, RedactFields];
 
     /// <summary>The app's keys and <paramref name="extra"/> ones, such as a plugin's.</summary>
     public static IReadOnlyList<ConfigKey> With(IEnumerable<ConfigKey> extra) => [.. App, .. extra];

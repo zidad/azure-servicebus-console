@@ -20,6 +20,7 @@ public sealed record CommandServices(INamespaceService Namespaces, INamespaceOpe
         var configuration = new ConfigurationBuilder().AddAzsbConfiguration(AppPaths.ConfigFile).Build();
         var services = new ServiceCollection()
             .AddLogging(logging)
+            .AddSingleton(AzureSettings.Read(configuration))
             .AddAzureServiceBus()
             .BuildServiceProvider();
         return new(services.GetRequiredService<INamespaceService>(), services.GetRequiredService<INamespaceOpener>(), configuration);

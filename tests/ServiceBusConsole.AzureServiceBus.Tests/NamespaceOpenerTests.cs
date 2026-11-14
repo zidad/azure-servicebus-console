@@ -7,7 +7,7 @@ namespace ServiceBusConsole.AzureServiceBus.Tests;
 public sealed class NamespaceOpenerTests
 {
     private static NamespaceOpener Opener(params INamespaceDecorator[] decorators) =>
-        new(new AzureCliCredential(), new ArmClient(new AzureCliCredential()), NullLoggerFactory.Instance, decorators);
+        new(new AzureCliCredential(), new AzureOptions(), new ArmClient(new AzureCliCredential()), NullLoggerFactory.Instance, decorators);
 
     private static NamespaceInfo Azure(string? sku) => new()
     {

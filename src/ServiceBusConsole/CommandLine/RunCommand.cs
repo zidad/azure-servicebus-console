@@ -29,6 +29,16 @@ public static class RunCommand
             return false;
         }
         Theme.Use(palette);
+        try
+        {
+            AzureSettings.Read(host.Services.GetRequiredService<IConfiguration>());
+        }
+        catch (CommandFailure failure)
+        {
+            InvalidUsage(Markup.Escape(failure.Message));
+            host.Dispose();
+            return false;
+        }
 
         host.Services.GetRequiredService<NavigationState>().Startup = input.StartupTarget;
         await host.Services.GetRequiredService<MetricsVisibility>().LoadAsync();
