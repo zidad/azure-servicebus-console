@@ -1,4 +1,4 @@
-using Azure.Identity;
+using Azure.Core;
 using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
 using Azure.ResourceManager;
@@ -8,7 +8,7 @@ namespace ServiceBusConsole.AzureServiceBus;
 
 /// <summary>Opens a namespace as the emulator or by its Azure tier, with services wrapped by the registered decorators.</summary>
 internal sealed class NamespaceOpener(
-    AzureCliCredential credential, ArmClient armClient, ILoggerFactory loggers, IEnumerable<IBrokerDecorator> decorators,
+    TokenCredential credential, AzureOptions options, ArmClient armClient, ILoggerFactory loggers, IEnumerable<IBrokerDecorator> decorators,
     EmulatorSettings emulator) : IBrokerOpener
 {
     /// <summary>
@@ -41,7 +41,7 @@ internal sealed class NamespaceOpener(
 
     private AzureNamespace OpenAzure(BrokerInfo info, NamespaceTier tier)
     {
-        var bus = new ServiceBusClient($"sb://{info.FullyQualifiedNamespace}/", credential);
+        var bus = new ServiceBusClient(info.FullyQualifiedNamespace, credential, Credentials.ClientOptions(options.Transport));
         var admin = new ServiceBusAdministrationClient($"https://{info.FullyQualifiedNamespace}", credential);
         var services = new AzureServices(
             Decorate(info, new QueueService(admin, loggers.CreateLogger<QueueService>())),

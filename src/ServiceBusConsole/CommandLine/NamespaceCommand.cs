@@ -8,7 +8,16 @@ public abstract record NamespaceCommand
     /// <summary>Runs <paramref name="input"/>; failures go to standard error as one line and set the exit code.</summary>
     public static async Task<int> ExecuteAsync(NamespaceInput input, CancellationToken ct)
     {
-        var services = input.Services();
+        CommandServices services;
+        try
+        {
+            services = input.Services();
+        }
+        catch (CommandFailure failure)
+        {
+            await Console.Error.WriteLineAsync(failure.Message);
+            return failure.ExitCode;
+        }
         await using var context = new CommandContext(input, services, ct);
         try
         {

@@ -7,11 +7,13 @@
     <Using Include="ServiceBusConsole.Abstractions" />
     <Using Include="ServiceBusConsole.CommandLine" />
     <Using Include="ServiceBusConsole.Configuration" />
-    <Using Include="ServiceBusConsole.Messaging" />
+    <Using Include="ServiceBusConsole.Core.Messaging" />
+    <Using Include="ServiceBusConsole.Core.Services" />
+    <Using Include="ServiceBusConsole.Core.UI" />
     <Using Include="ServiceBusConsole.PluginHost" />
     <Using Include="ServiceBusConsole.Plugins" />
     <Using Include="ServiceBusConsole.Services" />
-    <Using Include="ServiceBusConsole.Services.Caching" />
+    <Using Include="ServiceBusConsole.Core.Services.Caching" />
     <Using Include="ServiceBusConsole.Syntax" />
     <Using Include="ServiceBusConsole.UI" />
     <Using Include="ServiceBusConsole.UI.Explorer" />

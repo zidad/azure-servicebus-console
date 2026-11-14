@@ -21,7 +21,4 @@
   <data name="SessionContext_OpenedPage" xml:space="preserve">
     <value>Opened /{page}</value>
   </data>
-  <data name="ServiceBusConnection_NoNamespace" xml:space="preserve">
-    <value>No namespace selected.</value>
-  </data>
 </root>

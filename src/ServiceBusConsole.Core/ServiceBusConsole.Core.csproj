@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- What every front end shares, terminal or not: message operations, the connection, caching, session context. No RazorConsole or Spectre.Console (ArchitectureTests). -->
+  <ItemGroup>
+    <ProjectReference Include="../ServiceBusConsole.Abstractions/ServiceBusConsole.Abstractions.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="ServiceBusConsole.Abstractions" />
+    <Using Include="ServiceBusConsole.Core.Messaging" />
+    <Using Include="ServiceBusConsole.Core.Resources" />
+    <Using Include="ServiceBusConsole.Core.Services" />
+    <Using Include="ServiceBusConsole.Core.Services.Caching" />
+    <Using Include="ServiceBusConsole.Core.UI" />
+  </ItemGroup>
+</Project>

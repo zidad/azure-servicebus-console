@@ -21,4 +21,10 @@ public sealed class ArchitectureTests
     public void PluginContracts_ReferenceNeitherAzureNorTheUi() =>
         References(typeof(IPlugin)).ShouldNotContain(name =>
             name.StartsWith("Azure.") || name.StartsWith("RazorConsole") || name.StartsWith("Spectre.") || name == typeof(App).Assembly.GetName().Name);
+
+    [Test]
+    public void Core_IsFreeOfTheTerminalUiAndTheAzureSdk() =>
+        References(typeof(MessageBrowser)).ShouldNotContain(name =>
+            name.StartsWith("Azure.") || name.StartsWith("RazorConsole") || name.StartsWith("Spectre.")
+            || name.StartsWith("Microsoft.AspNetCore") || name == typeof(App).Assembly.GetName().Name);
 }
