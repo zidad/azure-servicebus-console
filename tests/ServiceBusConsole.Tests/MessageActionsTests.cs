@@ -103,7 +103,7 @@ public sealed class MessageActionsTests
         var browserFocus = terminal.FocusKey;
         await Press(terminal, ConsoleKey.Enter, '\r');
         await terminal.WaitForTextAsync("Message #1", AppHarness.Timeout, Ct);
-        await terminal.WaitUntilAsync(_ => terminal.FocusKey != browserFocus && AppHarness.FocusedAttribute(terminal, "data-scrollbar") == "true",
+        await terminal.WaitUntilAsync(_ => terminal.FocusKey != browserFocus && AppHarness.FocusedAttribute(terminal, "data-overflow") == "scroll",
             AppHarness.Timeout, cancellationToken: Ct);
         terminal.CurrentFrame.ContainsText(ActionsButton).ShouldBeTrue(terminal.CurrentFrame.ScreenText);
 

@@ -49,7 +49,7 @@ else
         }
 
         <Panel BorderColor="@Theme.Border" Border="BoxBorder.Rounded" Width="@Viewport.Width" Height="@BoxHeight(msg)" Padding="@(new(1, 0, 1, 0))">
-            <ViewHeightScrollable @key="@($"{msg.SequenceNumber}/{_tab}")" LinesToRender="@(BoxHeight(msg) - 2)" Scrollbar="@Theme.Scrollbar()" FocusOrder="0" OnKeyDown="@HandleKeyDown">
+            <ScrollBox ContentKey="@($"{msg.SequenceNumber}/{_tab}")" Height="@(BoxHeight(msg) - 2)" Scrollbar="@Theme.Scrollbar()" FocusOrder="0" OnKeyDown="@HandleKeyDown">
                 @switch (_tab)
                 {
                     case 0:
@@ -67,7 +67,7 @@ else
                         <SyntaxHighlighter Code="@MessageJson.Format(msg)" Language="json" />
                         break;
                 }
-            </ViewHeightScrollable>
+            </ScrollBox>
         </Panel>
 
         @if (_copied is { } copied)

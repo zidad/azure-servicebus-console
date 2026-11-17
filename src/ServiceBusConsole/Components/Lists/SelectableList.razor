@@ -1,29 +1,11 @@
 @typeparam TItem
 
-@* Renders the engine's <scrollable> element itself, so selection, wheel and Tab behaviour live in the app. *@
-<scrollable @onwheel="HandleWheel" @onwheel:stopPropagation="true"
-            data-focusable="false"
-            data-items-count="@Items.Count"
-            data-offset="@_offset"
-            data-page-size="@PageSize"
-            data-enable-embedded="@IsScrollbarEmbedded.ToString()">
-    @if (Scrollbar is { } bar)
-    {
-        <div data-scrollbar="true"
-             @onfocusin="() => _scrollbarFocused = true"
-             @onfocusout="() => _scrollbarFocused = false"
-             @onkeydown="HandleKeyDown"
-             data-track-char="@bar.TrackChar"
-             data-thumb-char="@bar.ThumbChar"
-             data-track-color="@((_scrollbarFocused ? bar.TrackFocusedColor : bar.TrackColor).ToMarkup())"
-             data-thumb-color="@((_scrollbarFocused ? bar.ThumbFocusedColor : bar.ThumbColor).ToMarkup())"
-             data-min-thumb-height="@bar.MinThumbHeight">
-        </div>
-    }
+@* Pages the rows itself, so selection, wheel and Tab behaviour live in the app. *@
+<div @onwheel="HandleWheel" @onwheel:stopPropagation="true" data-focusable="false">
     <CascadingValue Value="@_selection">
         @ChildContent(new ListPage<TItem>([.. Items.Skip(_offset).Take(PageSize)], _offset))
     </CascadingValue>
-</scrollable>
+</div>
 
 @code {
     /// <summary>
@@ -43,12 +25,9 @@
     /// <summary>Space toggles the selected item instead of paging down.</summary>
     [Parameter] public EventCallback<int> OnToggle { get; set; }
 
-    [Parameter] public ScrollbarSettings? Scrollbar { get; set; }
-    [Parameter] public bool IsScrollbarEmbedded { get; set; } = true;
     [Parameter, EditorRequired] public required RenderFragment<ListPage<TItem>> ChildContent { get; set; }
 
     private int _offset;
-    private bool _scrollbarFocused;
     private ListSelection? _selection;
 
     protected override void OnParametersSet()

@@ -152,7 +152,7 @@ public sealed class LockedBrowserTests
         var browserFocus = terminal.FocusKey;
         await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
         var frame = await terminal.WaitForTextAsync("Message #1", AppHarness.Timeout, Ct);
-        await terminal.WaitUntilAsync(_ => terminal.FocusKey != browserFocus && AppHarness.FocusedAttribute(terminal, "data-scrollbar") == "true",
+        await terminal.WaitUntilAsync(_ => terminal.FocusKey != browserFocus && AppHarness.FocusedAttribute(terminal, "data-overflow") == "scroll",
             AppHarness.Timeout, cancellationToken: Ct);
         frame = await AppHarness.WaitForSettledAsync(terminal, f => f.ContainsText("1 of 3"));
         frame.ContainsText("Complete").ShouldBeFalse(frame.ScreenText);

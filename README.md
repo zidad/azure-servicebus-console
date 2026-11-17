@@ -4,7 +4,7 @@
 [![NuGet](https://img.shields.io/nuget/v/Net.Azure.ServiceBusConsole?logo=nuget)](https://www.nuget.org/packages/Net.Azure.ServiceBusConsole)
 [![NuGet downloads](https://img.shields.io/nuget/dt/Net.Azure.ServiceBusConsole?logo=nuget)](https://www.nuget.org/packages/Net.Azure.ServiceBusConsole)
 [![Release](https://img.shields.io/github/v/release/zidad/azure-servicebus-console?logo=github)](https://github.com/zidad/azure-servicebus-console/releases/latest)
-[![.NET](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet)](https://dotnet.microsoft.com/download)
+[![.NET](https://img.shields.io/badge/.NET-11-512BD4?logo=dotnet)](https://dotnet.microsoft.com/download)
 [![License: MIT](https://img.shields.io/github/license/zidad/azure-servicebus-console)](LICENSE)
 
 `azsb` is a command-line tool for Azure Service Bus: browse namespaces, queues, topics and subscriptions, peek and receive messages, and resend or retry dead-letter messages, all from your terminal. A keyboard-driven alternative to the Azure portal's Service Bus Explorer and the standalone Service Bus Explorer app, on Linux, macOS and Windows.
@@ -111,7 +111,7 @@ azsb config path                 # the file's location
 
 ## Plugins
 
-Plugins add actions on a message: press `F2` (or click `[F2] ⚡ Actions…`) in the message browser or on the message detail page, pick one with `↑`/`↓` and `Enter`. While it runs it shows its progress (`Esc` cancels); when done, its result with a link or file you can open (`O`). Failures show as errors. Each outcome is recorded in the session's activity.
+Plugins add actions on a message: press `.` (or click `⚡ Actions…`; `F2` still works) in the message browser or on the message detail page, pick one with `↑`/`↓` and `Enter`. While it runs it shows its progress (`Esc` cancels); when done, its result with a link or file you can open (`O`). Failures show as errors. Each outcome is recorded in the session's activity.
 
 They ship with the tool. Each is on when what it needs is found, e.g. its command-line tool on the `PATH`; `enabled` overrides that:
 
@@ -219,16 +219,20 @@ azsb config set plugins.trace.url "http://localhost:16686/trace/{traceId}"
 - Lists the Azure subscriptions of your `az` login by name, hides the ones without Service Bus namespaces, and lets you filter them; the local emulator is always available
 - Starts in the Azure CLI's current subscription, or in the subscription and namespace given on the [command line](#command-line)
 - Namespace details (resource group, location, SKU, status) on the connection page
-- Switch subscription, namespace or section (Queues, Topics, All Subscriptions) from dropdowns in the header
+- Connection page as a tree: subscriptions expand into their namespaces (`→`/`←`), recently opened namespaces first, with when each was last opened
+- Switch subscription or namespace from dropdowns in the header; switch section (Queues, Topics, All Subscriptions) with the tabs under it (`1` `2` `3`), which show each section's count
+- Jump anywhere with `:`: type part of a queue, topic or subscription name, `Enter` opens it, `Tab` its dead-letter queue; matches with dead letters offer purge and retry. `^a` searches the cached entities of your other namespaces too
 - Offers what the namespace supports: Basic tier namespaces have no topics, so their Topics and All Subscriptions sections are hidden; the local emulator can't delete entities, so its lists have no Delete
 - Queues, topics and subscriptions with live message counts (active, DLQ, scheduled, transfer): everything loads from a local cache first, then polls every 15 seconds; changed counts flash briefly. When the live listing fails, the cached rows stay
 - Sort any list by clicking a column header (ascending, descending, off); the default sort shows in the header (DLQ for queues and all subscriptions, name for a topic's subscriptions)
-- Filter queues, topics, subscriptions and Azure subscriptions by typing
+- Filter queues, topics, subscriptions and the connection tree with `/`
+- An `Incoming · 24 h` sparkline column on the section lists (Azure namespaces, terminals of 110+ columns)
 - Color-coded counts and states: dead letters in red, zero counts dimmed, lock and browse modes highlighted
 - Peek, receive (PeekLock) or receive-and-delete a chosen number of messages, like the Azure portal's Service Bus Explorer
-- Multi-select messages (`Space`, click the checkbox, `A` all, `I` invert) and act on all of them at once
-- Locked messages: complete, abandon, dead-letter or requeue; locks renew automatically and are released when you leave
-- Split message browser: the list on top, a preview of the message under the cursor below (properties left, JSON-highlighted body right); `Enter` opens it full screen
+- Multi-select messages (`Space`, click the checkbox, `^a` all, `i` invert) and act on all of them at once
+- Locked messages: complete, abandon, dead-letter or requeue; locks renew automatically and are released when you leave. Settled messages stay in the list, dimmed, with their outcome
+- Split message browser: the list on top, a preview of the message under the cursor below (properties left, JSON-highlighted body right); `Enter` opens it full screen, with tabs for body, properties, application properties and raw JSON
+- `?` on any screen lists its keys
 - Dead-letter queue browsing per queue and per subscription; requeue dead-lettered messages to their origin
 - Delete queues, topics or subscriptions (Azure namespaces); purge (dead-letter) queues
 - Metrics panel: Azure Monitor charts of throughput and backlog for the selected namespace, queue or topic, over 1 hour to 30 days; see [Metrics](#metrics)
@@ -262,6 +266,10 @@ azsb config set plugins.trace.url "http://localhost:16686/trace/{traceId}"
 
 ![Section dropdown](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/section-dropdown.png)
 
+**Jump** (`:`): any queue, topic or subscription by part of its name, dead letters first
+
+![Jump dialog](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/jump.png)
+
 **Message browser**: dead-letter reasons, delivery counts, multi-select, preview of the message under the cursor
 
 ![Message browser](https://raw.githubusercontent.com/zidad/azure-servicebus-console/main/docs/screenshots/message-browser.png)
@@ -284,42 +292,59 @@ azsb config set plugins.trace.url "http://localhost:16686/trace/{traceId}"
 
 ## Keyboard shortcuts
 
+Letters are commands; Shift for anything that deletes or moves messages. The footer shows the keys of the current screen and `?` lists them all. The F-keys of earlier versions still work (in brackets below).
+
 ### All screens
 
 | Key | Action |
 |-----|--------|
+| `?` | Keys of this screen |
 | `Tab` / `Shift+Tab` | Move focus between controls |
 | `Enter` / `Space` | Activate the focused button |
-| `PgUp` / `PgDn` / `Home` / `End` | Page through the focused list |
-| `Y` / `Enter`, `N` / `Esc` | Confirm or cancel a prompt |
-| `Esc` | Go back to previous screen |
+| `↑` / `↓`, `PgUp` / `PgDn` / `Home` / `End` | Move through the focused list, or scroll the focused text |
+| `y` / `Enter`, `n` / `Esc` | Confirm or cancel a prompt; a purge asks you to type `yes` |
+| `Esc` | Back to the previous screen |
 | Click | Activate a button, or select a row; click the selected row to open it |
 | Click a column header | Sort by it: ascending, descending, off |
-| Click subscription / namespace / section in the header | Open a dropdown to switch |
-| Mouse wheel | Scroll the list under the pointer |
+| Click subscription / namespace in the header | Open a dropdown to switch |
+| Mouse wheel | Scroll the list or text under the pointer |
 
 ### Connection screen
 
 | Key | Action |
 |-----|--------|
 | `↑` / `↓` | Choose a subscription or namespace |
-| Type / `Backspace` | Filter Azure subscriptions by name or ID (in the subscription list) |
-| `Enter` | Subscriptions: go to namespaces; namespaces: open queues |
-| `F1` | Open the queue list |
-| `F2` | Open the topic list *(not on Basic tier)* |
-| `F3` | Open the all-subscriptions list *(not on Basic tier)* |
+| `→` / `←` | Expand or collapse a subscription |
+| `/` | Filter by name or ID: type, `Enter` keeps it, `Esc` clears it |
+| `Enter` | Expand or collapse a subscription; open a namespace's queues |
+| `1` `2` `3` (`F1` `F2` `F3`) | Open the namespace's queues, topics or all subscriptions *(topics: not on Basic tier)* |
+| `m` (`F12`) | Show or hide the metrics panel |
+| `C` | Clear the cache |
 
 ### Queue list / Topic list / Subscription list
 
 | Key | Action |
 |-----|--------|
-| Type | Filter list by name |
-| `Backspace` | Remove last filter character |
-| `↑` / `↓` | Scroll list |
-| `Enter` | Open selected item |
-| `F5` | Refresh (also the metrics charts) |
-| `F9` / `Del` | Delete focused item *(not on the local emulator)* |
-| `F11` | Purge the focused queue's or subscription's dead-letter queue |
+| `Enter` | Open the selected item |
+| `/` | Filter by name: type, `Enter` keeps it, `Esc` clears it |
+| `1` `2` `3` | Queues, Topics, All Subscriptions tab |
+| `:` | Jump to a queue, topic or subscription |
+| `^r` (`F5`) | Refresh (also the metrics) |
+| `D` (`F9`, `Del`) | Delete the focused item *(not on the local emulator)* |
+| `P` (`F11`) | Purge the focused queue's or subscription's dead-letter queue |
+| `m` (`F12`) | Show or hide the metrics panel |
+
+### Jump (`:`)
+
+| Key | Action |
+|-----|--------|
+| Type | Search queues, topics and subscriptions: prefix, then contains, then letters in order; dead letters first |
+| `↑` / `↓` | Choose a match |
+| `Enter` | Open its active messages |
+| `Tab` | Open its dead-letter queue |
+| `^p` / `^r` | Purge or retry its dead-letter queue *(matches with dead letters)* |
+| `^a` | Also search your other namespaces (cached listings) |
+| `Esc` | Close |
 
 ### Metrics panel
 
@@ -327,30 +352,31 @@ Connection screen and lists, Azure namespaces only.
 
 | Key | Action |
 |-----|--------|
-| `F12` | Show or hide the panel |
+| `m` (`F12`) | Show or hide the panel |
 | `+` or `=` | Zoom in: shorter time range |
-| `-` or `_` | Zoom out: longer time range; only while the filter is empty, since names can contain `-` and `_` |
+| `-` or `_` | Zoom out: longer time range; typed into the filter instead while you edit one |
 | `[-]` / `[+]` in the panel header | The same, by click or `Tab` |
 
 ### Queue browser / Subscription browser
 
 | Key | Action |
 |-----|--------|
-| `F6` | Toggle between active queue and DLQ |
-| `F7` | Peek… (count, optional start sequence number) |
-| `F8` | Receive… (count, PeekLock or ReceiveAndDelete) |
-| `Space` | Select / deselect message (or click its checkbox) |
-| `A` / `I` | Select all / invert selection |
-| `Esc` | Clear selection, then back |
-| `F9` / `Del` | Complete *(locked)* |
-| `F4` | Abandon *(locked)* |
-| `F3` | Dead-letter *(locked, active queue)* |
-| `F10` | **Retry** *(dead-letter queue)* / Requeue *(received-and-deleted)* / Resend copy *(peeked, active queue)* |
-| `F11` | Purge |
-| `↑` / `↓` | Move through message list |
-| `Tab` | Move into the preview body (`↑` / `↓` scroll it; page keys keep working) |
+| `1` / `2` (`F6`) | Active messages or dead-letter queue |
+| `p` (`F7`) | Peek… (count, optional start sequence number) |
+| `r` (`F8`) | Receive… (count, PeekLock or ReceiveAndDelete) |
+| `↑` / `↓` | Move through the message list |
+| `Space` | Select / deselect a message (or click its checkbox) |
+| `^a` / `i` | Select all / invert selection |
+| `c` (`F9`, `Del`) | Complete *(locked)* |
+| `a` (`F4`) | Abandon *(locked)* |
+| `X` (`F3`) | Dead-letter *(locked, active queue)* |
+| `R` (`F10`) | **Retry** *(dead-letter queue)* / Requeue *(received-and-deleted)* / Resend copy *(peeked, active queue)* |
+| `P` (`F11`) | Purge |
+| `.` (`F2`) | Plugin actions on the message under the cursor *(when a plugin offers one)* |
+| `:` | Jump to another queue, topic or subscription |
+| `Tab` | Move into the preview (`↑` / `↓` scroll it, `Space` pages down) |
 | `Enter` | Open the message full screen |
-| `F2` | Plugin actions on the message under the cursor *(when a plugin offers one)* |
+| `Esc` | Clear the selection, then back |
 
 Actions apply to the selected messages, or to the focused one when nothing is selected.
 
@@ -358,9 +384,12 @@ Actions apply to the selected messages, or to the focused one when nothing is se
 
 | Key | Action |
 |-----|--------|
-| `↑` / `↓` | Scroll message body |
-| `F9` `F4` `F3` `F10` | Same actions as the browser, for this message |
-| `F2` | Plugin actions on this message *(when a plugin offers one)* |
+| `1` `2` `3` `4` | Body, Properties, Application properties, Raw JSON |
+| `↑` / `↓`, `Space`, page keys | Scroll |
+| `[` / `]` | Previous / next message of the browser's list |
+| `y` | Copy the body to the clipboard (OSC 52) |
+| `c` `a` `X` `R` | Same actions as the browser, for this message |
+| `.` (`F2`) | Plugin actions on this message *(when a plugin offers one)* |
 
 ## Prerequisites
 
@@ -401,7 +430,7 @@ Starts the [Service Bus emulator](https://learn.microsoft.com/azure/service-bus-
 The browser follows the Service Bus Explorer in the Azure portal:
 
 - **Peek** is read-only.
-- **Retry** (dead-letter queue): peek, select the messages to retry, press `F10`. The selected messages are locked, sent to the origin queue (or the topic, for subscriptions: every subscription gets a copy) in order, then removed from the dead-letter queue. Service Bus can only lock from the front of a queue, so dead-lettered messages ahead of them are locked briefly and released; their delivery count goes up by one and they stay in the dead-letter queue. Already locked or received messages are retried the same way, without the extra lock step. On Standard and Premium namespaces each chunk of up to 100 messages moves in one transaction: the copies are sent and the originals completed together, or not at all, so a failure (or `Esc`) leaves the chunk in the dead-letter queue instead of duplicating it. Basic tier namespaces and the local emulator have no transactions: there a failure between sending and completing can leave a copy in the queue while the original stays dead-lettered.
+- **Retry** (dead-letter queue): peek, select the messages to retry, press `R`. The selected messages are locked, sent to the origin queue (or the topic, for subscriptions: every subscription gets a copy) in order, then removed from the dead-letter queue. Service Bus can only lock from the front of a queue, so dead-lettered messages ahead of them are locked briefly and released; their delivery count goes up by one and they stay in the dead-letter queue. Already locked or received messages are retried the same way, without the extra lock step. On Standard and Premium namespaces each chunk of up to 100 messages moves in one transaction: the copies are sent and the originals completed together, or not at all, so a failure (or `Esc`) leaves the chunk in the dead-letter queue instead of duplicating it. Basic tier namespaces and the local emulator have no transactions: there a failure between sending and completing can leave a copy in the queue while the original stays dead-lettered.
 - **Receive (PeekLock)** locks the messages on a receiver that stays open. Locks are renewed in the background and abandoned when you leave the page or load something else, so messages come back right away instead of after lock expiry.
 - **Receive (ReceiveAndDelete)** removes messages immediately; requeue them before leaving or they are gone.
 - **Resend** (active queue, peeked) sends copies; the originals stay.
@@ -415,8 +444,8 @@ The metrics panel charts the current namespace's Azure Monitor metrics: incoming
 - **Lists** (Queues, Topics, Subscriptions, All subscriptions): at the bottom, for the selected queue or topic. A subscription shows its topic's metrics: Azure Monitor has no per-subscription dimension
 - **Connection page**: at the bottom of the screen, below the subscription and namespace lists, for the selected namespace, in a fixed-height area so nothing moves when the selection changes. It needs room for the logo, every subscription row and three namespace rows (about 42 lines and up)
 - **Time range**: `[-] last 24 h [+]` in the panel header steps through 1 h, 3 h, 6 h, 12 h, 1 d, 3 d, 7 d, 14 d and 30 d (default 1 d) and is remembered. The interval (1 minute to 1 day) follows the range and the chart width; the time axis is in minutes, hours or days
-- Cached charts show first, then the live ones; `F5` on a list reloads them
-- Shown by default on terminals of 35+ lines; `F12` shows or hides it, remembered across runs. Always hidden on terminals too short for it
+- Cached charts show first, then the live ones; `^r` on a list reloads them
+- Shown by default on terminals of 35+ lines; `m` shows or hides it, remembered across runs. Always hidden on terminals too short for it
 - Azure namespaces only: the local emulator has no Azure Monitor metrics, so its lists have no panel and the connection page shows a one-line note in its place
 
 ## Releasing
@@ -428,7 +457,7 @@ git tag v1.2.3 origin/main
 git push origin v1.2.3
 ```
 
-The [publish workflow](.github/workflows/publish.yml) runs the tests, packs the tool with the tag's version, pushes it to NuGet.org and creates a GitHub release with generated notes and the package attached. There is no version number in the code.
+The [publish workflow](.github/workflows/publish.yml) runs the tests, packs the tool with the tag's version, pushes it to NuGet.org and creates a GitHub release with generated notes, a native archive per platform and their checksums. There is no version number in the code.
 
 Publishing uses [NuGet trusted publishing](https://learn.microsoft.com/nuget/nuget-org/trusted-publishing) — no API key secret is stored. The workflow exchanges a GitHub OIDC token for a short-lived nuget.org API key via `NuGet/login`.
 
