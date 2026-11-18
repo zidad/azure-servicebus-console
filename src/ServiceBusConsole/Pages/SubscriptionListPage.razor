@@ -29,14 +29,14 @@
         <SpectreTH Width="@Gutter.Width" Padding="@Gutter.Header"></SpectreTH>
         <SpectreTH Align="Justify.Left" Padding="@Gutter.NextHeader"><SortHeader Label="@PageStrings.List_ColumnSubscription" Sort="_sort" OnSorted="@list.Sorted" /></SpectreTH>
         <SpectreTH Align="Justify.Right"><SortHeader Label="@Strings.Active" Sort="_sort" OnSorted="@list.Sorted" /></SpectreTH>
-        <SpectreTH Align="Justify.Right"><SortHeader Label="@Strings.Dlq" Icon="@Icons.DeadLetter" Sort="_sort" OnSorted="@list.Sorted" /></SpectreTH>
+        @if (HasDeadLetters) { <SpectreTH Align="Justify.Right"><SortHeader Label="@Strings.Dlq" Icon="@Icons.DeadLetter" Sort="_sort" OnSorted="@list.Sorted" /></SpectreTH> }
         <SpectreTH Align="Justify.Right"><SortHeader Label="@PageStrings.List_ColumnTransfer" Icon="@Icons.Transfer" Sort="_sort" OnSorted="@list.Sorted" /></SpectreTH>
     </Headers>
     <Row Context="s">
-        <SpectreTD data-padding="@Gutter.Cell"><DeadLetterMark Count="@s.DeadLetterMessageCount" /></SpectreTD>
+        <SpectreTD data-padding="@Gutter.Cell"><DeadLetterMark Count="@(HasDeadLetters ? s.DeadLetterMessageCount : 0)" /></SpectreTD>
         <SpectreTD data-padding="@Gutter.NextCell">@s.Name</SpectreTD>
         <SpectreTD Align="Justify.Right"><CountCell Value="@s.ActiveMessageCount" Highlight="@_changes.Highlight(s, "Active")" /></SpectreTD>
-        <SpectreTD Align="Justify.Right"><CountCell Value="@s.DeadLetterMessageCount" Color="@Theme.Danger" Bold="true" Highlight="@_changes.Highlight(s, "DLQ")" /></SpectreTD>
+        @if (HasDeadLetters) { <SpectreTD Align="Justify.Right"><CountCell Value="@s.DeadLetterMessageCount" Color="@Theme.Danger" Bold="true" Highlight="@_changes.Highlight(s, "DLQ")" /></SpectreTD> }
         <SpectreTD Align="Justify.Right"><CountCell Value="@s.TransferMessageCount" Color="@Theme.Transfer" Highlight="@_changes.Highlight(s, "Transfer")" /></SpectreTD>
     </Row>
 </EntityList>
@@ -50,14 +50,19 @@
                   OnCompleted="@(n => { _list?.Remove(n); return Task.CompletedTask; })" />
 }
 
-<AsyncCommand @ref="_purgeDlq" TItem="string"
-              ConfirmMessage="@(n => PageStrings.FormatList_PurgeDlqConfirm($"{TopicName}/{n}"))"
-              ConfirmByTyping="true"
-              Execute="@(n => Connection.Namespace.Messages.PurgeAsync(new MessageSource.Subscription(TopicName, n, IsDlq: true)).LastOrDefaultAsync().AsTask())"
-              Activity="@(n => PageStrings.FormatList_PurgedDlq($"{TopicName}/{n}"))"
-              OnCompleted="@(n => { _list?.Update(n, s => s with { DeadLetterMessageCount = 0 }); return Task.CompletedTask; })" />
+@if (HasDeadLetters)
+{
+    <AsyncCommand @ref="_purgeDlq" TItem="string"
+                  ConfirmMessage="@(n => PageStrings.FormatList_PurgeDlqConfirm($"{TopicName}/{n}"))"
+                  ConfirmByTyping="true"
+                  Execute="@(n => Connection.Namespace.Messages.PurgeAsync(new MessageSource.Subscription(TopicName, n, IsDlq: true)).LastOrDefaultAsync().AsTask())"
+                  Activity="@(n => PageStrings.FormatList_PurgedDlq($"{TopicName}/{n}"))"
+                  OnCompleted="@(n => { _list?.Update(n, s => s with { DeadLetterMessageCount = 0 }); return Task.CompletedTask; })" />
+}
 
 @code {
+    private bool HasDeadLetters => Connection.Current is IHasDeadLetters;
+
     private ITopicService Topics => Connection.Current is IHasTopics { Topics: var topics } ? topics : throw new InvalidOperationException(PageStrings.List_NoTopics);
 
     private string TopicName => NavState.TopicName ?? "";
@@ -85,7 +90,7 @@
     private IEnumerable<KeyBinding> Commands =>
     [
         .. Connection.Current is IHasDeletion ? [ListKeys.Delete(() => OnFocused(_deleteSub))] : Array.Empty<KeyBinding>(),
-        ListKeys.PurgeDlq(() => OnFocused(_purgeDlq)),
+        .. HasDeadLetters ? [ListKeys.PurgeDlq(() => OnFocused(_purgeDlq))] : Array.Empty<KeyBinding>(),
     ];
 
     private void OnFocused(AsyncCommand<string>? command)

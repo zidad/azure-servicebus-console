@@ -88,7 +88,9 @@
 
     private sealed record JumpAction(string Icon, string Text, string Key, Action Run);
 
-    private IReadOnlyList<JumpAction> Actions => _results.ElementAtOrDefault(_subject) is { DeadLetters: > 0 } t and not JumpTarget.Topic
+    private bool HasDeadLetters => Connection.Current is IHasDeadLetters;
+
+    private IReadOnlyList<JumpAction> Actions => HasDeadLetters && _results.ElementAtOrDefault(_subject) is { DeadLetters: > 0 } t and not JumpTarget.Topic
         ? [new(Icons.DeadLetter, ComponentStrings.FormatJumpDialog_OpenDeadLetter(t.Name), "⇥", () => Open(t, deadLetters: true)),
            new(Icons.Purge, ComponentStrings.FormatJumpDialog_PurgeDeadLetter(t.Name), "^p", () => Run(t, BrowserCommand.Purge)),
            new(Icons.Retry, ComponentStrings.FormatJumpDialog_RetryDeadLetter(t.Name), "^r", () => Run(t, BrowserCommand.Retry))]
@@ -161,7 +163,7 @@
         {
             case "Escape": _ = Close(); return;
             case "Enter": Activate(); return;
-            case "Tab": Open(deadLetters: true); return;
+            case "Tab" when HasDeadLetters: Open(deadLetters: true); return;
             case "ArrowDown": Move(+1); return;
             case "ArrowUp": Move(-1); return;
             case "P" when e.CtrlKey: RunOnSubject(BrowserCommand.Purge); return;

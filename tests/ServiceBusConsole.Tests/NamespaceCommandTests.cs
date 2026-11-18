@@ -24,10 +24,12 @@ public sealed class NamespaceCommandTests
             Namespaces.CurrentSubscriptionId = AppHarness.AzureSubscription.Id;
         }
 
+        public Func<BrokerInfo, FakeServices, IBroker> Open { get; set; } = FakeNamespace.For;
+
         public AppCommands Commands => new(Host.CreateDefaultBuilder(), PluginCatalog.Empty, () =>
             new CommandServices(
                 Namespaces,
-                new FakeNamespaceOpener(info => FakeNamespace.For(info, Services)),
+                new FakeNamespaceOpener(info => Open(info, Services)),
                 new ConfigurationBuilder().AddInMemoryCollection(Settings).Build())
             {
                 Out = Out, Error = Error, Input = () => Input is { } text ? new MemoryStream(Encoding.UTF8.GetBytes(text)) : null,
@@ -127,6 +129,17 @@ public sealed class NamespaceCommandTests
 
         (await cli.RunAsync("list", "--dead-letters")).ShouldBe(ExitCodes.Ok);
         cli.Out.ToString().ShouldContain("billing-queue (missing)");
+    }
+
+    [Test]
+    public async Task DeadLetters_OnABrokerWithout_AreAUsageError()
+    {
+        var cli = new Cli { Open = (info, services) => new FakeQueuesOnlyNamespace(info, services) };
+        cli.Services.Queues.Add(new QueueInfo { Name = "orders" });
+
+        (await cli.RunAsync("peek", "orders", "--dlq")).ShouldBe(ExitCodes.Usage);
+        cli.Error.ToString().ShouldContain("keeps no dead letters");
+        (await cli.RunAsync("peek", "orders")).ShouldBe(ExitCodes.Ok);
     }
 
     [Test]

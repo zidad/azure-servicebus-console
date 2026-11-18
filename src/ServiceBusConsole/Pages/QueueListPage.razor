@@ -27,15 +27,15 @@
         <SpectreTH Width="@Gutter.Width" Padding="@Gutter.Header"></SpectreTH>
         <SpectreTH Align="Justify.Left" Padding="@Gutter.NextHeader"><Columns><SortHeader Label="@PageStrings.List_ColumnQueue" Sort="_sort" OnSorted="@list.Sorted" /><ColumnFilter Filter="@list.Filter" /></Columns></SpectreTH>
         <SpectreTH Align="Justify.Right"><SortHeader Label="@Strings.Active" Sort="_sort" OnSorted="@list.Sorted" /></SpectreTH>
-        <SpectreTH Align="Justify.Right"><SortHeader Label="@Strings.Dlq" Icon="@Icons.DeadLetter" Sort="_sort" OnSorted="@list.Sorted" /></SpectreTH>
+        @if (HasDeadLetters) { <SpectreTH Align="Justify.Right"><SortHeader Label="@Strings.Dlq" Icon="@Icons.DeadLetter" Sort="_sort" OnSorted="@list.Sorted" /></SpectreTH> }
         <SpectreTH Align="Justify.Right"><SortHeader Label="@PageStrings.List_ColumnScheduled" Icon="@Icons.Scheduled" Sort="_sort" OnSorted="@list.Sorted" /></SpectreTH>
         <SpectreTH Align="Justify.Right"><SortHeader Label="@PageStrings.List_ColumnTransfer" Icon="@Icons.Transfer" Sort="_sort" OnSorted="@list.Sorted" /></SpectreTH>
     </Headers>
     <Row Context="q">
-        <SpectreTD data-padding="@Gutter.Cell"><DeadLetterMark Count="@q.DeadLetterMessageCount" /></SpectreTD>
+        <SpectreTD data-padding="@Gutter.Cell"><DeadLetterMark Count="@(HasDeadLetters ? q.DeadLetterMessageCount : 0)" /></SpectreTD>
         <SpectreTD data-padding="@Gutter.NextCell">@q.Name</SpectreTD>
         <SpectreTD Align="Justify.Right"><CountCell Value="@q.ActiveMessageCount" Highlight="@_changes.Highlight(q, "Active")" /></SpectreTD>
-        <SpectreTD Align="Justify.Right"><CountCell Value="@q.DeadLetterMessageCount" Color="@Theme.Danger" Bold="true" Highlight="@_changes.Highlight(q, "DLQ")" /></SpectreTD>
+        @if (HasDeadLetters) { <SpectreTD Align="Justify.Right"><CountCell Value="@q.DeadLetterMessageCount" Color="@Theme.Danger" Bold="true" Highlight="@_changes.Highlight(q, "DLQ")" /></SpectreTD> }
         <SpectreTD Align="Justify.Right"><CountCell Value="@q.ScheduledMessageCount" Color="@Theme.Scheduled" Highlight="@_changes.Highlight(q, "Scheduled")" /></SpectreTD>
         <SpectreTD Align="Justify.Right"><CountCell Value="@q.TransferMessageCount" Color="@Theme.Transfer" Highlight="@_changes.Highlight(q, "Transfer")" /></SpectreTD>
     </Row>
@@ -50,14 +50,19 @@
                   OnCompleted="@(n => { _list?.Remove(n); return Task.CompletedTask; })" />
 }
 
-<AsyncCommand @ref="_purgeDlq" TItem="string"
-              ConfirmMessage="@(n => PageStrings.FormatList_PurgeDlqConfirm(n))"
-              ConfirmByTyping="true"
-              Execute="@(n => Connection.Namespace.Messages.PurgeAsync(new MessageSource.Queue(n, IsDlq: true)).LastOrDefaultAsync().AsTask())"
-              Activity="@(n => PageStrings.FormatList_PurgedDlq(n))"
-              OnCompleted="@(n => { _list?.Update(n, q => q with { DeadLetterMessageCount = 0 }); return Task.CompletedTask; })" />
+@if (HasDeadLetters)
+{
+    <AsyncCommand @ref="_purgeDlq" TItem="string"
+                  ConfirmMessage="@(n => PageStrings.FormatList_PurgeDlqConfirm(n))"
+                  ConfirmByTyping="true"
+                  Execute="@(n => Connection.Namespace.Messages.PurgeAsync(new MessageSource.Queue(n, IsDlq: true)).LastOrDefaultAsync().AsTask())"
+                  Activity="@(n => PageStrings.FormatList_PurgedDlq(n))"
+                  OnCompleted="@(n => { _list?.Update(n, q => q with { DeadLetterMessageCount = 0 }); return Task.CompletedTask; })" />
+}
 
 @code {
+    private bool HasDeadLetters => Connection.Current is IHasDeadLetters;
+
     private EntityList<QueueInfo>? _list;
     private AsyncCommand<string>? _deleteQueue;
     private AsyncCommand<string>? _purgeDlq;
@@ -83,7 +88,7 @@
     private IEnumerable<KeyBinding> Commands =>
     [
         .. Connection.Current is IHasDeletion ? [ListKeys.Delete(() => OnFocused(_deleteQueue))] : Array.Empty<KeyBinding>(),
-        ListKeys.PurgeDlq(() => OnFocused(_purgeDlq)),
+        .. HasDeadLetters ? [ListKeys.PurgeDlq(() => OnFocused(_purgeDlq))] : Array.Empty<KeyBinding>(),
     ];
 
     private void OnFocused(AsyncCommand<string>? command)

@@ -19,6 +19,7 @@ public static class EntityPath
             dlq = true;
         }
         name = name.Replace(SubscriptionsSegment, "/", StringComparison.OrdinalIgnoreCase);
+        if (dlq) BrokerFeatures.DeadLettersOf(ns);
 
         var queue = await ns.Queues.GetQueuesAsync(ct).FirstOrDefaultAsync(q => string.Equals(q.Name, name, StringComparison.OrdinalIgnoreCase), ct);
         if (queue is not null) return new MessageSource.Queue(queue.Name, dlq);

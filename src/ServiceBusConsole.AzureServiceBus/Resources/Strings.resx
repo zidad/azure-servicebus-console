@@ -33,4 +33,7 @@
   <data name="SequenceNumber" xml:space="preserve">
     <value>Sequence #</value>
   </data>
+  <data name="MessageService_LockNeedsDeadLetters" xml:space="preserve">
+    <value>Only dead letters can be locked by a scan.</value>
+  </data>
 </root>

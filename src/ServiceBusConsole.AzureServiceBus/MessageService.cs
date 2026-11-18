@@ -5,7 +5,7 @@ using ServiceBusConsole.AzureServiceBus.Resources;
 
 namespace ServiceBusConsole.AzureServiceBus;
 
-internal sealed class MessageService(ServiceBusClient bus, ILoggerFactory loggerFactory) : IMessageService, IPeekService, ISeekService
+internal sealed class MessageService(ServiceBusClient bus, ILoggerFactory loggerFactory) : IMessageService, IPeekService, ISeekService, IDeadLetterService
 {
     private const int MaxBatch = 250;
     private readonly ILogger _logger = loggerFactory.CreateLogger<MessageService>();
@@ -65,11 +65,13 @@ internal sealed class MessageService(ServiceBusClient bus, ILoggerFactory logger
     // Bounds how far Retry scans a dead-letter queue for the messages it was asked to lock.
     private const int MaxLockScan = 5000;
 
-    public ILockedMessages StartLocking(MessageSource source, IReadOnlyCollection<MessageKey> keys, CancellationToken ct = default)
+    public ILockedMessages StartLocking(MessageSource deadLetters, IReadOnlyCollection<MessageKey> keys, CancellationToken ct = default)
     {
-        _logger.LogInformation("Locking {Count} messages in {Source}", keys.Count, source.DisplayName);
+        // Abandoning the messages it passes would dead-letter unrelated ones in an active queue.
+        if (!deadLetters.IsDlq) throw new ArgumentException(Strings.MessageService_LockNeedsDeadLetters, nameof(deadLetters));
+        _logger.LogInformation("Locking {Count} messages in {Source}", keys.Count, deadLetters.DisplayName);
         // The returned LockedMessages owns the receiver and disposes it.
-        var receiver = CreateReceiver(source, ServiceBusReceiveMode.PeekLock);
+        var receiver = CreateReceiver(deadLetters, ServiceBusReceiveMode.PeekLock);
         return LockedMessages.StartScan(receiver, keys, MaxLockScan, loggerFactory.CreateLogger<LockedMessages>(), ct);
     }
 

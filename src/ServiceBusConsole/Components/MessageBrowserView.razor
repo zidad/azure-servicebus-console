@@ -7,6 +7,7 @@
 @inject ITerminalViewport Viewport
 @inject PluginActions PluginActions
 @inject SessionContext Session
+@inject ServiceBusConnection Connection
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
     <Header>
@@ -20,7 +21,7 @@
         @if (_isAutoForwarding) { <Markup Content="@($"· {Icons.Transfer} {ComponentStrings.MessageBrowserView_AutoForwarding}")" Foreground="@Theme.Transfer" /> }
     </Header>
     <Content>
-        <SourceTabs Entity="@Entity" IsDlq="@_isDlq" OnSwitch="@(dlq => { _ = SwitchDlq(dlq); })">
+        <SourceTabs Entity="@Entity" IsDlq="@_isDlq" HasDeadLetters="@HasDeadLetters" OnSwitch="@(dlq => { _ = SwitchDlq(dlq); })">
             <Columns>
                 <Markup Content="@($" {ModeBadge(Mode)} ")" Background="@ModeColor(Mode)" Foreground="@OnModeColor(Mode)" Decoration="@Decoration.Bold" />
                 <Markup Content="@ModeNote(Mode)" Foreground="@Theme.Muted" />
@@ -219,6 +220,7 @@
     private MessageSource Source => Entity with { IsDlq = _isDlq };
     private BrowseMode Mode => _browser?.Mode ?? BrowseMode.Peek;
     private bool CanRetry => RetryText.CanRetry(Mode, _isDlq);
+    private bool HasDeadLetters => _browser?.HasDeadLetters == true;
     private BrowserSplit Split => FullscreenLayout.Browser(Viewport.Height);
 
     // A short list leaves rows unused; the preview takes them.
@@ -233,9 +235,9 @@
     {
         (_startCommand, NavState.StartCommand) = (NavState.StartCommand, null);
         // Coming back from the message detail page: keep the list, selection and locks.
-        _isDlq = Store.Current is { } current && current.Source with { IsDlq = Entity.IsDlq } == Entity
+        _isDlq = (Store.Current is { } current && current.Source with { IsDlq = Entity.IsDlq } == Entity
             ? current.Source.IsDlq
-            : Entity.IsDlq;
+            : Entity.IsDlq) && Connection.Current is IHasDeadLetters;
         if (Attach()) await Peek(new FetchDialog.Request(DefaultPeekCount, null, false));
         // Back from the detail page after it handled the last message: nothing left to browse.
         else if (Browser.Messages.Count == 0) GoBack();
@@ -374,12 +376,14 @@
             ? [new KeyBinding("p", $"{Icons.Peek} {ComponentStrings.MessageBrowserView_Peek}", () => _peekDialog?.Open()) { Aliases = ["F7"] }]
             : Array.Empty<KeyBinding>(),
         new("r", $"{Icons.Subscription} {ComponentStrings.MessageBrowserView_Receive}", () => _receiveDialog?.Open()) { Aliases = ["F8"] },
-        new("1", $"{Icons.Queue} {Strings.Active}", () => { if (_isDlq) _ = SwitchDlq(false); }) { InFooter = _isDlq, Aliases = _isDlq ? ["F6"] : [] },
-        new("2", $"{Icons.DeadLetter} {Strings.Dlq}", () => { if (!_isDlq) _ = SwitchDlq(true); }) { InFooter = !_isDlq, Aliases = _isDlq ? [] : ["F6"] },
+        .. HasDeadLetters
+            ? [new KeyBinding("1", $"{Icons.Queue} {Strings.Active}", () => { if (_isDlq) _ = SwitchDlq(false); }) { InFooter = _isDlq, Aliases = _isDlq ? ["F6"] : [] },
+               new KeyBinding("2", $"{Icons.DeadLetter} {Strings.Dlq}", () => { if (!_isDlq) _ = SwitchDlq(true); }) { InFooter = !_isDlq, Aliases = _isDlq ? [] : ["F6"] }]
+            : Array.Empty<KeyBinding>(),
         .. Mode == BrowseMode.Locked
             ? [new KeyBinding("c", $"{Icons.Complete} {Strings.Complete}{Targets}", () => Run(_complete)) { Danger = true, Aliases = ["F9", "Delete"] },
                new KeyBinding("a", $"{Icons.Unlocked} {Strings.Abandon}{Targets}", () => Run(_abandon)) { Aliases = ["F4"] },
-               .. _isDlq ? Array.Empty<KeyBinding>()
+               .. _isDlq || !HasDeadLetters ? Array.Empty<KeyBinding>()
                    : [new KeyBinding("X", $"{Icons.DeadLetter} {ComponentStrings.SourceTabs_DeadLetter}{Targets}", () => Run(_deadLetter)) { Danger = true, Aliases = ["F3"] }]]
             : Array.Empty<KeyBinding>(),
         .. CanRetry

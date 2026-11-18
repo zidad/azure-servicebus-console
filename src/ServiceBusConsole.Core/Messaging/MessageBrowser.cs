@@ -94,6 +94,9 @@ public sealed class MessageBrowser(MessageSource source, IBroker ns) : IAsyncDis
 
     public bool CanPeek => Namespace is IHasPeek;
 
+    /// <summary>Whether the source has a dead-letter side to switch to.</summary>
+    public bool HasDeadLetters => Namespace is IHasDeadLetters;
+
     /// <summary>Whether <see cref="PeekAsync"/> can start from a position.</summary>
     public bool CanSeek => Namespace is IHasSeek;
 
@@ -179,7 +182,7 @@ public sealed class MessageBrowser(MessageSource source, IBroker ns) : IAsyncDis
     /// Sends copies to the queue/topic in order and removes the originals, as a pipeline: messages go in chunks as soon as
     /// they are held. With transactions (<see cref="IHasTransactions"/>) each chunk moves in one transaction, sent and
     /// completed together or not at all; without, a chunk's originals are completed once it is sent (at least once). Peeked
-    /// dead-lettered messages are locked first by a scan (<see cref="IMessageService.StartLocking"/>) and sent in the order
+    /// dead-lettered messages are locked first by a scan (<see cref="IDeadLetterService.StartLocking"/>) and sent in the order
     /// it finds them; received-and-deleted ones are only sent.
     /// </summary>
     public Task RetryAsync(IReadOnlyList<MessageInfo> targets)
@@ -231,11 +234,12 @@ public sealed class MessageBrowser(MessageSource source, IBroker ns) : IAsyncDis
     {
         // Scanning releases the messages it passes, which bumps their delivery count. Only the dead-letter
         // queue can afford that: in an active queue it would dead-letter unrelated messages.
-        if (!Source.IsDlq) throw new InvalidOperationException(MessagingStrings.MessageBrowser_RetryNeedsDlq);
+        if (!Source.IsDlq || Namespace is not IHasDeadLetters { DeadLetters: var deadLetters })
+            throw new InvalidOperationException(MessagingStrings.MessageBrowser_RetryNeedsDlq);
         var lockStep = op.Steps[0];
         lockStep.State = StepState.Running;
         Changed?.Invoke();
-        await using var locked = _service.StartLocking(Source, [.. targets.Select(m => m.Key)], op.Token);
+        await using var locked = deadLetters.StartLocking(Source, [.. targets.Select(m => m.Key)], op.Token);
         // The scan is done once its channel completes, even while later steps are still busy.
         _ = locked.Held.Completion.ContinueWith(_ =>
         {
@@ -398,7 +402,7 @@ public sealed class MessageBrowser(MessageSource source, IBroker ns) : IAsyncDis
     }
 
     /// <summary>
-    /// Deletes peeked dead-lettered messages: locks them by a scan (<see cref="IMessageService.StartLocking"/>), then completes
+    /// Deletes peeked dead-lettered messages: locks them by a scan (<see cref="IDeadLetterService.StartLocking"/>), then completes
     /// each as it is held. Only in a dead-letter queue, like <see cref="RetryAsync"/>.
     /// </summary>
     public Task DeleteAsync(IReadOnlyList<MessageInfo> targets) =>

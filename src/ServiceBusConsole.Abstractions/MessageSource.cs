@@ -2,7 +2,10 @@ using ServiceBusConsole.Abstractions.Resources;
 
 namespace ServiceBusConsole.Abstractions;
 
-/// <summary>Where messages are read: a queue or a topic subscription, active or dead-letter.</summary>
+/// <summary>
+/// Where messages are read: a queue or a topic subscription, active or its dead letters (<see cref="IsDlq"/>, only on
+/// an <see cref="IHasDeadLetters"/> broker, which knows where they are kept).
+/// </summary>
 public abstract record MessageSource(bool IsDlq)
 {
     public sealed record Queue(string Name, bool IsDlq = false) : MessageSource(IsDlq)

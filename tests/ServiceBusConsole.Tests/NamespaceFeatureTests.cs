@@ -27,6 +27,30 @@ public sealed class NamespaceFeatureTests
     }
 
     [Test]
+    public async Task WithoutDeadLetters_NoDlqColumnPurgeOrTab_AndTheBrowserPeeksTheActiveQueue()
+    {
+        var app = new AppHarness();
+        app.OpenNamespace = info => new FakeQueuesOnlyNamespace(info, app.Services);
+        app.Queues.Queues.Add(new QueueInfo { Name = "orders", ActiveMessageCount = 1, DeadLetterMessageCount = 3 });
+        app.Messages.Messages.Add(new MessageInfo { Key = MessageKey.From(1), State = MessageState.Peeked, Subject = "order-created" });
+        await using var terminal = await app.OpenQueuesAsync();
+        var frame = await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
+        frame.ContainsText("DLQ").ShouldBeFalse(frame.ScreenText);
+        frame.ContainsText("Purge DLQ").ShouldBeFalse(frame.ScreenText);
+        var queueTable = terminal.FocusKey;
+
+        await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
+        frame = await terminal.WaitForTextAsync("order-created", AppHarness.Timeout, Ct);
+        await AppHarness.WaitForTableFocusAsync(terminal, queueTable);
+
+        frame.ContainsText("Dead-letter").ShouldBeFalse(frame.ScreenText);
+        app.Messages.Peeked.ShouldBe([new MessageSource.Queue("orders")]);
+        await terminal.SendKeyAsync(ConsoleKey.D2, '2', cancellationToken: Ct);
+        await Task.Delay(300, Ct);
+        app.Messages.Peeked.ShouldBe([new MessageSource.Queue("orders")]);
+    }
+
+    [Test]
     public async Task WithDeletion_DeleteButtonAndF9()
     {
         var app = new AppHarness();
