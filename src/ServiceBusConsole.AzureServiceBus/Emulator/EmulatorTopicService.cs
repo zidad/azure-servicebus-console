@@ -5,7 +5,7 @@ using ServiceBusConsole.AzureServiceBus.Resources;
 namespace ServiceBusConsole.AzureServiceBus.Emulator;
 
 /// <summary>Topics and subscriptions from the emulator's config file, counts from peeking: it has no management API.</summary>
-internal sealed class EmulatorTopicService(ServiceBusClient bus, ILogger<EmulatorTopicService> logger) : ITopicService
+internal sealed class EmulatorTopicService(ServiceBusClient bus, EmulatorSettings settings, ILogger<EmulatorTopicService> logger) : ITopicService
 {
     // Two peeks per subscription, run a few at a time.
     private const int MaxConcurrency = 8;
@@ -13,7 +13,7 @@ internal sealed class EmulatorTopicService(ServiceBusClient bus, ILogger<Emulato
     public IAsyncEnumerable<TopicInfo> GetTopicsAsync(CancellationToken ct = default)
     {
         logger.LogInformation("Listing topics");
-        return EmulatorCounts.Config().Topics
+        return EmulatorCounts.Config(settings).Topics
             .Select(t => new TopicInfo { Name = t.Name, SubscriptionCount = t.Subscriptions.Count })
             .ToAsyncEnumerable();
     }
@@ -28,17 +28,17 @@ internal sealed class EmulatorTopicService(ServiceBusClient bus, ILogger<Emulato
     {
         logger.LogInformation("Listing all subscriptions across all topics");
         return AsyncParallel.MapAsync(
-            EmulatorCounts.Config().Topics.SelectMany(t => Subscriptions(t.Name)).ToAsyncEnumerable(),
+            EmulatorCounts.Config(settings).Topics.SelectMany(t => Subscriptions(t.Name)).ToAsyncEnumerable(),
             PeekSubscriptionAsync, MaxConcurrency, ct);
     }
 
     public IAsyncEnumerable<SubscriptionForwarding> GetForwardingAsync(CancellationToken ct = default) =>
-        EmulatorCounts.Config().Topics
+        EmulatorCounts.Config(settings).Topics
             .SelectMany(t => t.Subscriptions.Select(s => new SubscriptionForwarding(t.Name, s.Name, null, null)))
             .ToAsyncEnumerable();
 
-    private static IEnumerable<(string Topic, string Subscription)> Subscriptions(string topicName) =>
-        (EmulatorCounts.Config().Topics.FirstOrDefault(t => t.Name == topicName)
+    private IEnumerable<(string Topic, string Subscription)> Subscriptions(string topicName) =>
+        (EmulatorCounts.Config(settings).Topics.FirstOrDefault(t => t.Name == topicName)
             ?? throw new InvalidOperationException(Strings.FormatEmulatorTopicService_TopicNotFound(topicName)))
         .Subscriptions.Select(s => (topicName, s.Name));
 

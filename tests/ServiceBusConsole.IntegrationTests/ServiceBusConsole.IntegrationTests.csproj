@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsAotCompatible>false</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/ServiceBusConsole.AzureServiceBus/ServiceBusConsole.AzureServiceBus.csproj" />
+    <ProjectReference Include="../../tools/ServiceBusConsole.AppHost/ServiceBusConsole.AppHost.csproj" />
+    <PackageReference Include="Aspire.Hosting.Testing" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="emulator/Config.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="ServiceBusConsole.Abstractions" />
+    <Using Include="ServiceBusConsole.AzureServiceBus" />
+  </ItemGroup>
+</Project>

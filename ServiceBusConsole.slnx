@@ -19,6 +19,10 @@
     <Project Path="tests/ServiceBusConsole.Plugins.Linear.Tests/ServiceBusConsole.Plugins.Linear.Tests.csproj" />
     <Project Path="tests/ServiceBusConsole.Plugins.Claude.Tests/ServiceBusConsole.Plugins.Claude.Tests.csproj" />
     <Project Path="tests/ServiceBusConsole.Plugins.Trace.Tests/ServiceBusConsole.Plugins.Trace.Tests.csproj" />
+    <Project Path="tests/ServiceBusConsole.IntegrationTests/ServiceBusConsole.IntegrationTests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/ServiceBusConsole.AppHost/ServiceBusConsole.AppHost.csproj" />
   </Folder>
   <Folder Name="/lib/">
     <Project Path="lib/RazorConsole/src/RazorConsole.Core/RazorConsole.Core.csproj" />

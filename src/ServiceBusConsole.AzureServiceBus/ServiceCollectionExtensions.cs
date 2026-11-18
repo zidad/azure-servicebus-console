@@ -10,9 +10,15 @@ public static class ServiceCollectionExtensions
     /// Azure Service Bus, signed in through the Azure CLI: the namespace listing and the <see cref="IBrokerOpener"/>.
     /// Registered <see cref="IBrokerDecorator"/>s wrap the services of each namespace it opens.
     /// </summary>
-    public static IServiceCollection AddAzureServiceBus(this IServiceCollection services) => services
-        .AddSingleton(new AzureCliCredential())
-        .AddSingleton(sp => new ArmClient(sp.GetRequiredService<AzureCliCredential>()))
-        .AddSingleton<IConnectionCatalog, NamespaceService>()
-        .AddSingleton<IBrokerOpener, NamespaceOpener>();
+    public static IServiceCollection AddAzureServiceBus(this IServiceCollection services, Action<AzureServiceBusBuilder>? configure = null)
+    {
+        var builder = new AzureServiceBusBuilder();
+        configure?.Invoke(builder);
+        return services
+            .AddSingleton(builder.EmulatorSettings)
+            .AddSingleton(new AzureCliCredential())
+            .AddSingleton(sp => new ArmClient(sp.GetRequiredService<AzureCliCredential>()))
+            .AddSingleton<IConnectionCatalog, NamespaceService>()
+            .AddSingleton<IBrokerOpener, NamespaceOpener>();
+    }
 }

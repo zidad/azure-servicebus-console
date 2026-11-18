@@ -32,7 +32,7 @@ internal static class EmulatorCounts
         return (await CountAsync(SubQueue.None), await CountAsync(SubQueue.DeadLetter));
     }
 
-    public static EmulatorNamespaceDef Config() =>
-        EmulatorConfigReader.TryLoad()
+    public static EmulatorNamespaceDef Config(EmulatorSettings settings) =>
+        EmulatorConfigReader.TryLoad(settings.ConfigFile)
             ?? throw new InvalidOperationException(Strings.EmulatorCounts_ConfigNotFound);
 }

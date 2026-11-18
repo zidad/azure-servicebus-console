@@ -1,0 +1,27 @@
+{
+  "UserConfig": {
+    "Namespaces": [
+      {
+        "Name": "sbemulatorns",
+        "Queues": [
+          { "Name": "it-list", "Properties": { "DefaultMessageTimeToLive": "PT1H" } },
+          { "Name": "it-peek", "Properties": { "DefaultMessageTimeToLive": "PT1H" } },
+          { "Name": "it-settle", "Properties": { "DefaultMessageTimeToLive": "PT1H", "MaxDeliveryCount": 10 } },
+          { "Name": "it-retry", "Properties": { "DefaultMessageTimeToLive": "PT1H", "DeadLetteringOnMessageExpiration": true } }
+        ],
+        "Topics": [
+          {
+            "Name": "it-events",
+            "Properties": { "DefaultMessageTimeToLive": "PT1H" },
+            "Subscriptions": [
+              { "Name": "it-audit", "Properties": { "DefaultMessageTimeToLive": "PT1H" } }
+            ]
+          }
+        ]
+      }
+    ],
+    "Logging": {
+      "Type": "File"
+    }
+  }
+}
