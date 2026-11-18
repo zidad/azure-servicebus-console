@@ -62,7 +62,7 @@
 
     private RenderFragment PropertiesView(int width, int height) =>
         @<Flex Direction="FlexDirection.Column" Width="@width">
-            <ViewHeightScrollable LinesToRender="@height" Scrollbar="@Theme.Scrollbar()" OnKeyDown="@OnKeyDown">
+            <ScrollBox Height="@height" Scrollbar="@Theme.Scrollbar()" OnKeyDown="@OnKeyDown">
                 <SpectreTable BorderColor="@Theme.Border" Expand="true" Border="TableBorder.None">
                     <SpectreTBody>
                         @foreach (var (name, value, color) in Properties())
@@ -74,7 +74,7 @@
                         }
                     </SpectreTBody>
                 </SpectreTable>
-            </ViewHeightScrollable>
+            </ScrollBox>
         </Flex>;
 
     private RenderFragment BodyView(int height) =>
@@ -83,7 +83,7 @@
                 <Markup Content="@($"{Icons.Body} {ComponentStrings.MessagePreview_Body}")" Foreground="@Theme.Muted" Decoration="@Decoration.Bold" />
                 <Markup Content="@BodySummary" Foreground="@Theme.Muted" />
             </Columns>
-            <ViewHeightScrollable LinesToRender="@Math.Max(1, height - 1)" Scrollbar="@Theme.Scrollbar()" FocusOrder="@BodyFocusOrder" OnKeyDown="@OnKeyDown">
+            <ScrollBox Height="@Math.Max(1, height - 1)" Scrollbar="@Theme.Scrollbar()" FocusOrder="@BodyFocusOrder" OnKeyDown="@OnKeyDown">
                 @if (FormatJson(Message.BodyText) is { } json)
                 {
                     <SyntaxHighlighter Code="@json" Language="json" ShowLineNumbers="true" />
@@ -92,7 +92,7 @@
                 {
                     <Markup Content="@Message.BodyText" />
                 }
-            </ViewHeightScrollable>
+            </ScrollBox>
         </Rows>;
 
     private string BodySummary => string.Join(" · ",

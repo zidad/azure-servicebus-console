@@ -1,0 +1,44 @@
+@using System.Globalization
+@using RazorConsole.Core.Layout
+
+@* A Tab stop that scrolls its content: the engine scrolls on arrows, paging keys, Home, End and the wheel; Space pages down; other keys go to OnKeyDown. *@
+<Box Height="@Height" FillWidth="true" Overflow="OverflowMode.Scroll" Focusable="true" Controller="@_scroll"
+     Scrollbar="@(_focused ? FocusedScrollbar : Scrollbar)"
+     data-focus-order="@FocusOrder?.ToString(CultureInfo.InvariantCulture)"
+     @onfocus="() => _focused = true" @onfocusout="() => _focused = false"
+     @onkeydown="HandleKeyDown">
+    @ChildContent
+</Box>
+
+@code {
+    private readonly ScrollController _scroll = new();
+    private bool _focused;
+    private string? _shownKey;
+
+    [Parameter, EditorRequired] public required int Height { get; set; }
+    [Parameter] public int? FocusOrder { get; set; }
+    [Parameter] public ScrollbarSettings? Scrollbar { get; set; }
+    [Parameter] public EventCallback<KeyboardEventArgs> OnKeyDown { get; set; }
+
+    // Scrolls back to the top when it changes; unlike @key it keeps focus, which a remounted box loses for a render.
+    [Parameter] public string? ContentKey { get; set; }
+    [Parameter, EditorRequired] public required RenderFragment ChildContent { get; set; }
+
+    protected override Task OnParametersSetAsync()
+    {
+        if (ContentKey == _shownKey) return Task.CompletedTask;
+        _shownKey = ContentKey;
+        return _scroll.IsAttached ? _scroll.ScrollToStartAsync() : Task.CompletedTask;
+    }
+
+    private ScrollbarSettings? FocusedScrollbar => Scrollbar is { } bar
+        ? bar with { TrackColor = bar.TrackFocusedColor, ThumbColor = bar.ThumbFocusedColor }
+        : null;
+
+    private Task HandleKeyDown(KeyboardEventArgs e) => e.Key switch
+    {
+        "ArrowUp" or "ArrowDown" or "PageUp" or "PageDown" or "Home" or "End" => Task.CompletedTask,
+        " " => _scroll.ScrollByAsync(Math.Max(1, _scroll.Metrics.ViewportHeight)),
+        _ => OnKeyDown.InvokeAsync(e),
+    };
+}

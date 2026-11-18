@@ -261,6 +261,31 @@ public sealed class MessageBrowserTests
     }
 
     [Test]
+    public async Task LongBody_ZoomScrollsToItsEnd()
+    {
+        var app = new AppHarness();
+        app.Queues.Queues.Add(new QueueInfo { Name = "orders", ActiveMessageCount = 2 });
+        var body = "[" + string.Join(",", Enumerable.Range(1, 1700).Select(i => $"{{\"line\":{i}}}")) + "]";
+        app.Messages.Messages.AddRange([Message(1, "big", body), Message(2, "small", "{}")]);
+        var terminal = await app.OpenQueuesAsync();
+        await using var _ = terminal;
+        await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
+        var queueTable = terminal.FocusKey;
+        await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
+        await terminal.WaitForTextAsync("\"line\": 1", AppHarness.Timeout, Ct);
+        await AppHarness.WaitForTableFocusAsync(terminal, queueTable);
+        var list = terminal.FocusKey;
+
+        await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
+        await terminal.WaitForTextAsync("Message #1", AppHarness.Timeout, Ct);
+        await AppHarness.WaitForFocusAsync(terminal, "0", list);
+        await terminal.SendKeyAsync(ConsoleKey.End, '\0', cancellationToken: Ct);
+
+        var frame = await terminal.WaitForTextAsync("\"line\": 1700", AppHarness.Timeout, Ct);
+        frame.ContainsText("   1 [").ShouldBeFalse(frame.ScreenText);
+    }
+
+    [Test]
     public async Task Preview_FollowsTheCursor()
     {
         var (_, terminal) = await OpenOrdersAsync();
@@ -284,7 +309,7 @@ public sealed class MessageBrowserTests
 
         await terminal.SendKeyAsync(ConsoleKey.Tab, '\t', cancellationToken: Ct);
         await terminal.WaitUntilAsync(_ => terminal.FocusKey != listFocus, AppHarness.Timeout, cancellationToken: Ct);
-        AppHarness.FocusedAttribute(terminal, "data-scrollbar").ShouldBe("true");
+        AppHarness.FocusedAttribute(terminal, "data-overflow").ShouldBe("scroll");
         AppHarness.FocusedAttribute(terminal, "data-focus-order").ShouldBe("2");
         await terminal.SendKeyAsync(ConsoleKey.Escape, '\u001b', cancellationToken: Ct);
 
@@ -422,7 +447,7 @@ public sealed class MessageBrowserTests
 
     // The detail page focuses its body after rendering; keys sent before that reach the old page.
     private static Task WaitForDetailFocusAsync(RazorConsole.Testing.HeadlessTerminal terminal, string? browserFocus)
-        => terminal.WaitUntilAsync(_ => terminal.FocusKey != browserFocus && AppHarness.FocusedAttribute(terminal, "data-scrollbar") == "true",
+        => terminal.WaitUntilAsync(_ => terminal.FocusKey != browserFocus && AppHarness.FocusedAttribute(terminal, "data-overflow") == "scroll",
             AppHarness.Timeout, cancellationToken: Ct);
 
     [Test]
