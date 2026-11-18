@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ServiceBusConsole.AzureServiceBus;
 
-internal sealed class NamespaceService(ArmClient armClient, ILogger<NamespaceService> logger) : INamespaceService
+internal sealed class NamespaceService(ArmClient armClient, ILogger<NamespaceService> logger) : IConnectionCatalog
 {
     // Bounds live namespace checks across all subscriptions; cached answers never wait for this.
     private readonly SemaphoreSlim _checks = new(4);
@@ -43,10 +43,10 @@ internal sealed class NamespaceService(ArmClient armClient, ILogger<NamespaceSer
         yield return has;
     }
 
-    public IAsyncEnumerable<NamespaceInfo> GetNamespacesAsync(string subscriptionId, CancellationToken ct = default)
+    public IAsyncEnumerable<BrokerInfo> GetNamespacesAsync(string subscriptionId, CancellationToken ct = default)
     {
         logger.LogInformation("Listing namespaces for subscription {SubscriptionId}", subscriptionId);
-        return Subscription(subscriptionId).GetServiceBusNamespacesAsync(ct).Select(ns => new NamespaceInfo
+        return Subscription(subscriptionId).GetServiceBusNamespacesAsync(ct).Select(ns => new BrokerInfo
         {
             Name = ns.Data.Name,
             FullyQualifiedNamespace = $"{ns.Data.Name}.servicebus.windows.net",

@@ -32,7 +32,7 @@
     private string? _loadedFor;
 
     /// <summary>Keys 1, 2, 3 for the other sections; the tabs show them, so they stay out of the footer.</summary>
-    public static IEnumerable<KeyBinding> Bindings(IServiceBusNamespace? ns, Section current, NavigationManager nav) =>
+    public static IEnumerable<KeyBinding> Bindings(IBroker? ns, Section current, NavigationManager nav) =>
         Section.Of(ns).Select((s, i) => new KeyBinding($"{i + 1}", s.Label, () => { if (s != current) nav.NavigateTo(s.Route); }) { InFooter = false });
 
     protected override async Task OnParametersSetAsync()

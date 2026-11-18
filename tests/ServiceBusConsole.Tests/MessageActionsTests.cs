@@ -12,7 +12,7 @@ public sealed class MessageActionsTests
 
     private static MessageInfo Message(long sequence, string subject) => new()
     {
-        SequenceNumber = sequence,
+        Key = MessageKey.From(sequence), SequenceNumber = sequence,
         State = MessageState.Peeked,
         MessageId = $"msg-{sequence}",
         Subject = subject,

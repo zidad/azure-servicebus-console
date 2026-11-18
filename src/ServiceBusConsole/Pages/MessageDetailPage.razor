@@ -186,7 +186,7 @@ else
         : null;
 
     private int? IndexInList => _browser is { } b && NavState.Message is { } m
-        && b.Messages.Select((x, i) => (x, i)).FirstOrDefault(e => e.x.SequenceNumber == m.SequenceNumber) is { x: not null } found
+        && b.Messages.Select((x, i) => (x, i)).FirstOrDefault(e => e.x.Key == m.Key) is { x: not null } found
             ? found.i : null;
 
     private void ShowTab(int tab)
@@ -295,7 +295,7 @@ else
         new("Escape", $"{Icons.Back} {Strings.Back}", GoBack),
     ];
 
-    private static readonly MessageInfo EmptyMessage = new() { SequenceNumber = 0, State = MessageState.Peeked };
+    private static readonly MessageInfo EmptyMessage = new() { Key = MessageKey.From(0), SequenceNumber = 0, State = MessageState.Peeked };
 
     private void HandleKeyDown(KeyboardEventArgs e)
     {

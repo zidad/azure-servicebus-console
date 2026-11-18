@@ -42,7 +42,7 @@ public sealed record CheckCommand : NamespaceCommand
     {
         var ct = context.Token;
         AzureSubscription subscription;
-        NamespaceInfo info;
+        BrokerInfo info;
         Step resolved;
         try
         {
@@ -51,7 +51,7 @@ public sealed record CheckCommand : NamespaceCommand
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            (subscription, info) = (AzureSubscription.Emulator, NamespaceInfo.Emulator);
+            (subscription, info) = (AzureSubscription.Emulator, BrokerInfo.Emulator);
             resolved = new(CommandLineStrings.CheckCommand_Namespace, false, ex.Message.Split('\n')[0], CommandLineStrings.CheckCommand_SignInHint);
         }
         yield return resolved;
@@ -118,7 +118,7 @@ public sealed record CheckCommand : NamespaceCommand
     }
 
     // A dead-letter queue when there is one with messages, else any queue or subscription.
-    private static async Task<MessageSource?> SampleSourceAsync(IServiceBusNamespace ns, CancellationToken ct)
+    private static async Task<MessageSource?> SampleSourceAsync(IBroker ns, CancellationToken ct)
     {
         var queues = await ns.Queues.GetQueuesAsync(ct).ToListAsync(ct);
         if (queues.FirstOrDefault(q => q.DeadLetterMessageCount > 0) is { } withDlq) return new MessageSource.Queue(withDlq.Name, IsDlq: true);

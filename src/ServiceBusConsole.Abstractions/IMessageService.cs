@@ -16,7 +16,7 @@ public interface IMessageService
     /// Starts locking these messages by receiving from the front; each arrives on <see cref="ILockedMessages.Held"/>.
     /// Messages passed on the way are released (delivery count + 1).
     /// </summary>
-    ILockedMessages StartLocking(MessageSource source, IReadOnlyCollection<long> sequenceNumbers, CancellationToken ct = default);
+    ILockedMessages StartLocking(MessageSource source, IReadOnlyCollection<MessageKey> keys, CancellationToken ct = default);
 
     /// <summary>
     /// Sends copies of messages this service returned, in order and in as few batches as fit;

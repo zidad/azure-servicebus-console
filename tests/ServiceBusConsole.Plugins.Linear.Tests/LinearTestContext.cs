@@ -8,7 +8,7 @@ internal static class LinearTestContext
 {
     public static readonly MessageInfo Message = new()
     {
-        SequenceNumber = 42,
+        Key = MessageKey.From(42), SequenceNumber = 42,
         State = MessageState.Peeked,
         MessageId = "msg-1",
         Subject = "OrderPlaced",
@@ -27,7 +27,7 @@ internal static class LinearTestContext
         Session = new SessionSnapshot
         {
             At = DateTimeOffset.UnixEpoch,
-            Namespace = new NamespaceInfo { Name = "acme-prod", FullyQualifiedNamespace = "acme-prod.servicebus.windows.net", ResourceGroup = "rg", Location = "westeurope" },
+            Namespace = new BrokerInfo { Name = "acme-prod", FullyQualifiedNamespace = "acme-prod.servicebus.windows.net", ResourceGroup = "rg", Location = "westeurope" },
             Source = Source,
             Mode = "Peek",
             Message = message ?? Message,

@@ -117,7 +117,7 @@ public sealed class QueueListPageTests
     {
         var app = WithQueues();
         await new FileCache(NullLogger<FileCache>.Instance, app.CacheDirectory).SaveAsync(
-            CacheKeys.Topics(NamespaceInfo.Emulator), [new TopicInfo { Name = "orders" }, new TopicInfo { Name = "refunds" }]);
+            CacheKeys.Topics(BrokerInfo.Emulator), [new TopicInfo { Name = "orders" }, new TopicInfo { Name = "refunds" }]);
         await using var terminal = await app.OpenQueuesAsync();
 
         // The cached Topics count can render a frame after the live Queues count.
@@ -344,9 +344,9 @@ public sealed class QueueListPageTests
     }
 
     // The real opener caches listings (CachingNamespaceDecorator): going back shows cached rows first.
-    private sealed class CachedQueuesNamespace(IServiceBusNamespace inner, FileCache cache) : IServiceBusNamespace
+    private sealed class CachedQueuesNamespace(IBroker inner, FileCache cache) : IBroker
     {
-        public NamespaceInfo Info => inner.Info;
+        public BrokerInfo Info => inner.Info;
         public IQueueService Queues { get; } = new CachingNamespaceDecorator(cache).Decorate(inner.Info, inner.Queues);
         public IMessageService Messages => inner.Messages;
         public ValueTask DisposeAsync() => inner.DisposeAsync();

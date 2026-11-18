@@ -10,7 +10,7 @@ public static class EntityPath
     private const string DeadLetterSuffix = "/$DeadLetterQueue";
     private const string SubscriptionsSegment = "/Subscriptions/";
 
-    public static async Task<MessageSource> ResolveAsync(IServiceBusNamespace ns, string path, bool dlq, CancellationToken ct)
+    public static async Task<MessageSource> ResolveAsync(IBroker ns, string path, bool dlq, CancellationToken ct)
     {
         var name = path.Trim().Trim('/');
         if (name.EndsWith(DeadLetterSuffix, StringComparison.OrdinalIgnoreCase))
@@ -42,7 +42,7 @@ public static class EntityPath
     private static CommandFailure NotFound(string name) => new(ExitCodes.NotFound, CommandLineStrings.FormatEntityPath_NotFound(name));
 
     /// <summary>A queue or topic to send to.</summary>
-    public static async Task<string> ResolveSendTargetAsync(IServiceBusNamespace ns, string path, CancellationToken ct)
+    public static async Task<string> ResolveSendTargetAsync(IBroker ns, string path, CancellationToken ct)
     {
         var name = path.Trim().Trim('/');
         var queue = await ns.Queues.GetQueuesAsync(ct).FirstOrDefaultAsync(q => string.Equals(q.Name, name, StringComparison.OrdinalIgnoreCase), ct);

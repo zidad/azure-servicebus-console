@@ -10,7 +10,7 @@ namespace ServiceBusConsole.UI.Explorer;
 /// </summary>
 public sealed class ExplorerTree(
     SubscriptionCatalog catalog,
-    INamespaceService namespaces,
+    IConnectionCatalog namespaces,
     RecentNamespaces recent,
     ILogger<ExplorerTree> logger) : IDisposable
 {
@@ -193,7 +193,7 @@ public sealed class ExplorerTree(
         list.Upsert(node, n => n.Key == node.Key);
     }
 
-    public readonly record struct Listing(IReadOnlyList<NamespaceInfo> Namespaces, bool Done);
+    public readonly record struct Listing(IReadOnlyList<BrokerInfo> Namespaces, bool Done);
 
     public void Dispose()
     {

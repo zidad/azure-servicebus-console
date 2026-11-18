@@ -6,15 +6,15 @@ namespace ServiceBusConsole.AzureServiceBus.Tests;
 
 public sealed class NamespaceOpenerTests
 {
-    private static NamespaceOpener Opener(params INamespaceDecorator[] decorators) =>
+    private static NamespaceOpener Opener(params IBrokerDecorator[] decorators) =>
         new(new AzureCliCredential(), new ArmClient(new AzureCliCredential()), NullLoggerFactory.Instance, decorators);
 
-    private static NamespaceInfo Azure(string? sku) => new()
+    private static BrokerInfo Azure(string? sku) => new()
     {
         Name = "sb-orders", FullyQualifiedNamespace = "sb-orders.servicebus.windows.net", ResourceGroup = "rg", Location = "West Europe", Sku = sku,
     };
 
-    private static string[] Features(IServiceBusNamespace ns) =>
+    private static string[] Features(IBroker ns) =>
     [
         .. new (bool Has, string Name)[]
             {
@@ -27,7 +27,7 @@ public sealed class NamespaceOpenerTests
     [Test]
     public async Task Emulator_HasTopics_ButNoMetricsDeletionOrTransactions()
     {
-        await using var ns = Opener().Open(NamespaceInfo.Emulator);
+        await using var ns = Opener().Open(BrokerInfo.Emulator);
 
         ns.ShouldBeOfType<EmulatorNamespace>();
         Features(ns).ShouldBe(["topics"]);
@@ -68,7 +68,7 @@ public sealed class NamespaceOpenerTests
         ns.ShouldBeAssignableTo<IHasDeletion>().Deletion.ShouldBeOfType<Tagging.Deletion>();
     }
 
-    private sealed class Tagging : INamespaceDecorator
+    private sealed class Tagging : IBrokerDecorator
     {
         public sealed class Queues(IQueueService inner) : IQueueService
         {
@@ -100,9 +100,9 @@ public sealed class NamespaceOpenerTests
                 inner.DeleteSubscriptionAsync(topicName, subscriptionName, ct);
         }
 
-        public IQueueService Decorate(NamespaceInfo ns, IQueueService queues) => new Queues(queues);
-        public ITopicService Decorate(NamespaceInfo ns, ITopicService topics) => new Topics(topics);
-        public IMetricsService Decorate(NamespaceInfo ns, IMetricsService metrics) => new Metrics(metrics);
-        public IDeletionService Decorate(NamespaceInfo ns, IDeletionService deletion) => new Deletion(deletion);
+        public IQueueService Decorate(BrokerInfo ns, IQueueService queues) => new Queues(queues);
+        public ITopicService Decorate(BrokerInfo ns, ITopicService topics) => new Topics(topics);
+        public IMetricsService Decorate(BrokerInfo ns, IMetricsService metrics) => new Metrics(metrics);
+        public IDeletionService Decorate(BrokerInfo ns, IDeletionService deletion) => new Deletion(deletion);
     }
 }

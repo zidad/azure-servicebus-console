@@ -34,7 +34,7 @@ public abstract record ExplorerNode
             base.Matches(filter) || (Value.Id?.Contains(filter, StringComparison.OrdinalIgnoreCase) ?? false);
     }
 
-    public sealed record Namespace(Subscription Parent, NamespaceInfo Info) : ExplorerNode
+    public sealed record Namespace(Subscription Parent, BrokerInfo Info) : ExplorerNode
     {
         public override string Key => $"{Parent.Key}/{Info.FullyQualifiedNamespace}";
         public override string Name => Info.Name;

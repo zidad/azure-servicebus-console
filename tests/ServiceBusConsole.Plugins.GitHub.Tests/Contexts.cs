@@ -7,7 +7,7 @@ internal static class Contexts
 {
     public static readonly MessageInfo Message = new()
     {
-        SequenceNumber = 42,
+        Key = MessageKey.From(42), SequenceNumber = 42,
         State = MessageState.Peeked,
         MessageId = "msg-42",
         Subject = "order-created",
@@ -21,7 +21,7 @@ internal static class Contexts
     public static readonly SessionSnapshot Session = new()
     {
         At = DateTimeOffset.UnixEpoch,
-        Namespace = new NamespaceInfo
+        Namespace = new BrokerInfo
         {
             Name = "sb-orders-dev", FullyQualifiedNamespace = "sb-orders-dev.servicebus.windows.net", ResourceGroup = "rg-orders", Location = "westeurope", Sku = "Standard",
         },

@@ -1,7 +1,7 @@
 namespace ServiceBusConsole.Abstractions;
 
-public interface INamespaceOpener
+public interface IBrokerOpener
 {
     /// <summary>The namespace with the features its kind and tier have; connects on first use.</summary>
-    IServiceBusNamespace Open(NamespaceInfo info);
+    IBroker Open(BrokerInfo info);
 }

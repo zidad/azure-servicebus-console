@@ -45,7 +45,7 @@ public sealed class NamespaceCommandTests
 
     private static MessageInfo Message(long sequence, string id = "", string body = "{}", params KeyValuePair<string, string>[] properties) => new()
     {
-        SequenceNumber = sequence, State = MessageState.Peeked, MessageId = id.Length > 0 ? id : $"msg-{sequence}",
+        Key = MessageKey.From(sequence), SequenceNumber = sequence, State = MessageState.Peeked, MessageId = id.Length > 0 ? id : $"msg-{sequence}",
         Body = Encoding.UTF8.GetBytes(body), Properties = properties, DeadLetterReason = "MaxDeliveryCountExceeded",
     };
 

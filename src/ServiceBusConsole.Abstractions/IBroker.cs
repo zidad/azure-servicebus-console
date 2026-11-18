@@ -5,9 +5,9 @@ namespace ServiceBusConsole.Abstractions;
 /// (<see cref="IHasTopics"/>, <see cref="IHasMetrics"/>, <see cref="IHasDeletion"/>). Owns its connections; disposing
 /// it closes them.
 /// </summary>
-public interface IServiceBusNamespace : IAsyncDisposable
+public interface IBroker : IAsyncDisposable
 {
-    NamespaceInfo Info { get; }
+    BrokerInfo Info { get; }
     IQueueService Queues { get; }
     IMessageService Messages { get; }
 }

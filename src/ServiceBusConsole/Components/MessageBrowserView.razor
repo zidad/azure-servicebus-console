@@ -99,7 +99,7 @@
                             @* Settled rows and lost locks stay, dimmed: nothing more can be done to them. *@
                             var done = !browser.CanAct(m);
                             var text = done ? Theme.Settled : Color.Default;
-                            <SelectableRow @key="m.SequenceNumber" RowIndex="@idx">
+                            <SelectableRow @key="m.Key" RowIndex="@idx">
                                 <SpectreTD data-padding="@Gutter.Cell">
                                     @if ((showChecks || isCursor) && !done)
                                     {
@@ -339,18 +339,18 @@
 
     // One delegate per row keeps its event handler id stable across renders; a fresh lambda
     // gets a new id each render, and a click spanning a render would hit a stale one.
-    private readonly Dictionary<long, Action> _toggleHandlers = [];
+    private readonly Dictionary<MessageKey, Action> _toggleHandlers = [];
 
     private Action ToggleHandler(MessageInfo m)
     {
-        if (!_toggleHandlers.TryGetValue(m.SequenceNumber, out var handler))
-            _toggleHandlers[m.SequenceNumber] = handler = () => ToggleBySequence(m.SequenceNumber);
+        if (!_toggleHandlers.TryGetValue(m.Key, out var handler))
+            _toggleHandlers[m.Key] = handler = () => ToggleByKey(m.Key);
         return handler;
     }
 
-    private void ToggleBySequence(long sequenceNumber)
+    private void ToggleByKey(MessageKey key)
     {
-        if (Browser.Messages.FirstOrDefault(x => x.SequenceNumber == sequenceNumber) is { } m) Toggle(m);
+        if (Browser.Messages.FirstOrDefault(x => x.Key == key) is { } m) Toggle(m);
     }
 
     private void ToggleAll()

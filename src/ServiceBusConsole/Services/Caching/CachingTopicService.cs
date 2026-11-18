@@ -1,6 +1,6 @@
 namespace ServiceBusConsole.Services.Caching;
 
-public sealed class CachingTopicService(ITopicService inner, NamespaceInfo ns, FileCache cache) : ITopicService
+public sealed class CachingTopicService(ITopicService inner, BrokerInfo ns, FileCache cache) : ITopicService
 {
     public IAsyncEnumerable<TopicInfo> GetTopicsAsync(CancellationToken ct = default) =>
         cache.CachedThenLiveAsync(CacheKeys.Topics(ns), () => inner.GetTopicsAsync(ct), t => t with { IsRefreshing = true }, ct);

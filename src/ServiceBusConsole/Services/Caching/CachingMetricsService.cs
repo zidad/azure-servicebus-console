@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 namespace ServiceBusConsole.Services.Caching;
 
 /// <summary>The cached metrics of the same span and interval still inside the window first, then the live ones.</summary>
-public sealed class CachingMetricsService(IMetricsService inner, NamespaceInfo ns, FileCache cache) : IMetricsService
+public sealed class CachingMetricsService(IMetricsService inner, BrokerInfo ns, FileCache cache) : IMetricsService
 {
     public async IAsyncEnumerable<MessageMetrics> GetMetricsAsync(MetricsScope scope, MetricsWindow window, [EnumeratorCancellation] CancellationToken ct = default)
     {

@@ -15,7 +15,7 @@ public sealed record StartupTarget(string Subscription, string? Namespace = null
         || (subscription.IsEmulator && string.Equals(Subscription, EmulatorAlias, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>By name or fully qualified host name, ignoring case; never when no namespace was asked for.</summary>
-    public bool Matches(NamespaceInfo ns) =>
+    public bool Matches(BrokerInfo ns) =>
         Namespace is { } name
         && (string.Equals(ns.Name, name, StringComparison.OrdinalIgnoreCase)
             || string.Equals(ns.FullyQualifiedNamespace, name, StringComparison.OrdinalIgnoreCase));

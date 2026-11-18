@@ -6,7 +6,7 @@ using ServiceBusConsole.AzureServiceBus;
 namespace ServiceBusConsole.CommandLine;
 
 /// <summary>What the namespace commands use: live Azure (no cache, so output is current), the settings and the output streams.</summary>
-public sealed record CommandServices(INamespaceService Namespaces, INamespaceOpener Opener, IConfiguration Configuration)
+public sealed record CommandServices(IConnectionCatalog Namespaces, IBrokerOpener Opener, IConfiguration Configuration)
 {
     public TextWriter Out { get; init; } = Console.Out;
 
@@ -22,6 +22,6 @@ public sealed record CommandServices(INamespaceService Namespaces, INamespaceOpe
             .AddLogging(logging)
             .AddAzureServiceBus()
             .BuildServiceProvider();
-        return new(services.GetRequiredService<INamespaceService>(), services.GetRequiredService<INamespaceOpener>(), configuration);
+        return new(services.GetRequiredService<IConnectionCatalog>(), services.GetRequiredService<IBrokerOpener>(), configuration);
     }
 }

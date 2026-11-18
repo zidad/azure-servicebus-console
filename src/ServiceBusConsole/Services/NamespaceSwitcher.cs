@@ -10,11 +10,11 @@ public sealed class NamespaceSwitcher(
     RecentNamespaces recents,
     NavigationManager nav)
 {
-    public bool IsCurrent(AzureSubscription subscription, NamespaceInfo ns) =>
+    public bool IsCurrent(AzureSubscription subscription, BrokerInfo ns) =>
         connection.CurrentNamespace == ns.FullyQualifiedNamespace && navState.AzureSubscription == subscription;
 
     /// <summary>Makes <paramref name="ns"/> the connection, unless it is already, and records the open.</summary>
-    public async Task SwitchAsync(AzureSubscription subscription, NamespaceInfo ns)
+    public async Task SwitchAsync(AzureSubscription subscription, BrokerInfo ns)
     {
         _ = recents.RecordAsync(subscription, ns);
         if (IsCurrent(subscription, ns)) return;
@@ -25,7 +25,7 @@ public sealed class NamespaceSwitcher(
     }
 
     /// <summary><see cref="SwitchAsync"/>, then <see cref="Show"/> <paramref name="route"/>.</summary>
-    public async Task OpenAsync(AzureSubscription subscription, NamespaceInfo ns, string route)
+    public async Task OpenAsync(AzureSubscription subscription, BrokerInfo ns, string route)
     {
         await SwitchAsync(subscription, ns);
         Show(route);

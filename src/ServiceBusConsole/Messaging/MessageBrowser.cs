@@ -9,20 +9,20 @@ namespace ServiceBusConsole.Messaging;
 /// can act on the same locks. List mutations happen on the caller's (dispatcher) thread;
 /// <see cref="Changed"/> may fire from background threads.
 /// </summary>
-public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns) : IAsyncDisposable
+public sealed class MessageBrowser(MessageSource source, IBroker ns) : IAsyncDisposable
 {
     private readonly IMessageService _service = ns.Messages;
     private ILockedMessages? _locked;
     // Settled in Locked mode: the rows stay, marked with what was done to them.
-    private readonly ConcurrentDictionary<long, LockedState> _settled = new();
+    private readonly ConcurrentDictionary<MessageKey, LockedState> _settled = new();
     private readonly RenderThrottle _progressThrottle = new(100);
 
     /// <summary>The namespace this browser reads and its locks belong to.</summary>
-    public IServiceBusNamespace Namespace { get; } = ns;
+    public IBroker Namespace { get; } = ns;
     public MessageSource Source { get; } = source;
     public BrowseMode Mode { get; private set; } = BrowseMode.Peek;
     public IReadOnlyList<MessageInfo> Messages { get; private set; } = [];
-    public HashSet<long> Selected { get; } = [];
+    public HashSet<MessageKey> Selected { get; } = [];
     public int Cursor { get; set; }
     /// <summary>The batch operation in progress or finished (until <see cref="Dismiss"/>), for the progress dialog; null when idle.</summary>
     public OperationProgress? Operation { get; private set; }
@@ -50,8 +50,8 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
         Messages.Where(m => IsSelected(m) && CanAct(m)).ToList() is { Count: > 0 } selected ? selected
         : Focused is { } f && CanAct(f) ? [f] : [];
 
-    public bool IsSelected(MessageInfo m) => Selected.Contains(m.SequenceNumber);
-    public bool IsLockHeld(MessageInfo m) => _locked?.IsHeld(m.SequenceNumber) == true;
+    public bool IsSelected(MessageInfo m) => Selected.Contains(m.Key);
+    public bool IsLockHeld(MessageInfo m) => _locked?.IsHeld(m.Key) == true;
     public int LockedCount => _locked is null ? 0 : Messages.Count(IsLockHeld);
 
     /// <summary>Selected messages that can be acted on: what the selection commands count.</summary>
@@ -61,7 +61,7 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
     public bool CanAct(MessageInfo m) => Mode != BrowseMode.Locked || IsLockHeld(m);
 
     public LockedState StateOf(MessageInfo m) =>
-        _settled.TryGetValue(m.SequenceNumber, out var settled) ? settled
+        _settled.TryGetValue(m.Key, out var settled) ? settled
         : IsLockHeld(m) ? LockedState.Held : LockedState.LockLost;
 
     /// <summary>How many rows of a locked list were settled each way.</summary>
@@ -71,10 +71,10 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
     public void Toggle(MessageInfo m)
     {
         if (!CanAct(m)) return;
-        if (!Selected.Remove(m.SequenceNumber)) Selected.Add(m.SequenceNumber);
+        if (!Selected.Remove(m.Key)) Selected.Add(m.Key);
     }
 
-    public void SelectAll() => Selected.UnionWith(Messages.Where(CanAct).Select(m => m.SequenceNumber));
+    public void SelectAll() => Selected.UnionWith(Messages.Where(CanAct).Select(m => m.Key));
 
     public bool AllSelected => Messages.Any(CanAct) && Messages.Where(CanAct).All(IsSelected);
 
@@ -87,7 +87,7 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
 
     public void InvertSelection()
     {
-        var inverted = Messages.Where(CanAct).Select(m => m.SequenceNumber).Where(id => !Selected.Contains(id)).ToList();
+        var inverted = Messages.Where(CanAct).Select(m => m.Key).Where(id => !Selected.Contains(id)).ToList();
         Selected.Clear();
         Selected.UnionWith(inverted);
     }
@@ -209,7 +209,7 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
     private static ChannelReader<MessageInfo> HeldInOrder(IReadOnlyList<MessageInfo> targets, ILockedMessages? locked)
     {
         var held = Channel.CreateUnbounded<MessageInfo>();
-        foreach (var m in targets.OrderBy(m => m.SequenceNumber).Where(m => locked?.IsHeld(m.SequenceNumber) ?? true))
+        foreach (var m in targets.OrderBy(m => m.SequenceNumber).Where(m => locked?.IsHeld(m.Key) ?? true))
             held.Writer.TryWrite(m);
         held.Writer.Complete();
         return held.Reader;
@@ -223,7 +223,7 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
         var lockStep = op.Steps[0];
         lockStep.State = StepState.Running;
         Changed?.Invoke();
-        await using var locked = _service.StartLocking(Source, [.. targets.Select(m => m.SequenceNumber)], op.Token);
+        await using var locked = _service.StartLocking(Source, [.. targets.Select(m => m.Key)], op.Token);
         // The scan is done once its channel completes, even while later steps are still busy.
         _ = locked.Held.Completion.ContinueWith(_ =>
         {
@@ -338,8 +338,8 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
         IReadOnlyList<MessageInfo> targets, ChannelReader<MessageInfo> held, OperationStep? lockStep, string notHeldReason,
         Action<OperationStep> notify, CancellationToken token)
     {
-        private readonly Dictionary<long, MessageInfo> _bySequence = targets.ToDictionary(m => m.SequenceNumber);
-        private readonly HashSet<long> _seen = [];
+        private readonly Dictionary<MessageKey, MessageInfo> _byKey = targets.ToDictionary(m => m.Key);
+        private readonly HashSet<MessageKey> _seen = [];
         private string _unseenReason = notHeldReason;
 
         public IReadOnlyList<MessageInfo> Targets => targets;
@@ -356,8 +356,8 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
                     var chunk = new List<MessageInfo>(size);
                     while (chunk.Count < size && held.TryRead(out var message))
                     {
-                        _seen.Add(message.SequenceNumber);
-                        chunk.Add(_bySequence[message.SequenceNumber]);
+                        _seen.Add(message.Key);
+                        chunk.Add(_byKey[message.Key]);
                     }
                     if (lockStep is not null) { lockStep.Report(_seen.Count); notify(lockStep); }
                     if (token.IsCancellationRequested)
@@ -382,7 +382,7 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
             foreach (var m in messages) Failures.Enqueue(new(m, reason));
         }
 
-        public void FailUnseen() => Fail(targets.Where(m => !_seen.Contains(m.SequenceNumber)), _unseenReason);
+        public void FailUnseen() => Fail(targets.Where(m => !_seen.Contains(m.Key)), _unseenReason);
     }
 
     /// <summary>
@@ -512,7 +512,7 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
                 try
                 {
                     await settle(locked, m, ct);
-                    _settled[m.SequenceNumber] = settledAs;
+                    _settled[m.Key] = settledAs;
                     return true;
                 }
                 catch (Exception ex) { failures.Add(new(m, Describe(ex))); return false; }
@@ -579,11 +579,11 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
 
     private void Finish(OperationProgress op, string pastVerb, IReadOnlyList<MessageInfo> targets, IReadOnlyCollection<MessageInfo> removed, IReadOnlyCollection<Failure> failures)
     {
-        var removedIds = removed.Select(m => m.SequenceNumber).ToHashSet();
+        var removedIds = removed.Select(m => m.Key).ToHashSet();
         var focused = Focused;
-        var remaining = Messages.Where(m => !removedIds.Contains(m.SequenceNumber)).ToList();
+        var remaining = Messages.Where(m => !removedIds.Contains(m.Key)).ToList();
         Messages = remaining;
-        Cursor = focused is not null && !removedIds.Contains(focused.SequenceNumber)
+        Cursor = focused is not null && !removedIds.Contains(focused.Key)
             ? remaining.IndexOf(focused)
             : Math.Min(Cursor, Math.Max(0, Messages.Count - 1));
         UpdateSelection(targets, failures.Select(f => f.Message));
@@ -602,8 +602,8 @@ public sealed class MessageBrowser(MessageSource source, IServiceBusNamespace ns
     // selection stays, so acting on one message from its detail page keeps the others selected.
     private void UpdateSelection(IReadOnlyList<MessageInfo> targets, IEnumerable<MessageInfo> failed)
     {
-        Selected.ExceptWith(targets.Select(m => m.SequenceNumber));
-        Selected.UnionWith(failed.Select(m => m.SequenceNumber));
+        Selected.ExceptWith(targets.Select(m => m.Key));
+        Selected.UnionWith(failed.Select(m => m.Key));
     }
 
     private static string Summary(string pastVerb, int total, int succeeded, IReadOnlyCollection<Failure> failures) => failures switch

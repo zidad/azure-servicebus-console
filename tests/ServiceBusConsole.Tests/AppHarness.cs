@@ -27,7 +27,7 @@ public sealed class AppHarness
     public FakeNamespaceService Namespaces { get; } = new();
 
     /// <summary>What the app lists subscriptions and namespaces with; <see cref="Namespaces"/> unless set, e.g. to a caching one.</summary>
-    public INamespaceService? NamespaceService { get; set; }
+    public IConnectionCatalog? NamespaceService { get; set; }
     public FakeServices Services { get; } = new();
     public FakeQueueService Queues => Services.Queues;
     public LiveCountsOptions LiveCounts { get; } = new();
@@ -39,7 +39,7 @@ public sealed class AppHarness
     public System.Collections.Concurrent.ConcurrentQueue<string> Copied { get; } = [];
 
     /// <summary>The namespace a choice opens; by default like the real opener (<see cref="FakeNamespace.For"/>).</summary>
-    public Func<NamespaceInfo, IServiceBusNamespace> OpenNamespace { get; set; }
+    public Func<BrokerInfo, IBroker> OpenNamespace { get; set; }
 
     public MetricsOptions MetricsOptions { get; } = new();
 
@@ -88,7 +88,7 @@ public sealed class AppHarness
                     services.AddSingleton(Recent);
                     services.AddSingleton<NamespaceSwitcher>();
                     services.AddSingleton<SubscriptionCatalog>();
-                    services.AddSingleton<INamespaceOpener>(new FakeNamespaceOpener(info => OpenNamespace(info)));
+                    services.AddSingleton<IBrokerOpener>(new FakeNamespaceOpener(info => OpenNamespace(info)));
                     services.AddSingleton<ExplorerTree>();
                     services.AddSyntaxLanguages();
                     services.AddSingleton(LiveCounts);
@@ -110,7 +110,7 @@ public sealed class AppHarness
 
     public static readonly AzureSubscription AzureSubscription = new("Contoso Development", "6f1d2c3b-0000-4000-8000-000000000001");
 
-    public static readonly NamespaceInfo AzureNamespace = new()
+    public static readonly BrokerInfo AzureNamespace = new()
     {
         Name = "sb-orders-dev", FullyQualifiedNamespace = "sb-orders-dev.servicebus.windows.net", ResourceGroup = "rg-messaging-dev",
         Location = "West Europe", Sku = "Standard", Status = "Active",
@@ -122,7 +122,7 @@ public sealed class AppHarness
     /// <see cref="AzureNamespace"/>), then opens the page of <paramref name="key"/> (F1 queues, F2 topics, F3 all subscriptions);
     /// tall enough for the metrics panel.
     /// </summary>
-    public async Task<HeadlessTerminal> OpenAzureAsync(ConsoleKey key, int height = 40, NamespaceInfo? ns = null)
+    public async Task<HeadlessTerminal> OpenAzureAsync(ConsoleKey key, int height = 40, BrokerInfo? ns = null)
     {
         var chosen = ns ?? AzureNamespace;
         Namespaces.Subscriptions.Add(AzureSubscription);
@@ -140,7 +140,7 @@ public sealed class AppHarness
     /// On the connection page, moves down the tree from the emulator's namespace (selected at start) until <paramref name="ns"/>
     /// is the connection.
     /// </summary>
-    public async Task SelectAzureNamespaceAsync(HeadlessTerminal terminal, NamespaceInfo ns)
+    public async Task SelectAzureNamespaceAsync(HeadlessTerminal terminal, BrokerInfo ns)
     {
         var target = $"{Icons.Namespace} {ns.Name}";
         var frame = await terminal.WaitUntilAsync(f => f.ContainsText(target) && !f.ContainsText("Discovering"), Timeout, cancellationToken: Ct);

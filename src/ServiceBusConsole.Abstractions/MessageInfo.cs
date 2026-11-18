@@ -8,6 +8,8 @@ namespace ServiceBusConsole.Abstractions;
 /// </summary>
 public record MessageInfo
 {
+    public required MessageKey Key { get; init; }
+
     public required long SequenceNumber { get; init; }
     public required MessageState State { get; init; }
     public string MessageId { get; init; } = "";

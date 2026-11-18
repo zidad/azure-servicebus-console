@@ -1,7 +1,7 @@
 namespace ServiceBusConsole.Services.Caching;
 
 /// <summary>Deletes, then drops the entity from the cached listings, so it doesn't show up again while they load.</summary>
-public sealed class CachingDeletionService(IDeletionService inner, NamespaceInfo ns, FileCache cache) : IDeletionService
+public sealed class CachingDeletionService(IDeletionService inner, BrokerInfo ns, FileCache cache) : IDeletionService
 {
     public async Task DeleteQueueAsync(string queueName, CancellationToken ct = default)
     {

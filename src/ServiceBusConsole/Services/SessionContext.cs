@@ -10,7 +10,7 @@ public sealed class SessionContext(NavigationState navState, ServiceBusConnectio
 
     private readonly Lock _lock = new();
     private string _path = "";
-    private NamespaceInfo? _namespace;
+    private BrokerInfo? _namespace;
 
     public ActivityLog Activity => log;
 

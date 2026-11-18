@@ -16,7 +16,7 @@ internal sealed record ServiceBusMessageInfo : MessageInfo
     {
         Raw = raw,
         State = state,
-        SequenceNumber = raw.SequenceNumber,
+        Key = MessageKey.From(raw.SequenceNumber), SequenceNumber = raw.SequenceNumber,
         MessageId = raw.MessageId ?? "",
         EnqueuedTime = raw.EnqueuedTime,
         ContentType = raw.ContentType ?? "",

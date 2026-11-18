@@ -3,10 +3,10 @@ using Azure.Messaging.ServiceBus;
 namespace ServiceBusConsole.AzureServiceBus;
 
 /// <summary>A namespace in Azure: what every tier has, metrics and deletion included.</summary>
-internal abstract class AzureNamespace(NamespaceInfo info, ServiceBusClient bus, AzureServices services)
-    : IServiceBusNamespace, IHasMetrics, IHasDeletion
+internal abstract class AzureNamespace(BrokerInfo info, ServiceBusClient bus, AzureServices services)
+    : IBroker, IHasMetrics, IHasDeletion
 {
-    public NamespaceInfo Info => info;
+    public BrokerInfo Info => info;
     public IQueueService Queues => services.Queues;
     public IMessageService Messages => services.Messages;
     public IMetricsService Metrics => services.Metrics;
