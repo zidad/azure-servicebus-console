@@ -14,8 +14,8 @@ public sealed class LockedMessagesTests
         var (locked, found) = await ScanAsync(receiver, [3, 7], maxScan: 100);
 
         found.ShouldBe([3L, 7L]);
-        locked.IsHeld(3).ShouldBeTrue();
-        locked.IsHeld(7).ShouldBeTrue();
+        locked.IsHeld(MessageKey.From(3)).ShouldBeTrue();
+        locked.IsHeld(MessageKey.From(7)).ShouldBeTrue();
         // Batches of 4: 1-4 and 5-8 were received; everything but 3 and 7 went back per batch.
         receiver.Abandoned.Order().ShouldBe([1L, 2L, 4L, 5L, 6L, 8L]);
         receiver.Received.ShouldBe(8);
@@ -46,8 +46,8 @@ public sealed class LockedMessagesTests
 
         var lost = await locked.LockLost.ReadAsync(Ct).AsTask().WaitAsync(TimeSpan.FromSeconds(10), Ct);
 
-        lost.ShouldBe(message.SequenceNumber);
-        locked.IsHeld(message.SequenceNumber).ShouldBeFalse();
+        lost.ShouldBe(message.Key);
+        locked.IsHeld(message.Key).ShouldBeFalse();
         await locked.DisposeAsync();
         locked.LockLost.Completion.IsCompleted.ShouldBeTrue();
     }
@@ -61,7 +61,7 @@ public sealed class LockedMessagesTests
 
         await Should.ThrowAsync<MessageLockLostException>(() => locked.CompleteAsync(message, Ct));
 
-        locked.IsHeld(message.SequenceNumber).ShouldBeFalse();
+        locked.IsHeld(message.Key).ShouldBeFalse();
         await locked.DisposeAsync();
     }
 
@@ -82,7 +82,7 @@ public sealed class LockedMessagesTests
         firstIn.ShouldNotBeNull();
         receiver.CompletedIn.Select(c => c.Transaction).Distinct().ShouldBe([firstIn]);
         receiver.CompletedIn.Select(c => c.SequenceNumber).Order().ShouldBe(messages.Select(m => m.SequenceNumber));
-        messages.ShouldAllBe(m => !locked.IsHeld(m.SequenceNumber));
+        messages.ShouldAllBe(m => !locked.IsHeld(m.Key));
         await locked.DisposeAsync();
         receiver.Abandoned.ShouldBeEmpty();
     }
@@ -98,7 +98,7 @@ public sealed class LockedMessagesTests
             locked.CompleteInTransactionAsync(messages, _ => throw new InvalidOperationException("send failed"), Ct));
 
         receiver.CompletedIn.ShouldBeEmpty();
-        messages.ShouldAllBe(m => locked.IsHeld(m.SequenceNumber));
+        messages.ShouldAllBe(m => locked.IsHeld(m.Key));
         await locked.DisposeAsync();
         receiver.Abandoned.Order().ShouldBe([1L, 2L, 3L]);
     }
@@ -112,13 +112,13 @@ public sealed class LockedMessagesTests
 
         await Should.ThrowAsync<MessageLockLostException>(() => locked.CompleteInTransactionAsync([message], _ => Task.CompletedTask, Ct));
 
-        locked.IsHeld(message.SequenceNumber).ShouldBeFalse();
+        locked.IsHeld(message.Key).ShouldBeFalse();
         await locked.DisposeAsync();
     }
 
     private static async Task<(LockedMessages Locked, List<long> Found)> ScanAsync(FakeReceiver receiver, long[] wanted, int maxScan)
     {
-        var locked = LockedMessages.StartScan(receiver, wanted, maxScan, NullLogger.Instance, Ct);
+        var locked = LockedMessages.StartScan(receiver, [.. wanted.Select(MessageKey.From)], maxScan, NullLogger.Instance, Ct);
         var found = await locked.Held.ReadAllAsync(Ct).Select(m => m.SequenceNumber).ToListAsync(Ct);
         return (locked, found);
     }

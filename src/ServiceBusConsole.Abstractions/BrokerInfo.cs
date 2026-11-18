@@ -1,8 +1,8 @@
 namespace ServiceBusConsole.Abstractions;
 
-public sealed record NamespaceInfo
+public sealed record BrokerInfo
 {
-    public static NamespaceInfo Emulator { get; } = new()
+    public static BrokerInfo Emulator { get; } = new()
     {
         Name = "localhost", FullyQualifiedNamespace = "localhost", ResourceGroup = "", Location = "",
     };

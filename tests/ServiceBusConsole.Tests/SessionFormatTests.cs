@@ -12,7 +12,7 @@ public sealed class SessionFormatTests
 
     private static MessageInfo Message(string body, string? deadLetterReason = null) => new()
     {
-        SequenceNumber = 42,
+        Key = MessageKey.From(42), SequenceNumber = 42,
         State = MessageState.Peeked,
         MessageId = "msg-42",
         Subject = "order-created",

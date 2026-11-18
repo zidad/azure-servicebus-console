@@ -11,7 +11,7 @@ public sealed class AnalyseMessageActionTests : IDisposable
 
     private static readonly MessageInfo Message = new()
     {
-        SequenceNumber = 42,
+        Key = MessageKey.From(42), SequenceNumber = 42,
         State = MessageState.Peeked,
         MessageId = "msg-42",
         Subject = "order-created",
@@ -43,7 +43,7 @@ public sealed class AnalyseMessageActionTests : IDisposable
             Session = new SessionSnapshot
             {
                 At = At,
-                Namespace = new NamespaceInfo { Name = "sb-orders-dev", FullyQualifiedNamespace = "sb-orders-dev.servicebus.windows.net", ResourceGroup = "rg", Location = "West Europe" },
+                Namespace = new BrokerInfo { Name = "sb-orders-dev", FullyQualifiedNamespace = "sb-orders-dev.servicebus.windows.net", ResourceGroup = "rg", Location = "West Europe" },
                 Source = Source,
                 Mode = "Peek",
                 Message = Message,

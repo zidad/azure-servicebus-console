@@ -7,7 +7,7 @@ using ServiceBusConsole.AzureServiceBus.Resources;
 
 namespace ServiceBusConsole.AzureServiceBus;
 
-internal sealed class MetricsService(NamespaceInfo ns, ArmClient armClient, ILogger<MetricsService> logger) : IMetricsService
+internal sealed class MetricsService(BrokerInfo ns, ArmClient armClient, ILogger<MetricsService> logger) : IMetricsService
 {
     public async IAsyncEnumerable<MessageMetrics> GetMetricsAsync(MetricsScope scope, MetricsWindow window, [EnumeratorCancellation] CancellationToken ct = default)
     {

@@ -12,7 +12,7 @@ public sealed class CommandContext(NamespaceInput input, CommandServices service
         WriteIndented = true, NewLine = "\n", Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
-    private IServiceBusNamespace? _opened;
+    private IBroker? _opened;
 
     public CommandServices Services { get; } = services;
     public NamespaceTarget Target => input.Target;
@@ -22,7 +22,7 @@ public sealed class CommandContext(NamespaceInput input, CommandServices service
     public TextWriter Error => Services.Error;
 
     /// <summary>Resolves the target and opens it; once per run.</summary>
-    public async Task<IServiceBusNamespace> OpenAsync()
+    public async Task<IBroker> OpenAsync()
     {
         if (_opened is { } opened) return opened;
         var (_, info) = await Target.ResolveAsync(Services.Namespaces, Token);
@@ -30,10 +30,10 @@ public sealed class CommandContext(NamespaceInput input, CommandServices service
         return _opened;
     }
 
-    public Redaction Redaction(NamespaceInfo ns) => CommandLine.Redaction.For(ns, Services.Configuration);
+    public Redaction Redaction(BrokerInfo ns) => CommandLine.Redaction.For(ns, Services.Configuration);
 
     /// <summary>A protected namespace (<c>cli.protect</c>) changes only with <c>--confirm</c> naming it.</summary>
-    public void RequireConfirmation(NamespaceInfo ns)
+    public void RequireConfirmation(BrokerInfo ns)
     {
         var isProtected = Glob.List(Services.Configuration[ConfigKeys.Protect.ConfigurationPath])
             .Any(g => g.Matches(ns.Name) || g.Matches(ns.FullyQualifiedNamespace));

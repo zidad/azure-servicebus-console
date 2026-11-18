@@ -10,8 +10,8 @@ public static class MessageOutcome
         CommandContext context, Func<object?, object?, object?, string> summary, Func<object?, object?, string> dryRunSummary, MessageSource source, MessageSelection selection, MessageSelection.Found found,
         IReadOnlyList<Failure> failures, bool dryRun)
     {
-        var failed = failures.Select(f => f.Message.SequenceNumber).ToHashSet();
-        var done = found.Targets.Where(m => !failed.Contains(m.SequenceNumber)).ToList();
+        var failed = failures.Select(f => f.Message.Key).ToHashSet();
+        var done = found.Targets.Where(m => !failed.Contains(m.Key)).ToList();
         if (context.Json)
         {
             await context.WriteJsonAsync(new JsonObject

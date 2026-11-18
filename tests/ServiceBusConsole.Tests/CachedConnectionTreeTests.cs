@@ -8,7 +8,7 @@ public sealed class CachedConnectionTreeTests
 {
     private static readonly AzureSubscription Billing = new("Contoso Billing", "00000000-0000-4000-8000-000000000009");
     private static readonly AzureSubscription Development = new("Contoso Development", "00000000-0000-4000-8000-000000000001");
-    private static readonly NamespaceInfo Orders = AppHarness.AzureNamespace;
+    private static readonly BrokerInfo Orders = AppHarness.AzureNamespace;
 
     private static async Task<FileCache> SeededCacheAsync()
     {
@@ -68,7 +68,7 @@ public sealed class CachedConnectionTreeTests
     }
 
     /// <summary>Every live call hangs; <see cref="Calls"/> records the synchronization context each started on.</summary>
-    private sealed class HangingNamespaceService : INamespaceService
+    private sealed class HangingNamespaceService : IConnectionCatalog
     {
         public ConcurrentQueue<SynchronizationContext?> Calls { get; } = new();
 
@@ -81,7 +81,7 @@ public sealed class CachedConnectionTreeTests
 
         public Task<string?> GetCurrentSubscriptionIdAsync(CancellationToken ct = default) => Task.FromResult<string?>(null);
 
-        public async IAsyncEnumerable<NamespaceInfo> GetNamespacesAsync(string subscriptionId, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+        public async IAsyncEnumerable<BrokerInfo> GetNamespacesAsync(string subscriptionId, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
         {
             Calls.Enqueue(SynchronizationContext.Current);
             await Task.Delay(Timeout.Infinite, ct);

@@ -6,14 +6,14 @@ namespace ServiceBusConsole.CommandLine;
 /// </summary>
 public sealed record NamespaceTarget(string? Subscription = null, string? Namespace = null)
 {
-    public async Task<(AzureSubscription Subscription, NamespaceInfo Namespace)> ResolveAsync(INamespaceService service, CancellationToken ct)
+    public async Task<(AzureSubscription Subscription, BrokerInfo Namespace)> ResolveAsync(IConnectionCatalog service, CancellationToken ct)
     {
         var subscription = await FindSubscriptionAsync(service, ct);
         var namespaces = await service.GetNamespacesAsync(subscription, ct).ToListAsync(ct);
         return (subscription, PickNamespace(subscription, namespaces));
     }
 
-    private async Task<AzureSubscription> FindSubscriptionAsync(INamespaceService service, CancellationToken ct)
+    private async Task<AzureSubscription> FindSubscriptionAsync(IConnectionCatalog service, CancellationToken ct)
     {
         var wanted = Subscription
             ?? await service.GetCurrentSubscriptionIdAsync(ct)
@@ -24,7 +24,7 @@ public sealed record NamespaceTarget(string? Subscription = null, string? Namesp
             ?? throw new CommandFailure(ExitCodes.NotFound, CommandLineStrings.FormatNamespaceTarget_SubscriptionNotFound(wanted));
     }
 
-    private NamespaceInfo PickNamespace(AzureSubscription subscription, IReadOnlyList<NamespaceInfo> namespaces)
+    private BrokerInfo PickNamespace(AzureSubscription subscription, IReadOnlyList<BrokerInfo> namespaces)
     {
         if (Namespace is not { } wanted)
             return namespaces switch
@@ -45,5 +45,5 @@ public sealed record NamespaceTarget(string? Subscription = null, string? Namesp
         };
     }
 
-    private static string Names(IEnumerable<NamespaceInfo> namespaces) => string.Join(", ", namespaces.Select(ns => ns.Name).Order(StringComparer.OrdinalIgnoreCase));
+    private static string Names(IEnumerable<BrokerInfo> namespaces) => string.Join(", ", namespaces.Select(ns => ns.Name).Order(StringComparer.OrdinalIgnoreCase));
 }

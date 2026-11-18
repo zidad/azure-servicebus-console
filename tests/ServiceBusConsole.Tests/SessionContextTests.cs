@@ -11,7 +11,7 @@ public sealed class SessionContextTests
 
     private static MessageInfo Message(long sequence, string subject) => new()
     {
-        SequenceNumber = sequence,
+        Key = MessageKey.From(sequence), SequenceNumber = sequence,
         State = MessageState.Peeked,
         MessageId = $"msg-{sequence}",
         Subject = subject,
@@ -42,7 +42,7 @@ public sealed class SessionContextTests
         await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
         await terminal.WaitUntilAsync(_ => session.Snapshot().Message?.SequenceNumber == 2, AppHarness.Timeout, cancellationToken: Ct);
         var inList = session.Snapshot();
-        inList.Namespace.ShouldBe(NamespaceInfo.Emulator);
+        inList.Namespace.ShouldBe(BrokerInfo.Emulator);
         inList.Subscription.ShouldBe(AzureSubscription.Emulator);
         inList.Source.ShouldBe(OrdersDlq);
         inList.Mode.ShouldBe("Peek");
@@ -78,7 +78,7 @@ public sealed class SessionContextTests
         await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
 
         var snapshot = session.Snapshot();
-        snapshot.Namespace.ShouldBe(NamespaceInfo.Emulator);
+        snapshot.Namespace.ShouldBe(BrokerInfo.Emulator);
         snapshot.Source.ShouldBeNull();
         snapshot.Message.ShouldBeNull();
         snapshot.Activity[^1].Text.ShouldBe("Opened /queues");

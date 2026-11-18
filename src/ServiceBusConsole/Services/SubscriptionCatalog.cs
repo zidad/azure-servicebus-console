@@ -8,7 +8,7 @@ namespace ServiceBusConsole.Services;
 /// appears: a cached answer applies at once, a live re-check follows in the background. Ones without
 /// namespaces are hidden once that is known.
 /// </summary>
-public sealed class SubscriptionCatalog(INamespaceService service, ILogger<SubscriptionCatalog> logger)
+public sealed class SubscriptionCatalog(IConnectionCatalog service, ILogger<SubscriptionCatalog> logger)
 {
     private readonly Lock _sync = new();
     private readonly Dictionary<string, bool> _hasNamespaces = [];

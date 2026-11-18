@@ -23,7 +23,7 @@ var builder = Host.CreateDefaultBuilder(args)
         .AddFilter("Microsoft.AspNetCore.Components", LogLevel.Information))
     .ConfigureServices(services => services
         .AddAzureServiceBus()
-        .AddSingleton<INamespaceDecorator, CachingNamespaceDecorator>()
+        .AddSingleton<IBrokerDecorator, CachingNamespaceDecorator>()
         .AddSingleton<ServiceBusConnection>()
         .AddSingleton<FileCache>()
         .AddSingleton<NavigationState>()
@@ -40,7 +40,7 @@ var builder = Host.CreateDefaultBuilder(args)
         .AddSingleton<MetricsVisibility>()
         .AddSingleton<MetricsRange>()
         .AddSyntaxLanguages()
-        .Decorate<INamespaceService, CachingNamespaceService>()
+        .Decorate<IConnectionCatalog, CachingNamespaceService>()
         .Configure<ConsoleAppOptions>(options =>
         {
             options.AutoClearConsole = true;

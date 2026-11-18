@@ -57,12 +57,12 @@ internal sealed class MessageService(ServiceBusClient bus, ILoggerFactory logger
     // Bounds how far Retry scans a dead-letter queue for the messages it was asked to lock.
     private const int MaxLockScan = 5000;
 
-    public ILockedMessages StartLocking(MessageSource source, IReadOnlyCollection<long> sequenceNumbers, CancellationToken ct = default)
+    public ILockedMessages StartLocking(MessageSource source, IReadOnlyCollection<MessageKey> keys, CancellationToken ct = default)
     {
-        _logger.LogInformation("Locking {Count} messages in {Source}", sequenceNumbers.Count, source.DisplayName);
+        _logger.LogInformation("Locking {Count} messages in {Source}", keys.Count, source.DisplayName);
         // The returned LockedMessages owns the receiver and disposes it.
         var receiver = CreateReceiver(source, ServiceBusReceiveMode.PeekLock);
-        return LockedMessages.StartScan(receiver, sequenceNumbers, MaxLockScan, loggerFactory.CreateLogger<LockedMessages>(), ct);
+        return LockedMessages.StartScan(receiver, keys, MaxLockScan, loggerFactory.CreateLogger<LockedMessages>(), ct);
     }
 
     public async IAsyncEnumerable<int> SendCopiesAsync(MessageSource source, IReadOnlyList<MessageInfo> messages,

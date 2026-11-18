@@ -20,8 +20,8 @@ internal sealed class LockedMessages : ILockedMessages
     private readonly ServiceBusReceiver _receiver;
     private readonly ILogger _logger;
     private readonly Channel<MessageInfo> _arrivals;
-    private readonly Channel<long> _lockLost = Channel.CreateUnbounded<long>();
-    private readonly ConcurrentDictionary<long, HeldMessage> _held = new();
+    private readonly Channel<MessageKey> _lockLost = Channel.CreateUnbounded<MessageKey>();
+    private readonly ConcurrentDictionary<MessageKey, HeldMessage> _held = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _renewLoop;
     private Task _scan = Task.CompletedTask;
@@ -38,7 +38,7 @@ internal sealed class LockedMessages : ILockedMessages
 
     public ChannelReader<MessageInfo> Held => _arrivals.Reader;
 
-    public ChannelReader<long> LockLost => _lockLost.Reader;
+    public ChannelReader<MessageKey> LockLost => _lockLost.Reader;
 
     /// <summary>
     /// Starts locking specific messages and returns at once. Service Bus can only lock by receiving from
@@ -48,10 +48,10 @@ internal sealed class LockedMessages : ILockedMessages
     /// or was cancelled. Messages passed on the way are abandoned per batch: they stay, with delivery count + 1.
     /// </summary>
     public static LockedMessages StartScan(
-        ServiceBusReceiver receiver, IReadOnlyCollection<long> sequenceNumbers, int maxScan, ILogger logger, CancellationToken ct = default)
+        ServiceBusReceiver receiver, IReadOnlyCollection<MessageKey> keys, int maxScan, ILogger logger, CancellationToken ct = default)
     {
         var locked = new LockedMessages(receiver, Channel.CreateBounded<MessageInfo>(ScanAhead), logger);
-        locked._scan = locked.ReceiveAsync(sequenceNumbers.ToHashSet(), maxScan, ct);
+        locked._scan = locked.ReceiveAsync(keys.ToHashSet(), maxScan, ct);
         return locked;
     }
 
@@ -67,7 +67,7 @@ internal sealed class LockedMessages : ILockedMessages
     }
 
     // wanted null: hold everything received (a plain PeekLock receive); otherwise hold only the wanted ones.
-    private async Task ReceiveAsync(HashSet<long>? wanted, int max, CancellationToken ct)
+    private async Task ReceiveAsync(HashSet<MessageKey>? wanted, int max, CancellationToken ct)
     {
         var output = _arrivals.Writer;
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _cts.Token);
@@ -85,8 +85,8 @@ internal sealed class LockedMessages : ILockedMessages
                 var batch = await _receiver.ReceiveMessagesAsync(Math.Min(100, max - received), wait, token);
                 if (batch.Count == 0) break;
                 received += batch.Count;
-                var hits = wanted is null ? batch.ToList() : batch.Where(m => wanted.Contains(m.SequenceNumber)).ToList();
-                wanted?.ExceptWith(hits.Select(m => m.SequenceNumber));
+                var hits = wanted is null ? batch.ToList() : batch.Where(m => wanted.Contains(KeyOf(m))).ToList();
+                wanted?.ExceptWith(hits.Select(KeyOf));
                 if (hits.Count < batch.Count)
                     await AbandonAllAsync(_receiver, [.. batch.Except(hits)], _logger);
                 Hold(hits);
@@ -108,8 +108,10 @@ internal sealed class LockedMessages : ILockedMessages
     {
         var now = DateTimeOffset.UtcNow;
         foreach (var m in messages)
-            _held[m.SequenceNumber] = new HeldMessage(m, m.LockedUntil - now);
+            _held[KeyOf(m)] = new HeldMessage(m, m.LockedUntil - now);
     }
+
+    private static MessageKey KeyOf(ServiceBusReceivedMessage m) => MessageKey.From(m.SequenceNumber);
 
     private static Task AbandonAllAsync(ServiceBusReceiver receiver, IReadOnlyList<ServiceBusReceivedMessage> messages, ILogger logger) =>
         Parallel.ForEachAsync(messages, new ParallelOptions { MaxDegreeOfParallelism = 16 }, async (m, _) =>
@@ -118,7 +120,7 @@ internal sealed class LockedMessages : ILockedMessages
             catch (Exception ex) { logger.LogWarning(ex, "Could not abandon message #{SeqNum}", m.SequenceNumber); }
         });
 
-    public bool IsHeld(long sequenceNumber) => _held.ContainsKey(sequenceNumber);
+    public bool IsHeld(MessageKey key) => _held.ContainsKey(key);
 
     public Task CompleteAsync(MessageInfo message, CancellationToken ct = default) =>
         SettleAsync(message, m => _receiver.CompleteMessageAsync(m, ct));
@@ -135,7 +137,7 @@ internal sealed class LockedMessages : ILockedMessages
     /// </summary>
     public async Task CompleteInTransactionAsync(IReadOnlyList<MessageInfo> messages, Func<CancellationToken, Task> first, CancellationToken ct)
     {
-        var held = messages.Select(m => _held.TryGetValue(m.SequenceNumber, out var h)
+        var held = messages.Select(m => _held.TryGetValue(m.Key, out var h)
             ? h.Message
             : throw new InvalidOperationException(Strings.FormatLockedMessages_NotLocked(m.SequenceNumber))).ToList();
         using (var scope = new TransactionScope(TransactionScopeOption.RequiresNew, TransactionScopeAsyncFlowOption.Enabled))
@@ -144,7 +146,7 @@ internal sealed class LockedMessages : ILockedMessages
             await Parallel.ForEachAsync(held, new ParallelOptions { MaxDegreeOfParallelism = 16, CancellationToken = ct }, CompleteInScopeAsync);
             scope.Complete();
         }
-        foreach (var m in messages) _held.TryRemove(m.SequenceNumber, out _);
+        foreach (var m in messages) _held.TryRemove(m.Key, out _);
     }
 
     private async ValueTask CompleteInScopeAsync(ServiceBusReceivedMessage message, CancellationToken ct)
@@ -155,14 +157,14 @@ internal sealed class LockedMessages : ILockedMessages
         }
         catch (ServiceBusException ex) when (ex.Reason == ServiceBusFailureReason.MessageLockLost)
         {
-            _held.TryRemove(message.SequenceNumber, out _);
-            throw new MessageLockLostException(message.SequenceNumber, ex);
+            _held.TryRemove(KeyOf(message), out _);
+            throw new MessageLockLostException(KeyOf(message), ex);
         }
     }
 
     private async Task SettleAsync(MessageInfo message, Func<ServiceBusReceivedMessage, Task> settle)
     {
-        if (!_held.TryGetValue(message.SequenceNumber, out var held))
+        if (!_held.TryGetValue(message.Key, out var held))
             throw new InvalidOperationException(Strings.FormatLockedMessages_NotLocked(message.SequenceNumber));
         try
         {
@@ -170,10 +172,10 @@ internal sealed class LockedMessages : ILockedMessages
         }
         catch (ServiceBusException ex) when (ex.Reason == ServiceBusFailureReason.MessageLockLost)
         {
-            _held.TryRemove(message.SequenceNumber, out _);
-            throw new MessageLockLostException(message.SequenceNumber, ex);
+            _held.TryRemove(message.Key, out _);
+            throw new MessageLockLostException(message.Key, ex);
         }
-        _held.TryRemove(message.SequenceNumber, out _);
+        _held.TryRemove(message.Key, out _);
     }
 
     private async Task RenewLoopAsync(CancellationToken ct)
@@ -202,11 +204,11 @@ internal sealed class LockedMessages : ILockedMessages
         catch (OperationCanceledException) { }
         catch (ServiceBusException ex) when (ex.Reason == ServiceBusFailureReason.MessageLockLost)
         {
-            if (!_held.TryRemove(h.Message.SequenceNumber, out _)) return; // settled while renewing
+            if (!_held.TryRemove(KeyOf(h.Message), out _)) return; // settled while renewing
             _logger.LogWarning("Lost lock on message #{SeqNum}", h.Message.SequenceNumber);
-            _lockLost.Writer.TryWrite(h.Message.SequenceNumber);
+            _lockLost.Writer.TryWrite(KeyOf(h.Message));
         }
-        catch (Exception ex) when (_held.ContainsKey(h.Message.SequenceNumber))
+        catch (Exception ex) when (_held.ContainsKey(KeyOf(h.Message)))
         {
             _logger.LogWarning(ex, "Lock renewal failed for message #{SeqNum}; retrying", h.Message.SequenceNumber);
         }

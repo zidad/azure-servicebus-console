@@ -24,8 +24,8 @@ public sealed class ConnectionPageTests
         var app = new AppHarness();
         app.Namespaces.Namespaces.AddRange(
         [
-            new NamespaceInfo { Name = "sb-dev-a", FullyQualifiedNamespace = "sb-dev-a.servicebus.windows.net", ResourceGroup = "rg-a", Location = "West Europe", Sku = "Standard", Status = "Active" },
-            new NamespaceInfo { Name = "sb-dev-b", FullyQualifiedNamespace = "sb-dev-b.servicebus.windows.net", ResourceGroup = "rg-b", Location = "North Europe", Sku = "Premium", Status = "Active" },
+            new BrokerInfo { Name = "sb-dev-a", FullyQualifiedNamespace = "sb-dev-a.servicebus.windows.net", ResourceGroup = "rg-a", Location = "West Europe", Sku = "Standard", Status = "Active" },
+            new BrokerInfo { Name = "sb-dev-b", FullyQualifiedNamespace = "sb-dev-b.servicebus.windows.net", ResourceGroup = "rg-b", Location = "North Europe", Sku = "Premium", Status = "Active" },
         ]);
         app.Namespaces.Subscriptions.Add(new AzureSubscription("Contoso Development", "6f1d2c3b-0000-4000-8000-000000000001"));
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });

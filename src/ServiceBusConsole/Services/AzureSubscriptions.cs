@@ -7,7 +7,7 @@ public static class AzureSubscriptions
     /// it grows (cached entries first, then live ones).
     /// </summary>
     public static async IAsyncEnumerable<IReadOnlyList<AzureSubscription>> ListSubscriptionsAsync(
-        this INamespaceService service,
+        this IConnectionCatalog service,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
         var byId = new Dictionary<string, AzureSubscription>();
@@ -21,9 +21,9 @@ public static class AzureSubscriptions
     }
 
     /// <summary>Namespaces of <paramref name="subscription"/>: cached first, then live.</summary>
-    public static IAsyncEnumerable<NamespaceInfo> GetNamespacesAsync(
-        this INamespaceService service, AzureSubscription subscription, CancellationToken ct = default) =>
+    public static IAsyncEnumerable<BrokerInfo> GetNamespacesAsync(
+        this IConnectionCatalog service, AzureSubscription subscription, CancellationToken ct = default) =>
         subscription.Id is { } id
             ? service.GetNamespacesAsync(id, ct)
-            : new[] { NamespaceInfo.Emulator }.ToAsyncEnumerable();
+            : new[] { BrokerInfo.Emulator }.ToAsyncEnumerable();
 }

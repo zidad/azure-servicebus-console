@@ -4,7 +4,7 @@ namespace ServiceBusConsole.Tests;
 [NotInParallel(nameof(NamespaceFeatureTests))]
 public sealed class NamespaceFeatureTests
 {
-    private static readonly NamespaceInfo Basic = AppHarness.AzureNamespace with
+    private static readonly BrokerInfo Basic = AppHarness.AzureNamespace with
     {
         Name = "sb-legacy", FullyQualifiedNamespace = "sb-legacy.servicebus.windows.net", Sku = "Basic",
     };

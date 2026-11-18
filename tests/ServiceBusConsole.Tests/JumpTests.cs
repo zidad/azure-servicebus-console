@@ -45,7 +45,7 @@ public sealed class JumpTests
         JumpIndex.Grouped("order", Targets).Select(g => g.Kind).ShouldBe([JumpKind.Queue, JumpKind.Topic, JumpKind.Subscription]);
     }
 
-    private static readonly JumpNamespace Production = new(new AzureSubscription("Contoso Production", "prod-id"), new NamespaceInfo
+    private static readonly JumpNamespace Production = new(new AzureSubscription("Contoso Production", "prod-id"), new BrokerInfo
     {
         Name = "sb-payments-prd", FullyQualifiedNamespace = "sb-payments-prd.servicebus.windows.net", ResourceGroup = "rg-prd", Location = "West Europe", Sku = "Standard",
     });
@@ -134,8 +134,8 @@ public sealed class JumpTests
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
         app.Queues.Queues.Add(new QueueInfo { Name = "payments", DeadLetterMessageCount = 2 });
         app.Messages.Messages.AddRange([
-            new MessageInfo { SequenceNumber = 1, State = MessageState.Peeked, Subject = "first", EnqueuedTime = DateTimeOffset.UnixEpoch },
-            new MessageInfo { SequenceNumber = 2, State = MessageState.Peeked, Subject = "second", EnqueuedTime = DateTimeOffset.UnixEpoch }]);
+            new MessageInfo { Key = MessageKey.From(1), SequenceNumber = 1, State = MessageState.Peeked, Subject = "first", EnqueuedTime = DateTimeOffset.UnixEpoch },
+            new MessageInfo { Key = MessageKey.From(2), SequenceNumber = 2, State = MessageState.Peeked, Subject = "second", EnqueuedTime = DateTimeOffset.UnixEpoch }]);
         var terminal = await app.OpenQueuesAsync();
         await terminal.WaitForTextAsync("Queues (2)", AppHarness.Timeout, Ct);
         await AppHarness.WaitForTableFocusAsync(terminal);

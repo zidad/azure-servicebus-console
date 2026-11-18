@@ -32,11 +32,11 @@ public sealed class RecentNamespaces(FileCache cache, TimeProvider time)
         Changed?.Invoke();
     }
 
-    public DateTimeOffset? OpenedAt(AzureSubscription subscription, NamespaceInfo ns) =>
+    public DateTimeOffset? OpenedAt(AzureSubscription subscription, BrokerInfo ns) =>
         Items.FirstOrDefault(r => r.Is(subscription, ns))?.Opened;
 
     /// <summary>Puts <paramref name="ns"/> first, opened now, and saves the list.</summary>
-    public async Task RecordAsync(AzureSubscription subscription, NamespaceInfo ns)
+    public async Task RecordAsync(AzureSubscription subscription, BrokerInfo ns)
     {
         await EnsureLoadedAsync();
         lock (_sync)

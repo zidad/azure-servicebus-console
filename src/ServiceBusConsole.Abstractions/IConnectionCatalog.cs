@@ -1,6 +1,6 @@
 namespace ServiceBusConsole.Abstractions;
 
-public interface INamespaceService
+public interface IConnectionCatalog
 {
     IAsyncEnumerable<AzureSubscription> GetSubscriptionsAsync(CancellationToken ct = default);
 
@@ -9,5 +9,5 @@ public interface INamespaceService
 
     /// <summary>Whether the subscription has any Service Bus namespace: cached answer first, then live.</summary>
     IAsyncEnumerable<bool> HasNamespacesAsync(string subscriptionId, CancellationToken ct = default);
-    IAsyncEnumerable<NamespaceInfo> GetNamespacesAsync(string subscriptionId, CancellationToken ct = default);
+    IAsyncEnumerable<BrokerInfo> GetNamespacesAsync(string subscriptionId, CancellationToken ct = default);
 }

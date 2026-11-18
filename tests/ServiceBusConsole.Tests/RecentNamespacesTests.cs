@@ -11,7 +11,7 @@ public sealed class RecentNamespacesTests
     private static FileCache NewCache() =>
         new(NullLogger<FileCache>.Instance, Path.Combine(Path.GetTempPath(), "sb-console-tests", Guid.NewGuid().ToString("N")));
 
-    private static NamespaceInfo Ns(string name) => AppHarness.AzureNamespace with { Name = name, FullyQualifiedNamespace = $"{name}.servicebus.windows.net" };
+    private static BrokerInfo Ns(string name) => AppHarness.AzureNamespace with { Name = name, FullyQualifiedNamespace = $"{name}.servicebus.windows.net" };
 
     private static async Task RecordAsync(RecentNamespaces recent, FixedTime time, AzureSubscription subscription, params string[] names)
     {

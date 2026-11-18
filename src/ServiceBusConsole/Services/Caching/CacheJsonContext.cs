@@ -4,7 +4,7 @@ namespace ServiceBusConsole.Services.Caching;
 
 /// <summary>Every type <see cref="FileCache"/> stores: source-generated, so caching needs no reflection (Native AOT).</summary>
 [JsonSerializable(typeof(List<AzureSubscription>))]
-[JsonSerializable(typeof(List<NamespaceInfo>))]
+[JsonSerializable(typeof(List<BrokerInfo>))]
 [JsonSerializable(typeof(List<QueueInfo>))]
 [JsonSerializable(typeof(List<TopicInfo>))]
 [JsonSerializable(typeof(List<SubscriptionInfo>))]

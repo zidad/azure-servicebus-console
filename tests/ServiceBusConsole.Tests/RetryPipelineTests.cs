@@ -93,7 +93,7 @@ public sealed class RetryPipelineTests
         rolledBack.ShouldContain(150L);
         services.Transactions.Moved.SelectMany(chunk => chunk).ShouldBe(Enumerable.Range(1, 250).Select(i => (long)i).Except(rolledBack));
         browser.Messages.Select(m => m.SequenceNumber).ShouldBe(rolledBack);
-        browser.Selected.ShouldBe(rolledBack, ignoreOrder: true);
+        browser.Selected.ShouldBe(rolledBack.Select(MessageKey.From), ignoreOrder: true);
         var op = browser.Operation.ShouldNotBeNull();
         op.Outcome.ShouldBe(OperationOutcome.Failed);
         op.Result.ShouldNotBeNull().ShouldContain("not moved: transaction rolled back");
@@ -154,7 +154,7 @@ public sealed class RetryPipelineTests
     }
 
     private static MessageInfo Message(long sequence) =>
-        new() { SequenceNumber = sequence, State = MessageState.Peeked, MessageId = $"msg-{sequence}", Body = "{}"u8.ToArray() };
+        new() { Key = MessageKey.From(sequence), SequenceNumber = sequence, State = MessageState.Peeked, MessageId = $"msg-{sequence}", Body = "{}"u8.ToArray() };
 
     private static async Task WaitUntilAsync(Func<bool> condition)
     {

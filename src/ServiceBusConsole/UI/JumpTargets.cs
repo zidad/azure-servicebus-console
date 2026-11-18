@@ -4,7 +4,7 @@ namespace ServiceBusConsole.UI;
 public static class JumpTargets
 {
     /// <summary>The queues, topics and subscriptions of a namespace, from the cached listings, or live when one isn't cached yet.</summary>
-    public static async Task<IReadOnlyList<JumpTarget>> LoadAsync(IServiceBusNamespace current, FileCache cache)
+    public static async Task<IReadOnlyList<JumpTarget>> LoadAsync(IBroker current, FileCache cache)
     {
         var ns = current.Info;
         var queues = await cache.LoadAsync<QueueInfo>(CacheKeys.Queues(ns)) ?? await current.Queues.GetQueuesAsync().ToListAsync();
@@ -18,7 +18,7 @@ public static class JumpTargets
     public static async Task<IReadOnlyList<JumpNamespace>> NamespacesAsync(IEnumerable<AzureSubscription> subscriptions, FileCache cache)
     {
         var lists = await Task.WhenAll(subscriptions.Select(async s => s.Id is { } id
-            ? (await cache.LoadAsync<NamespaceInfo>(CacheKeys.Namespaces(id)) ?? []).Select(ns => new JumpNamespace(s, ns))
+            ? (await cache.LoadAsync<BrokerInfo>(CacheKeys.Namespaces(id)) ?? []).Select(ns => new JumpNamespace(s, ns))
             : []));
         return [.. lists.SelectMany(l => l)];
     }

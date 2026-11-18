@@ -8,23 +8,23 @@ namespace ServiceBusConsole.AzureServiceBus;
 
 /// <summary>Opens a namespace as the emulator or by its Azure tier, with services wrapped by the registered decorators.</summary>
 internal sealed class NamespaceOpener(
-    AzureCliCredential credential, ArmClient armClient, ILoggerFactory loggers, IEnumerable<INamespaceDecorator> decorators) : INamespaceOpener
+    AzureCliCredential credential, ArmClient armClient, ILoggerFactory loggers, IEnumerable<IBrokerDecorator> decorators) : IBrokerOpener
 {
     private const string EmulatorConnectionString =
         "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;";
 
     /// <summary>
-    /// By <see cref="NamespaceInfo.Sku"/>. An unknown one (cached before it was recorded) counts as Standard until the live
+    /// By <see cref="BrokerInfo.Sku"/>. An unknown one (cached before it was recorded) counts as Standard until the live
     /// listing replaces the namespace.
     /// </summary>
-    public static NamespaceTier TierOf(NamespaceInfo info) => info switch
+    public static NamespaceTier TierOf(BrokerInfo info) => info switch
     {
-        _ when info.FullyQualifiedNamespace == NamespaceInfo.Emulator.FullyQualifiedNamespace => NamespaceTier.Emulator,
+        _ when info.FullyQualifiedNamespace == BrokerInfo.Emulator.FullyQualifiedNamespace => NamespaceTier.Emulator,
         { Sku: { } sku } when sku.Equals("Basic", StringComparison.OrdinalIgnoreCase) => NamespaceTier.Basic,
         _ => NamespaceTier.Standard,
     };
 
-    public IServiceBusNamespace Open(NamespaceInfo info)
+    public IBroker Open(BrokerInfo info)
     {
         var tier = TierOf(info);
         loggers.CreateLogger<NamespaceOpener>().LogInformation("Opening namespace {Namespace} ({Tier})", info.FullyQualifiedNamespace, tier);
@@ -34,14 +34,14 @@ internal sealed class NamespaceOpener(
     private EmulatorNamespace OpenEmulator()
     {
         var bus = new ServiceBusClient(EmulatorConnectionString);
-        var ns = NamespaceInfo.Emulator;
+        var ns = BrokerInfo.Emulator;
         return new EmulatorNamespace(bus,
             Decorate(ns, new EmulatorQueueService(bus, loggers.CreateLogger<EmulatorQueueService>())),
             Decorate(ns, new EmulatorTopicService(bus, loggers.CreateLogger<EmulatorTopicService>())),
             new MessageService(bus, loggers));
     }
 
-    private AzureNamespace OpenAzure(NamespaceInfo info, NamespaceTier tier)
+    private AzureNamespace OpenAzure(BrokerInfo info, NamespaceTier tier)
     {
         var bus = new ServiceBusClient($"sb://{info.FullyQualifiedNamespace}/", credential);
         var admin = new ServiceBusAdministrationClient($"https://{info.FullyQualifiedNamespace}", credential);
@@ -57,8 +57,8 @@ internal sealed class NamespaceOpener(
                 new TransactionService(bus, loggers.CreateLogger<TransactionService>()));
     }
 
-    private IQueueService Decorate(NamespaceInfo ns, IQueueService service) => decorators.Aggregate(service, (s, d) => d.Decorate(ns, s));
-    private ITopicService Decorate(NamespaceInfo ns, ITopicService service) => decorators.Aggregate(service, (s, d) => d.Decorate(ns, s));
-    private IMetricsService Decorate(NamespaceInfo ns, IMetricsService service) => decorators.Aggregate(service, (s, d) => d.Decorate(ns, s));
-    private IDeletionService Decorate(NamespaceInfo ns, IDeletionService service) => decorators.Aggregate(service, (s, d) => d.Decorate(ns, s));
+    private IQueueService Decorate(BrokerInfo ns, IQueueService service) => decorators.Aggregate(service, (s, d) => d.Decorate(ns, s));
+    private ITopicService Decorate(BrokerInfo ns, ITopicService service) => decorators.Aggregate(service, (s, d) => d.Decorate(ns, s));
+    private IMetricsService Decorate(BrokerInfo ns, IMetricsService service) => decorators.Aggregate(service, (s, d) => d.Decorate(ns, s));
+    private IDeletionService Decorate(BrokerInfo ns, IDeletionService service) => decorators.Aggregate(service, (s, d) => d.Decorate(ns, s));
 }

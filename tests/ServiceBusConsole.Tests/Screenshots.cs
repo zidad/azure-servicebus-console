@@ -251,7 +251,7 @@ public sealed class Screenshots
         var now = DateTimeOffset.UtcNow;
         var time = new FixedTime(now.AddDays(-1));
         app.Time = time;
-        await app.Recent.RecordAsync(AzureSubscription.Emulator, NamespaceInfo.Emulator);
+        await app.Recent.RecordAsync(AzureSubscription.Emulator, BrokerInfo.Emulator);
         time.Now = now.AddHours(-2);
         await app.Recent.RecordAsync(AppHarness.AzureSubscription, AppHarness.AzureNamespace);
         time.Now = now;
@@ -270,9 +270,9 @@ public sealed class Screenshots
         ]);
         app.Namespaces.Namespaces.AddRange(
         [
-            new NamespaceInfo { Name = "sb-orders-dev", FullyQualifiedNamespace = "sb-orders-dev.servicebus.windows.net", ResourceGroup = "rg-messaging-dev", Location = "West Europe", Sku = "Standard", Status = "Active" },
-            new NamespaceInfo { Name = "sb-orders-prd", FullyQualifiedNamespace = "sb-orders-prd.servicebus.windows.net", ResourceGroup = "rg-messaging-prd", Location = "West Europe", Sku = "Premium", Status = "Active" },
-            new NamespaceInfo { Name = "sb-legacy", FullyQualifiedNamespace = "sb-legacy.servicebus.windows.net", ResourceGroup = "rg-legacy", Location = "North Europe", Sku = "Basic", Status = "Disabled" },
+            new BrokerInfo { Name = "sb-orders-dev", FullyQualifiedNamespace = "sb-orders-dev.servicebus.windows.net", ResourceGroup = "rg-messaging-dev", Location = "West Europe", Sku = "Standard", Status = "Active" },
+            new BrokerInfo { Name = "sb-orders-prd", FullyQualifiedNamespace = "sb-orders-prd.servicebus.windows.net", ResourceGroup = "rg-messaging-prd", Location = "West Europe", Sku = "Premium", Status = "Active" },
+            new BrokerInfo { Name = "sb-legacy", FullyQualifiedNamespace = "sb-legacy.servicebus.windows.net", ResourceGroup = "rg-legacy", Location = "North Europe", Sku = "Basic", Status = "Disabled" },
         ]);
         app.Queues.Queues.AddRange(
         [
@@ -309,7 +309,7 @@ public sealed class Screenshots
 
     private static MessageInfo Message(long sequence, string subject, string body, DateTimeOffset enqueued, int deliveries, string reason) => new()
     {
-        SequenceNumber = sequence,
+        Key = MessageKey.From(sequence), SequenceNumber = sequence,
         State = MessageState.Peeked,
         MessageId = $"{Guid.CreateVersion7(enqueued):N}"[..20],
         Subject = subject,

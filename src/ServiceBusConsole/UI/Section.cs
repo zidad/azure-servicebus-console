@@ -10,7 +10,7 @@ public sealed record Section(string Name, string Icon, string Route)
     public static IReadOnlyList<Section> All { get; } = [Queues, Topics, AllSubscriptions];
 
     /// <summary>The sections <paramref name="ns"/> has: topic ones only with topics.</summary>
-    public static IReadOnlyList<Section> Of(IServiceBusNamespace? ns) => ns is IHasTopics ? [Queues, Topics, AllSubscriptions] : [Queues];
+    public static IReadOnlyList<Section> Of(IBroker? ns) => ns is IHasTopics ? [Queues, Topics, AllSubscriptions] : [Queues];
 
     public string Label => $"{Icon} {Name}";
 }

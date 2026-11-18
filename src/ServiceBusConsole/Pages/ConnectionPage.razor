@@ -3,7 +3,7 @@
 
 @inject NavigationManager Nav
 @inject NavigationState NavState
-@inject INamespaceService NamespaceService
+@inject IConnectionCatalog NamespaceService
 @inject SubscriptionCatalog Catalog
 @inject ServiceBusConnection Connection
 @inject FileCache FileCache
@@ -106,7 +106,7 @@
     private string? _startupError;
     private string? _azDefaultId;
 
-    private NamespaceInfo? ChosenNamespace => _selected?.InNamespace?.Info;
+    private BrokerInfo? ChosenNamespace => _selected?.InNamespace?.Info;
 
     // When the tree keeps a few rows next to it: by the terminal only, never by the selection, so choosing moves nothing.
     private bool ShowMetrics => MetricsVisibility.IsVisible(Viewport.Height, LogoLines + ChromeLines + MinTreeRows + MetricsLines);
@@ -124,7 +124,7 @@
         var fromCommandLine = _startup is not null;
         var returning = NavState.AzureSubscription is not null;
         var subscription = NavState.AzureSubscription ?? AzureSubscription.Emulator;
-        var ns = returning ? Connection.Current?.Info : NamespaceInfo.Emulator;
+        var ns = returning ? Connection.Current?.Info : BrokerInfo.Emulator;
         Tree.Reveal(subscription);
         _selectKey = KeyOf(subscription, ns);
         _ = Catalog.EnsureLoadedAsync();
@@ -146,13 +146,13 @@
         StateHasChanged();
     });
 
-    private static string KeyOf(AzureSubscription subscription, NamespaceInfo? ns)
+    private static string KeyOf(AzureSubscription subscription, BrokerInfo? ns)
     {
         var node = new ExplorerNode.Subscription(subscription);
         return ns is null ? node.Key : new ExplorerNode.Namespace(node, ns).Key;
     }
 
-    private void SelectNode(AzureSubscription subscription, NamespaceInfo? ns)
+    private void SelectNode(AzureSubscription subscription, BrokerInfo? ns)
     {
         Tree.Reveal(subscription);
         _selectKey = KeyOf(subscription, ns);
@@ -170,7 +170,7 @@
             if (loading) return;
             _startup = null;
             if (!startup.IsAzureCliDefault) _startupError = PageStrings.FormatConnection_SubscriptionNotFound(startup.Subscription);
-            SelectNode(AzureSubscription.Emulator, NamespaceInfo.Emulator);
+            SelectNode(AzureSubscription.Emulator, BrokerInfo.Emulator);
             return;
         }
         Tree.Reveal(subscription);
@@ -196,7 +196,7 @@
     }
 
     // --open: what it names, else the namespace stays selected here with the error.
-    private async Task OpenAsync(AzureSubscription subscription, NamespaceInfo ns, string path)
+    private async Task OpenAsync(AzureSubscription subscription, BrokerInfo ns, string path)
     {
         try
         {

@@ -3,9 +3,9 @@ using System.Threading.Channels;
 
 namespace ServiceBusConsole.Tests;
 
-public sealed class FakeNamespaceService : INamespaceService
+public sealed class FakeNamespaceService : IConnectionCatalog
 {
-    public List<NamespaceInfo> Namespaces { get; } = [];
+    public List<BrokerInfo> Namespaces { get; } = [];
     public List<AzureSubscription> Subscriptions { get; } = [];
     public Exception? SubscriptionsError { get; set; }
 
@@ -41,7 +41,7 @@ public sealed class FakeNamespaceService : INamespaceService
         if (HoldListing is { } hold) await hold.Task.WaitAsync(ct);
     }
 
-    public async IAsyncEnumerable<NamespaceInfo> GetNamespacesAsync(string subscriptionId, [EnumeratorCancellation] CancellationToken ct = default)
+    public async IAsyncEnumerable<BrokerInfo> GetNamespacesAsync(string subscriptionId, [EnumeratorCancellation] CancellationToken ct = default)
     {
         foreach (var ns in Namespaces)
         {
@@ -254,9 +254,9 @@ public sealed class FakeMessageService : IMessageService
         return Received = new FakeLockedMessages(this, batch, batch.ToAsyncEnumerable());
     }
 
-    public ILockedMessages StartLocking(MessageSource source, IReadOnlyCollection<long> sequenceNumbers, CancellationToken ct = default)
+    public ILockedMessages StartLocking(MessageSource source, IReadOnlyCollection<MessageKey> keys, CancellationToken ct = default)
     {
-        var lockable = Messages.Where(m => sequenceNumbers.Contains(m.SequenceNumber) && !LockedElsewhere.Contains(m.SequenceNumber))
+        var lockable = Messages.Where(m => keys.Contains(m.Key) && !LockedElsewhere.Contains(m.SequenceNumber))
             .Select(m => m with { State = MessageState.Locked }).ToList();
         return new FakeLockedMessages(this, lockable, ScanAsync(lockable, ct));
     }
@@ -302,18 +302,18 @@ public sealed class FakeMessageService : IMessageService
 /// <summary>Holds <paramref name="messages"/> from the start; <paramref name="locking"/> is what arrives on <see cref="Held"/>.</summary>
 public sealed class FakeLockedMessages(FakeMessageService service, IEnumerable<MessageInfo> messages, IAsyncEnumerable<MessageInfo> locking) : ILockedMessages
 {
-    private readonly HashSet<long> _held = [.. messages.Select(m => m.SequenceNumber)];
-    private readonly Channel<long> _lockLost = Channel.CreateUnbounded<long>();
+    private readonly HashSet<MessageKey> _held = [.. messages.Select(m => m.Key)];
+    private readonly Channel<MessageKey> _lockLost = Channel.CreateUnbounded<MessageKey>();
 
     public ChannelReader<MessageInfo> Held { get; } = Pump(locking);
 
-    public ChannelReader<long> LockLost => _lockLost.Reader;
+    public ChannelReader<MessageKey> LockLost => _lockLost.Reader;
 
     public bool Disposed { get; private set; }
 
-    public bool IsHeld(long sequenceNumber)
+    public bool IsHeld(MessageKey key)
     {
-        lock (_held) return _held.Contains(sequenceNumber);
+        lock (_held) return _held.Contains(key);
     }
 
     public Task CompleteAsync(MessageInfo message, CancellationToken ct = default)
@@ -340,8 +340,9 @@ public sealed class FakeLockedMessages(FakeMessageService service, IEnumerable<M
     /// <summary>Drops the lock like an expired renewal would.</summary>
     public void LoseLock(long sequenceNumber)
     {
-        lock (_held) _held.Remove(sequenceNumber);
-        _lockLost.Writer.TryWrite(sequenceNumber);
+        var key = MessageKey.From(sequenceNumber);
+        lock (_held) _held.Remove(key);
+        _lockLost.Writer.TryWrite(key);
     }
 
     public ValueTask DisposeAsync()
@@ -373,7 +374,7 @@ public sealed class FakeLockedMessages(FakeMessageService service, IEnumerable<M
     {
         if (service.FailSettle.Contains(message.SequenceNumber)) throw new InvalidOperationException("Service Bus is busy");
         bool removed;
-        lock (_held) removed = _held.Remove(message.SequenceNumber);
+        lock (_held) removed = _held.Remove(message.Key);
         if (!removed)
             throw new InvalidOperationException($"Message #{message.SequenceNumber} is no longer locked");
     }
@@ -445,19 +446,19 @@ public sealed class FakeServices
     public FakeTransactionService Transactions { get; } = new();
 }
 
-public abstract class FakeNamespace(NamespaceInfo info, FakeServices services) : IServiceBusNamespace
+public abstract class FakeNamespace(BrokerInfo info, FakeServices services) : IBroker
 {
     protected FakeServices Services => services;
 
-    public NamespaceInfo Info => info;
+    public BrokerInfo Info => info;
     public IQueueService Queues => services.Queues;
     public IMessageService Messages => services.Messages;
     public bool Disposed { get; private set; }
 
     /// <summary>Like the real opener: the emulator, Basic by its SKU, any other namespace Standard.</summary>
-    public static FakeNamespace For(NamespaceInfo info, FakeServices services) => info switch
+    public static FakeNamespace For(BrokerInfo info, FakeServices services) => info switch
     {
-        _ when info == NamespaceInfo.Emulator => new FakeEmulatorNamespace(services),
+        _ when info == BrokerInfo.Emulator => new FakeEmulatorNamespace(services),
         { Sku: "Basic" } => new FakeBasicNamespace(info, services),
         _ => new FakeStandardNamespace(info, services),
     };
@@ -470,20 +471,20 @@ public abstract class FakeNamespace(NamespaceInfo info, FakeServices services) :
 }
 
 /// <summary>Like the local emulator: topics, but no metrics, deletion or transactions.</summary>
-public sealed class FakeEmulatorNamespace(FakeServices services) : FakeNamespace(NamespaceInfo.Emulator, services), IHasTopics
+public sealed class FakeEmulatorNamespace(FakeServices services) : FakeNamespace(BrokerInfo.Emulator, services), IHasTopics
 {
     public ITopicService Topics => Services.Topics;
 }
 
 /// <summary>Like the Basic tier: metrics and deletion, no topics or transactions.</summary>
-public sealed class FakeBasicNamespace(NamespaceInfo info, FakeServices services) : FakeNamespace(info, services), IHasMetrics, IHasDeletion
+public sealed class FakeBasicNamespace(BrokerInfo info, FakeServices services) : FakeNamespace(info, services), IHasMetrics, IHasDeletion
 {
     public IMetricsService Metrics => Services.Metrics;
     public IDeletionService Deletion => Services.Deletion;
 }
 
 /// <summary>Like the Standard and Premium tiers: every feature.</summary>
-public sealed class FakeStandardNamespace(NamespaceInfo info, FakeServices services)
+public sealed class FakeStandardNamespace(BrokerInfo info, FakeServices services)
     : FakeNamespace(info, services), IHasTopics, IHasMetrics, IHasDeletion, IHasTransactions
 {
     public ITopicService Topics => Services.Topics;
@@ -492,7 +493,7 @@ public sealed class FakeStandardNamespace(NamespaceInfo info, FakeServices servi
     public ITransactionService Transactions => Services.Transactions;
 }
 
-public sealed class FakeNamespaceOpener(Func<NamespaceInfo, IServiceBusNamespace> open) : INamespaceOpener
+public sealed class FakeNamespaceOpener(Func<BrokerInfo, IBroker> open) : IBrokerOpener
 {
-    public IServiceBusNamespace Open(NamespaceInfo info) => open(info);
+    public IBroker Open(BrokerInfo info) => open(info);
 }
