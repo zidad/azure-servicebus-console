@@ -425,6 +425,14 @@ docker compose up -d
 
 Starts the [Service Bus emulator](https://learn.microsoft.com/azure/service-bus-messaging/overview-emulator) on `localhost:5672` with the queues and topics of `emulator/Config.json`, and seeds them with sample messages. The emulator has no management API: the app reads its entities from the nearest `emulator/Config.json`, looking up from the current directory, then from the app's own folder (so `dotnet run --project` works from anywhere), and counts come from peeking (up to 1,000 messages). Without a management API it can't delete entities either, so Delete is hidden there.
 
+### RabbitMQ
+
+```bash
+docker compose -f rabbitmq/compose.yml up -d
+```
+
+Starts RabbitMQ 4.3 for testing the upcoming RabbitMQ transport: AMQP on `localhost:5680`, the management UI and API on [localhost:15680](http://localhost:15680) (user `azsb`, password `azsb`), so it runs next to the Service Bus emulator on 5672. `rabbitmq/seed.sh` declares the same topology in the default vhost and a `shop` vhost (quorum by default): a topic exchange `orders` routing to the quorum queue `orders` (delivery limit 3), the classic queue `payments` and the stream `audit`; a `dlx` exchange with the dead-letter queues `orders.dlq` and `payments.dlq`; and a `notifications` queue with a TTL policy. It publishes six orders and dead-letters two of them (`x-death` reason `rejected`), plus three notifications. Rerunning it leaves queues with messages alone; `docker compose -f rabbitmq/compose.yml down` starts over.
+
 ## How message operations work
 
 The browser follows the Service Bus Explorer in the Azure portal:

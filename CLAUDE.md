@@ -79,6 +79,8 @@ The app stays publishable with `PublishAot=true`: no reflection the trimmer can'
 
 The repo pins the .NET 11 SDK (`global.json`); everything targets `net11.0`. ASP.NET Core 11's BL0012 is off: handlers here also run from forwarded keys, outside their own component's event.
 
+RabbitMQ for the upcoming RabbitMQ transport: `docker compose -f rabbitmq/compose.yml up -d` (AMQP 5680, management 15680, `azsb`/`azsb`; topology and sample messages from `rabbitmq/seed.sh`, idempotent).
+
 Requires an active Azure CLI login before running:
 ```bash
 az login
