@@ -5,13 +5,21 @@ using ServiceBusConsole.AzureServiceBus.Resources;
 
 namespace ServiceBusConsole.AzureServiceBus;
 
-internal sealed class MessageService(ServiceBusClient bus, ILoggerFactory loggerFactory) : IMessageService
+internal sealed class MessageService(ServiceBusClient bus, ILoggerFactory loggerFactory) : IMessageService, IPeekService, ISeekService
 {
     private const int MaxBatch = 250;
     private readonly ILogger _logger = loggerFactory.CreateLogger<MessageService>();
 
-    public async IAsyncEnumerable<IReadOnlyList<MessageInfo>> PeekAsync(MessageSource source, int count, long? fromSequenceNumber = null,
-        [EnumeratorCancellation] CancellationToken ct = default)
+    public PeekKind Kind => PeekKind.NonDestructive;
+
+    public IAsyncEnumerable<IReadOnlyList<MessageInfo>> PeekAsync(MessageSource source, int count, CancellationToken ct = default) =>
+        PeekFromAsync(source, null, count, ct);
+
+    public IAsyncEnumerable<IReadOnlyList<MessageInfo>> PeekFromAsync(MessageSource source, long position, int count, CancellationToken ct = default) =>
+        PeekFromAsync(source, (long?)position, count, ct);
+
+    private async IAsyncEnumerable<IReadOnlyList<MessageInfo>> PeekFromAsync(MessageSource source, long? fromSequenceNumber, int count,
+        [EnumeratorCancellation] CancellationToken ct)
     {
         _logger.LogInformation("Peeking {Count} from {Source} starting at {From}", count, source.DisplayName, fromSequenceNumber);
         await using var receiver = CreateReceiver(source, ServiceBusReceiveMode.PeekLock);
@@ -88,7 +96,7 @@ internal sealed class MessageService(ServiceBusClient bus, ILoggerFactory logger
             while (sent + added < messages.Count && batch.TryAddMessage(new ServiceBusMessage(ServiceBusMessageInfo.RawOf(messages[sent + added]))))
                 added++;
             if (added == 0)
-                throw new InvalidOperationException(Strings.FormatMessageService_TooLarge(messages[sent].SequenceNumber));
+                throw new InvalidOperationException(Strings.FormatMessageService_TooLarge(messages[sent].Key));
             await sender.SendMessagesAsync(batch, ct);
             sent += added;
             yield return sent;

@@ -12,7 +12,7 @@ public sealed class MessageActionsTests
 
     private static MessageInfo Message(long sequence, string subject) => new()
     {
-        Key = MessageKey.From(sequence), SequenceNumber = sequence,
+        Key = MessageKey.From(sequence), TransportProperties = [SequenceNumber(sequence)],
         State = MessageState.Peeked,
         MessageId = $"msg-{sequence}",
         Subject = subject,
@@ -81,9 +81,9 @@ public sealed class MessageActionsTests
         app.PluginHost.Opened.ShouldBe(["https://github.com/acme/orders/issues/12"]);
 
         var context = create.Contexts.ShouldHaveSingleItem();
-        context.Message.SequenceNumber.ShouldBe(2);
+        context.Message.Number().ShouldBe(2);
         context.Source.ShouldBe(OrdersDlq);
-        context.Session.Message?.SequenceNumber.ShouldBe(2);
+        context.Session.Message?.Number().ShouldBe(2);
         context.Settings["repo"].ShouldBe("zidad/example");
         context.Host.ShouldBeSameAs(app.PluginHost);
         Activity(terminal).ShouldContain(e => e.Kind == ActivityKind.Operation && e.Text == "Fake: Created issue #12" && e.Source == OrdersDlq);
@@ -113,8 +113,8 @@ public sealed class MessageActionsTests
         var result = await terminal.WaitUntilAsync(f => f.ContainsText("Copied"), AppHarness.Timeout, cancellationToken: Ct);
         result.ContainsText("📄 /tmp/orders-dlq-1.json").ShouldBeTrue(result.ScreenText);
         var context = copy.Contexts.ShouldHaveSingleItem();
-        context.Message.SequenceNumber.ShouldBe(1);
-        context.Session.Message?.SequenceNumber.ShouldBe(1);
+        context.Message.Number().ShouldBe(1);
+        context.Session.Message?.Number().ShouldBe(1);
         context.Source.ShouldBe(OrdersDlq);
     }
 
@@ -177,7 +177,7 @@ public sealed class MessageActionsTests
         await Press(terminal, ConsoleKey.DownArrow);
 
         var session = terminal.Services.GetRequiredService<SessionContext>();
-        await terminal.WaitUntilAsync(_ => session.Snapshot().Message?.SequenceNumber == 2, AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(_ => session.Snapshot().Message?.Number() == 2, AppHarness.Timeout, cancellationToken: Ct);
         var frame = terminal.CurrentFrame;
         frame.ContainsText(ActionsButton).ShouldBeFalse(frame.ScreenText);
         frame.ContainsText("Actions on message").ShouldBeFalse(frame.ScreenText);

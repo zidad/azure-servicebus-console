@@ -12,7 +12,7 @@ public sealed record DeleteCommand(string Entity, bool Dlq, MessageSelection Sel
         var ns = await context.OpenAsync();
         var source = await EntityPath.ResolveAsync(ns, Entity, Dlq, context.Token);
         if (!source.IsDlq) throw new CommandFailure(ExitCodes.Usage, CommandLineStrings.DeleteCommand_NeedsDlq);
-        var found = await Selection.FindAsync(ns.Messages, source, context.Token);
+        var found = await Selection.FindAsync(BrokerFeatures.PeekOf(ns), source, context.Token);
         if (!DryRun) context.RequireConfirmation(ns.Info);
 
         IReadOnlyList<Failure> failures = [];

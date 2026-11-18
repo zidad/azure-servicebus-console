@@ -106,7 +106,7 @@
                                         <div class="check" @onclick="@ToggleHandler(m)" @onclick:stopPropagation="true"><RowCheck Checked="@selected" /></div>
                                     }
                                 </SpectreTD>
-                                <SpectreTD Align="Justify.Right"><Markup Content="@m.SequenceNumber.ToString(CultureInfo.InvariantCulture)" Foreground="@text" /></SpectreTD>
+                                <SpectreTD Align="Justify.Right"><Markup Content="@m.Key.Value" Foreground="@text" /></SpectreTD>
                                 <SpectreTD><Markup Content="@Truncate(m.MessageId, 30)" Foreground="@text" /></SpectreTD>
                                 <SpectreTD><Markup Content="@Truncate(m.Subject, 25)" Foreground="@text" /></SpectreTD>
                                 @if (locked)
@@ -127,7 +127,7 @@
             @if (browser.Focused is { } focused)
             {
                 <MessagePreview Message="@focused" Browser="@browser" Width="@Viewport.Width" Height="@PreviewHeight(browser)" BodyFocusOrder="2" OnKeyDown="@HandleKeyDown"
-                                Title="@($"{Icons.Message} {ComponentStrings.FormatMessageBrowserView_PreviewTitle(focused.SequenceNumber, browser.Cursor + 1, browser.Messages.Count)}")" />
+                                Title="@($"{Icons.Message} {ComponentStrings.FormatMessageBrowserView_PreviewTitle(focused.Key, browser.Cursor + 1, browser.Messages.Count)}")" />
             }
             @if (browser.Settled is { Finished: true } settled)
             {
@@ -146,7 +146,7 @@
 </FullscreenPage>
 
 @* Loads are not awaited by the submitting key, so keys (Esc to cancel) keep working while they run. *@
-<FetchDialog @ref="_peekDialog" OnSubmit="@(r => { _ = Peek(r); })" OnCancel="FocusTable" />
+<FetchDialog @ref="_peekDialog" CanSeek="@(_browser?.CanSeek == true)" OnSubmit="@(r => { _ = Peek(r); })" OnCancel="FocusTable" />
 <FetchDialog @ref="_receiveDialog" IsReceive="true" DefaultCount="10" OnSubmit="@(r => { _ = Receive(r); })" OnCancel="FocusTable" />
 
 <OperationDialog Operation="@_browser?.Operation" OnDismiss="DismissOperation" />
@@ -185,7 +185,7 @@
 
 @code {
     /// <summary>The # column fits the longest sequence number: a fixed width takes no share of the spare space.</summary>
-    private int SequenceWidth(MessageBrowser browser) => 2 + browser.Messages.Select(m => m.SequenceNumber.ToString(CultureInfo.InvariantCulture).Length).DefaultIfEmpty(1).Max();
+    private int SequenceWidth(MessageBrowser browser) => 2 + browser.Messages.Select(m => m.Key.Value.Length).DefaultIfEmpty(1).Max();
 
     /// <summary>The entity to browse; <see cref="MessageSource.IsDlq"/> is the initial view.</summary>
     [Parameter, EditorRequired] public required MessageSource Entity { get; set; }
@@ -293,8 +293,8 @@
         await Peek(new FetchDialog.Request(DefaultPeekCount, null, false));
     }
 
-    private Task Peek(FetchDialog.Request request) =>
-        Load(ComponentStrings.MessageBrowserView_Peeking, () => Browser.PeekAsync(request.Count, request.FromSequenceNumber));
+    private Task Peek(FetchDialog.Request request) => !Browser.CanPeek ? Task.CompletedTask :
+        Load(ComponentStrings.MessageBrowserView_Peeking, () => Browser.PeekAsync(request.Count, request.From));
 
     private Task Receive(FetchDialog.Request request) =>
         Load(request.DeleteOnReceive ? ComponentStrings.MessageBrowserView_ReceivingAndDeleting : ComponentStrings.MessageBrowserView_ReceivingAndLocking,
@@ -370,7 +370,9 @@
     private IReadOnlyList<KeyBinding> Keys =>
     [
         new("Enter", $"{Icons.Message} {ComponentStrings.Dialog_Open}", () => { if (_browser?.Focused is { } m) ViewMessage(m); }) { InFooter = false },
-        new("p", $"{Icons.Peek} {ComponentStrings.MessageBrowserView_Peek}", () => _peekDialog?.Open()) { Aliases = ["F7"] },
+        .. _browser?.CanPeek == true
+            ? [new KeyBinding("p", $"{Icons.Peek} {ComponentStrings.MessageBrowserView_Peek}", () => _peekDialog?.Open()) { Aliases = ["F7"] }]
+            : Array.Empty<KeyBinding>(),
         new("r", $"{Icons.Subscription} {ComponentStrings.MessageBrowserView_Receive}", () => _receiveDialog?.Open()) { Aliases = ["F8"] },
         new("1", $"{Icons.Queue} {Strings.Active}", () => { if (_isDlq) _ = SwitchDlq(false); }) { InFooter = _isDlq, Aliases = _isDlq ? ["F6"] : [] },
         new("2", $"{Icons.DeadLetter} {Strings.Dlq}", () => { if (!_isDlq) _ = SwitchDlq(true); }) { InFooter = !_isDlq, Aliases = _isDlq ? [] : ["F6"] },
@@ -442,7 +444,7 @@
     }
 
     private static string Count(IReadOnlyList<MessageInfo> list) =>
-        list is [var single] ? Strings.FormatOneMessage(single.SequenceNumber) : Strings.FormatMessages(list.Count);
+        list is [var single] ? Strings.FormatOneMessage(single.Key) : Strings.FormatMessages(list.Count);
 
     private static string ModeLabel(BrowseMode mode) => mode switch
     {

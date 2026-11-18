@@ -12,7 +12,7 @@ public sealed class LockedBrowserTests
 {
     private static MessageInfo Message(long sequence, string subject) => new()
     {
-        Key = MessageKey.From(sequence), SequenceNumber = sequence,
+        Key = MessageKey.From(sequence), TransportProperties = [SequenceNumber(sequence)],
         State = MessageState.Peeked,
         MessageId = $"msg-{sequence}",
         Subject = subject,

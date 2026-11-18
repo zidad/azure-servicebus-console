@@ -192,7 +192,7 @@ public sealed class FakeTopicService : ITopicService
     }
 }
 
-public sealed class FakeMessageService : IMessageService
+public sealed class FakeMessageService : IMessageService, IPeekService, ISeekService
 {
     public List<MessageInfo> Messages { get; } = [];
     public List<MessageSource> Purged { get; } = [];
@@ -206,11 +206,19 @@ public sealed class FakeMessageService : IMessageService
     /// <summary>When set, peeking throws it.</summary>
     public Exception? PeekError { get; set; }
 
-    public async IAsyncEnumerable<IReadOnlyList<MessageInfo>> PeekAsync(MessageSource source, int count, long? fromSequenceNumber = null, [EnumeratorCancellation] CancellationToken ct = default)
+    public PeekKind Kind => PeekKind.NonDestructive;
+
+    public IAsyncEnumerable<IReadOnlyList<MessageInfo>> PeekAsync(MessageSource source, int count, CancellationToken ct = default) =>
+        PeekFromAsync(source, null, count, ct);
+
+    public IAsyncEnumerable<IReadOnlyList<MessageInfo>> PeekFromAsync(MessageSource source, long position, int count, CancellationToken ct = default) =>
+        PeekFromAsync(source, (long?)position, count, ct);
+
+    private async IAsyncEnumerable<IReadOnlyList<MessageInfo>> PeekFromAsync(MessageSource source, long? fromSequenceNumber, int count, [EnumeratorCancellation] CancellationToken ct)
     {
         Peeked.Add(source);
         if (PeekError is { } error) throw error;
-        var pages = Messages.Where(m => fromSequenceNumber is null || m.SequenceNumber >= fromSequenceNumber).Take(count).Chunk(PageSize);
+        var pages = Messages.Where(m => fromSequenceNumber is null || m.Number() >= fromSequenceNumber).Take(count).Chunk(PageSize);
         var first = true;
         foreach (var page in pages)
         {
@@ -256,7 +264,7 @@ public sealed class FakeMessageService : IMessageService
 
     public ILockedMessages StartLocking(MessageSource source, IReadOnlyCollection<MessageKey> keys, CancellationToken ct = default)
     {
-        var lockable = Messages.Where(m => keys.Contains(m.Key) && !LockedElsewhere.Contains(m.SequenceNumber))
+        var lockable = Messages.Where(m => keys.Contains(m.Key) && !LockedElsewhere.Contains(m.Number()))
             .Select(m => m with { State = MessageState.Locked }).ToList();
         return new FakeLockedMessages(this, lockable, ScanAsync(lockable, ct));
     }
@@ -278,7 +286,7 @@ public sealed class FakeMessageService : IMessageService
     public async IAsyncEnumerable<int> SendCopiesAsync(MessageSource source, IReadOnlyList<MessageInfo> messages, [EnumeratorCancellation] CancellationToken ct = default)
     {
         if (HoldSend is { } hold) await hold.Task.WaitAsync(ct);
-        Sent.AddRange(messages.Select(m => (source, m.SequenceNumber)));
+        Sent.AddRange(messages.Select(m => (source, m.Number())));
         yield return messages.Count;
     }
 
@@ -319,21 +327,21 @@ public sealed class FakeLockedMessages(FakeMessageService service, IEnumerable<M
     public Task CompleteAsync(MessageInfo message, CancellationToken ct = default)
     {
         Settle(message);
-        service.Completed.Enqueue(message.SequenceNumber);
+        service.Completed.Enqueue(message.Number());
         return Task.CompletedTask;
     }
 
     public Task AbandonAsync(MessageInfo message, CancellationToken ct = default)
     {
         Settle(message);
-        service.Abandoned.Enqueue(message.SequenceNumber);
+        service.Abandoned.Enqueue(message.Number());
         return Task.CompletedTask;
     }
 
     public Task DeadLetterAsync(MessageInfo message, string reason, CancellationToken ct = default)
     {
         Settle(message);
-        service.DeadLettered.Enqueue(message.SequenceNumber);
+        service.DeadLettered.Enqueue(message.Number());
         return Task.CompletedTask;
     }
 
@@ -372,11 +380,11 @@ public sealed class FakeLockedMessages(FakeMessageService service, IEnumerable<M
 
     private void Settle(MessageInfo message)
     {
-        if (service.FailSettle.Contains(message.SequenceNumber)) throw new InvalidOperationException("Service Bus is busy");
+        if (service.FailSettle.Contains(message.Number())) throw new InvalidOperationException("Service Bus is busy");
         bool removed;
         lock (_held) removed = _held.Remove(message.Key);
         if (!removed)
-            throw new InvalidOperationException($"Message #{message.SequenceNumber} is no longer locked");
+            throw new InvalidOperationException($"Message #{message.Number()} is no longer locked");
     }
 }
 
@@ -412,11 +420,11 @@ public sealed class FakeTransactionService : ITransactionService
         if (messages.Count > MaxMessages) throw new ArgumentException($"{messages.Count} messages in one transaction");
         if (Fails(messages))
         {
-            lock (_rolledBack) _rolledBack.Add([.. messages.Select(m => m.SequenceNumber)]);
+            lock (_rolledBack) _rolledBack.Add([.. messages.Select(m => m.Number())]);
             throw new InvalidOperationException("transaction rolled back");
         }
         foreach (var m in messages) await locked.CompleteAsync(m, ct);
-        lock (_moved) _moved.Add([.. messages.Select(m => m.SequenceNumber)]);
+        lock (_moved) _moved.Add([.. messages.Select(m => m.Number())]);
     }
 }
 
@@ -446,13 +454,15 @@ public sealed class FakeServices
     public FakeTransactionService Transactions { get; } = new();
 }
 
-public abstract class FakeNamespace(BrokerInfo info, FakeServices services) : IBroker
+public abstract class FakeNamespace(BrokerInfo info, FakeServices services) : IBroker, IHasPeek, IHasSeek
 {
     protected FakeServices Services => services;
 
     public BrokerInfo Info => info;
     public IQueueService Queues => services.Queues;
     public IMessageService Messages => services.Messages;
+    public IPeekService Peek => services.Messages;
+    public ISeekService Seek => services.Messages;
     public bool Disposed { get; private set; }
 
     /// <summary>Like the real opener: the emulator, Basic by its SKU, any other namespace Standard.</summary>

@@ -20,7 +20,7 @@
             <Markup Content="@(_deleteOnReceive ? ComponentStrings.FetchDialog_DeleteWarning : ComponentStrings.FetchDialog_LockNote)"
                     Foreground="@(_deleteOnReceive ? Theme.Danger : Theme.Muted)" />
         }
-        else
+        else if (CanSeek)
         {
             <TextInput FillWidth="true" Label="@ComponentStrings.FetchDialog_FromSequence" Value="@_from" ValueChanged="@(v => _from = v ?? "")"
                        OnSubmit="@(_ => Submit())" FocusOrder="101" @onkeydown="HandleKey" />
@@ -39,9 +39,11 @@
 @code {
     public const int MaxCount = 5000;
 
-    public sealed record Request(int Count, long? FromSequenceNumber, bool DeleteOnReceive);
+    public sealed record Request(int Count, long? From, bool DeleteOnReceive);
 
     [Parameter] public bool IsReceive { get; set; }
+    // The from field: only where the broker numbers its messages.
+    [Parameter] public bool CanSeek { get; set; }
     [Parameter] public int DefaultCount { get; set; } = 100;
     [Parameter] public EventCallback<Request> OnSubmit { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
@@ -88,7 +90,7 @@
             return;
         }
         long? from = null;
-        if (!IsReceive && _from.Trim().Length > 0)
+        if (!IsReceive && CanSeek && _from.Trim().Length > 0)
         {
             if (!long.TryParse(_from.Trim(), out var seq) || seq < 0)
             {

@@ -41,5 +41,5 @@ public sealed class ServiceBusMessageInfoTests
 
     [Test]
     public void RawOf_RejectsAMessageThatDidNotComeFromServiceBus() =>
-        Should.Throw<ArgumentException>(() => ServiceBusMessageInfo.RawOf(new MessageInfo { Key = MessageKey.From(1), SequenceNumber = 1, State = MessageState.Peeked }));
+        Should.Throw<ArgumentException>(() => ServiceBusMessageInfo.RawOf(new MessageInfo { Key = MessageKey.From(1), TransportProperties = [SequenceNumber(1)], State = MessageState.Peeked }));
 }

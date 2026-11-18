@@ -7,9 +7,9 @@ public static class MessageJson
 {
     public static string Format(MessageInfo message) => ToNode(message).ToJsonString(ContextText.Indented);
 
-    public static JsonObject ToNode(MessageInfo message) => new()
+    public static JsonObject ToNode(MessageInfo message) => message.TransportProperties.Aggregate(new JsonObject
     {
-        ["sequenceNumber"] = message.SequenceNumber,
+        ["key"] = message.Key.Value,
         ["messageId"] = message.MessageId,
         ["state"] = message.State.ToString(),
         ["subject"] = message.Subject,
@@ -20,7 +20,11 @@ public static class MessageJson
         ["deadLetterErrorDescription"] = message.DeadLetterErrorDescription,
         ["properties"] = Properties(message.Properties),
         ["body"] = ContextText.JsonBody(message) ?? JsonValue.Create(message.BodyText),
-    };
+    }, (node, p) =>
+    {
+        node[p.Id] = p.Value.DeepClone();
+        return node;
+    });
 
     // Indexer, not Add: a repeated name keeps the last value instead of throwing.
     private static JsonObject Properties(IEnumerable<KeyValuePair<string, string>> properties) =>

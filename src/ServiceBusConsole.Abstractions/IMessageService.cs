@@ -3,9 +3,6 @@ namespace ServiceBusConsole.Abstractions;
 /// <summary>Message operations; results arrive as streams (pages, running totals) that do the work as they are read.</summary>
 public interface IMessageService
 {
-    /// <summary>Peeks up to <paramref name="count"/> messages, one page per round trip.</summary>
-    IAsyncEnumerable<IReadOnlyList<MessageInfo>> PeekAsync(MessageSource source, int count, long? fromSequenceNumber = null, CancellationToken ct = default);
-
     /// <summary>Receives and deletes up to <paramref name="count"/> messages, one page per round trip.</summary>
     IAsyncEnumerable<IReadOnlyList<MessageInfo>> ReceiveAndDeleteAsync(MessageSource source, int count, CancellationToken ct = default);
 

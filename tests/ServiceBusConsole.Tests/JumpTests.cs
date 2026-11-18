@@ -134,8 +134,8 @@ public sealed class JumpTests
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
         app.Queues.Queues.Add(new QueueInfo { Name = "payments", DeadLetterMessageCount = 2 });
         app.Messages.Messages.AddRange([
-            new MessageInfo { Key = MessageKey.From(1), SequenceNumber = 1, State = MessageState.Peeked, Subject = "first", EnqueuedTime = DateTimeOffset.UnixEpoch },
-            new MessageInfo { Key = MessageKey.From(2), SequenceNumber = 2, State = MessageState.Peeked, Subject = "second", EnqueuedTime = DateTimeOffset.UnixEpoch }]);
+            new MessageInfo { Key = MessageKey.From(1), TransportProperties = [SequenceNumber(1)], State = MessageState.Peeked, Subject = "first", EnqueuedTime = DateTimeOffset.UnixEpoch },
+            new MessageInfo { Key = MessageKey.From(2), TransportProperties = [SequenceNumber(2)], State = MessageState.Peeked, Subject = "second", EnqueuedTime = DateTimeOffset.UnixEpoch }]);
         var terminal = await app.OpenQueuesAsync();
         await terminal.WaitForTextAsync("Queues (2)", AppHarness.Timeout, Ct);
         await AppHarness.WaitForTableFocusAsync(terminal);

@@ -8,7 +8,7 @@ public sealed class MessageBrowserTests
 {
     private static MessageInfo Message(long sequence, string subject, string body) => new()
     {
-        Key = MessageKey.From(sequence), SequenceNumber = sequence,
+        Key = MessageKey.From(sequence), TransportProperties = [SequenceNumber(sequence)],
         State = MessageState.Peeked,
         MessageId = $"msg-{sequence}",
         Subject = subject,

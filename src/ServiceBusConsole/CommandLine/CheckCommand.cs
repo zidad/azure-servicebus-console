@@ -105,7 +105,7 @@ public sealed record CheckCommand : NamespaceCommand
                 peek = new(CommandLineStrings.CheckCommand_Peek, true, CommandLineStrings.CheckCommand_NothingToPeek);
             else
             {
-                var count = await ns.Messages.PeekAsync(source, 1, ct: ct).Select(page => page.Count).SumAsync(ct);
+                var count = await BrokerFeatures.PeekOf(ns).PeekAsync(source, 1, ct).Select(page => page.Count).SumAsync(ct);
                 peek = new(CommandLineStrings.CheckCommand_Peek, true, CommandLineStrings.FormatCheckCommand_Peeked(count, source.DisplayName));
             }
         }

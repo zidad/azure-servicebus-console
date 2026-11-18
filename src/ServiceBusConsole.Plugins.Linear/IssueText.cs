@@ -11,7 +11,7 @@ internal static partial class IssueText
     /// <summary>The title template filled in; a message without a subject reads <c>Message #42</c> for <c>{subject}</c>.</summary>
     public static string Title(MessageActionContext context, string template)
     {
-        var number = $"Message #{context.Message.SequenceNumber.ToString(CultureInfo.InvariantCulture)}";
+        var number = $"Message #{context.Message.Key.Value}";
         var withSubject = context.Message.Subject.Length > 0 ? template : SubjectPlaceholder().Replace(template, number);
         var title = Template.Fill(withSubject, context).ReplaceLineEndings(" ").Trim() is { Length: > 0 } filled
             ? filled

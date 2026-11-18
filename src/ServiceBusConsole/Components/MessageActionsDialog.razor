@@ -9,7 +9,7 @@
 {
     case Picking picking:
         var labelWidth = picking.Actions.Max(a => a.Action.Label.Length);
-        <Dialog Icon="@Icons.Actions" Title="@ComponentStrings.FormatMessageActionsDialog_Title(picking.Message.SequenceNumber)">
+        <Dialog Icon="@Icons.Actions" Title="@ComponentStrings.FormatMessageActionsDialog_Title(picking.Message.Key)">
             <ChildContent>
                 @for (var i = 0; i < picking.Actions.Count; i++)
                 {

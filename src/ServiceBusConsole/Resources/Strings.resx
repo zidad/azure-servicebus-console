@@ -42,9 +42,6 @@
   <data name="Bytes" xml:space="preserve">
     <value>{size} B</value>
   </data>
-  <data name="SequenceNumber" xml:space="preserve">
-    <value>Sequence #</value>
-  </data>
   <data name="State" xml:space="preserve">
     <value>State</value>
   </data>

@@ -13,7 +13,7 @@ public static partial class PluginFiles
     /// <param name="context">The message.</param>
     /// <param name="extension">With or without the dot.</param>
     public static string MessageFileName(MessageActionContext context, string extension) =>
-        $"{Safe(context.Source.DisplayName)}-{context.Message.SequenceNumber.ToString(CultureInfo.InvariantCulture)}.{extension.TrimStart('.')}";
+        $"{Safe(context.Source.DisplayName)}-{context.Message.Key.Value}.{extension.TrimStart('.')}";
 
     /// <summary>The full path of <see cref="MessageFileName"/> in the shared <c>messages</c> folder.</summary>
     public static string MessagePath(MessageActionContext context, string extension) =>

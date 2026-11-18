@@ -11,7 +11,7 @@ public sealed class OpenTraceActionTests
 
     private static readonly MessageInfo Message = new()
     {
-        Key = MessageKey.From(42), SequenceNumber = 42,
+        Key = MessageKey.From(42), TransportProperties = [SequenceNumber(42)],
         State = MessageState.Peeked,
         MessageId = "msg-42",
         Subject = "order-created",

@@ -30,9 +30,9 @@ public static class MessageOutcome
         else
         {
             var lines = dryRun
-                ? [dryRunSummary(found.Targets.Count, source.DisplayName), .. done.Select(m => $"  #{m.SequenceNumber}  {m.MessageId}")]
+                ? [dryRunSummary(found.Targets.Count, source.DisplayName), .. done.Select(m => $"  #{m.Key}  {m.MessageId}")]
                 : new List<string> { summary(done.Count, found.Targets.Count, source.DisplayName) };
-            lines.AddRange(failures.OrderBy(f => f.Message.SequenceNumber).Select(f => $"  ✗ #{f.Message.SequenceNumber}  {f.Message.MessageId}: {f.Reason}"));
+            lines.AddRange(failures.OrderBy(f => Position(found.Targets, f.Message)).Select(f => $"  ✗ #{f.Message.Key}  {f.Message.MessageId}: {f.Reason}"));
             if (found.AnyMissing)
                 lines.Add(CommandLineStrings.FormatMessageOutcome_Missing(selection.Limit,
                     string.Join(", ", found.MissingIds.Concat(found.MissingSequenceNumbers.Select(s => $"#{s}")))));
@@ -41,7 +41,21 @@ public static class MessageOutcome
         return failures.Count > 0 ? ExitCodes.Failed : found.AnyMissing ? ExitCodes.NotFound : ExitCodes.Ok;
     }
 
-    private static JsonObject Ids(MessageInfo m) => new() { ["sequenceNumber"] = m.SequenceNumber, ["messageId"] = m.MessageId };
+    private static JsonObject Ids(MessageInfo m) => m.TransportProperties.Aggregate(
+        new JsonObject { ["key"] = m.Key.Value },
+        (json, p) =>
+        {
+            json[p.Id] = p.Value.DeepClone();
+            return json;
+        },
+        json =>
+        {
+            json["messageId"] = m.MessageId;
+            return json;
+        });
+
+    private static int Position(IReadOnlyList<MessageInfo> targets, MessageInfo m) =>
+        targets.Select((t, i) => (t.Key, Index: i)).FirstOrDefault(t => t.Key == m.Key, (m.Key, Index: int.MaxValue)).Index;
 
     /// <summary>Exactly one of IDs/sequence numbers or --all.</summary>
     public static void Validate(MessageSelection selection)

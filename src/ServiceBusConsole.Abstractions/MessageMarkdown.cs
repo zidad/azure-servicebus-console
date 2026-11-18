@@ -12,9 +12,9 @@ public static class MessageMarkdown
     {
         var heading = new string('#', Math.Clamp(headingLevel, 1, 5));
         var sb = new StringBuilder()
-            .Append(CultureInfo.InvariantCulture, $"{heading} Message #{message.SequenceNumber}\n\n")
+            .Append(CultureInfo.InvariantCulture, $"{heading} Message #{message.Key}\n\n")
             .Append(Bullet("Message ID", Code(message.MessageId)))
-            .Append(Bullet("Sequence number", message.SequenceNumber.ToString(CultureInfo.InvariantCulture)))
+            .AppendJoin("", message.TransportProperties.Select(p => Bullet(p.Label, p.Text)))
             .Append(Bullet("State", message.State.ToString()))
             .Append(Bullet("Subject", Text(message.Subject)))
             .Append(Bullet("Content type", Text(message.ContentType)))

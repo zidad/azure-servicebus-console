@@ -27,7 +27,7 @@ public sealed class OpenTraceAction : IMessageAction
     public async Task<ActionResult> RunAsync(MessageActionContext context, CancellationToken ct)
     {
         var trace = TraceContext.Of(context.Message)
-            ?? throw new InvalidOperationException(Strings.FormatOpenTraceAction_NoTraceContext(context.Message.SequenceNumber));
+            ?? throw new InvalidOperationException(Strings.FormatOpenTraceAction_NoTraceContext(context.Message.Key));
 
         var (url, where) = context.Settings[Url] is { Length: > 0 } template
             ? Templated(TraceLinks.FromTemplate(template, context, trace))

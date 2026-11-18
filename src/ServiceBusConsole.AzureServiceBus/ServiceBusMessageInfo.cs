@@ -1,6 +1,8 @@
 using System.Text;
+using System.Text.Json.Nodes;
 using Azure.Core.Amqp;
 using Azure.Messaging.ServiceBus;
+using ServiceBusConsole.AzureServiceBus.Resources;
 
 namespace ServiceBusConsole.AzureServiceBus;
 
@@ -12,11 +14,14 @@ internal sealed record ServiceBusMessageInfo : MessageInfo
 
     public required ServiceBusReceivedMessage Raw { get; init; }
 
+    public required long SequenceNumber { get; init; }
+
     public static ServiceBusMessageInfo From(ServiceBusReceivedMessage raw, MessageState state) => new()
     {
         Raw = raw,
         State = state,
         Key = MessageKey.From(raw.SequenceNumber), SequenceNumber = raw.SequenceNumber,
+        TransportProperties = [new("sequenceNumber", Strings.SequenceNumber, JsonValue.Create(raw.SequenceNumber))],
         MessageId = raw.MessageId ?? "",
         EnqueuedTime = raw.EnqueuedTime,
         ContentType = raw.ContentType ?? "",
@@ -33,7 +38,7 @@ internal sealed record ServiceBusMessageInfo : MessageInfo
     public static ServiceBusReceivedMessage RawOf(MessageInfo message) =>
         message is ServiceBusMessageInfo { Raw: var raw }
             ? raw
-            : throw new ArgumentException($"Message #{message.SequenceNumber} was not received from Service Bus.", nameof(message));
+            : throw new ArgumentException($"Message #{message.Key} was not received from Service Bus.", nameof(message));
 
     // Body throws for AMQP value and sequence bodies (e.g. from JMS clients); a value is shown as text.
     private static ReadOnlyMemory<byte> BodyOf(ServiceBusReceivedMessage raw) => raw.GetRawAmqpMessage().Body switch

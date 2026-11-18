@@ -12,7 +12,7 @@ public sealed class SessionFormatTests
 
     private static MessageInfo Message(string body, string? deadLetterReason = null) => new()
     {
-        Key = MessageKey.From(42), SequenceNumber = 42,
+        Key = MessageKey.From(42), TransportProperties = [SequenceNumber(42)],
         State = MessageState.Peeked,
         MessageId = "msg-42",
         Subject = "order-created",
@@ -48,7 +48,7 @@ public sealed class SessionFormatTests
             ## Message #42
 
             - Message ID: `msg-42`
-            - Sequence number: 42
+            - Sequence #: 42
             - State: Peeked
             - Subject: order-created
             - Content type: application/json

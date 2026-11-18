@@ -143,6 +143,8 @@ azsb config set plugins.<id>.<key> <value> # a plugin setting, e.g. a repository
 azsb config set plugins.editor.command idea
 ```
 
+Templates in the settings below fill placeholders from the message. `{key}` is how the transport identifies it (Service Bus: the sequence number), and the transport's own fields work by name too, so `{sequenceNumber}` still does.
+
 ### GitHub (`github`)
 
 **🐙 Create GitHub issue** files the message as an issue with the [GitHub CLI](https://cli.github.com), signed in as your `gh auth login`. The body has the message (fields, application properties, body) and, unless turned off, where it came from and the session's recent activity; bodies over GitHub's 65,536 characters are truncated with a note. The result links to the new issue. On by default when `gh` is found.
@@ -157,7 +159,7 @@ azsb config set plugins.github.labels bug,dead-letter
 | `plugins.github.repo` | | Repository to create issues in, `owner/name` (required) |
 | `plugins.github.labels` | | Labels, comma-separated |
 | `plugins.github.assignees` | | Assignees, comma-separated; `@me` is you |
-| `plugins.github.titleTemplate` | `{entity}: {subject}` | Placeholders `{entity}`, `{subject}`, `{messageId}`, `{sequenceNumber}`, `{namespace}`, `{deadLetterReason}`; a message without a subject uses its id |
+| `plugins.github.titleTemplate` | `{entity}: {subject}` | Placeholders `{entity}`, `{subject}`, `{messageId}`, `{key}`, `{namespace}`, `{deadLetterReason}`; a message without a subject uses its id |
 | `plugins.github.cli` | `gh` | The GitHub CLI, on the `PATH` or a full path |
 | `plugins.github.includeContext` | `true` | Add the session context and recent activity |
 
@@ -177,7 +179,7 @@ azsb config set plugins.linear.team ENG
 | `plugins.linear.apiKey` | `LINEAR_API_KEY` | Personal API key; secret |
 | `plugins.linear.team` | | Key of the team, e.g. `ENG`; required |
 | `plugins.linear.labels` | | Comma-separated label names of the team or workspace, e.g. `bug,servicebus`; an unknown one is an error |
-| `plugins.linear.titleTemplate` | `{entity}: {subject}` | Placeholders `{entity}`, `{subject}` (`Message #42` when empty), `{messageId}`, `{sequenceNumber}`, `{namespace}`, `{deadLetterReason}` |
+| `plugins.linear.titleTemplate` | `{entity}: {subject}` | Placeholders `{entity}`, `{subject}` (`Message #42` when empty), `{messageId}`, `{key}`, `{namespace}`, `{deadLetterReason}` |
 | `plugins.linear.includeContext` | `true` | Adds the session context to the description |
 
 ### Claude Code (`claude`)
@@ -197,7 +199,7 @@ azsb config set plugins.claude.terminal "open -a iTerm {script}"
 | `workingDirectory` | where azsb was started | The codebase that sends or handles the messages |
 | `allowedTools` | `Read,Grep,Glob` | Tools Claude may use without asking (`--allowedTools`); empty: it asks for each |
 | `model` | Claude Code's | `--model`, e.g. `sonnet`, `opus` |
-| `prompt` | built in | First message; `{message}` and `{context}` insert them as Markdown; also `{messageFile}`, `{contextFile}`, `{entity}`, `{subject}`, `{sequenceNumber}`, `{messageId}`, `{namespace}`, `{deadLetterReason}` |
+| `prompt` | built in | First message; `{message}` and `{context}` insert them as Markdown; also `{messageFile}`, `{contextFile}`, `{entity}`, `{subject}`, `{key}`, `{messageId}`, `{namespace}`, `{deadLetterReason}` |
 | `terminal` | per platform | Command that opens a window running `{script}` (the run's `start.sh`/`start.cmd`), split on spaces; `{dir}` is the working directory; `{script}` is appended when absent |
 
 ### Trace (`trace`)
@@ -213,7 +215,7 @@ azsb config set plugins.trace.url "http://localhost:16686/trace/{traceId}"
 |---|---|---|
 | `appInsights` | the only one in the subscription | Application Insights resource id (`/subscriptions/.../components/<name>`), or its name in the namespace's subscription |
 | `tenant` | your default | Tenant id or domain for the portal link |
-| `url` | Azure portal | URL template: `{traceId}`, `{spanId}`, `{start}`/`{end}` (ISO 8601), `{startMs}`/`{endMs}` (Unix ms), and `{entity}`, `{subject}`, `{messageId}`, `{sequenceNumber}`, `{namespace}`; values are URL-escaped |
+| `url` | Azure portal | URL template: `{traceId}`, `{spanId}`, `{start}`/`{end}` (ISO 8601), `{startMs}`/`{endMs}` (Unix ms), and `{entity}`, `{subject}`, `{messageId}`, `{key}`, `{namespace}`; values are URL-escaped |
 | `cli` | `az` | The Azure CLI, to find Application Insights |
 
 ## Features

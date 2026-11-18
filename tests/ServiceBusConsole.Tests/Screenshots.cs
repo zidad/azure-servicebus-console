@@ -309,7 +309,7 @@ public sealed class Screenshots
 
     private static MessageInfo Message(long sequence, string subject, string body, DateTimeOffset enqueued, int deliveries, string reason) => new()
     {
-        Key = MessageKey.From(sequence), SequenceNumber = sequence,
+        Key = MessageKey.From(sequence), TransportProperties = [SequenceNumber(sequence)],
         State = MessageState.Peeked,
         MessageId = $"{Guid.CreateVersion7(enqueued):N}"[..20],
         Subject = subject,

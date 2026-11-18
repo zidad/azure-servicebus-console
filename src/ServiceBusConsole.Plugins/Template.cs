@@ -5,7 +5,7 @@ namespace ServiceBusConsole.Plugins;
 
 /// <summary>
 /// Fills <c>{placeholders}</c> from a message, e.g. a configurable issue title: <c>{subject}</c>, <c>{messageId}</c>,
-/// <c>{sequenceNumber}</c>, <c>{entity}</c>, <c>{namespace}</c>, <c>{deadLetterReason}</c>. Names ignore case; unknown ones stay.
+/// <c>{key}</c>, <c>{entity}</c>, <c>{namespace}</c>, <c>{deadLetterReason}</c>. The transport's own fields by their ID (Service Bus: <c>{sequenceNumber}</c>). Names ignore case; unknown ones stay.
 /// </summary>
 public static partial class Template
 {
@@ -16,11 +16,11 @@ public static partial class Template
     {
         "subject" => context.Message.Subject,
         "messageid" => context.Message.MessageId,
-        "sequencenumber" => context.Message.SequenceNumber.ToString(CultureInfo.InvariantCulture),
+        "key" => context.Message.Key.Value,
         "entity" => context.Source.DisplayName,
         "namespace" => context.Session.Namespace?.Name ?? "",
         "deadletterreason" => context.Message.DeadLetterReason ?? "",
-        _ => null,
+        var other => context.Message.TransportProperties.FirstOrDefault(p => p.Id.Equals(other, StringComparison.OrdinalIgnoreCase))?.Text,
     };
 
     [GeneratedRegex(@"\{([A-Za-z]+)\}")]

@@ -8,7 +8,7 @@ public static partial class ClaudePrompt
     public const string Default =
         """
         Analyse an Azure Service Bus message I selected in azsb, a terminal browser for Service Bus.
-        Entity: {entity} in namespace {namespace}. Message #{sequenceNumber}, id {messageId}, subject "{subject}".
+        Entity: {entity} in namespace {namespace}. Message #{key}, id {messageId}, subject "{subject}".
 
         The working directory is the codebase that sends or handles these messages: find the producer and the consumer of this entity in it.
         Explain what the message is and what it does in the system.
