@@ -204,4 +204,7 @@ A failure in between can send one twice.</value>
   <data name="RetryText_Note" xml:space="preserve">
     <value>Note</value>
   </data>
+  <data name="MessageBrowser_CannotPeek" xml:space="preserve">
+    <value>This broker can't peek messages this way.</value>
+  </data>
 </root>

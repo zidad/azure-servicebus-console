@@ -10,7 +10,6 @@ public record MessageInfo
 {
     public required MessageKey Key { get; init; }
 
-    public required long SequenceNumber { get; init; }
     public required MessageState State { get; init; }
     public string MessageId { get; init; } = "";
     public DateTimeOffset EnqueuedTime { get; init; }
@@ -25,6 +24,9 @@ public record MessageInfo
 
     /// <summary>Application properties as text, without the <see cref="DeadLetterReason"/> and <see cref="DeadLetterErrorDescription"/>.</summary>
     public IReadOnlyList<KeyValuePair<string, string>> Properties { get; init; } = [];
+
+    /// <summary>Fields of this transport's own, such as Service Bus's sequence number.</summary>
+    public IReadOnlyList<TransportProperty> TransportProperties { get; init; } = [];
 
     public string BodyText => Encoding.UTF8.GetString(Body.Span);
 }

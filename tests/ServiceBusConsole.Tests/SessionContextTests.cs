@@ -11,7 +11,7 @@ public sealed class SessionContextTests
 
     private static MessageInfo Message(long sequence, string subject) => new()
     {
-        Key = MessageKey.From(sequence), SequenceNumber = sequence,
+        Key = MessageKey.From(sequence), TransportProperties = [SequenceNumber(sequence)],
         State = MessageState.Peeked,
         MessageId = $"msg-{sequence}",
         Subject = subject,
@@ -40,7 +40,7 @@ public sealed class SessionContextTests
         await using var _ = terminal;
 
         await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
-        await terminal.WaitUntilAsync(_ => session.Snapshot().Message?.SequenceNumber == 2, AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(_ => session.Snapshot().Message?.Number() == 2, AppHarness.Timeout, cancellationToken: Ct);
         var inList = session.Snapshot();
         inList.Namespace.ShouldBe(BrokerInfo.Emulator);
         inList.Subscription.ShouldBe(AzureSubscription.Emulator);
@@ -51,7 +51,7 @@ public sealed class SessionContextTests
         await terminal.WaitForTextAsync("Message #2", AppHarness.Timeout, Ct);
 
         var snapshot = session.Snapshot();
-        snapshot.Message?.SequenceNumber.ShouldBe(2);
+        snapshot.Message?.Number().ShouldBe(2);
         snapshot.Source.ShouldBe(OrdersDlq);
         snapshot.Mode.ShouldBe("Peek");
         snapshot.Activity.Select(a => (a.Kind, a.Text, a.Source)).ShouldBe(

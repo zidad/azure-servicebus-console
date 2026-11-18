@@ -13,7 +13,7 @@ public sealed record RetryCommand(string Entity, MessageSelection Selection, boo
         var ns = await context.OpenAsync();
         var source = await EntityPath.ResolveAsync(ns, Entity, dlq: true, context.Token);
         if (!source.IsDlq) throw new CommandFailure(ExitCodes.Usage, CommandLineStrings.RetryCommand_NeedsDlq);
-        var found = await Selection.FindAsync(ns.Messages, source, context.Token);
+        var found = await Selection.FindAsync(BrokerFeatures.PeekOf(ns), source, context.Token);
         if (!DryRun) context.RequireConfirmation(ns.Info);
 
         IReadOnlyList<Failure> failures = [];

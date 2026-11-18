@@ -43,7 +43,8 @@ public sealed class EmulatorTests(Emulator emulator)
         message.Subject.ShouldBe("order-created");
         message.BodyText.ShouldBe("{\"id\":1}");
         message.Properties.ShouldContain(new KeyValuePair<string, string>("source", "it"));
-        message.Key.ShouldBe(MessageKey.From(message.SequenceNumber));
+        message.TransportProperties.ShouldHaveSingleItem().Id.ShouldBe("sequenceNumber");
+        message.Key.ShouldBe(MessageKey.From(message.TransportProperties[0].Value.GetValue<long>()));
         again.ShouldHaveSingleItem().Key.ShouldBe(message.Key);
     }
 
@@ -131,5 +132,5 @@ public sealed class EmulatorTests(Emulator emulator)
     private static Task<List<MessageInfo>> PeekAsync(IBroker ns, string queue) => PeekAsync(ns, new MessageSource.Queue(queue));
 
     private static async Task<List<MessageInfo>> PeekAsync(IBroker ns, MessageSource source) =>
-        await ns.Messages.PeekAsync(source, 100, ct: Ct).SelectMany(page => page.ToAsyncEnumerable()).ToListAsync(Ct);
+        await ns.ShouldBeAssignableTo<IHasPeek>().Peek.PeekAsync(source, 100, Ct).SelectMany(page => page.ToAsyncEnumerable()).ToListAsync(Ct);
 }

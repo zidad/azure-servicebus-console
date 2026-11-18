@@ -360,4 +360,10 @@
   <data name="SendCommand_BadProperty" xml:space="preserve">
     <value>{property} is not key=value</value>
   </data>
+  <data name="BrokerFeatures_NoPeek" xml:space="preserve">
+    <value>{broker} can't peek messages.</value>
+  </data>
+  <data name="BrokerFeatures_NoSeek" xml:space="preserve">
+    <value>{broker} can't peek from a position.</value>
+  </data>
 </root>

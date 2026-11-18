@@ -28,7 +28,7 @@ internal static class IssueBody
     {
         var sb = new StringBuilder()
             .Append(CultureInfo.InvariantCulture,
-                $"Created with [azsb](https://github.com/zidad/azure-servicebus-console) from message #{message.SequenceNumber} in `{context.Source.DisplayName}`.\n\n")
+                $"Created with [azsb](https://github.com/zidad/azure-servicebus-console) from message #{message.Key} in `{context.Source.DisplayName}`.\n\n")
             .Append(MessageMarkdown.Format(message));
         if (includeContext) sb.Append('\n').Append(Demoted((context.Session with { Message = null }).ToMarkdown()));
         return sb.ToString();

@@ -6,7 +6,7 @@ namespace ServiceBusConsole.Tests;
 
 public sealed class PluginCatalogTests
 {
-    private static readonly MessageInfo Message = new() { Key = MessageKey.From(7), SequenceNumber = 7, State = MessageState.Peeked, Subject = "order-created" };
+    private static readonly MessageInfo Message = new() { Key = MessageKey.From(7), TransportProperties = [SequenceNumber(7)], State = MessageState.Peeked, Subject = "order-created" };
     private static readonly MessageSource Orders = new MessageSource.Queue("orders");
     private static readonly SessionSnapshot Session = new() { At = DateTimeOffset.UnixEpoch };
 

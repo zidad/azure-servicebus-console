@@ -1,4 +1,4 @@
-<Panel Title="@(Title ?? $"{Icons.Message} #{Message.SequenceNumber}")" BorderColor="@Theme.Border" Border="BoxBorder.Rounded"
+<Panel Title="@(Title ?? $"{Icons.Message} #{Message.Key}")" BorderColor="@Theme.Border" Border="BoxBorder.Rounded"
        Width="@Width" Height="@Height" Padding="@(new(1, 0, 1, 0))">
     <Rows>
         @if (Message.DeadLetterReason is { } reason)
@@ -103,7 +103,8 @@
         var m = Message;
         yield return ($"{Icons.Properties} {ComponentStrings.MessagePreview_MessageHeader}", "", Color.Default);
         yield return (Strings.MessageId, m.MessageId, Color.Default);
-        yield return (Strings.SequenceNumber, m.SequenceNumber.ToString(), Color.Default);
+        foreach (var p in m.TransportProperties)
+            yield return (p.Label, p.Text, Color.Default);
         yield return (Strings.Subject, m.Subject, Color.Default);
         yield return (ComponentStrings.MessagePreview_ContentType, m.ContentType, Color.Default);
         yield return (Strings.Enqueued, RelativeTime.Full(m.EnqueuedTime, DateTimeOffset.UtcNow), Color.Default);

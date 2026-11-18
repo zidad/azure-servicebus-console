@@ -30,7 +30,7 @@ public sealed class SessionContext(NavigationState navState, ServiceBusConnectio
         }
         if (switched && ns is not null) log.Record(ActivityKind.Navigated, ServiceStrings.FormatSessionContext_Connected(ns.FullyQualifiedNamespace));
         if (page == DetailPath && navState.Message is { } message)
-            log.Record(ActivityKind.Navigated, ServiceStrings.FormatSessionContext_OpenedMessage(message.SequenceNumber), navState.MessageSource);
+            log.Record(ActivityKind.Navigated, ServiceStrings.FormatSessionContext_OpenedMessage(message.Key), navState.MessageSource);
         else log.Record(ActivityKind.Navigated, ServiceStrings.FormatSessionContext_OpenedPage(page));
     }
 

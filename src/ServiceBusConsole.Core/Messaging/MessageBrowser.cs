@@ -92,18 +92,30 @@ public sealed class MessageBrowser(MessageSource source, IBroker ns) : IAsyncDis
         Selected.UnionWith(inverted);
     }
 
-    /// <summary>Peeks into the list page by page; cancelling keeps what arrived.</summary>
-    public async Task PeekAsync(int count, long? fromSequenceNumber)
+    public bool CanPeek => Namespace is IHasPeek;
+
+    /// <summary>Whether <see cref="PeekAsync"/> can start from a position.</summary>
+    public bool CanSeek => Namespace is IHasSeek;
+
+    /// <summary>Peeks into the list page by page, from the front or from <paramref name="from"/>; cancelling keeps what arrived.</summary>
+    public async Task PeekAsync(int count, long? from)
     {
         await ReleaseLocksAsync();
         Load([], BrowseMode.Peek);
         await RunAsync(new(MessagingStrings.FormatMessageBrowser_Peeking(N0(count)), [new(MessagingStrings.MessageBrowser_PeekStep, count)], modal: false), async op =>
         {
             var step = Start(op, 0);
-            await foreach (var page in _service.PeekAsync(Source, count, fromSequenceNumber, op.Token))
+            await foreach (var page in Pages(count, from, op.Token))
                 Append(page, step);
         });
     }
+
+    private IAsyncEnumerable<IReadOnlyList<MessageInfo>> Pages(int count, long? from, CancellationToken ct) => (from, Namespace) switch
+    {
+        ({ } position, IHasSeek { Seek: var seek }) => seek.PeekFromAsync(Source, position, count, ct),
+        (null, IHasPeek { Peek: var peek }) => peek.PeekAsync(Source, count, ct),
+        _ => throw new InvalidOperationException(MessagingStrings.MessageBrowser_CannotPeek),
+    };
 
     /// <summary>Receives into the list as messages arrive; cancelling keeps what arrived (and its locks).</summary>
     public async Task ReceiveAsync(int count, bool deleteOnReceive)
@@ -206,10 +218,10 @@ public sealed class MessageBrowser(MessageSource source, IBroker ns) : IAsyncDis
     }
 
     // Locked ones only while still held.
-    private static ChannelReader<MessageInfo> HeldInOrder(IReadOnlyList<MessageInfo> targets, ILockedMessages? locked)
+    private ChannelReader<MessageInfo> HeldInOrder(IReadOnlyList<MessageInfo> targets, ILockedMessages? locked)
     {
         var held = Channel.CreateUnbounded<MessageInfo>();
-        foreach (var m in targets.OrderBy(m => m.SequenceNumber).Where(m => locked?.IsHeld(m.Key) ?? true))
+        foreach (var m in InListOrder(targets).Where(m => locked?.IsHeld(m.Key) ?? true))
             held.Writer.TryWrite(m);
         held.Writer.Complete();
         return held.Reader;
@@ -418,7 +430,7 @@ public sealed class MessageBrowser(MessageSource source, IBroker ns) : IAsyncDis
     public Task ResendAsync(IReadOnlyList<MessageInfo> targets) =>
         RunAsync(new(MessagingStrings.FormatMessageBrowser_Sending(What(targets)), [new(MessagingStrings.FormatMessageBrowser_SendTo(Source.SendTarget), targets.Count)]), async op =>
         {
-            var (sent, failures) = await SendAsync(Start(op, 0), [.. targets.OrderBy(m => m.SequenceNumber)], op.Token);
+            var (sent, failures) = await SendAsync(Start(op, 0), [.. InListOrder(targets)], op.Token);
             UpdateSelection(targets, failures.Select(f => f.Message));
             Report(op, MessagingStrings.MessageBrowser_Sent, targets.Count, sent.Count, failures);
         });
@@ -573,7 +585,16 @@ public sealed class MessageBrowser(MessageSource source, IBroker ns) : IAsyncDis
     }
 
     private static string What(IReadOnlyList<MessageInfo> targets) =>
-        targets is [var single] ? Strings.FormatOneMessage(single.SequenceNumber) : Strings.FormatMessages(targets.Count);
+        targets is [var single] ? Strings.FormatOneMessage(single.Key) : Strings.FormatMessages(targets.Count);
+
+    // Selections are sets: put them back in the order the list shows. Ones not in the list keep their order, after it.
+    private IEnumerable<MessageInfo> InListOrder(IEnumerable<MessageInfo> messages) => InListOrder(messages, m => m.Key);
+
+    private IEnumerable<T> InListOrder<T>(IEnumerable<T> items, Func<T, MessageKey> key)
+    {
+        var index = Messages.Select((m, i) => (m.Key, i)).ToDictionary(p => p.Key, p => p.i);
+        return items.OrderBy(item => index.GetValueOrDefault(key(item), int.MaxValue));
+    }
 
     private static string N0(int count) => count.ToString("N0");
 
@@ -590,13 +611,16 @@ public sealed class MessageBrowser(MessageSource source, IBroker ns) : IAsyncDis
         Report(op, pastVerb, targets.Count, removed.Count, failures);
     }
 
-    private static void Report(OperationProgress op, string pastVerb, int total, int succeeded, IReadOnlyCollection<Failure> failures) =>
+    private void Report(OperationProgress op, string pastVerb, int total, int succeeded, IReadOnlyCollection<Failure> unordered)
+    {
+        IReadOnlyCollection<Failure> failures = [.. InListOrder(unordered, f => f.Message.Key)];
         op.Finish(Summary(pastVerb, total, succeeded, failures), failures switch
         {
             { Count: 0 } => OperationOutcome.Succeeded,
             _ when failures.All(f => f.IsCancelled) => OperationOutcome.Cancelled,
             _ => OperationOutcome.Failed,
         }, [.. failures]);
+    }
 
     // Acted-on messages leave the selection and failed ones are selected for a retry; the rest of the
     // selection stays, so acting on one message from its detail page keeps the others selected.
@@ -614,7 +638,7 @@ public sealed class MessageBrowser(MessageSource source, IBroker ns) : IAsyncDis
     };
 
     private static string Examples(IReadOnlyCollection<Failure> failures) =>
-        string.Join("; ", failures.OrderBy(f => f.Message.SequenceNumber).Take(3).Select(f => $"#{f.Message.SequenceNumber} {f.Reason}"))
+        string.Join("; ", failures.Take(3).Select(f => $"#{f.Message.Key} {f.Reason}"))
         + (failures.Count > 3 ? MessagingStrings.FormatMessageBrowser_MoreFailures(failures.Count - 3) : "");
 
     private static string Describe(Exception ex) => ex switch

@@ -16,7 +16,7 @@
     <value>PeekLock</value>
   </data>
   <data name="OneMessage" xml:space="preserve">
-    <value>message #{sequenceNumber}</value>
+    <value>message #{key}</value>
   </data>
   <data name="Messages" xml:space="preserve">
     <value>{count} messages</value>

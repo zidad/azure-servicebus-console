@@ -30,4 +30,7 @@
   <data name="EmulatorTopicService_TopicNotFound" xml:space="preserve">
     <value>Topic '{topic}' not found in emulator config.</value>
   </data>
+  <data name="SequenceNumber" xml:space="preserve">
+    <value>Sequence #</value>
+  </data>
 </root>

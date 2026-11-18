@@ -139,7 +139,7 @@ internal sealed class LockedMessages : ILockedMessages
     {
         var held = messages.Select(m => _held.TryGetValue(m.Key, out var h)
             ? h.Message
-            : throw new InvalidOperationException(Strings.FormatLockedMessages_NotLocked(m.SequenceNumber))).ToList();
+            : throw new InvalidOperationException(Strings.FormatLockedMessages_NotLocked(m.Key))).ToList();
         using (var scope = new TransactionScope(TransactionScopeOption.RequiresNew, TransactionScopeAsyncFlowOption.Enabled))
         {
             await first(ct);
@@ -165,7 +165,7 @@ internal sealed class LockedMessages : ILockedMessages
     private async Task SettleAsync(MessageInfo message, Func<ServiceBusReceivedMessage, Task> settle)
     {
         if (!_held.TryGetValue(message.Key, out var held))
-            throw new InvalidOperationException(Strings.FormatLockedMessages_NotLocked(message.SequenceNumber));
+            throw new InvalidOperationException(Strings.FormatLockedMessages_NotLocked(message.Key));
         try
         {
             await settle(held.Message);

@@ -85,14 +85,14 @@ public sealed class RetryPipelineTests
     [Test]
     public async Task WithTransactions_AChunkThatRollsBack_StaysListedAndSelected_TheOthersMove()
     {
-        var (browser, services) = await PeekedOnStandardAsync(250, s => s.Transactions.Fails = chunk => chunk.Any(m => m.SequenceNumber == 150));
+        var (browser, services) = await PeekedOnStandardAsync(250, s => s.Transactions.Fails = chunk => chunk.Any(m => m.Number() == 150));
 
         await browser.RetryAsync(browser.Targets).WaitAsync(TimeSpan.FromSeconds(10), Ct);
 
         var rolledBack = services.Transactions.RolledBack.ShouldHaveSingleItem();
         rolledBack.ShouldContain(150L);
         services.Transactions.Moved.SelectMany(chunk => chunk).ShouldBe(Enumerable.Range(1, 250).Select(i => (long)i).Except(rolledBack));
-        browser.Messages.Select(m => m.SequenceNumber).ShouldBe(rolledBack);
+        browser.Messages.Select(m => m.Number()).ShouldBe(rolledBack);
         browser.Selected.ShouldBe(rolledBack.Select(MessageKey.From), ignoreOrder: true);
         var op = browser.Operation.ShouldNotBeNull();
         op.Outcome.ShouldBe(OperationOutcome.Failed);
@@ -154,7 +154,7 @@ public sealed class RetryPipelineTests
     }
 
     private static MessageInfo Message(long sequence) =>
-        new() { Key = MessageKey.From(sequence), SequenceNumber = sequence, State = MessageState.Peeked, MessageId = $"msg-{sequence}", Body = "{}"u8.ToArray() };
+        new() { Key = MessageKey.From(sequence), TransportProperties = [SequenceNumber(sequence)], State = MessageState.Peeked, MessageId = $"msg-{sequence}", Body = "{}"u8.ToArray() };
 
     private static async Task WaitUntilAsync(Func<bool> condition)
     {

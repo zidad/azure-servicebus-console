@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 namespace ServiceBusConsole.CommandLine;
 
 /// <summary>Prints messages without changing them; redacted where <c>cli.redact.namespaces</c> says so.</summary>
-public sealed record PeekCommand(string Entity, bool Dlq = false, int Max = PeekCommand.DefaultMax, long? FromSequenceNumber = null, bool Full = false) : NamespaceCommand
+public sealed record PeekCommand(string Entity, bool Dlq = false, int Max = PeekCommand.DefaultMax, long? From = null, bool Full = false) : NamespaceCommand
 {
     public const int DefaultMax = 20;
     private const int BodyLimit = 4096;
@@ -15,7 +15,10 @@ public sealed record PeekCommand(string Entity, bool Dlq = false, int Max = Peek
         var ns = await context.OpenAsync();
         var source = await EntityPath.ResolveAsync(ns, Entity, Dlq, ct);
         var redaction = context.Redaction(ns.Info);
-        var messages = await ns.Messages.PeekAsync(source, Max, FromSequenceNumber, ct).SelectMany(page => page.ToAsyncEnumerable()).ToListAsync(ct);
+        var pages = From is { } position
+            ? BrokerFeatures.SeekOf(ns).PeekFromAsync(source, position, Max, ct)
+            : BrokerFeatures.PeekOf(ns).PeekAsync(source, Max, ct);
+        var messages = await pages.SelectMany(page => page.ToAsyncEnumerable()).ToListAsync(ct);
         var nodes = messages.Select(m => redaction.Apply(MessageJson.ToNode(m))).ToList();
 
         if (redaction.IsActive) await context.Error.WriteLineAsync(CommandLineStrings.FormatPeekCommand_Redacted(ns.Info.Name));
@@ -32,7 +35,7 @@ public sealed record PeekCommand(string Entity, bool Dlq = false, int Max = Peek
     private static async Task WriteAsync(TextWriter writer, JsonObject m, bool full)
     {
         await writer.WriteLineAsync();
-        await writer.WriteLineAsync($"#{m["sequenceNumber"]}  {m["messageId"]}");
+        await writer.WriteLineAsync($"#{Text(m["key"])}  {m["messageId"]}");
         IEnumerable<(string Label, string? Value)> fields =
         [
             (CommandLineStrings.PeekCommand_Enqueued, Text(m["enqueuedTime"])),

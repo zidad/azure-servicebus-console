@@ -16,7 +16,7 @@
     <value>Local Emulator</value>
   </data>
   <data name="MessageLockLostException_Message" xml:space="preserve">
-    <value>Lock lost on message #{sequenceNumber}</value>
+    <value>Lock lost on message #{key}</value>
   </data>
   <data name="MessageSource_DeadLetterName" xml:space="preserve">
     <value>{name} DLQ</value>
