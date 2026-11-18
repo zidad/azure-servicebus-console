@@ -2,12 +2,19 @@ name: Tool packages
 
 # The azsb tool packages: a Native AOT package and archive per platform, each packed on its own OS,
 # the framework-dependent 'any' package and the top-level package that points to them.
+# Runs on release (publish.yml), or by hand before one: gh workflow run tool-packages.yml -f version=0.0.0-try.1
 on:
   workflow_call:
     inputs:
       version:
         required: true
         type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        required: true
+        type: string
+        default: 0.0.0-manual
 
 permissions:
   contents: read
