@@ -4,9 +4,11 @@ namespace ServiceBusConsole.AzureServiceBus.Emulator;
 
 internal static class EmulatorConfigReader
 {
-    /// <summary>The first namespace in the nearest <c>emulator/Config.json</c>, if any: see <see cref="Find"/>.</summary>
-    public static EmulatorNamespaceDef? TryLoad() =>
-        Find(Directory.GetCurrentDirectory(), AppContext.BaseDirectory) is { } path ? Parse(File.ReadAllText(path)) : null;
+    /// <summary>The first namespace in <paramref name="configFile"/>, else in the nearest <c>emulator/Config.json</c> (see <see cref="Find"/>), if any.</summary>
+    public static EmulatorNamespaceDef? TryLoad(string? configFile) =>
+        (configFile ?? Find(Directory.GetCurrentDirectory(), AppContext.BaseDirectory)) is { } path && File.Exists(path)
+            ? Parse(File.ReadAllText(path))
+            : null;
 
     /// <summary>
     /// <c>emulator/Config.json</c> in <paramref name="workingDirectory"/> or a parent, else in the app's folder or a parent:

@@ -8,11 +8,9 @@ namespace ServiceBusConsole.AzureServiceBus;
 
 /// <summary>Opens a namespace as the emulator or by its Azure tier, with services wrapped by the registered decorators.</summary>
 internal sealed class NamespaceOpener(
-    AzureCliCredential credential, ArmClient armClient, ILoggerFactory loggers, IEnumerable<IBrokerDecorator> decorators) : IBrokerOpener
+    AzureCliCredential credential, ArmClient armClient, ILoggerFactory loggers, IEnumerable<IBrokerDecorator> decorators,
+    EmulatorSettings emulator) : IBrokerOpener
 {
-    private const string EmulatorConnectionString =
-        "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;";
-
     /// <summary>
     /// By <see cref="BrokerInfo.Sku"/>. An unknown one (cached before it was recorded) counts as Standard until the live
     /// listing replaces the namespace.
@@ -33,11 +31,11 @@ internal sealed class NamespaceOpener(
 
     private EmulatorNamespace OpenEmulator()
     {
-        var bus = new ServiceBusClient(EmulatorConnectionString);
+        var bus = new ServiceBusClient(emulator.ConnectionString);
         var ns = BrokerInfo.Emulator;
         return new EmulatorNamespace(bus,
-            Decorate(ns, new EmulatorQueueService(bus, loggers.CreateLogger<EmulatorQueueService>())),
-            Decorate(ns, new EmulatorTopicService(bus, loggers.CreateLogger<EmulatorTopicService>())),
+            Decorate(ns, new EmulatorQueueService(bus, emulator, loggers.CreateLogger<EmulatorQueueService>())),
+            Decorate(ns, new EmulatorTopicService(bus, emulator, loggers.CreateLogger<EmulatorTopicService>())),
             new MessageService(bus, loggers));
     }
 

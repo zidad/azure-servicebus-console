@@ -7,7 +7,7 @@ namespace ServiceBusConsole.AzureServiceBus.Tests;
 public sealed class NamespaceOpenerTests
 {
     private static NamespaceOpener Opener(params IBrokerDecorator[] decorators) =>
-        new(new AzureCliCredential(), new ArmClient(new AzureCliCredential()), NullLoggerFactory.Instance, decorators);
+        new(new AzureCliCredential(), new ArmClient(new AzureCliCredential()), NullLoggerFactory.Instance, decorators, new EmulatorSettings());
 
     private static BrokerInfo Azure(string? sku) => new()
     {

@@ -71,6 +71,25 @@ jobs:
           name: test-results
           path: tests/*/bin/Release/net11.0/TestResults/
 
+  # The Azure transport against the Service Bus emulator, started by the Aspire AppHost in Docker.
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      AZSB_INTEGRATION: 1
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - run: dotnet test --project tests/ServiceBusConsole.IntegrationTests --configuration Release
+
   # UI races show on slow machines: repeat the UI tests on 2 cores, so a racy test fails on its PR, not later on main.
   ui-stress:
     runs-on: ubuntu-latest

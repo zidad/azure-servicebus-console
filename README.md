@@ -425,6 +425,14 @@ docker compose up -d
 
 Starts the [Service Bus emulator](https://learn.microsoft.com/azure/service-bus-messaging/overview-emulator) on `localhost:5672` with the queues and topics of `emulator/Config.json`, and seeds them with sample messages. The emulator has no management API: the app reads its entities from the nearest `emulator/Config.json`, looking up from the current directory, then from the app's own folder (so `dotnet run --project` works from anywhere), and counts come from peeking (up to 1,000 messages). Without a management API it can't delete entities either, so Delete is hidden there.
 
+### Integration tests
+
+```bash
+AZSB_INTEGRATION=1 dotnet test --project tests/ServiceBusConsole.IntegrationTests
+```
+
+Runs the Service Bus transport against the real emulator, started in Docker by the Aspire AppHost in `tools/ServiceBusConsole.AppHost` on free ports (about a minute, most of it the emulator starting). Without `AZSB_INTEGRATION=1` these tests are skipped, so a plain `dotnet test` needs no Docker.
+
 ### RabbitMQ
 
 ```bash
