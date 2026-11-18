@@ -145,8 +145,9 @@ public sealed class MessageActionsTests
                 new FakeMessageAction("fake", "Wait", async (context, ct) =>
                 {
                     context.Progress.Report("Waiting…");
-                    using var _ = ct.Register(() => cancelled.TrySetResult());
-                    await Task.Delay(Timeout.Infinite, ct);
+                    // Not a ct.Register callback: one disposed as the action ends can be skipped by the cancel that ended it.
+                    try { await Task.Delay(Timeout.Infinite, ct); }
+                    catch (OperationCanceledException) { cancelled.TrySetResult(); throw; }
                     return new ActionResult("never");
                 }),
             ],
