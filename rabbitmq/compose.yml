@@ -1,0 +1,34 @@
+# RabbitMQ for testing the RabbitMQ transport: docker compose -f rabbitmq/compose.yml up -d
+# Ports 5680 (AMQP) and 15680 (management) leave 5672 to the Service Bus emulator.
+name: azsb-rabbitmq
+
+services:
+  rabbitmq:
+    image: rabbitmq:4.3-management
+    container_name: azsb-rabbitmq
+    hostname: azsb-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: azsb
+      RABBITMQ_DEFAULT_PASS: azsb
+    ports:
+      - "5680:5672"
+      - "15680:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+
+  seeder:
+    image: curlimages/curl:8.16.0
+    container_name: azsb-rabbitmq-seeder
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      API: http://rabbitmq:15672/api
+      CREDENTIALS: azsb:azsb
+    volumes:
+      - ./seed.sh:/seed.sh:ro
+    entrypoint: ["/bin/sh", "/seed.sh"]
+    restart: on-failure
