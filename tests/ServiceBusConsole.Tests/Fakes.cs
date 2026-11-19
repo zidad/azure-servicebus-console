@@ -192,7 +192,7 @@ public sealed class FakeTopicService : ITopicService
     }
 }
 
-public sealed class FakeMessageService : IMessageService, IPeekService, ISeekService
+public sealed class FakeMessageService : IMessageService, IPeekService, ISeekService, IDeadLetterService
 {
     public List<MessageInfo> Messages { get; } = [];
     public List<MessageSource> Purged { get; } = [];
@@ -262,7 +262,7 @@ public sealed class FakeMessageService : IMessageService, IPeekService, ISeekSer
         return Received = new FakeLockedMessages(this, batch, batch.ToAsyncEnumerable());
     }
 
-    public ILockedMessages StartLocking(MessageSource source, IReadOnlyCollection<MessageKey> keys, CancellationToken ct = default)
+    public ILockedMessages StartLocking(MessageSource deadLetters, IReadOnlyCollection<MessageKey> keys, CancellationToken ct = default)
     {
         var lockable = Messages.Where(m => keys.Contains(m.Key) && !LockedElsewhere.Contains(m.Number()))
             .Select(m => m with { State = MessageState.Locked }).ToList();
@@ -463,6 +463,7 @@ public abstract class FakeNamespace(BrokerInfo info, FakeServices services) : IB
     public IMessageService Messages => services.Messages;
     public IPeekService Peek => services.Messages;
     public ISeekService Seek => services.Messages;
+    protected IDeadLetterService DeadLetterService => services.Messages;
     public bool Disposed { get; private set; }
 
     /// <summary>Like the real opener: the emulator, Basic by its SKU, any other namespace Standard.</summary>
@@ -481,27 +482,33 @@ public abstract class FakeNamespace(BrokerInfo info, FakeServices services) : IB
 }
 
 /// <summary>Like the local emulator: topics, but no metrics, deletion or transactions.</summary>
-public sealed class FakeEmulatorNamespace(FakeServices services) : FakeNamespace(BrokerInfo.Emulator, services), IHasTopics
+public sealed class FakeEmulatorNamespace(FakeServices services) : FakeNamespace(BrokerInfo.Emulator, services), IHasDeadLetters, IHasTopics
 {
+    public IDeadLetterService DeadLetters => DeadLetterService;
     public ITopicService Topics => Services.Topics;
 }
 
 /// <summary>Like the Basic tier: metrics and deletion, no topics or transactions.</summary>
-public sealed class FakeBasicNamespace(BrokerInfo info, FakeServices services) : FakeNamespace(info, services), IHasMetrics, IHasDeletion
+public sealed class FakeBasicNamespace(BrokerInfo info, FakeServices services) : FakeNamespace(info, services), IHasDeadLetters, IHasMetrics, IHasDeletion
 {
+    public IDeadLetterService DeadLetters => DeadLetterService;
     public IMetricsService Metrics => Services.Metrics;
     public IDeletionService Deletion => Services.Deletion;
 }
 
 /// <summary>Like the Standard and Premium tiers: every feature.</summary>
 public sealed class FakeStandardNamespace(BrokerInfo info, FakeServices services)
-    : FakeNamespace(info, services), IHasTopics, IHasMetrics, IHasDeletion, IHasTransactions
+    : FakeNamespace(info, services), IHasDeadLetters, IHasTopics, IHasMetrics, IHasDeletion, IHasTransactions
 {
+    public IDeadLetterService DeadLetters => DeadLetterService;
     public ITopicService Topics => Services.Topics;
     public IMetricsService Metrics => Services.Metrics;
     public IDeletionService Deletion => Services.Deletion;
     public ITransactionService Transactions => Services.Transactions;
 }
+
+/// <summary>Queues and messages only: no dead letters, topics, metrics, deletion or transactions.</summary>
+public sealed class FakeQueuesOnlyNamespace(BrokerInfo info, FakeServices services) : FakeNamespace(info, services);
 
 public sealed class FakeNamespaceOpener(Func<BrokerInfo, IBroker> open) : IBrokerOpener
 {

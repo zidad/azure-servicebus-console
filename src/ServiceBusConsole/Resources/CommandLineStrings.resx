@@ -366,4 +366,7 @@
   <data name="BrokerFeatures_NoSeek" xml:space="preserve">
     <value>{broker} can't peek from a position.</value>
   </data>
+  <data name="BrokerFeatures_NoDeadLetters" xml:space="preserve">
+    <value>{broker} keeps no dead letters.</value>
+  </data>
 </root>

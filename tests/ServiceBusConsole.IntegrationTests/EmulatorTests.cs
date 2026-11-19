@@ -85,7 +85,7 @@ public sealed class EmulatorTests(Emulator emulator)
         dead.ShouldAllBe(m => m.DeadLetterReason == "it: poison");
         var wanted = dead.Where(m => m.BodyText != "two").ToList();
 
-        await using (var locked = ns.Messages.StartLocking(dlq, [.. wanted.Select(m => m.Key)], Ct))
+        await using (var locked = ns.ShouldBeAssignableTo<IHasDeadLetters>().DeadLetters.StartLocking(dlq, [.. wanted.Select(m => m.Key)], Ct))
         {
             var held = await locked.Held.ReadAllAsync(Ct).ToListAsync(Ct);
             held.Select(m => m.Key).ShouldBe(wanted.Select(m => m.Key), ignoreOrder: true);

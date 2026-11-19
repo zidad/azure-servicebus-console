@@ -121,7 +121,7 @@ public sealed record CheckCommand : NamespaceCommand
     private static async Task<MessageSource?> SampleSourceAsync(IBroker ns, CancellationToken ct)
     {
         var queues = await ns.Queues.GetQueuesAsync(ct).ToListAsync(ct);
-        if (queues.FirstOrDefault(q => q.DeadLetterMessageCount > 0) is { } withDlq) return new MessageSource.Queue(withDlq.Name, IsDlq: true);
+        if (ns is IHasDeadLetters && queues.FirstOrDefault(q => q.DeadLetterMessageCount > 0) is { } withDlq) return new MessageSource.Queue(withDlq.Name, IsDlq: true);
         if (queues.FirstOrDefault() is { } queue) return new MessageSource.Queue(queue.Name);
         if (ns is not IHasTopics { Topics: var topics }) return null;
         return await topics.GetAllSubscriptionsAsync(ct).FirstOrDefaultAsync(ct) is { } sub

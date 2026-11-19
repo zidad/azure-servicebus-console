@@ -276,7 +276,7 @@ else
         .. Mode == BrowseMode.Locked && CanAct
             ? [new KeyBinding("c", $"{Icons.Complete} {Strings.Complete}", () => Run(_complete)) { Danger = true, Aliases = ["F9", "Delete"] },
                new KeyBinding("a", $"{Icons.Unlocked} {Strings.Abandon}", () => Run(_abandon)) { Aliases = ["F4"] },
-               .. IsDlq ? Array.Empty<KeyBinding>()
+               .. IsDlq || _browser?.HasDeadLetters != true ? Array.Empty<KeyBinding>()
                    : [new KeyBinding("X", $"{Icons.DeadLetter} {Strings.DeadLetter}", () => Run(_deadLetter)) { Danger = true, Aliases = ["F3"] }]]
             : Array.Empty<KeyBinding>(),
         .. CanRetry

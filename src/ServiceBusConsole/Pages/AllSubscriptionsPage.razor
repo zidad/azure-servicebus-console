@@ -28,15 +28,15 @@
         <SpectreTH Align="Justify.Left" Padding="@Gutter.NextHeader"><Columns><SortHeader Label="@PageStrings.List_ColumnTopic" Sort="_sort" OnSorted="@list.Sorted" /><ColumnFilter Filter="@list.Filter" /></Columns></SpectreTH>
         <SpectreTH Align="Justify.Left"><SortHeader Label="@PageStrings.List_ColumnSubscription" Sort="_sort" OnSorted="@list.Sorted" /></SpectreTH>
         <SpectreTH Align="Justify.Right"><SortHeader Label="@Strings.Active" Sort="_sort" OnSorted="@list.Sorted" /></SpectreTH>
-        <SpectreTH Align="Justify.Right"><SortHeader Label="@Strings.Dlq" Icon="@Icons.DeadLetter" Sort="_sort" OnSorted="@list.Sorted" /></SpectreTH>
+        @if (HasDeadLetters) { <SpectreTH Align="Justify.Right"><SortHeader Label="@Strings.Dlq" Icon="@Icons.DeadLetter" Sort="_sort" OnSorted="@list.Sorted" /></SpectreTH> }
         <SpectreTH Align="Justify.Right"><SortHeader Label="@PageStrings.List_ColumnTransfer" Icon="@Icons.Transfer" Sort="_sort" OnSorted="@list.Sorted" /></SpectreTH>
     </Headers>
     <Row Context="s">
-        <SpectreTD data-padding="@Gutter.Cell"><DeadLetterMark Count="@s.DeadLetterMessageCount" /></SpectreTD>
+        <SpectreTD data-padding="@Gutter.Cell"><DeadLetterMark Count="@(HasDeadLetters ? s.DeadLetterMessageCount : 0)" /></SpectreTD>
         <SpectreTD data-padding="@Gutter.NextCell">@s.TopicName</SpectreTD>
         <SpectreTD>@s.Name</SpectreTD>
         <SpectreTD Align="Justify.Right"><CountCell Value="@s.ActiveMessageCount" Highlight="@_changes.Highlight(s, "Active")" /></SpectreTD>
-        <SpectreTD Align="Justify.Right"><CountCell Value="@s.DeadLetterMessageCount" Color="@Theme.Danger" Bold="true" Highlight="@_changes.Highlight(s, "DLQ")" /></SpectreTD>
+        @if (HasDeadLetters) { <SpectreTD Align="Justify.Right"><CountCell Value="@s.DeadLetterMessageCount" Color="@Theme.Danger" Bold="true" Highlight="@_changes.Highlight(s, "DLQ")" /></SpectreTD> }
         <SpectreTD Align="Justify.Right"><CountCell Value="@s.TransferMessageCount" Color="@Theme.Transfer" Highlight="@_changes.Highlight(s, "Transfer")" /></SpectreTD>
     </Row>
 </EntityList>
@@ -50,14 +50,19 @@
                   OnCompleted="@(s => { _list?.Remove(Key(s)); return Task.CompletedTask; })" />
 }
 
-<AsyncCommand @ref="_purgeDlq" TItem="SubscriptionInfo"
-              ConfirmMessage="@(s => PageStrings.FormatList_PurgeDlqConfirm(Key(s)))"
-              ConfirmByTyping="true"
-              Execute="@(s => Connection.Namespace.Messages.PurgeAsync(new MessageSource.Subscription(s.TopicName, s.Name, IsDlq: true)).LastOrDefaultAsync().AsTask())"
-              Activity="@(s => PageStrings.FormatList_PurgedDlq(Key(s)))"
-              OnCompleted="@(s => { _list?.Update(Key(s), x => x with { DeadLetterMessageCount = 0 }); return Task.CompletedTask; })" />
+@if (HasDeadLetters)
+{
+    <AsyncCommand @ref="_purgeDlq" TItem="SubscriptionInfo"
+                  ConfirmMessage="@(s => PageStrings.FormatList_PurgeDlqConfirm(Key(s)))"
+                  ConfirmByTyping="true"
+                  Execute="@(s => Connection.Namespace.Messages.PurgeAsync(new MessageSource.Subscription(s.TopicName, s.Name, IsDlq: true)).LastOrDefaultAsync().AsTask())"
+                  Activity="@(s => PageStrings.FormatList_PurgedDlq(Key(s)))"
+                  OnCompleted="@(s => { _list?.Update(Key(s), x => x with { DeadLetterMessageCount = 0 }); return Task.CompletedTask; })" />
+}
 
 @code {
+    private bool HasDeadLetters => Connection.Current is IHasDeadLetters;
+
     private ITopicService Topics => Connection.Current is IHasTopics { Topics: var topics } ? topics : throw new InvalidOperationException(PageStrings.List_NoTopics);
 
     private EntityList<SubscriptionInfo>? _list;
@@ -86,7 +91,7 @@
     private IEnumerable<KeyBinding> Commands =>
     [
         .. Connection.Current is IHasDeletion ? [ListKeys.Delete(() => OnFocused(_deleteSub))] : Array.Empty<KeyBinding>(),
-        ListKeys.PurgeDlq(() => OnFocused(_purgeDlq)),
+        .. HasDeadLetters ? [ListKeys.PurgeDlq(() => OnFocused(_purgeDlq))] : Array.Empty<KeyBinding>(),
     ];
 
     private void OnFocused(AsyncCommand<SubscriptionInfo>? command)
