@@ -109,7 +109,7 @@ public sealed class SessionFormatTests
             ## Where
 
             - Azure subscription: Contoso Development (`6f1d2c3b-0000-4000-8000-000000000001`)
-            - Namespace: sb-orders-dev (`sb-orders-dev.servicebus.windows.net`), Standard, West Europe, resource group rg-messaging-dev
+            - Namespace: sb-orders-dev (`sb-orders-dev.servicebus.windows.net`), SKU: Standard, Region: West Europe, Resource group: rg-messaging-dev, Status: Active, Resource ID: /subscriptions/6f1d2c3b-0000-4000-8000-000000000001/resourceGroups/rg-messaging-dev/providers/Microsoft.ServiceBus/namespaces/sb-orders-dev
             - Queue: `orders`, dead-letter queue
             - Mode: Peek
 

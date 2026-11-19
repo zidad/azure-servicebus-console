@@ -13,18 +13,7 @@ public static class SessionJson
         ["subscription"] = snapshot.Subscription is { } s
             ? new JsonObject { ["name"] = s.Name, ["id"] = s.Id, ["isEmulator"] = s.IsEmulator }
             : null,
-        ["namespace"] = snapshot.Namespace is { } ns
-            ? new JsonObject
-            {
-                ["name"] = ns.Name,
-                ["fullyQualifiedNamespace"] = ns.FullyQualifiedNamespace,
-                ["resourceGroup"] = ns.ResourceGroup,
-                ["location"] = ns.Location,
-                ["sku"] = ns.Sku,
-                ["status"] = ns.Status,
-                ["resourceId"] = ns.ResourceId,
-            }
-            : null,
+        ["namespace"] = snapshot.Namespace is { } ns ? Namespace(ns) : null,
         ["source"] = Source(snapshot.Source),
         ["mode"] = snapshot.Mode,
         ["message"] = snapshot.Message is { } m ? MessageJson.ToNode(m) : null,
@@ -40,4 +29,11 @@ public static class SessionJson
     private static JsonObject? Source(MessageSource? source) => source?.Match(
         q => new JsonObject { ["kind"] = "queue", ["queue"] = q.Name, ["isDlq"] = q.IsDlq, ["displayName"] = q.DisplayName },
         s => new JsonObject { ["kind"] = "subscription", ["topic"] = s.Topic, ["subscription"] = s.Name, ["isDlq"] = s.IsDlq, ["displayName"] = s.DisplayName });
+
+    private static JsonObject Namespace(BrokerInfo ns) =>
+        new([
+            new("name", ns.Name),
+            new("fullyQualifiedNamespace", ns.FullyQualifiedNamespace),
+            .. ns.Properties.Select(p => new KeyValuePair<string, JsonNode?>(p.Id, p.Value)),
+        ]);
 }

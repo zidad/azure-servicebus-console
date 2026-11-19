@@ -9,7 +9,7 @@ public sealed class ConnectionHeaderTests
     public async Task DropdownTree_SwitchesNamespace_OnTheSameList()
     {
         var app = new AppHarness();
-        app.Namespaces.Namespaces.Add(new BrokerInfo { Name = "sb-dev-a", FullyQualifiedNamespace = "sb-dev-a.servicebus.windows.net", ResourceGroup = "rg-a", Location = "West Europe" });
+        app.Namespaces.Namespaces.Add(new BrokerInfo { Name = "sb-dev-a", FullyQualifiedNamespace = "sb-dev-a.servicebus.windows.net", Properties = ServiceBusProperties(location: "West Europe", resourceGroup: "rg-a") });
         app.Namespaces.Subscriptions.Add(new AzureSubscription("Contoso Development", "6f1d2c3b-0000-4000-8000-000000000001"));
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
         await using var terminal = await app.OpenQueuesAsync();
@@ -46,7 +46,7 @@ public sealed class ConnectionHeaderTests
     public async Task DropdownTree_OnTopics_SwitchesToANamespaceWithTopics_StaysOnTopics()
     {
         var app = new AppHarness();
-        app.Namespaces.Namespaces.Add(new BrokerInfo { Name = "sb-dev-a", FullyQualifiedNamespace = "sb-dev-a.servicebus.windows.net", ResourceGroup = "rg-a", Location = "West Europe" });
+        app.Namespaces.Namespaces.Add(new BrokerInfo { Name = "sb-dev-a", FullyQualifiedNamespace = "sb-dev-a.servicebus.windows.net", Properties = ServiceBusProperties(location: "West Europe", resourceGroup: "rg-a") });
         app.Namespaces.Subscriptions.Add(new AzureSubscription("Contoso Development", "6f1d2c3b-0000-4000-8000-000000000001"));
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
         app.Topics.Topics.Add(new TopicInfo { Name = "order-events" });

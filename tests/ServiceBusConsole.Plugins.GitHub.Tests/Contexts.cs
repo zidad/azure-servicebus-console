@@ -23,7 +23,7 @@ internal static class Contexts
         At = DateTimeOffset.UnixEpoch,
         Namespace = new BrokerInfo
         {
-            Name = "sb-orders-dev", FullyQualifiedNamespace = "sb-orders-dev.servicebus.windows.net", ResourceGroup = "rg-orders", Location = "westeurope", Sku = "Standard",
+            Name = "sb-orders-dev", FullyQualifiedNamespace = "sb-orders-dev.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Standard", location: "westeurope", resourceGroup: "rg-orders"),
         },
         Source = Source,
         Mode = "Peek",

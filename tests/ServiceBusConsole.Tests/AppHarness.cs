@@ -112,9 +112,9 @@ public sealed class AppHarness
 
     public static readonly BrokerInfo AzureNamespace = new()
     {
-        Name = "sb-orders-dev", FullyQualifiedNamespace = "sb-orders-dev.servicebus.windows.net", ResourceGroup = "rg-messaging-dev",
-        Location = "West Europe", Sku = "Standard", Status = "Active",
-        ResourceId = "/subscriptions/6f1d2c3b-0000-4000-8000-000000000001/resourceGroups/rg-messaging-dev/providers/Microsoft.ServiceBus/namespaces/sb-orders-dev",
+        Name = "sb-orders-dev", FullyQualifiedNamespace = "sb-orders-dev.servicebus.windows.net",
+        Properties = ServiceBusProperties(sku: "Standard", location: "West Europe", resourceGroup: "rg-messaging-dev", status: "Active",
+            resourceId: "/subscriptions/6f1d2c3b-0000-4000-8000-000000000001/resourceGroups/rg-messaging-dev/providers/Microsoft.ServiceBus/namespaces/sb-orders-dev"),
     };
 
     /// <summary>

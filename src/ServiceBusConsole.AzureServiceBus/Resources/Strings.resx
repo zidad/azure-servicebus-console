@@ -36,4 +36,19 @@
   <data name="MessageService_LockNeedsDeadLetters" xml:space="preserve">
     <value>Only dead letters can be locked by a scan.</value>
   </data>
+  <data name="Namespace_Sku" xml:space="preserve">
+    <value>SKU</value>
+  </data>
+  <data name="Namespace_Region" xml:space="preserve">
+    <value>Region</value>
+  </data>
+  <data name="Namespace_ResourceGroup" xml:space="preserve">
+    <value>Resource group</value>
+  </data>
+  <data name="Namespace_Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Namespace_ResourceId" xml:space="preserve">
+    <value>Resource ID</value>
+  </data>
 </root>

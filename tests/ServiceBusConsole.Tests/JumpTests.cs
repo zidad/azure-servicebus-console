@@ -47,7 +47,7 @@ public sealed class JumpTests
 
     private static readonly JumpNamespace Production = new(new AzureSubscription("Contoso Production", "prod-id"), new BrokerInfo
     {
-        Name = "sb-payments-prd", FullyQualifiedNamespace = "sb-payments-prd.servicebus.windows.net", ResourceGroup = "rg-prd", Location = "West Europe", Sku = "Standard",
+        Name = "sb-payments-prd", FullyQualifiedNamespace = "sb-payments-prd.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Standard", location: "West Europe", resourceGroup: "rg-prd"),
     });
 
     [Test]

@@ -12,13 +12,13 @@ internal sealed class NamespaceOpener(
     EmulatorSettings emulator) : IBrokerOpener
 {
     /// <summary>
-    /// By <see cref="BrokerInfo.Sku"/>. An unknown one (cached before it was recorded) counts as Standard until the live
+    /// By its SKU. An unknown one (cached before it was recorded) counts as Standard until the live
     /// listing replaces the namespace.
     /// </summary>
     public static NamespaceTier TierOf(BrokerInfo info) => info switch
     {
         _ when info.FullyQualifiedNamespace == BrokerInfo.Emulator.FullyQualifiedNamespace => NamespaceTier.Emulator,
-        { Sku: { } sku } when sku.Equals("Basic", StringComparison.OrdinalIgnoreCase) => NamespaceTier.Basic,
+        _ when info.Property(NamespaceProperties.Sku) is { } sku && sku.Equals("Basic", StringComparison.OrdinalIgnoreCase) => NamespaceTier.Basic,
         _ => NamespaceTier.Standard,
     };
 

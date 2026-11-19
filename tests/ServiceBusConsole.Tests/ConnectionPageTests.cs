@@ -24,8 +24,8 @@ public sealed class ConnectionPageTests
         var app = new AppHarness();
         app.Namespaces.Namespaces.AddRange(
         [
-            new BrokerInfo { Name = "sb-dev-a", FullyQualifiedNamespace = "sb-dev-a.servicebus.windows.net", ResourceGroup = "rg-a", Location = "West Europe", Sku = "Standard", Status = "Active" },
-            new BrokerInfo { Name = "sb-dev-b", FullyQualifiedNamespace = "sb-dev-b.servicebus.windows.net", ResourceGroup = "rg-b", Location = "North Europe", Sku = "Premium", Status = "Active" },
+            new BrokerInfo { Name = "sb-dev-a", FullyQualifiedNamespace = "sb-dev-a.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Standard", location: "West Europe", resourceGroup: "rg-a", status: "Active") },
+            new BrokerInfo { Name = "sb-dev-b", FullyQualifiedNamespace = "sb-dev-b.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Premium", location: "North Europe", resourceGroup: "rg-b", status: "Active") },
         ]);
         app.Namespaces.Subscriptions.Add(new AzureSubscription("Contoso Development", "6f1d2c3b-0000-4000-8000-000000000001"));
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
@@ -34,7 +34,7 @@ public sealed class ConnectionPageTests
 
         await app.SelectAzureNamespaceAsync(terminal, app.Namespaces.Namespaces[1]);
         var frame = terminal.CurrentFrame;
-        frame.ContainsText("Premium   North Europe   rg-b                  ✅ Active").ShouldBeTrue(frame.ScreenText);
+        frame.ContainsText("Premium   North Europe  rg-b            ✅ Active").ShouldBeTrue(frame.ScreenText);
         var connectionFocus = terminal.FocusKey;
 
         await terminal.SendKeyAsync(ConsoleKey.F1, '\0', cancellationToken: Ct);

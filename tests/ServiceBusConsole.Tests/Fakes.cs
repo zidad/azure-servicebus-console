@@ -470,7 +470,7 @@ public abstract class FakeNamespace(BrokerInfo info, FakeServices services) : IB
     public static FakeNamespace For(BrokerInfo info, FakeServices services) => info switch
     {
         _ when info == BrokerInfo.Emulator => new FakeEmulatorNamespace(services),
-        { Sku: "Basic" } => new FakeBasicNamespace(info, services),
+        _ when info.Property("sku") == "Basic" => new FakeBasicNamespace(info, services),
         _ => new FakeStandardNamespace(info, services),
     };
 

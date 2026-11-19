@@ -12,5 +12,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)TestRun.cs" Link="TestRun.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)TestMessages.cs" Link="TestMessages.cs" />
     <Using Include="ServiceBusConsole.Tests.TestMessages" Static="true" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestBrokers.cs" Link="TestBrokers.cs" />
+    <Using Include="ServiceBusConsole.Tests.TestBrokers" Static="true" />
   </ItemGroup>
 </Project>

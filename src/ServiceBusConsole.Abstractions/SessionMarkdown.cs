@@ -32,8 +32,7 @@ public static class SessionMarkdown
             yield return subscription.Id is { } id ? $"Azure subscription: {subscription.Name} (`{id}`)" : $"Azure subscription: {subscription.Name}";
         if (snapshot.Namespace is { } ns)
         {
-            string[] details = [ns.Sku ?? "", ns.Location, ns.ResourceGroup.Length > 0 ? $"resource group {ns.ResourceGroup}" : ""];
-            var extra = string.Join(", ", details.Where(d => d.Length > 0));
+            var extra = string.Join(", ", ns.Properties.Select(p => $"{p.Label}: {p.Value}"));
             yield return $"Namespace: {ns.Name} (`{ns.FullyQualifiedNamespace}`)" + (extra.Length > 0 ? $", {extra}" : "");
         }
         if (snapshot.Source is { } source)

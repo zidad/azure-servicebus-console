@@ -157,6 +157,7 @@
     private void Rebuild()
     {
         _rows = Tree.Rows(_filter.Text);
+        _columns = ColumnsOf(_rows);
         var found = _selectedKey is null ? -1 : IndexOf(_selectedKey);
         _index = found >= 0 ? found : Math.Clamp(_index, 0, Math.Max(0, _rows.Count - 1));
         if (found >= 0 || _selectedKey is null) _selectedKey = _rows.ElementAtOrDefault(_index)?.Key;
@@ -208,8 +209,9 @@
             : ComponentStrings.FormatConnectionTree_NamespaceCountMany(count),
         Subscription { Value.Id: { } id } => id == DefaultSubscriptionId ? ComponentStrings.FormatConnectionTree_DefaultSubscription(id) : id,
         Subscription => "localhost:5672",
-        { InNamespace.Info: var ns } => DetailColumns(ns.Sku ?? "", ns.Location, ns.ResourceGroup,
-            string.IsNullOrEmpty(ns.Status) ? "" : $"{Icons.NamespaceStatus(ns.Status)} {ns.Status}"),
+        { InNamespace.Info: var ns } => DetailColumns(c => ns.Properties.FirstOrDefault(p => p.Id == c.Id) is { } p
+            ? p.Healthy is { } healthy ? $"{Icons.Health(healthy)} {p.Value}" : p.Value
+            : ""),
         _ => "",
     };
 
@@ -220,13 +222,24 @@
         _ => "",
     };
 
-    // One cell, padded into columns: a namespace's SKU, region, resource group and status line up under the header.
-    private const int SkuWidth = 10, RegionWidth = 15, GroupWidth = 22;
+    // One cell, padded into columns: the namespaces' listed properties line up under the header.
+    private readonly record struct DetailColumn(string Id, string Label, int Width);
+    private const int MaxColumnWidth = 24;
+    private IReadOnlyList<DetailColumn> _columns = [];
 
-    private static string DetailsHeader => DetailColumns(ComponentStrings.ConnectionTree_Sku, ComponentStrings.ConnectionTree_Region, ComponentStrings.ConnectionTree_ResourceGroup, ComponentStrings.ConnectionTree_Status);
+    private static IReadOnlyList<DetailColumn> ColumnsOf(IEnumerable<ExplorerRow> rows)
+    {
+        var listed = rows.OfType<ExplorerRow.Item>()
+            .SelectMany(r => r.Node is Namespace ns ? ns.Info.Properties.Where(p => p.Listed) : [])
+            .ToList();
+        return [.. listed.DistinctBy(p => p.Id).Select(p => new DetailColumn(p.Id, p.Label,
+            Math.Min(MaxColumnWidth, listed.Where(o => o.Id == p.Id).Max(o => o.Value.Length + (o.Healthy is null ? 0 : 2)) + 2)))];
+    }
 
-    private static string DetailColumns(string sku, string region, string group, string status) =>
-        $"{Fit(sku, SkuWidth)}{Fit(region, RegionWidth)}{Fit(group, GroupWidth)}{status}";
+    private string DetailsHeader => DetailColumns(c => c.Label);
+
+    private string DetailColumns(Func<DetailColumn, string> text) =>
+        string.Concat(_columns.Select((c, i) => i == _columns.Count - 1 ? text(c) : Fit(text(c), Math.Max(c.Width, c.Label.Length + 2))));
 
     private static string Fit(string text, int width) => (text.Length < width ? text : text[..(width - 2)] + "…").PadRight(width);
 

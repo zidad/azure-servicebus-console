@@ -46,11 +46,4 @@ public static class Theme
 
     /// <summary>A list's scrollbar: the thumb in <see cref="Accent"/> while it has focus.</summary>
     public static ScrollbarSettings Scrollbar() => new(trackColor: Border, thumbColor: Muted, trackFocusedColor: Muted, thumbFocusedColor: Accent);
-
-    public static Color NamespaceStatus(string? status) => status switch
-    {
-        "Active" => Success,
-        null or "" => Muted,
-        _ => Warning,
-    };
 }

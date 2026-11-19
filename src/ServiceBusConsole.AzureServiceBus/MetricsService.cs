@@ -11,7 +11,7 @@ internal sealed class MetricsService(BrokerInfo ns, ArmClient armClient, ILogger
 {
     public async IAsyncEnumerable<MessageMetrics> GetMetricsAsync(MetricsScope scope, MetricsWindow window, [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var resource = new ResourceIdentifier(ns.ResourceId
+        var resource = new ResourceIdentifier(ns.Property(NamespaceProperties.ResourceId)
             ?? throw new InvalidOperationException(Strings.MetricsService_NoResourceId));
 
         logger.LogInformation("Loading metrics of {Scope} in {Namespace}", scope, ns.Name);
@@ -26,7 +26,7 @@ internal sealed class MetricsService(BrokerInfo ns, ArmClient armClient, ILogger
 
     public async IAsyncEnumerable<EntityTraffic> GetIncomingByEntityAsync(MetricsWindow window, [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var resource = new ResourceIdentifier(ns.ResourceId
+        var resource = new ResourceIdentifier(ns.Property(NamespaceProperties.ResourceId)
             ?? throw new InvalidOperationException(Strings.MetricsService_NoResourceId));
 
         logger.LogInformation("Loading incoming messages per entity in {Namespace}", ns.Name);
