@@ -141,7 +141,7 @@ public sealed class RetryPipelineTests
     {
         var services = new FakeServices();
         services.Messages.Messages.AddRange(Enumerable.Range(1, 3).Select(i => Message(i)));
-        var browser = new MessageBrowser(OrdersDlq, new FakeBasicNamespace(AppHarness.AzureNamespace with { Sku = "Basic" }, services));
+        var browser = new MessageBrowser(OrdersDlq, new FakeBasicNamespace(AppHarness.AzureNamespace with { Properties = ServiceBusProperties(sku: "Basic") }, services));
         await browser.PeekAsync(3, null);
         browser.SelectAll();
 

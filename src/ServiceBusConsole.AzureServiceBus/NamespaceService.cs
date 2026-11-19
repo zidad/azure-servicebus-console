@@ -50,11 +50,8 @@ internal sealed class NamespaceService(ArmClient armClient, ILogger<NamespaceSer
         {
             Name = ns.Data.Name,
             FullyQualifiedNamespace = $"{ns.Data.Name}.servicebus.windows.net",
-            ResourceGroup = ns.Id?.ResourceGroupName ?? "",
-            Location = ns.Data.Location.DisplayName ?? ns.Data.Location.Name,
-            Sku = ns.Data.Sku?.Name.ToString(),
-            Status = ns.Data.Status,
-            ResourceId = ns.Id?.ToString(),
+            Properties = NamespaceProperties.Of(ns.Data.Sku?.Name.ToString(), ns.Data.Location.DisplayName ?? ns.Data.Location.Name,
+                ns.Id?.ResourceGroupName, ns.Data.Status, ns.Id?.ToString()),
         });
     }
 

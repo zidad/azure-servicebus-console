@@ -270,9 +270,9 @@ public sealed class Screenshots
         ]);
         app.Namespaces.Namespaces.AddRange(
         [
-            new BrokerInfo { Name = "sb-orders-dev", FullyQualifiedNamespace = "sb-orders-dev.servicebus.windows.net", ResourceGroup = "rg-messaging-dev", Location = "West Europe", Sku = "Standard", Status = "Active" },
-            new BrokerInfo { Name = "sb-orders-prd", FullyQualifiedNamespace = "sb-orders-prd.servicebus.windows.net", ResourceGroup = "rg-messaging-prd", Location = "West Europe", Sku = "Premium", Status = "Active" },
-            new BrokerInfo { Name = "sb-legacy", FullyQualifiedNamespace = "sb-legacy.servicebus.windows.net", ResourceGroup = "rg-legacy", Location = "North Europe", Sku = "Basic", Status = "Disabled" },
+            new BrokerInfo { Name = "sb-orders-dev", FullyQualifiedNamespace = "sb-orders-dev.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Standard", location: "West Europe", resourceGroup: "rg-messaging-dev", status: "Active") },
+            new BrokerInfo { Name = "sb-orders-prd", FullyQualifiedNamespace = "sb-orders-prd.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Premium", location: "West Europe", resourceGroup: "rg-messaging-prd", status: "Active") },
+            new BrokerInfo { Name = "sb-legacy", FullyQualifiedNamespace = "sb-legacy.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Basic", location: "North Europe", resourceGroup: "rg-legacy", status: "Disabled") },
         ]);
         app.Queues.Queues.AddRange(
         [

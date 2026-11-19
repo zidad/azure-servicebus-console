@@ -43,7 +43,7 @@ public sealed class AnalyseMessageActionTests : IDisposable
             Session = new SessionSnapshot
             {
                 At = At,
-                Namespace = new BrokerInfo { Name = "sb-orders-dev", FullyQualifiedNamespace = "sb-orders-dev.servicebus.windows.net", ResourceGroup = "rg", Location = "West Europe" },
+                Namespace = new BrokerInfo { Name = "sb-orders-dev", FullyQualifiedNamespace = "sb-orders-dev.servicebus.windows.net", Properties = ServiceBusProperties(location: "West Europe", resourceGroup: "rg") },
                 Source = Source,
                 Mode = "Peek",
                 Message = Message,

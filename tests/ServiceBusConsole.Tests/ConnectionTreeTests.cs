@@ -7,7 +7,7 @@ public sealed class ConnectionTreeTests
 {
     private static readonly BrokerInfo Basic = AppHarness.AzureNamespace with
     {
-        Name = "sb-legacy", FullyQualifiedNamespace = "sb-legacy.servicebus.windows.net", Sku = "Basic",
+        Name = "sb-legacy", FullyQualifiedNamespace = "sb-legacy.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Basic"),
     };
 
     private static AppHarness Harness()
@@ -110,9 +110,9 @@ public sealed class ConnectionTreeTests
         var lines = Enumerable.Range(0, frame.Height).Select(frame.GetLine).ToList();
         var recent = lines.FindIndex(l => l.Contains("▾ 🕘 Recent"));
         lines[recent + 1].ShouldContain("└─ 🌐 sb-orders-dev Contoso Development");
-        lines[recent + 1].TrimEnd('│', ' ').ShouldEndWith("✅ Active      2 h ago");
+        lines[recent + 1].TrimEnd('│', ' ').ShouldEndWith("✅ Active        2 h ago");
         lines[recent + 2].ShouldContain("▾ 🧪 Local Emulator");
-        lines.Single(l => l.Contains("─ 🌐 sb-orders-dev") && !l.Contains("Contoso")).TrimEnd('│', ' ').ShouldEndWith("✅ Active      2 h ago");
+        lines.Single(l => l.Contains("─ 🌐 sb-orders-dev") && !l.Contains("Contoso")).TrimEnd('│', ' ').ShouldEndWith("✅ Active        2 h ago");
         lines.Single(l => l.Contains("─ 🌐 sb-legacy")).ShouldNotContain("ago");
         frame.ContainsText("Opened").ShouldBeTrue(frame.ScreenText);
     }

@@ -235,18 +235,6 @@
   <data name="ConnectionTree_Name" xml:space="preserve">
     <value>Name</value>
   </data>
-  <data name="ConnectionTree_Sku" xml:space="preserve">
-    <value>SKU</value>
-  </data>
-  <data name="ConnectionTree_Region" xml:space="preserve">
-    <value>Region</value>
-  </data>
-  <data name="ConnectionTree_ResourceGroup" xml:space="preserve">
-    <value>Resource group</value>
-  </data>
-  <data name="ConnectionTree_Status" xml:space="preserve">
-    <value>Status</value>
-  </data>
   <data name="ConnectionTree_DefaultSubscription" xml:space="preserve">
     <value>{id}  (az default)</value>
   </data>

@@ -48,10 +48,5 @@ public static class Icons
     public const string Open = "📂";
     public const string Recent = "🕘";
 
-    public static string NamespaceStatus(string? status) => status switch
-    {
-        "Active" => Active,
-        null or "" => "",
-        _ => Inactive,
-    };
+    public static string Health(bool healthy) => healthy ? Active : Inactive;
 }

@@ -53,7 +53,7 @@
             : $" {index + 1} {section.Label} ";
 
     private string Details => Connection.Current is { Info: var ns }
-        ? string.Join(" · ", new[] { ns.Sku, ns.Location, ns.ResourceGroup }.Where(p => !string.IsNullOrEmpty(p)))
+        ? string.Join(" · ", ns.Properties.Where(p => p.Listed && p.Healthy is null).Select(p => p.Value))
         : "";
 
     private void Open(Section section)

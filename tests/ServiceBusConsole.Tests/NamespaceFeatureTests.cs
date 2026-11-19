@@ -6,7 +6,7 @@ public sealed class NamespaceFeatureTests
 {
     private static readonly BrokerInfo Basic = AppHarness.AzureNamespace with
     {
-        Name = "sb-legacy", FullyQualifiedNamespace = "sb-legacy.servicebus.windows.net", Sku = "Basic",
+        Name = "sb-legacy", FullyQualifiedNamespace = "sb-legacy.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Basic"),
     };
 
     [Test]
