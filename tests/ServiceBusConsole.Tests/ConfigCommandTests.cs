@@ -116,8 +116,6 @@ public sealed class ConfigCommandTests
 
         Lines(_out).ShouldBe([
             $"# ui.theme=auto  ({ConfigKeys.Theme.Description})",
-            $"# azure.auth=cli  ({ConfigKeys.AzureAuth.Description})",
-            $"# azure.transport=tcp  ({ConfigKeys.AzureTransport.Description})",
             $"# cli.protect=  ({ConfigKeys.Protect.Description})",
             $"# cli.redact.namespaces=  ({ConfigKeys.RedactNamespaces.Description})",
             $"# cli.redact.fields=  ({ConfigKeys.RedactFields.Description})",

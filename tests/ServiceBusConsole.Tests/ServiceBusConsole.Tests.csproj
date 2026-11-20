@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="../../src/ServiceBusConsole/ServiceBusConsole.csproj" />
+    <ProjectReference Include="../../src/ServiceBusConsole.BundledPlugins/ServiceBusConsole.BundledPlugins.csproj" />
     <ProjectReference Include="../../lib/RazorConsole/src/RazorConsole.Testing/RazorConsole.Testing.csproj" />
   </ItemGroup>
   <ItemGroup>

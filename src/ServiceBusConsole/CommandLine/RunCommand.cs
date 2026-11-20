@@ -31,7 +31,8 @@ public static class RunCommand
         Theme.Use(palette);
         try
         {
-            AzureSettings.Read(host.Services.GetRequiredService<IConfiguration>());
+            // The transport reads its settings as its services are built: an invalid one is a usage error before the UI starts.
+            host.Services.GetRequiredService<IConnectionCatalog>();
         }
         catch (CommandFailure failure)
         {

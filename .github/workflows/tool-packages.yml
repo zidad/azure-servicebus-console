@@ -52,7 +52,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
 
       - name: Pack
-        run: dotnet pack src/ServiceBusConsole/ServiceBusConsole.csproj --configuration Release --runtime ${{ matrix.rid }} -p:Version=${{ inputs.version }} --output artifacts/packages
+        run: dotnet pack src/ServiceBusConsole.Azsb/ServiceBusConsole.Azsb.csproj --configuration Release --runtime ${{ matrix.rid }} -p:Version=${{ inputs.version }} --output artifacts/packages
 
       # The archive holds what the package installs, the executable renamed to azsb.
       - name: Archive
@@ -65,7 +65,7 @@ jobs:
           Copy-Item "artifacts/package/tools/any/$env:RID/*" $stage -Recurse
           Remove-Item "$stage/DotnetToolSettings.xml"
           $ext = $IsWindows ? '.exe' : ''
-          Move-Item "$stage/ServiceBusConsole$ext" "$stage/azsb$ext"
+          Move-Item "$stage/ServiceBusConsole.Azsb$ext" "$stage/azsb$ext"
           if ($IsWindows) {
             Compress-Archive $stage "artifacts/archives/$env:ARCHIVE.zip"
           } else {
@@ -114,7 +114,7 @@ jobs:
           global-json-file: global.json
 
       - name: Pack
-        run: dotnet pack src/ServiceBusConsole/ServiceBusConsole.csproj --configuration Release -p:Version=${{ inputs.version }} --output artifacts/packages
+        run: dotnet pack src/ServiceBusConsole.Azsb/ServiceBusConsole.Azsb.csproj --configuration Release -p:Version=${{ inputs.version }} --output artifacts/packages
 
       - uses: actions/upload-artifact@v4
         with:
