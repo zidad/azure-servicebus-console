@@ -14,9 +14,9 @@ public sealed record CommandServices(IConnectionCatalog Namespaces, IBrokerOpene
     /// <summary>Standard input when something is piped in, for <c>send</c>; null at a terminal.</summary>
     public Func<Stream?> Input { get; init; } = () => Console.IsInputRedirected ? Console.OpenStandardInput() : null;
 
-    public static CommandServices Create(BrokerTransport transport, Action<ILoggingBuilder> logging)
+    public static CommandServices Create(AppIdentity app, BrokerTransport transport, Action<ILoggingBuilder> logging)
     {
-        var configuration = new ConfigurationBuilder().AddAzsbConfiguration(AppPaths.ConfigFile).Build();
+        var configuration = new ConfigurationBuilder().AddAppConfiguration(app).Build();
         var services = new ServiceCollection().AddLogging(logging);
         transport.AddServices(services, configuration);
         var provider = services.BuildServiceProvider();

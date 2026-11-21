@@ -8,13 +8,14 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace ServiceBusConsole.CommandLine;
 
 /// <summary>
-/// The azsb commands: <see cref="RunCommand"/>, the default, the namespace commands (<see cref="NamespaceCommand"/>),
+/// The app's commands: <see cref="RunCommand"/>, the default, the namespace commands (<see cref="NamespaceCommand"/>),
 /// <see cref="ConfigCommand"/>, <see cref="PluginsCommand"/> and help.
 /// System.CommandLine parses without reflection, so the app also runs as a Native AOT binary.
 /// </summary>
 public sealed class AppCommands
 {
     private readonly IHostBuilder _host;
+    private readonly AppIdentity _app;
     private readonly PluginCatalog _plugins;
     private readonly BrokerTransport _transport;
     private readonly Func<CommandServices> _services;
@@ -83,16 +84,16 @@ public sealed class AppCommands
     private readonly Command _purge;
     private readonly Command _send;
 
-    public AppCommands(IHostBuilder host) : this(host, PluginCatalog.Empty) { }
-
+    /// <param name="plugins">None when omitted.</param>
     /// <param name="transport">The broker; none when omitted, for commands that never open one.</param>
     /// <param name="services">What the namespace commands use; by default the live broker without logging.</param>
-    public AppCommands(IHostBuilder host, PluginCatalog plugins, BrokerTransport? transport = null, Func<CommandServices>? services = null)
+    public AppCommands(IHostBuilder host, AppIdentity app, PluginCatalog? plugins = null, BrokerTransport? transport = null, Func<CommandServices>? services = null)
     {
         _host = host;
-        _plugins = plugins;
+        _app = app;
+        _plugins = plugins ?? PluginCatalog.Empty;
         _transport = transport ?? BrokerTransport.None;
-        _services = services ?? (() => CommandServices.Create(_transport, logging => logging.AddProvider(NullLoggerProvider.Instance)));
+        _services = services ?? (() => CommandServices.Create(app, _transport, logging => logging.AddProvider(NullLoggerProvider.Instance)));
         _run = new("run", CommandLineStrings.AppCommands_Run) { _subscription, _namespace, _open, _theme };
         _config = new("config", CommandLineStrings.AppCommands_Config) { _action, _key, _value, _all };
         _pluginsCommand = new("plugins", CommandLineStrings.AppCommands_Plugins);
@@ -106,10 +107,10 @@ public sealed class AppCommands
         {
             _sendTarget, _body, _file, _messageId, _contentType, _subject, _correlationId, _properties, _confirm,
         });
-        var help = new Command("help", CommandLineStrings.AppCommands_Help) { _topic };
+        var help = new Command("help", CommandLineStrings.FormatAppCommands_Help(app.Name)) { _topic };
 
-        // Named azsb, not after the executable (ServiceBusConsole.Azsb).
-        Root = new("azsb", CommandLineStrings.AppCommands_Root)
+        // Named after the app, not the executable (ServiceBusConsole.Azsb).
+        Root = new(app.Name, app.Description)
         {
             new HelpOption(), new VersionOption(), _subscription, _namespace, _open, _theme, _run,
             _check, _list, _peek, _retry, _delete, _purge, _send, _config, _pluginsCommand, help,
@@ -121,8 +122,9 @@ public sealed class AppCommands
 
     public Command Root { get; }
 
-    public static Task<int> ExecuteAsync(IHostBuilder host, PluginCatalog plugins, BrokerTransport transport, Func<CommandServices> services, string[] args) =>
-        new AppCommands(host, plugins, transport, services).Root.Parse(args).InvokeAsync();
+    public static Task<int> ExecuteAsync(
+        IHostBuilder host, AppIdentity app, PluginCatalog plugins, BrokerTransport transport, Func<CommandServices> services, string[] args) =>
+        new AppCommands(host, app, plugins, transport, services).Root.Parse(args).InvokeAsync();
 
     /// <summary>What <paramref name="args"/> ask for; null for help or invalid usage.</summary>
     public CommandInput? Bind(params string[] args) => Bind(Root.Parse(args));
@@ -139,6 +141,8 @@ public sealed class AppCommands
     {
         var c when c == _config => new ConfigInput
         {
+            App = _app,
+            File = new(_app.ConfigFile),
             Action = result.GetValue(_action),
             Key = result.GetValue(_key),
             Value = result.GetValue(_value),
@@ -148,11 +152,12 @@ public sealed class AppCommands
         var c when c == _pluginsCommand => new PluginsInput
         {
             Catalog = _plugins,
-            Configuration = new ConfigurationBuilder().AddAzsbConfiguration(AppPaths.ConfigFile).Build(),
+            Configuration = new ConfigurationBuilder().AddAppConfiguration(_app).Build(),
         },
         var c when c == _run || c == Root => new RunInput
         {
             HostBuilder = _host,
+            App = _app,
             Subscription = result.GetValue(_subscription),
             Namespace = result.GetValue(_namespace),
             Open = result.GetValue(_open),

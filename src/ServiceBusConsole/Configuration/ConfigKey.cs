@@ -1,6 +1,6 @@
 namespace ServiceBusConsole.Configuration;
 
-/// <summary>A setting azsb knows: its dotted key, what it does, and the value it has when unset.</summary>
+/// <summary>A setting the app knows: its dotted key, what it does, and the value it has when unset.</summary>
 public sealed record ConfigKey(string Key, string Description, string? Default = null)
 {
     public const string Mask = "********";

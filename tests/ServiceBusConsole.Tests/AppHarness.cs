@@ -96,7 +96,8 @@ public sealed class AppHarness
                     services.AddSingleton<MetricsVisibility>();
                     services.AddSingleton<MetricsRange>();
                     services.AddSingleton<IPluginHost>(PluginHost);
-                    services.AddPlugins(new PluginCatalog(Plugins), new ConfigurationBuilder().AddInMemoryCollection(Settings).Build());
+                    services.AddSingleton(TestApp.Identity);
+                    services.AddPlugins(new PluginCatalog(Plugins), new ConfigurationBuilder().AddInMemoryCollection(Settings).Build(), PluginHost.StateDirectory);
                 },
             },
             Ct);

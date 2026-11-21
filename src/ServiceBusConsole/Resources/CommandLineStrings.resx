@@ -12,9 +12,6 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="AppCommands_Root" xml:space="preserve">
-    <value>Azure Service Bus CLI and terminal UI: browse, peek, retry and send messages</value>
-  </data>
   <data name="AppCommands_Run" xml:space="preserve">
     <value>Open the terminal UI (the default command)</value>
   </data>
@@ -28,7 +25,7 @@
     <value>List the plugins, whether they are enabled, and their settings</value>
   </data>
   <data name="AppCommands_Help" xml:space="preserve">
-    <value>Show help for azsb or one of its commands</value>
+    <value>Show help for {app} or one of its commands</value>
   </data>
   <data name="AppCommands_SubscriptionOption" xml:space="preserve">
     <value>Azure subscription to start in, by name or ID; emulator for the local emulator</value>
@@ -64,7 +61,7 @@
     <value>warning: unknown key '{key}', set anyway</value>
   </data>
   <data name="ConfigCommand_Usage" xml:space="preserve">
-    <value>usage: azsb config get &lt;key&gt; | set &lt;key&gt; &lt;value&gt; | unset &lt;key&gt; | list [--all] | path</value>
+    <value>usage: {app} config get &lt;key&gt; | set &lt;key&gt; &lt;value&gt; | unset &lt;key&gt; | list [--all] | path</value>
   </data>
   <data name="RunCommand_InvalidUsage" xml:space="preserve">
     <value>Invalid usage:</value>

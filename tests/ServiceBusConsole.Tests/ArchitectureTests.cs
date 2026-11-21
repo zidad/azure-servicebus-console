@@ -7,12 +7,12 @@ public sealed class ArchitectureTests
     private static IEnumerable<string> References(Type type) => type.Assembly.GetReferencedAssemblies().Select(a => a.Name ?? "");
 
     [Test]
-    public void App_UsesTheAbstractionsOnly_NotTheAzureSdk() =>
-        References(typeof(App)).ShouldNotContain(name => name.StartsWith("Azure."));
+    public void App_UsesTheAbstractionsOnly_NotABrokerClient() =>
+        References(typeof(App)).ShouldNotContain(name => name.StartsWith("Azure.") || name.StartsWith("RabbitMQ.") || name.StartsWith("EasyNetQ."));
 
     [Test]
     public void App_IsSharedByEveryTransport_ReferencingNone() =>
-        References(typeof(App)).ShouldNotContain(name => name == "ServiceBusConsole.AzureServiceBus");
+        References(typeof(App)).ShouldNotContain(name => name == "ServiceBusConsole.AzureServiceBus" || name == "ServiceBusConsole.RabbitMQ");
 
     [Test]
     public void App_UsesThePluginContractsOnly_NotAPlugin()

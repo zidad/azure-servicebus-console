@@ -6,6 +6,7 @@
     <PackageVersion Include="Aspire.Hosting.Azure.ServiceBus" Version="13.6.5" />
     <PackageVersion Include="Aspire.Hosting.RabbitMQ" Version="13.6.5" />
     <PackageVersion Include="Aspire.Hosting.Testing" Version="13.6.5" />
+    <PackageVersion Include="EasyNetQ.Management.Client" Version="4.0.0-alpha1" />
     <PackageVersion Include="Microsoft.CodeAnalysis.ResxSourceGenerator" Version="5.0.0-1.25277.114" />
     <PackageVersion Include="Azure.Identity" Version="1.21.0" />
     <PackageVersion Include="Azure.Messaging.ServiceBus" Version="7.21.0" />
@@ -14,6 +15,7 @@
     <PackageVersion Include="Azure.ResourceManager.ServiceBus" Version="1.2.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="11.0.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="11.0.0" />
+    <PackageVersion Include="RabbitMQ.Client" Version="7.2.2" />
     <!-- Pinned to what lib/RazorConsole builds against. -->
     <PackageVersion Include="Spectre.Console" Version="0.57.2" />
     <PackageVersion Include="System.CommandLine" Version="3.0.0" />

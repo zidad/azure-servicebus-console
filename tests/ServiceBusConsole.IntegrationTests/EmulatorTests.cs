@@ -3,17 +3,17 @@ using System.Text;
 namespace ServiceBusConsole.IntegrationTests;
 
 /// <summary>The Azure transport against the real emulator: what the fakes in the UI tests stand in for.</summary>
-[ClassDataSource<Emulator>(Shared = SharedType.PerTestSession)]
-public sealed class EmulatorTests(Emulator emulator)
+[ClassDataSource<Brokers>(Shared = SharedType.PerTestSession)]
+public sealed class EmulatorTests(Brokers brokers)
 {
     [Before(Test)]
     public void RequireEmulator() =>
-        Skip.Unless(Emulator.Enabled, $"Needs Docker: set {Emulator.EnableVariable}=1 to run the emulator tests.");
+        Skip.Unless(Brokers.Enabled, $"Needs Docker: set {Brokers.EnableVariable}=1 to run the emulator tests.");
 
     [Test]
     public async Task Queues_ComeFromTheConfigFile_WithPeekedCounts()
     {
-        await using var ns = emulator.Open();
+        await using var ns = brokers.OpenEmulator();
         await SendAsync(ns, "it-list", "a", "b");
 
         var queues = await ns.Queues.GetQueuesAsync(Ct).ToListAsync(Ct);
@@ -27,7 +27,7 @@ public sealed class EmulatorTests(Emulator emulator)
     [Test]
     public async Task Peek_ReturnsTheSentMessages_WithTheirProperties_AndLeavesThem()
     {
-        await using var ns = emulator.Open();
+        await using var ns = brokers.OpenEmulator();
         await ns.Messages.SendAsync("it-peek", [new OutgoingMessage
         {
             Body = "{\"id\":1}"u8.ToArray(), MessageId = "order-1", ContentType = "application/json", Subject = "order-created",
@@ -51,7 +51,7 @@ public sealed class EmulatorTests(Emulator emulator)
     [Test]
     public async Task Received_Messages_AreHeld_CompleteRemovesOne_AbandonReturnsTheOther()
     {
-        await using var ns = emulator.Open();
+        await using var ns = brokers.OpenEmulator();
         await SendAsync(ns, "it-settle", "complete me", "abandon me");
         var source = new MessageSource.Queue("it-settle");
 
@@ -75,7 +75,7 @@ public sealed class EmulatorTests(Emulator emulator)
     [Test]
     public async Task DeadLettered_Messages_RetryLikeTheBrowser_LockThenCopyThenComplete()
     {
-        await using var ns = emulator.Open();
+        await using var ns = brokers.OpenEmulator();
         await SendAsync(ns, "it-retry", "one", "two", "three");
         await using (var locked = ns.Messages.StartReceiving(new MessageSource.Queue("it-retry"), 3, Ct))
             await foreach (var m in locked.Held.ReadAllAsync(Ct))
@@ -100,7 +100,7 @@ public sealed class EmulatorTests(Emulator emulator)
     [Test]
     public async Task Topic_Messages_ReachItsSubscription()
     {
-        await using var ns = emulator.Open();
+        await using var ns = brokers.OpenEmulator();
         await SendAsync(ns, "it-events", "event");
         var topics = ns.ShouldBeAssignableTo<IHasTopics>().ShouldNotBeNull().Topics;
 

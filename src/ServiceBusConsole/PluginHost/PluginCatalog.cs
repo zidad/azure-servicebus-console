@@ -40,7 +40,7 @@ public sealed partial class PluginCatalog
 
     public IEnumerable<IPlugin> Enabled(IConfiguration configuration) => Plugins.Where(p => Status(p, configuration).Enabled);
 
-    /// <summary>Each plugin's <c>enabled</c> key and settings, for <c>azsb config</c>.</summary>
+    /// <summary>Each plugin's <c>enabled</c> key and settings, for the config command.</summary>
     public IReadOnlyList<ConfigKey> ConfigKeys => [.. Plugins.SelectMany(KeysOf)];
 
     public static IEnumerable<ConfigKey> KeysOf(IPlugin plugin) =>

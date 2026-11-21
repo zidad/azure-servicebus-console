@@ -1,6 +1,6 @@
 namespace ServiceBusConsole.Configuration;
 
-/// <summary>The settings azsb knows. Keys under <see cref="PluginPrefix"/> belong to plugins and are never unknown.</summary>
+/// <summary>The settings the app knows. Keys under <see cref="PluginPrefix"/> belong to plugins and are never unknown.</summary>
 public static class ConfigKeys
 {
     public const string PluginPrefix = "plugins.";

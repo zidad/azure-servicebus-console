@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="MessageService_NoQueue" xml:space="preserve">
+    <value>No queue {queue} in virtual host {vhost}</value>
+  </data>
+  <data name="MessageService_NotAQueue" xml:space="preserve">
+    <value>{source} is not a queue: RabbitMQ has no topic subscriptions</value>
+  </data>
+  <data name="RabbitMqMessageInfo_NotReceived" xml:space="preserve">
+    <value>Message #{key} was not received from RabbitMQ</value>
+  </data>
+  <data name="RabbitMqMessageInfo_DeadLettered" xml:space="preserve">
+    <value>Dead-lettered from queue {queue}, {count} times</value>
+  </data>
+  <data name="RabbitMqMessageInfo_Exchange" xml:space="preserve">
+    <value>Exchange</value>
+  </data>
+  <data name="RabbitMqMessageInfo_RoutingKey" xml:space="preserve">
+    <value>Routing key</value>
+  </data>
+  <data name="RabbitMqMessageInfo_Redelivered" xml:space="preserve">
+    <value>Redelivered</value>
+  </data>
+  <data name="RabbitMqMessageInfo_CorrelationId" xml:space="preserve">
+    <value>Correlation ID</value>
+  </data>
+  <data name="RabbitMqMessageInfo_ReplyTo" xml:space="preserve">
+    <value>Reply to</value>
+  </data>
+  <data name="RabbitMqMessageInfo_AppId" xml:space="preserve">
+    <value>App ID</value>
+  </data>
+  <data name="RabbitMqMessageInfo_Priority" xml:space="preserve">
+    <value>Priority</value>
+  </data>
+  <data name="RabbitMqMessageInfo_Expiration" xml:space="preserve">
+    <value>Expiration</value>
+  </data>
+</root>

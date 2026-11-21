@@ -94,6 +94,9 @@ public sealed class MessageBrowser(MessageSource source, IBroker ns) : IAsyncDis
 
     public bool CanPeek => Namespace is IHasPeek;
 
+    /// <summary>Whether opening the source peeks: only when peeking leaves the messages as they were.</summary>
+    public bool PeeksOnOpen => Namespace is IHasPeek { Peek.Kind: PeekKind.NonDestructive };
+
     /// <summary>Whether the source has a dead-letter side to switch to.</summary>
     public bool HasDeadLetters => Namespace is IHasDeadLetters;
 

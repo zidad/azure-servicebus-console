@@ -7,6 +7,8 @@ public sealed record RunInput : CommandInput
 {
     public required IHostBuilder HostBuilder { get; init; }
 
+    public required AppIdentity App { get; init; }
+
     /// <summary><c>--subscription</c>: by name or ID; <c>emulator</c> for the local emulator.</summary>
     public string? Subscription { get; init; }
 

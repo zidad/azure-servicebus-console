@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../../src/ServiceBusConsole.Rmqsb/ServiceBusConsole.Rmqsb.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="ServiceBusConsole.Abstractions" />
+    <Using Include="ServiceBusConsole.CommandLine" />
+    <Using Include="ServiceBusConsole.Configuration" />
+  </ItemGroup>
+</Project>

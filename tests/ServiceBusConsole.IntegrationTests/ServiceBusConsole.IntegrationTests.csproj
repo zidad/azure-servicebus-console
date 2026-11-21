@@ -4,6 +4,8 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/ServiceBusConsole.AzureServiceBus/ServiceBusConsole.AzureServiceBus.csproj" />
+    <ProjectReference Include="../../src/ServiceBusConsole.RabbitMQ/ServiceBusConsole.RabbitMQ.csproj" />
+    <PackageReference Include="RabbitMQ.Client" />
     <ProjectReference Include="../../tools/ServiceBusConsole.AppHost/ServiceBusConsole.AppHost.csproj" />
     <PackageReference Include="Aspire.Hosting.Testing" />
   </ItemGroup>

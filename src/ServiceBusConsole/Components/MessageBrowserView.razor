@@ -238,7 +238,7 @@
         _isDlq = (Store.Current is { } current && current.Source with { IsDlq = Entity.IsDlq } == Entity
             ? current.Source.IsDlq
             : Entity.IsDlq) && Connection.Current is IHasDeadLetters;
-        if (Attach()) await Peek(new FetchDialog.Request(DefaultPeekCount, null, false));
+        if (Attach()) await PeekOnOpen();
         // Back from the detail page after it handled the last message: nothing left to browse.
         else if (Browser.Messages.Count == 0) GoBack();
     }
@@ -292,8 +292,10 @@
         if (IsBusy) return;
         _isDlq = dlq;
         Attach();
-        await Peek(new FetchDialog.Request(DefaultPeekCount, null, false));
+        await PeekOnOpen();
     }
+
+    private Task PeekOnOpen() => Browser.PeeksOnOpen ? Peek(new FetchDialog.Request(DefaultPeekCount, null, false)) : Task.CompletedTask;
 
     private Task Peek(FetchDialog.Request request) => !Browser.CanPeek ? Task.CompletedTask :
         Load(ComponentStrings.MessageBrowserView_Peeking, () => Browser.PeekAsync(request.Count, request.From));
@@ -534,8 +536,9 @@
         _ => Theme.Accent,
     };
 
-    private static string EmptyText(BrowseMode mode) => mode switch
+    private string EmptyText(BrowseMode mode) => mode switch
     {
+        BrowseMode.Peek when _browser is { CanPeek: true, PeeksOnOpen: false } => ComponentStrings.MessageBrowserView_EmptyPeekRequeues,
         BrowseMode.Peek => ComponentStrings.MessageBrowserView_Empty,
         _ => ComponentStrings.MessageBrowserView_EmptyLeft,
     };
