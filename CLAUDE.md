@@ -35,7 +35,7 @@ Release by pushing a version tag on a `main` commit: `git tag v1.2.3 origin/main
 
 ```bash
 dotnet build ServiceBusConsole.slnx        # Build everything
-dotnet run --project src/ServiceBusConsole # Run the console app
+dotnet run --project src/ServiceBusConsole.Azsb # Run azsb
 dotnet test --solution ServiceBusConsole.slnx --max-parallel-test-modules 1  # All tests; one project at a time keeps the timing-sensitive UI tests stable
 ```
 
@@ -87,15 +87,16 @@ Requires an active Azure CLI login before running:
 az login
 ```
 
-Authentication uses the Azure CLI's login by default — no connection strings or keys are used. `azure.auth` (`cli`, `browser`, `default`) and `azure.transport` (`tcp`, `websockets`) become the registered `AzureOptions` (`Configuration/AzureSettings`; an unknown value is a usage error); `AddAzureServiceBus` uses `new AzureOptions()` when none is registered.
+Authentication uses the Azure CLI's login by default — no connection strings or keys are used. `azure.auth` (`cli`, `browser`, `default`) and `azure.transport` (`tcp`, `websockets`) become the registered `AzureOptions` (`AzureSettings` in `ServiceBusConsole.Azsb`; an unknown value is a usage error before the UI starts); `AddAzureServiceBus` uses `new AzureOptions()` when none is registered.
 
 ## Architecture
 
 This is a .NET 11 terminal UI app that browses Azure Service Bus namespaces, queues, topics, and messages. The UI runs entirely in the terminal using **RazorConsole.Core** — a library that renders Blazor-style Razor components to the terminal via Spectre.Console.
 
-**Layout:** `src/ServiceBusConsole` (the UI, packed as the `azsb` tool), `src/ServiceBusConsole.Core`, `src/ServiceBusConsole.Abstractions`, `src/ServiceBusConsole.AzureServiceBus`, `src/ServiceBusConsole.Plugins` (plugin contracts), bundled plugins `src/ServiceBusConsole.Plugins.<Name>`, listed in `src/ServiceBusConsole.BundledPlugins`, a test project per tested project under `tests/`, `lib/RazorConsole` (fork submodule). Shared build settings in `Directory.Build.props`, package versions in `Directory.Packages.props` (central package management). One type per file; namespaces follow project and folders (`ServiceBusConsole.<Folder>`, `ServiceBusConsole.AzureServiceBus.Emulator`), imported globally via `<Using>` in the csproj and `_Imports.razor`.
+**Layout:** `src/ServiceBusConsole` (the terminal UI and command line, a Razor class library shared by every broker's app), `src/ServiceBusConsole.Azsb` (azsb: that UI on Azure Service Bus, packed as the tool), `src/ServiceBusConsole.Core`, `src/ServiceBusConsole.Abstractions`, `src/ServiceBusConsole.AzureServiceBus`, `src/ServiceBusConsole.Plugins` (plugin contracts), bundled plugins `src/ServiceBusConsole.Plugins.<Name>`, listed in `src/ServiceBusConsole.BundledPlugins`, a test project per tested project under `tests/`, `lib/RazorConsole` (fork submodule). Shared build settings in `Directory.Build.props`, package versions in `Directory.Packages.props` (central package management). One type per file; namespaces follow project and folders (`ServiceBusConsole.<Folder>`, `ServiceBusConsole.AzureServiceBus.Emulator`), imported globally via `<Using>` in the csproj and `_Imports.razor`.
 
-**Projects:** the UI uses the abstractions, Core and the plugin contracts only.
+**Projects:** the UI uses the abstractions, Core and the plugin contracts only; no transport (`ArchitectureTests`).
+- An app is a `Program.cs` calling `TerminalApp.RunAsync(args, transport, plugins)`: a `BrokerTransport` (its `ConfigKey`s, shown by `azsb config`, and a function registering `IConnectionCatalog` and `IBrokerOpener`) and its bundled plugins. `ServiceBusConsole.Azsb` passes `AzureTransport.Broker` (`azure.*` keys, `AddAzureServiceBus`) and `Bundled.Plugins`; it holds the tool's packaging and Native AOT settings (`TrimmerRootAssembly` is the UI's assembly)
 - `ServiceBusConsole.Core`: what any front end shares (the terminal UI now, a MAUI app later): `Messaging/` (`MessageBrowser` + store, `OperationProgress`, `RetryText`), `Services/` (`ServiceBusConnection`, `SubscriptionCatalog`, `AzureSubscriptions`, `RecentNamespaces`, `ActivityLog`), `Services/Caching/`, and UI-agnostic helpers in `UI/` (`DialogField`, `ErrorText`, `RenderThrottle`). Namespaces `ServiceBusConsole.Core.<Folder>`, its own `Resources/`. No RazorConsole, Spectre.Console, ASP.NET Core or Azure SDK (`ArchitectureTests`); code that needs them, or `NavigationState`, stays in the UI
 - `ServiceBusConsole.Abstractions`, no packages: DTOs (`QueueInfo`, `MessageInfo`, `MessageSource`, ...), `I*Service`, `ILockedMessages`, `MessageLockLostException`, `IBroker` (what every namespace has: `Info`, `Queues`, `Messages`), the feature interfaces, `IBrokerOpener`, `IBrokerDecorator`
 - `ServiceBusConsole.AzureServiceBus`, the only project with Azure SDK packages: `AzureOptions` (`AzureSignIn`, `ServiceBusTransport`; `Credentials` maps them to the `TokenCredential` and `ServiceBusClientOptions`), `NamespaceOpener` (`EmulatorNamespace`, or by `BrokerInfo.Sku` `BasicNamespace` or `StandardNamespace` for Standard, Premium and an unknown SKU), the `I*Service` implementations (management API for Azure; config file and peeked counts for the emulator, in `Emulator/`), `LockedMessages`, `AsyncParallel`. Each namespace owns its `ServiceBusClient` and closes it on dispose. All internal except `AddAzureServiceBus()` and `AzureOptions` with its enums
@@ -111,9 +112,9 @@ This is a .NET 11 terminal UI app that browses Azure Service Bus namespaces, que
 
 | UI folder | Contents |
 |---|---|
-| `Program.cs` | Generic Host with `UseRazorConsole<App>()`, service registration (`AddAzureServiceBus()`), file logging to `logs/`; runs the command line through `AppCommands` |
+| `TerminalApp.cs` | Generic Host with `UseRazorConsole<App>()`, the transport's and the UI's service registration, file logging to `logs/`; runs the command line through `AppCommands` |
 | `CommandLine/` | System.CommandLine: `AppCommands` parses into a `CommandInput` (`RunInput`, `ConfigInput`, `PluginsInput`; `Bind` in tests) and runs `RunCommand` (default; `--subscription`, `--namespace`, `--open`, `--theme`), `ConfigCommand` or `PluginsCommand`; `help`. `StartupTarget` is taken once by the connection page via `NavigationState.Startup`; `--open` resolves with `StartupDestination.Find` over `JumpTargets`. Namespace commands (`check`, `list`, `peek`, `retry`, `delete`, `purge`, `send`) bind to a `NamespaceInput` whose `NamespaceCommand` runs on `CommandServices` (live Azure, no cache; fakes in `NamespaceCommandTests`): text or `--json` on stdout, errors on stderr, `ExitCodes`. Retry and delete go through `MessageBrowser`; `cli.protect` and `cli.redact.*` guard namespaces |
-| `Configuration/` | `AppPaths` (config file, state directory), `AzureSettings` (`azure.*` keys as `AzureOptions`), `ConfigFile` (dotted keys as nested JSON, read on every call), `ConfigKeys` (the known `ConfigKey`s), `AddAzsbConfiguration` (file and `AZSB_` environment variables into the host's `IConfiguration`); `azsb config` is `CommandLine/ConfigCommand` |
+| `Configuration/` | `AppPaths` (config file, state directory), `BrokerTransport`, `ConfigFile` (dotted keys as nested JSON, read on every call), `ConfigKeys` (the known `ConfigKey`s), `AddAzsbConfiguration` (file and `AZSB_` environment variables into the host's `IConfiguration`); `azsb config` is `CommandLine/ConfigCommand` |
 | `Pages/` | One Razor component per screen, each with a `@page` route |
 | `Components/` | Shared Razor components; `App.razor` is the root router |
 | `PluginHost/` | `PluginCatalog` (discovery, enabled, config keys), `AddPlugins`, `PluginActions` (offered actions and their context), `ProcessPluginHost`; namespace `ServiceBusConsole.PluginHost`, since `ServiceBusConsole.Plugins` is the contracts' |

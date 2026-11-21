@@ -26,7 +26,7 @@ public sealed class NamespaceCommandTests
 
         public Func<BrokerInfo, FakeServices, IBroker> Open { get; set; } = FakeNamespace.For;
 
-        public AppCommands Commands => new(Host.CreateDefaultBuilder(), PluginCatalog.Empty, () =>
+        public AppCommands Commands => new(Host.CreateDefaultBuilder(), PluginCatalog.Empty, services: () =>
             new CommandServices(
                 Namespaces,
                 new FakeNamespaceOpener(info => Open(info, Services)),

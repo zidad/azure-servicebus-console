@@ -16,6 +16,7 @@ public sealed class AppCommands
 {
     private readonly IHostBuilder _host;
     private readonly PluginCatalog _plugins;
+    private readonly BrokerTransport _transport;
     private readonly Func<CommandServices> _services;
 
     private readonly Option<string?> _subscription = new("--subscription", "-s")
@@ -84,12 +85,14 @@ public sealed class AppCommands
 
     public AppCommands(IHostBuilder host) : this(host, PluginCatalog.Empty) { }
 
-    /// <param name="services">What the namespace commands use; by default live Azure without logging.</param>
-    public AppCommands(IHostBuilder host, PluginCatalog plugins, Func<CommandServices>? services = null)
+    /// <param name="transport">The broker; none when omitted, for commands that never open one.</param>
+    /// <param name="services">What the namespace commands use; by default the live broker without logging.</param>
+    public AppCommands(IHostBuilder host, PluginCatalog plugins, BrokerTransport? transport = null, Func<CommandServices>? services = null)
     {
         _host = host;
         _plugins = plugins;
-        _services = services ?? (Func<CommandServices>)(() => CommandServices.Create(logging => logging.AddProvider(NullLoggerProvider.Instance)));
+        _transport = transport ?? BrokerTransport.None;
+        _services = services ?? (() => CommandServices.Create(_transport, logging => logging.AddProvider(NullLoggerProvider.Instance)));
         _run = new("run", CommandLineStrings.AppCommands_Run) { _subscription, _namespace, _open, _theme };
         _config = new("config", CommandLineStrings.AppCommands_Config) { _action, _key, _value, _all };
         _pluginsCommand = new("plugins", CommandLineStrings.AppCommands_Plugins);
@@ -105,7 +108,7 @@ public sealed class AppCommands
         });
         var help = new Command("help", CommandLineStrings.AppCommands_Help) { _topic };
 
-        // Named azsb, not after the executable: the tool's shim runs ServiceBusConsole.
+        // Named azsb, not after the executable (ServiceBusConsole.Azsb).
         Root = new("azsb", CommandLineStrings.AppCommands_Root)
         {
             new HelpOption(), new VersionOption(), _subscription, _namespace, _open, _theme, _run,
@@ -118,8 +121,8 @@ public sealed class AppCommands
 
     public Command Root { get; }
 
-    public static Task<int> ExecuteAsync(IHostBuilder host, PluginCatalog plugins, Func<CommandServices> services, string[] args) =>
-        new AppCommands(host, plugins, services).Root.Parse(args).InvokeAsync();
+    public static Task<int> ExecuteAsync(IHostBuilder host, PluginCatalog plugins, BrokerTransport transport, Func<CommandServices> services, string[] args) =>
+        new AppCommands(host, plugins, transport, services).Root.Parse(args).InvokeAsync();
 
     /// <summary>What <paramref name="args"/> ask for; null for help or invalid usage.</summary>
     public CommandInput? Bind(params string[] args) => Bind(Root.Parse(args));
@@ -140,7 +143,7 @@ public sealed class AppCommands
             Key = result.GetValue(_key),
             Value = result.GetValue(_value),
             All = result.GetValue(_all),
-            Keys = ConfigKeys.With(_plugins.ConfigKeys),
+            Keys = ConfigKeys.With([.. _transport.Settings, .. _plugins.ConfigKeys]),
         },
         var c when c == _pluginsCommand => new PluginsInput
         {

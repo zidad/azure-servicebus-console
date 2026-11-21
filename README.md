@@ -415,11 +415,11 @@ Authentication uses Microsoft Entra ID, by default through the Azure CLI (`azure
 git clone --recurse-submodules https://github.com/zidad/azure-servicebus-console
 cd azure-servicebus-console
 az login
-dotnet run --project src/ServiceBusConsole
-dotnet run --project src/ServiceBusConsole -- -s emulator   # command-line flags go after --
+dotnet run --project src/ServiceBusConsole.Azsb
+dotnet run --project src/ServiceBusConsole.Azsb -- -s emulator   # command-line flags go after --
 ```
 
-Logs are written to `logs/session-<timestamp>.log` next to the app's binaries (`src/ServiceBusConsole/bin/Debug/net11.0/logs/` when run from source).
+Logs are written to `logs/session-<timestamp>.log` next to the app's binaries (`src/ServiceBusConsole.Azsb/bin/Debug/net11.0/logs/` when run from source).
 
 ### Local emulator
 

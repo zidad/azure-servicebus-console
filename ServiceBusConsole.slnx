@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/ServiceBusConsole/ServiceBusConsole.csproj" />
+    <Project Path="src/ServiceBusConsole.Azsb/ServiceBusConsole.Azsb.csproj" />
     <Project Path="src/ServiceBusConsole.Abstractions/ServiceBusConsole.Abstractions.csproj" />
     <Project Path="src/ServiceBusConsole.Core/ServiceBusConsole.Core.csproj" />
     <Project Path="src/ServiceBusConsole.AzureServiceBus/ServiceBusConsole.AzureServiceBus.csproj" />
@@ -14,6 +15,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ServiceBusConsole.Tests/ServiceBusConsole.Tests.csproj" />
+    <Project Path="tests/ServiceBusConsole.Azsb.Tests/ServiceBusConsole.Azsb.Tests.csproj" />
     <Project Path="tests/ServiceBusConsole.AzureServiceBus.Tests/ServiceBusConsole.AzureServiceBus.Tests.csproj" />
     <Project Path="tests/ServiceBusConsole.Plugins.Editor.Tests/ServiceBusConsole.Plugins.Editor.Tests.csproj" />
     <Project Path="tests/ServiceBusConsole.Plugins.GitHub.Tests/ServiceBusConsole.Plugins.GitHub.Tests.csproj" />

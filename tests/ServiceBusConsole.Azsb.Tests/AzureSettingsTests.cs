@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using ServiceBusConsole.AzureServiceBus;
 
-namespace ServiceBusConsole.Tests;
+namespace ServiceBusConsole.Azsb.Tests;
 
 public sealed class AzureSettingsTests
 {

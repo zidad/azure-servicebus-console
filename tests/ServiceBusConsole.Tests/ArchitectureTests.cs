@@ -11,6 +11,10 @@ public sealed class ArchitectureTests
         References(typeof(App)).ShouldNotContain(name => name.StartsWith("Azure."));
 
     [Test]
+    public void App_IsSharedByEveryTransport_ReferencingNone() =>
+        References(typeof(App)).ShouldNotContain(name => name == "ServiceBusConsole.AzureServiceBus");
+
+    [Test]
     public void App_UsesThePluginContractsOnly_NotAPlugin()
     {
         References(typeof(App)).ShouldContain("ServiceBusConsole.Plugins");
