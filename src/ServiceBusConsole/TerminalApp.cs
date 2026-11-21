@@ -10,7 +10,7 @@ namespace ServiceBusConsole;
 /// <summary>The command line and terminal UI on one broker transport: an app's whole <c>Main</c>.</summary>
 public static class TerminalApp
 {
-    public static Task<int> RunAsync(string[] args, BrokerTransport transport, IEnumerable<IPlugin> bundledPlugins)
+    public static Task<int> RunAsync(string[] args, AppIdentity app, BrokerTransport transport, IEnumerable<IPlugin> bundledPlugins)
     {
         var logFile = Path.Combine(
             Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "logs")).FullName,
@@ -19,7 +19,7 @@ public static class TerminalApp
         var plugins = new PluginCatalog(bundledPlugins);
 
         var builder = Host.CreateDefaultBuilder(args)
-            .ConfigureAppConfiguration(config => config.AddAzsbConfiguration(AppPaths.ConfigFile))
+            .ConfigureAppConfiguration(config => config.AddAppConfiguration(app))
             .UseRazorConsole<App>()
             .ConfigureLogging(logging => logging
                 .ClearProviders()
@@ -29,6 +29,7 @@ public static class TerminalApp
                 .AddFilter("Microsoft.AspNetCore.Components", LogLevel.Information))
             .ConfigureServices((context, services) => transport.AddServices(services, context.Configuration))
             .ConfigureServices(services => services
+                .AddSingleton(app)
                 .AddSingleton<IBrokerDecorator, CachingNamespaceDecorator>()
                 .AddSingleton<ServiceBusConnection>()
                 .AddSingleton<FileCache>()
@@ -52,9 +53,9 @@ public static class TerminalApp
                     options.AutoClearConsole = true;
                     options.ConsoleLiveDisplayOptions.EnableMouseEvents = true;
                 }))
-            .ConfigureServices((context, services) => services.AddPlugins(plugins, context.Configuration));
+            .ConfigureServices((context, services) => services.AddPlugins(plugins, context.Configuration, app.StateDirectory));
 
-        return AppCommands.ExecuteAsync(builder, plugins, transport, () => CommandServices.Create(transport, logging => logging
+        return AppCommands.ExecuteAsync(builder, app, plugins, transport, () => CommandServices.Create(app, transport, logging => logging
             .AddProvider(new FileLoggerProvider(logFile))
             .SetMinimumLevel(LogLevel.Information)), args);
     }

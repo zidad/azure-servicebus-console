@@ -1,3 +1,4 @@
+@inject AppIdentity App
 @page "/"
 @implements IDisposable
 
@@ -17,7 +18,7 @@
 <Flex Direction="FlexDirection.Column" Height="@(ShowMetrics ? Viewport.Height - 1 : null)" Justify="FlexJustify.SpaceBetween" FillWidth="true">
     <Rows FillWidth="true">
         <Columns>
-            <Markup Content="azsb" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
+            <Markup Content="@App.Name" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
             <Markup Content=" │ " Foreground="@Theme.Border" />
             <Markup Content="@($"{Icons.Connection} {PageStrings.Connection_Title}")" Decoration="@Decoration.Bold" />
         </Columns>

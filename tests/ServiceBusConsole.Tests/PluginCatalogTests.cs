@@ -91,7 +91,7 @@ public sealed class PluginCatalogTests
         var missing = new FakePlugin { Id = "missing", Actions = [Action("missing", "Analyse")], Missing = (_, _) => "tool not found" };
         var services = new ServiceCollection()
             .AddSingleton<IPluginHost>(new FakePluginHost())
-            .AddPlugins(new PluginCatalog([on, off, missing]), Config(("plugins:off:enabled", "false")))
+            .AddPlugins(new PluginCatalog([on, off, missing]), Config(("plugins:off:enabled", "false")), Path.GetTempPath())
             .BuildServiceProvider();
 
         services.GetServices<IMessageAction>().Select(a => a.Label).ShouldBe(["Copy"]);

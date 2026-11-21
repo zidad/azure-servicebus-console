@@ -376,6 +376,9 @@
   <data name="MessageBrowserView_Count" xml:space="preserve">
     <value>{count} message(s)</value>
   </data>
+  <data name="MessageBrowserView_EmptyPeekRequeues" xml:space="preserve">
+    <value>Not peeked: a peek here takes the messages and puts them back, marked redelivered. Press p to peek or r to receive.</value>
+  </data>
   <data name="MessageBrowserView_Empty" xml:space="preserve">
     <value>No messages. Press p to peek or r to receive.</value>
   </data>

@@ -57,7 +57,7 @@ public static class ConfigCommand
 
     private static bool PrintUsage(ConfigInput input)
     {
-        input.Error.WriteLine(CommandLineStrings.ConfigCommand_Usage);
+        input.Error.WriteLine(CommandLineStrings.FormatConfigCommand_Usage(input.App.Name));
         return false;
     }
 }

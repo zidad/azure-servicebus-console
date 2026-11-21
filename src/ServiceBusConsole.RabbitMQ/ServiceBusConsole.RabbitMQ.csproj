@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <!-- Compile assets stay private: projects referencing this one get the clients at run time only, so they cannot use their types. -->
+    <PackageReference Include="EasyNetQ.Management.Client" PrivateAssets="compile;contentfiles;analyzers;build" />
+    <PackageReference Include="RabbitMQ.Client" PrivateAssets="compile;contentfiles;analyzers;build" />
+    <ProjectReference Include="../ServiceBusConsole.Abstractions/ServiceBusConsole.Abstractions.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="ServiceBusConsole.RabbitMQ.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="ServiceBusConsole.Abstractions" />
+    <Using Include="ServiceBusConsole.RabbitMQ.Resources" />
+  </ItemGroup>
+</Project>

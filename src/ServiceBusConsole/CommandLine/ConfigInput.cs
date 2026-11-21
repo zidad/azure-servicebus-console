@@ -12,7 +12,9 @@ public sealed record ConfigInput : CommandInput
     /// <summary><c>--all</c>: with list, also the known keys that are unset.</summary>
     public bool All { get; init; }
 
-    public ConfigFile File { get; init; } = new(AppPaths.ConfigFile);
+    public required AppIdentity App { get; init; }
+
+    public required ConfigFile File { get; init; }
 
     /// <summary>The keys <c>set</c> accepts without a warning and <c>list --all</c> shows.</summary>
     public IReadOnlyList<ConfigKey> Keys { get; init; } = ConfigKeys.App;

@@ -17,7 +17,7 @@ public sealed class ConfigCommandTests
     }
 
     private ConfigInput Parse(params string[] args) =>
-        new AppCommands(Host.CreateDefaultBuilder()).Bind(["config", .. args]).ShouldBeOfType<ConfigInput>() with { File = Config, Out = _out, Error = _error };
+        new AppCommands(Host.CreateDefaultBuilder(), TestApp.Identity).Bind(["config", .. args]).ShouldBeOfType<ConfigInput>() with { File = Config, Out = _out, Error = _error };
 
     private bool Run(params string[] args) => ConfigCommand.Execute(Parse(args));
 

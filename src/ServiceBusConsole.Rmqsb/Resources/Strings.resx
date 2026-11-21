@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Program_Description" xml:space="preserve">
+    <value>RabbitMQ CLI and terminal UI: browse, peek, receive and send messages</value>
+  </data>
+  <data name="RabbitMqTransport_Management" xml:space="preserve">
+    <value>URL of the RabbitMQ management API (http or https), for virtual hosts and queues</value>
+  </data>
+  <data name="RabbitMqTransport_Amqp" xml:space="preserve">
+    <value>URL of the AMQP listener (amqp or amqps), for messages; the virtual host is the one being browsed</value>
+  </data>
+  <data name="RabbitMqTransport_User" xml:space="preserve">
+    <value>User for the management API and AMQP</value>
+  </data>
+  <data name="RabbitMqTransport_Password" xml:space="preserve">
+    <value>Password of that user</value>
+  </data>
+  <data name="RabbitMqSettings_InvalidUrl" xml:space="preserve">
+    <value>{value} is not a valid {key}: expected a {schemes} URL</value>
+  </data>
+</root>

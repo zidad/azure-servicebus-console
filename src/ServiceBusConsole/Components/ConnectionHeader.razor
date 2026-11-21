@@ -1,3 +1,4 @@
+@inject AppIdentity App
 @inject ServiceBusConnection Connection
 @inject NavigationState NavState
 @inject ITerminalViewport Viewport
@@ -5,7 +6,7 @@
 <Rows FillWidth="true">
     <Flex Justify="FlexJustify.SpaceBetween" FillWidth="true">
         <Columns>
-            <Markup Content="azsb" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
+            <Markup Content="@App.Name" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
             <Markup Content=" │ " Foreground="@Theme.Border" />
             @if (Connection.Current is { Info: var ns })
             {
@@ -38,8 +39,8 @@
 
     private string SubscriptionLabel => $"{SubscriptionIcon} {SubscriptionName}";
 
-    // "azsb │ " puts the subscription at x = 7; the dropdown opens there, whichever crumb was clicked.
-    private const int SubscriptionX = 7;
+    // "azsb │ " puts the subscription after the app's name; the dropdown opens there, whichever crumb was clicked.
+    private int SubscriptionX => App.Name.Length + 3;
 
     private ExplorerNode.Subscription? SubscriptionNode => NavState.AzureSubscription is { } s ? new(s) : null;
 

@@ -8,7 +8,7 @@ public sealed class CommandLineTests
     private static RunInput Parse(params string[] args)
     {
         var builder = Host.CreateDefaultBuilder();
-        var input = new AppCommands(builder).Bind(args).ShouldBeOfType<RunInput>();
+        var input = new AppCommands(builder, TestApp.Identity).Bind(args).ShouldBeOfType<RunInput>();
         input.HostBuilder.ShouldBeSameAs(builder);
         return input;
     }
@@ -17,7 +17,7 @@ public sealed class CommandLineTests
     public static (string Output, int ExitCode) Invoke(params string[] args)
     {
         var output = new StringWriter();
-        var exitCode = new AppCommands(Host.CreateDefaultBuilder()).Root.Parse(args).Invoke(new InvocationConfiguration { Output = output, Error = output });
+        var exitCode = new AppCommands(Host.CreateDefaultBuilder(), TestApp.Identity).Root.Parse(args).Invoke(new InvocationConfiguration { Output = output, Error = output });
         return (output.ToString(), exitCode);
     }
 
@@ -67,7 +67,7 @@ public sealed class CommandLineTests
     [Test]
     public void UnknownFlag_IsInvalidUsage_AndRunsNothing()
     {
-        new AppCommands(Host.CreateDefaultBuilder()).Bind("--colour", "red").ShouldBeNull();
+        new AppCommands(Host.CreateDefaultBuilder(), TestApp.Identity).Bind("--colour", "red").ShouldBeNull();
         var (output, exitCode) = Invoke("--colour", "red");
 
         exitCode.ShouldNotBe(0);

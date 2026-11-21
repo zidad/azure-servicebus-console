@@ -24,7 +24,7 @@ public sealed class ThemeSettingTests
     }
 
     private string? Theme(string? flag) =>
-        new RunInput { HostBuilder = Host.CreateDefaultBuilder(), Theme = flag }.ThemeSetting(new ConfigurationBuilder().AddAzsbConfiguration(FilePath).Build());
+        new RunInput { HostBuilder = Host.CreateDefaultBuilder(), App = TestApp.Identity, Theme = flag }.ThemeSetting(new ConfigurationBuilder().AddAppConfiguration(TestApp.Identity, FilePath).Build());
 
     [Test]
     public void Nothing_IsAuto() => Theme(null).ShouldBeNull();

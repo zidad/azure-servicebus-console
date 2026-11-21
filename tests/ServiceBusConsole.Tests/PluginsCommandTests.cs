@@ -16,7 +16,7 @@ public sealed class PluginsCommandTests
 
     private string[] Run(PluginCatalog catalog, params (string Key, string? Value)[] settings)
     {
-        var input = new AppCommands(Host.CreateDefaultBuilder(), catalog).Bind("plugins").ShouldBeOfType<PluginsInput>();
+        var input = new AppCommands(Host.CreateDefaultBuilder(), TestApp.Identity, catalog).Bind("plugins").ShouldBeOfType<PluginsInput>();
         input.Catalog.ShouldBeSameAs(catalog);
         PluginsCommand.Execute(input with
         {
@@ -69,7 +69,7 @@ public sealed class PluginsCommandTests
         var file = new ConfigFile(Path.Combine(directory, "config.json"));
         file.Set("plugins.fake.token", "s3cret");
         file.Set("plugins.fake.repo", "acme/orders");
-        var input = new AppCommands(Host.CreateDefaultBuilder(), Catalog).Bind("config", "list").ShouldBeOfType<ConfigInput>() with { File = file, Out = _out };
+        var input = new AppCommands(Host.CreateDefaultBuilder(), TestApp.Identity, Catalog).Bind("config", "list").ShouldBeOfType<ConfigInput>() with { File = file, Out = _out };
 
         input.Keys.Select(k => k.Key).ShouldContain("plugins.fake.token");
         input.Keys.Select(k => k.Key).ShouldContain(ConfigKeys.Theme.Key);

@@ -11,12 +11,12 @@ public static class RunCommand
     {
         if (input is { Subscription: null, Namespace: not null })
         {
-            InvalidUsage(CommandLineStrings.FormatRunCommand_Needs("--namespace", "--subscription", HelpRun));
+            InvalidUsage(CommandLineStrings.FormatRunCommand_Needs("--namespace", "--subscription", HelpRun(input)));
             return false;
         }
         if (input is { Namespace: null, Open: not null })
         {
-            InvalidUsage(CommandLineStrings.FormatRunCommand_Needs("--open", "--namespace", HelpRun));
+            InvalidUsage(CommandLineStrings.FormatRunCommand_Needs("--open", "--namespace", HelpRun(input)));
             return false;
         }
 
@@ -48,7 +48,7 @@ public static class RunCommand
         return true;
     }
 
-    private const string HelpRun = "[italic]azsb help run[/]";
+    private static string HelpRun(RunInput input) => $"[italic]{input.App.Name} help run[/]";
 
     private static void InvalidUsage(string markup) =>
         AnsiConsole.MarkupLine($"[red]{Markup.Escape(CommandLineStrings.RunCommand_InvalidUsage)}[/] {markup}");
