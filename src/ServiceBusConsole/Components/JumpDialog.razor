@@ -11,11 +11,11 @@
            preventDefault leaves Tab and Enter to HandleKey; on a div, since Razor rejects it on a component. *@
         <div @onkeydown:preventDefault="true">
             <TextInput @ref="_input" @key="_opened" OnInput="@OnQuery"
-                       Placeholder="@ComponentStrings.JumpDialog_Placeholder" FocusOrder="100" @onkeydown="HandleKey" FillWidth="true" />
+                       Placeholder="@ComponentStrings.FormatJumpDialog_Placeholder(Terms.Broker.OneInText)" FocusOrder="100" @onkeydown="HandleKey" FillWidth="true" />
         </div>
         @if (Current.Broker is { } here)
         {
-            <Markup Content="@((_everywhere ? ComponentStrings.FormatJumpDialog_ScopeAll(here.Info.Name) : ComponentStrings.FormatJumpDialog_ScopeHere(here.Info.Name)).PadLeft(Width - 4))"
+            <Markup Content="@((_everywhere ? ComponentStrings.FormatJumpDialog_ScopeAll(Terms.Broker.ManyInText, here.Info.Name) : ComponentStrings.FormatJumpDialog_ScopeHere(here.Info.Name, Terms.Broker.ManyInText)).PadLeft(Width - 4))"
                     Foreground="@Theme.Muted" />
         }
         @if (_loading)

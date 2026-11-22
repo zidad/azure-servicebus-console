@@ -19,7 +19,7 @@ public sealed record ListCommand(ListKind Kind = ListKind.Entities, bool DeadLet
 
         if (Kind == ListKind.Topics)
         {
-            if (topicService is null) throw new CommandFailure(ExitCodes.NotFound, CommandLineStrings.ListCommand_NoTopics);
+            if (topicService is null) throw new CommandFailure(ExitCodes.NotFound, CommandLineStrings.FormatListCommand_NoTopics(Terms.Broker.OneInText));
             var topicList = await topicService.GetTopicsAsync(ct).OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToListAsync(ct);
             await WriteTopicsAsync(context, topicList);
             return ExitCodes.Ok;

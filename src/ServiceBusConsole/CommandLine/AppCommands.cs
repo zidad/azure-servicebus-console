@@ -19,20 +19,10 @@ public sealed class AppCommands
     private readonly BrokerTransport _transport;
     private readonly Func<CommandServices> _services;
 
-    private readonly Option<string?> _subscription = new("--subscription", "-s")
-    {
-        Description = CommandLineStrings.AppCommands_SubscriptionOption,
-    };
-
-    private readonly Option<string?> _namespace = new("--namespace", "-n")
-    {
-        Description = CommandLineStrings.AppCommands_NamespaceOption,
-    };
-
-    private readonly Option<string?> _open = new("--open", "-o")
-    {
-        Description = CommandLineStrings.AppCommands_OpenOption,
-    };
+    // In the transport's words: its names for the levels.
+    private readonly Option<string?> _connection;
+    private readonly Option<string?> _broker;
+    private readonly Option<string?> _open;
 
     private readonly Option<string?> _theme = new("--theme", "-t")
     {
@@ -46,10 +36,10 @@ public sealed class AppCommands
     private readonly Argument<string[]> _topic = new("command") { Description = CommandLineStrings.AppCommands_CommandArgument, Arity = ArgumentArity.ZeroOrMore };
 
     // Namespace commands.
-    private readonly Option<string?> _scriptSubscription = new("--subscription", "-s") { Description = CommandLineStrings.AppCommands_ScriptSubscriptionOption };
-    private readonly Option<string?> _scriptNamespace = new("--namespace", "-n") { Description = CommandLineStrings.AppCommands_ScriptNamespaceOption };
+    private readonly Option<string?> _scriptConnection;
+    private readonly Option<string?> _scriptBroker;
     private readonly Option<bool> _json = new("--json") { Description = CommandLineStrings.AppCommands_JsonOption };
-    private readonly Option<string?> _confirm = new("--confirm") { Description = CommandLineStrings.AppCommands_ConfirmOption };
+    private readonly Option<string?> _confirm;
     private readonly Argument<ListKind?> _listKind = new("kind") { Description = CommandLineStrings.AppCommands_ListKindArgument, Arity = ArgumentArity.ZeroOrOne, HelpName = "queues|topics|subscriptions" };
     private readonly Option<bool> _deadLetters = new("--dead-letters") { Description = CommandLineStrings.AppCommands_DeadLettersOption };
     private readonly Argument<string> _entity = new("entity") { Description = CommandLineStrings.AppCommands_EntityArgument };
@@ -83,7 +73,6 @@ public sealed class AppCommands
     private readonly Command _purge;
     private readonly Command _send;
 
-    public AppCommands(IHostBuilder host) : this(host, PluginCatalog.Empty) { }
 
     /// <param name="transport">The broker; none when omitted, for commands that never open one.</param>
     /// <param name="services">What the namespace commands use; by default the live broker without logging.</param>
@@ -92,11 +81,18 @@ public sealed class AppCommands
         _host = host;
         _plugins = plugins;
         _transport = transport ?? BrokerTransport.None;
+        var terms = _transport.Terms;
+        _connection = LevelOption(terms.Connection, "connection", terms.Connection.OptionHelp);
+        _broker = LevelOption(terms.Broker, "broker", terms.Broker.OptionHelp);
+        _open = new("--open", "-o") { Description = CommandLineStrings.FormatAppCommands_OpenOption(terms.Broker.OneInText, $"--{terms.Broker.Option}") };
+        _scriptConnection = LevelOption(terms.Connection, "connection", terms.Connection.ScriptOptionHelp);
+        _scriptBroker = LevelOption(terms.Broker, "broker", terms.Broker.ScriptOptionHelp);
+        _confirm = new("--confirm") { Description = CommandLineStrings.FormatAppCommands_ConfirmOption(terms.Broker.OneInText) };
         _services = services ?? (() => CommandServices.Create(_transport, logging => logging.AddProvider(NullLoggerProvider.Instance)));
-        _run = new("run", CommandLineStrings.AppCommands_Run) { _subscription, _namespace, _open, _theme };
+        _run = new("run", CommandLineStrings.AppCommands_Run) { _connection, _broker, _open, _theme };
         _config = new("config", CommandLineStrings.AppCommands_Config) { _action, _key, _value, _all };
         _pluginsCommand = new("plugins", CommandLineStrings.AppCommands_Plugins);
-        _check = Namespace(new("check", CommandLineStrings.AppCommands_Check));
+        _check = Namespace(new("check", CommandLineStrings.FormatAppCommands_Check(terms.Broker.OneInText)));
         _list = Namespace(new("list", CommandLineStrings.AppCommands_List) { _listKind, _deadLetters });
         _peek = Namespace(new("peek", CommandLineStrings.AppCommands_Peek) { _entity, _dlq, _max, _fromSequence, _full });
         _retry = Namespace(new("retry", CommandLineStrings.AppCommands_Retry) { _entity, _messageIds, _sequences, _allMessages, _limit, _dryRun, _confirm });
@@ -111,7 +107,7 @@ public sealed class AppCommands
         // Named azsb, not after the executable (ServiceBusConsole.Azsb).
         Root = new("azsb", CommandLineStrings.AppCommands_Root)
         {
-            new HelpOption(), new VersionOption(), _subscription, _namespace, _open, _theme, _run,
+            new HelpOption(), new VersionOption(), _connection, _broker, _open, _theme, _run,
             _check, _list, _peek, _retry, _delete, _purge, _send, _config, _pluginsCommand, help,
         };
         foreach (var command in new[] { Root, _run, _config, _pluginsCommand, _check, _list, _peek, _retry, _delete, _purge, _send })
@@ -121,6 +117,10 @@ public sealed class AppCommands
 
     public Command Root { get; }
 
+    // The transport's name for the level, with its short alias and, when it differs, the generic name.
+    private static Option<string?> LevelOption(LevelTerm term, string generic, string help) =>
+        new($"--{term.Option}", [$"-{term.ShortOption}", .. term.Option == generic ? Array.Empty<string>() : [$"--{generic}"]]) { Description = help };
+
     public static Task<int> ExecuteAsync(IHostBuilder host, PluginCatalog plugins, BrokerTransport transport, Func<CommandServices> services, string[] args) =>
         new AppCommands(host, plugins, transport, services).Root.Parse(args).InvokeAsync();
 
@@ -129,8 +129,8 @@ public sealed class AppCommands
 
     private Command Namespace(Command command)
     {
-        command.Add(_scriptSubscription);
-        command.Add(_scriptNamespace);
+        command.Add(_scriptConnection);
+        command.Add(_scriptBroker);
         command.Add(_json);
         return command;
     }
@@ -153,15 +153,15 @@ public sealed class AppCommands
         var c when c == _run || c == Root => new RunInput
         {
             HostBuilder = _host,
-            Connection = result.GetValue(_subscription),
-            Broker = result.GetValue(_namespace),
+            Connection = result.GetValue(_connection),
+            Broker = result.GetValue(_broker),
             Open = result.GetValue(_open),
             Theme = result.GetValue(_theme),
         },
         var c when BrokerCommandOf(c, result) is { } command => new BrokerInput
         {
             Command = command,
-            Target = new(result.GetValue(_scriptSubscription), result.GetValue(_scriptNamespace)),
+            Target = new(result.GetValue(_scriptConnection), result.GetValue(_scriptBroker)),
             Json = result.GetValue(_json),
             Confirm = result.GetValue(_confirm),
             Services = _services,

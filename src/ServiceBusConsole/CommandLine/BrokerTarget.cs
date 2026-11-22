@@ -17,11 +17,11 @@ public sealed record BrokerTarget(string? Connection = null, string? Broker = nu
     {
         var wanted = Connection
             ?? await service.GetCurrentConnectionIdAsync(ct)
-            ?? throw new CommandFailure(ExitCodes.Usage, CommandLineStrings.NamespaceTarget_NoSubscription);
+            ?? throw new CommandFailure(ExitCodes.Usage, Terms.Current.NoDefaultConnection);
         var startup = new StartupTarget(wanted);
         if (startup.Matches(ConnectionInfo.Emulator)) return ConnectionInfo.Emulator;
         return await service.GetConnectionsAsync(ct).FirstOrDefaultAsync(startup.Matches, ct)
-            ?? throw new CommandFailure(ExitCodes.NotFound, CommandLineStrings.FormatNamespaceTarget_SubscriptionNotFound(wanted));
+            ?? throw new CommandFailure(ExitCodes.NotFound, CommandLineStrings.FormatBrokerTarget_ConnectionNotFound(Terms.Connection.OneInText, wanted));
     }
 
     private BrokerInfo PickBroker(ConnectionInfo subscription, IReadOnlyList<BrokerInfo> namespaces)
@@ -30,8 +30,8 @@ public sealed record BrokerTarget(string? Connection = null, string? Broker = nu
             return namespaces switch
             {
                 [var only] => only,
-                [] => throw new CommandFailure(ExitCodes.NotFound, CommandLineStrings.FormatNamespaceTarget_NoNamespaces(subscription.Name)),
-                _ => throw new CommandFailure(ExitCodes.Usage, CommandLineStrings.FormatNamespaceTarget_PickNamespace(subscription.Name, Names(namespaces))),
+                [] => throw new CommandFailure(ExitCodes.NotFound, CommandLineStrings.FormatBrokerTarget_NoBrokers(Terms.Connection.One, subscription.Name, Terms.Broker.ManyInText)),
+                _ => throw new CommandFailure(ExitCodes.Usage, CommandLineStrings.FormatBrokerTarget_PickBroker(Terms.Connection.One, subscription.Name, Terms.Broker.ManyInText, Terms.BrokerOption, Names(namespaces))),
             };
 
         var glob = new Glob(wanted);
@@ -40,8 +40,8 @@ public sealed record BrokerTarget(string? Connection = null, string? Broker = nu
         return matches switch
         {
             [var one] => one,
-            [] => throw new CommandFailure(ExitCodes.NotFound, CommandLineStrings.FormatNamespaceTarget_NamespaceNotFound(wanted, subscription.Name)),
-            _ => throw new CommandFailure(ExitCodes.Usage, CommandLineStrings.FormatNamespaceTarget_Ambiguous(wanted, Names(matches))),
+            [] => throw new CommandFailure(ExitCodes.NotFound, CommandLineStrings.FormatBrokerTarget_BrokerNotFound(Terms.Broker.OneInText, wanted, Terms.Connection.OneInText, subscription.Name)),
+            _ => throw new CommandFailure(ExitCodes.Usage, CommandLineStrings.FormatBrokerTarget_Ambiguous(wanted, Terms.Broker.ManyInText, Names(matches))),
         };
     }
 

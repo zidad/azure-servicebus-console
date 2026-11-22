@@ -8,7 +8,7 @@ public sealed class CommandLineTests
     private static RunInput Parse(params string[] args)
     {
         var builder = Host.CreateDefaultBuilder();
-        var input = new AppCommands(builder).Bind(args).ShouldBeOfType<RunInput>();
+        var input = new AppCommands(builder, PluginCatalog.Empty, TestTerms.Transport).Bind(args).ShouldBeOfType<RunInput>();
         input.HostBuilder.ShouldBeSameAs(builder);
         return input;
     }
@@ -17,7 +17,7 @@ public sealed class CommandLineTests
     public static (string Output, int ExitCode) Invoke(params string[] args)
     {
         var output = new StringWriter();
-        var exitCode = new AppCommands(Host.CreateDefaultBuilder()).Root.Parse(args).Invoke(new InvocationConfiguration { Output = output, Error = output });
+        var exitCode = new AppCommands(Host.CreateDefaultBuilder(), PluginCatalog.Empty, TestTerms.Transport).Root.Parse(args).Invoke(new InvocationConfiguration { Output = output, Error = output });
         return (output.ToString(), exitCode);
     }
 
@@ -67,7 +67,7 @@ public sealed class CommandLineTests
     [Test]
     public void UnknownFlag_IsInvalidUsage_AndRunsNothing()
     {
-        new AppCommands(Host.CreateDefaultBuilder()).Bind("--colour", "red").ShouldBeNull();
+        new AppCommands(Host.CreateDefaultBuilder(), PluginCatalog.Empty, TestTerms.Transport).Bind("--colour", "red").ShouldBeNull();
         var (output, exitCode) = Invoke("--colour", "red");
 
         exitCode.ShouldNotBe(0);
@@ -85,5 +85,18 @@ public sealed class CommandLineTests
         output.ShouldContain("azsb");
         output.ShouldContain("--subscription");
         foreach (var command in new[] { "run", "config", "plugins", "help" }) output.ShouldContain($"  {command} ");
+    }
+
+    [Test]
+    public void TheTransportsWords_NameTheOptions_WithTheGenericOnesAsAliases()
+    {
+        var server = new LevelTerm("Server", "Servers", "server", "servers", "🖥", "server", 's', "Server to start in", "Server");
+        var vhost = new LevelTerm("Virtual host", "Virtual hosts", "virtual host", "virtual hosts", "🏠", "vhost", 'v', "Virtual host to open", "Virtual host");
+        var commands = new AppCommands(Host.CreateDefaultBuilder(), PluginCatalog.Empty,
+            TestTerms.Transport with { Terms = TestTerms.ServiceBus with { Connection = server, Broker = vhost } });
+
+        commands.Bind("--server", "local", "--vhost", "/").ShouldBeOfType<RunInput>().StartupTarget.ShouldBe(new StartupTarget("local", "/"));
+        commands.Bind("--connection", "local", "-v", "orders").ShouldBeOfType<RunInput>().StartupTarget.ShouldBe(new StartupTarget("local", "orders"));
+        commands.Bind("--subscription", "local").ShouldBeNull();
     }
 }

@@ -40,7 +40,7 @@
     <value>topic {topic}</value>
   </data>
   <data name="List_NoTopics" xml:space="preserve">
-    <value>This namespace has no topics.</value>
+    <value>This {broker} has no topics.</value>
   </data>
   <data name="List_DeleteSubscriptionConfirm" xml:space="preserve">
     <value>Delete subscription '{subscription}' from topic '{topic}'? This cannot be undone.</value>
@@ -96,11 +96,11 @@
   <data name="Connection_Title" xml:space="preserve">
     <value>Connect</value>
   </data>
-  <data name="Connection_ListSubscriptionsFailed" xml:space="preserve">
-    <value>Could not list Azure subscriptions (az login?): {error}</value>
+  <data name="Connection_ListConnectionsFailed" xml:space="preserve">
+    <value>Could not list {connections}: {error} · {signInHint}</value>
   </data>
-  <data name="Connection_ListingSubscriptions" xml:space="preserve">
-    <value>Listing Azure subscriptions...</value>
+  <data name="Connection_ListingConnections" xml:space="preserve">
+    <value>Listing {connections}...</value>
   </data>
   <data name="Connection_CacheDirectory" xml:space="preserve">
     <value>Cache: {directory}</value>
@@ -109,19 +109,19 @@
     <value>Clear cache</value>
   </data>
   <data name="Connection_MetricsLabel" xml:space="preserve">
-    <value>namespace {namespaceName}</value>
+    <value>{broker} {name}</value>
   </data>
   <data name="Connection_MetricsUnavailable" xml:space="preserve">
-    <value>Azure Monitor metrics aren't available for {namespaceName}.</value>
+    <value>Metrics aren't available for {name}.</value>
   </data>
-  <data name="Connection_MetricsChooseNamespace" xml:space="preserve">
-    <value>Choose a namespace to chart its Azure Monitor metrics.</value>
+  <data name="Connection_MetricsChooseBroker" xml:space="preserve">
+    <value>Choose a {broker} to chart its metrics.</value>
   </data>
-  <data name="Connection_SubscriptionNotFound" xml:space="preserve">
-    <value>Azure subscription "{subscription}" not found.</value>
+  <data name="Connection_ConnectionNotFound" xml:space="preserve">
+    <value>{connectionLabel} "{name}" not found.</value>
   </data>
-  <data name="Connection_NamespaceNotFound" xml:space="preserve">
-    <value>Namespace "{namespaceName}" not found in {subscription}.</value>
+  <data name="Connection_BrokerNotFound" xml:space="preserve">
+    <value>{brokerLabel} "{name}" not found in {connectionName}.</value>
   </data>
   <data name="Connection_OpenNotFound" xml:space="preserve">
     <value>Nothing named "{path}" in {namespaceName}.</value>

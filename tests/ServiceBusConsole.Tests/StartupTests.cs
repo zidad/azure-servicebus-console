@@ -152,7 +152,7 @@ public sealed class StartupTests
         await using var terminal = await app.StartAsync(height: 40);
 
         await terminal.WaitUntilAsync(
-            f => f.ContainsText("Azure subscription \"Contoso Production\" not found.") && f.ContainsText("1  📬 Queues"),
+            f => f.ContainsText("Subscription \"Contoso Production\" not found.") && f.ContainsText("1  📬 Queues"),
             AppHarness.Timeout, cancellationToken: Ct);
         app.NavState.Connection.ShouldBe(ConnectionInfo.Emulator);
     }

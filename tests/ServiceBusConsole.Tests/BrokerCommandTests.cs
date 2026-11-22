@@ -26,7 +26,7 @@ public sealed class BrokerCommandTests
 
         public Func<BrokerInfo, FakeServices, IBroker> Open { get; set; } = FakeBroker.For;
 
-        public AppCommands Commands => new(Host.CreateDefaultBuilder(), PluginCatalog.Empty, services: () =>
+        public AppCommands Commands => new(Host.CreateDefaultBuilder(), PluginCatalog.Empty, TestTerms.Transport, services: () =>
             new CommandServices(
                 Namespaces,
                 new FakeBrokerOpener(info => Open(info, Services)),

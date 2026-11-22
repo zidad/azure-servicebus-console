@@ -128,7 +128,7 @@
     <value>Jump to</value>
   </data>
   <data name="JumpDialog_Placeholder" xml:space="preserve">
-    <value>queue, topic, subscription or namespace</value>
+    <value>queue, topic, subscription or {broker}</value>
   </data>
   <data name="JumpDialog_Listing" xml:space="preserve">
     <value>Listing…</value>
@@ -137,10 +137,10 @@
     <value>Nothing matches.</value>
   </data>
   <data name="JumpDialog_ScopeHere" xml:space="preserve">
-    <value>in {namespaceName} · ^a all namespaces</value>
+    <value>in {name} · ^a all {brokers}</value>
   </data>
   <data name="JumpDialog_ScopeAll" xml:space="preserve">
-    <value>in all namespaces · ^a {namespaceName} only</value>
+    <value>in all {brokers} · ^a {name} only</value>
   </data>
   <data name="JumpDialog_Actions" xml:space="preserve">
     <value>Actions</value>
@@ -241,11 +241,11 @@
   <data name="ConnectionTree_Opened" xml:space="preserve">
     <value>Opened</value>
   </data>
-  <data name="ConnectionTree_NamespaceCountOne" xml:space="preserve">
-    <value>{count} namespace</value>
+  <data name="ConnectionTree_BrokerCountOne" xml:space="preserve">
+    <value>{count} {broker}</value>
   </data>
-  <data name="ConnectionTree_NamespaceCountMany" xml:space="preserve">
-    <value>{count} namespaces</value>
+  <data name="ConnectionTree_BrokerCountMany" xml:space="preserve">
+    <value>{count} {brokers}</value>
   </data>
   <data name="MessageBrowserView_AutoForwarding" xml:space="preserve">
     <value>auto-forwarding</value>

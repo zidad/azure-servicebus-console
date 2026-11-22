@@ -155,7 +155,7 @@ public sealed class ExplorerTree(
             if (node is Connection)
             {
                 _listing.Add(node.Key);
-                _notes[node.Key] = (UIStrings.ExplorerTree_Discovering, false);
+                _notes[node.Key] = (UIStrings.FormatExplorerTree_Discovering(Terms.Broker.ManyInText), false);
             }
         }
         // Off the renderer's context, like the catalog's loading.

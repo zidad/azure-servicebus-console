@@ -7,9 +7,7 @@ namespace ServiceBusConsole.UI;
 public static class Icons
 {
     public const string Connection = "🔌";
-    public const string AzureSubscription = "🔑";
     public const string Emulator = "🧪";
-    public const string Namespace = "🌐";
     public const string Queue = "📬";
     public const string Topic = "📢";
     public const string Subscription = "📥";

@@ -21,11 +21,8 @@
   <data name="JumpTarget_Subscription" xml:space="preserve">
     <value>subscription</value>
   </data>
-  <data name="JumpTarget_Namespace" xml:space="preserve">
-    <value>namespace</value>
-  </data>
-  <data name="JumpGroup_OtherNamespaces" xml:space="preserve">
-    <value>Other namespaces</value>
+  <data name="JumpGroup_OtherBrokers" xml:space="preserve">
+    <value>Other {brokers}</value>
   </data>
   <data name="KeyBinding_Escape" xml:space="preserve">
     <value>esc</value>
@@ -37,7 +34,7 @@
     <value>Recent</value>
   </data>
   <data name="ExplorerTree_Discovering" xml:space="preserve">
-    <value>Discovering namespaces…</value>
+    <value>Discovering {brokers}…</value>
   </data>
   <data name="ExplorerTree_Failed" xml:space="preserve">
     <value>{error}  (Enter to retry)</value>

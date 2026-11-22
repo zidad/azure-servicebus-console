@@ -30,14 +30,8 @@
   <data name="AppCommands_Help" xml:space="preserve">
     <value>Show help for azsb or one of its commands</value>
   </data>
-  <data name="AppCommands_SubscriptionOption" xml:space="preserve">
-    <value>Azure subscription to start in, by name or ID; emulator for the local emulator</value>
-  </data>
-  <data name="AppCommands_NamespaceOption" xml:space="preserve">
-    <value>Namespace of that subscription to open, by name or host name; needs --subscription</value>
-  </data>
   <data name="AppCommands_OpenOption" xml:space="preserve">
-    <value>Queue, topic or topic/subscription of that namespace to open, by exact name; /dlq or /active picks the tab. Or a list: queues, topics or subscriptions. Needs --namespace</value>
+    <value>Queue, topic or topic/subscription of that {broker} to open, by exact name; /dlq or /active picks the tab. Or a list: queues, topics or subscriptions. Needs {brokerOption}</value>
   </data>
   <data name="AppCommands_ThemeOption" xml:space="preserve">
     <value>Colors for a dark or light terminal background: auto (default; COLORFGBG, else dark), dark or light; overrides ui.theme</value>
@@ -85,7 +79,7 @@
     <value>none</value>
   </data>
   <data name="AppCommands_Check" xml:space="preserve">
-    <value>Check that a namespace can be used from here: Azure sign-in, DNS, the AMQP port and a peek</value>
+    <value>Check that a {broker} can be used from here: sign-in, DNS, the AMQP port and a peek</value>
   </data>
   <data name="AppCommands_List" xml:space="preserve">
     <value>List queues and subscriptions (or one kind) with their message counts</value>
@@ -105,17 +99,11 @@
   <data name="AppCommands_Send" xml:space="preserve">
     <value>Send a new message to a queue or topic</value>
   </data>
-  <data name="AppCommands_ScriptSubscriptionOption" xml:space="preserve">
-    <value>Azure subscription, by name or ID; emulator for the local emulator. Default: the Azure CLI's current subscription</value>
-  </data>
-  <data name="AppCommands_ScriptNamespaceOption" xml:space="preserve">
-    <value>Namespace, by name, host name or a pattern with * that matches one. Default: the subscription's only namespace</value>
-  </data>
   <data name="AppCommands_JsonOption" xml:space="preserve">
     <value>Write JSON to standard output</value>
   </data>
   <data name="AppCommands_ConfirmOption" xml:space="preserve">
-    <value>The namespace's name: needed for changes in a namespace listed in cli.protect</value>
+    <value>The {broker}'s name: needed for changes in a {broker} listed in cli.protect</value>
   </data>
   <data name="AppCommands_ListKindArgument" xml:space="preserve">
     <value>queues, topics or subscriptions; default: queues and subscriptions</value>
@@ -180,11 +168,8 @@
   <data name="AppCommands_PropertyOption" xml:space="preserve">
     <value>Application property as key=value, repeatable</value>
   </data>
-  <data name="CheckCommand_Namespace" xml:space="preserve">
-    <value>Namespace</value>
-  </data>
   <data name="CheckCommand_SignInHint" xml:space="preserve">
-    <value>Sign in with az login, or pass --subscription and --namespace</value>
+    <value>{signInHint}, or pass {connectionOption} and {brokerOption}</value>
   </data>
   <data name="CheckCommand_Dns" xml:space="preserve">
     <value>DNS</value>
@@ -274,7 +259,7 @@
     <value>Nothing to list</value>
   </data>
   <data name="ListCommand_NoTopics" xml:space="preserve">
-    <value>This namespace has no topics</value>
+    <value>This {broker} has no topics</value>
   </data>
   <data name="MessageOutcome_Selection" xml:space="preserve">
     <value>Pick messages with --message-id or --sequence, or --all</value>
@@ -288,23 +273,20 @@
   <data name="NamespaceCommand_Cancelled" xml:space="preserve">
     <value>Cancelled</value>
   </data>
-  <data name="NamespaceTarget_NoSubscription" xml:space="preserve">
-    <value>No --subscription, and the Azure CLI has no current subscription: run az login</value>
+  <data name="BrokerTarget_ConnectionNotFound" xml:space="preserve">
+    <value>No {connection} {name}</value>
   </data>
-  <data name="NamespaceTarget_SubscriptionNotFound" xml:space="preserve">
-    <value>No subscription {subscription} for the signed-in account</value>
+  <data name="BrokerTarget_NoBrokers" xml:space="preserve">
+    <value>{connectionLabel} {name} has no {brokers}</value>
   </data>
-  <data name="NamespaceTarget_NoNamespaces" xml:space="preserve">
-    <value>Subscription {subscription} has no Service Bus namespaces</value>
+  <data name="BrokerTarget_PickBroker" xml:space="preserve">
+    <value>{connectionLabel} {name} has several {brokers}, pick one with {brokerOption}: {names}</value>
   </data>
-  <data name="NamespaceTarget_PickNamespace" xml:space="preserve">
-    <value>Subscription {subscription} has several namespaces, pick one with --namespace: {names}</value>
+  <data name="BrokerTarget_BrokerNotFound" xml:space="preserve">
+    <value>No {broker} {name} in {connection} {connectionName}</value>
   </data>
-  <data name="NamespaceTarget_NamespaceNotFound" xml:space="preserve">
-    <value>No namespace {namespaceName} in subscription {subscription}</value>
-  </data>
-  <data name="NamespaceTarget_Ambiguous" xml:space="preserve">
-    <value>{pattern} matches several namespaces: {names}</value>
+  <data name="BrokerTarget_Ambiguous" xml:space="preserve">
+    <value>{pattern} matches several {brokers}: {names}</value>
   </data>
   <data name="PeekCommand_Peeked" xml:space="preserve">
     <value>{count} message(s) from {source}</value>

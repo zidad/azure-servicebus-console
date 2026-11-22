@@ -28,7 +28,7 @@ public abstract record ExplorerNode
     {
         public override string Key => Value.Id ?? "emulator";
         public override string Name => Value.Name;
-        public override string Icon => Value.IsEmulator ? Icons.Emulator : Icons.AzureSubscription;
+        public override string Icon => Value.IsEmulator ? Icons.Emulator : Terms.Connection.Icon;
         public override bool IsBranch => true;
         public override bool Matches(string filter) =>
             base.Matches(filter) || (Value.Id?.Contains(filter, StringComparison.OrdinalIgnoreCase) ?? false);
@@ -38,7 +38,7 @@ public abstract record ExplorerNode
     {
         public override string Key => $"{Parent.Key}/{Info.Address}";
         public override string Name => Info.Name;
-        public override string Icon => Icons.Namespace;
+        public override string Icon => Terms.Broker.Icon;
     }
 
     /// <summary>The namespaces opened last, above the subscriptions.</summary>
@@ -59,6 +59,6 @@ public abstract record ExplorerNode
     {
         public override string Key => $"{RecentGroup.Instance.Key}/{Target.Key}";
         public override string Name => Target.Name;
-        public override string Icon => Icons.Namespace;
+        public override string Icon => Terms.Broker.Icon;
     }
 }

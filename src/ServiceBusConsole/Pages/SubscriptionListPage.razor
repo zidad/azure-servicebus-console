@@ -63,7 +63,7 @@
 @code {
     private bool HasDeadLetters => Current.Broker is IHasDeadLetters;
 
-    private ITopicService Topics => Current.Broker is IHasTopics { Topics: var topics } ? topics : throw new InvalidOperationException(PageStrings.List_NoTopics);
+    private ITopicService Topics => Current.Broker is IHasTopics { Topics: var topics } ? topics : throw new InvalidOperationException(PageStrings.FormatList_NoTopics(Terms.Broker.OneInText));
 
     private string TopicName => NavState.TopicName ?? "";
 

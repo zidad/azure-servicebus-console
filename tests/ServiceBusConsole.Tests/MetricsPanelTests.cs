@@ -296,7 +296,7 @@ public sealed class MetricsPanelTests
         await using var terminal = await app.StartAsync(height: 50);
         await AppHarness.WaitForTableFocusAsync(terminal);
         var emulator = await terminal.WaitUntilAsync(
-            f => f.ContainsText(AppHarness.Connection.Name) && !f.ContainsText("Listing Azure subscriptions")
+            f => f.ContainsText(AppHarness.Connection.Name) && !f.ContainsText("Listing subscriptions")
                 && f.ContainsText("🌐 sb-orders-dev") && f.ContainsText("aren't available for localhost"),
             AppHarness.Timeout, cancellationToken: Ct);
 

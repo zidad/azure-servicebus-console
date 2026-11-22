@@ -21,7 +21,7 @@ public sealed class AppHarness
     public AppHarness()
     {
         OpenNamespace = info => FakeBroker.For(info, Services);
-        Current = new(new FakeBrokerOpener(info => OpenNamespace(info)));
+        Current = new(new FakeBrokerOpener(info => OpenNamespace(info)), TestTerms.ServiceBus);
     }
 
     public FakeConnectionCatalog Catalog { get; } = new();
@@ -78,6 +78,7 @@ public sealed class AppHarness
                     services.AddLogging();
                     services.AddSingleton<NavigationManager>(Navigation);
                     services.AddSingleton(Current);
+                    services.AddSingleton(TestTerms.ServiceBus);
                     services.AddSingleton(ConnectionCatalog ?? Catalog);
                     services.AddSingleton(NavState);
                     services.AddSingleton<MessageBrowserStore>();
@@ -142,11 +143,11 @@ public sealed class AppHarness
     /// </summary>
     public async Task SelectAzureNamespaceAsync(HeadlessTerminal terminal, BrokerInfo ns)
     {
-        var target = $"{Icons.Namespace} {ns.Name}";
+        var target = $"{TestTerms.ServiceBus.Broker.Icon} {ns.Name}";
         var frame = await terminal.WaitUntilAsync(f => f.ContainsText(target) && !f.ContainsText("Discovering"), Timeout, cancellationToken: Ct);
         // One tree row per line; the recent namespaces above the subscriptions may list both again.
         var lines = Enumerable.Range(0, frame.Height).Select(frame.GetLine).ToList();
-        var start = lines.FindLastIndex(l => l.Contains($"{Icons.Namespace} localhost"));
+        var start = lines.FindLastIndex(l => l.Contains($"{TestTerms.ServiceBus.Broker.Icon} localhost"));
         var rows = lines.FindIndex(start, l => l.Contains(target)) - start;
         foreach (var _ in Enumerable.Range(0, rows)) await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
         await terminal.WaitUntilAsync(_ => Current.Address == ns.Address, Timeout, cancellationToken: Ct);

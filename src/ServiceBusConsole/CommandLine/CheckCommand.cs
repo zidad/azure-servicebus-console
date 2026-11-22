@@ -47,12 +47,12 @@ public sealed record CheckCommand : BrokerCommand
         try
         {
             (subscription, info) = await context.Target.ResolveAsync(context.Services.Catalog, ct);
-            resolved = new(CommandLineStrings.CheckCommand_Namespace, true, $"{subscription.Name} › {info.Name} ({info.Address})");
+            resolved = new(Terms.Broker.One, true, $"{subscription.Name} › {info.Name} ({info.Address})");
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             (subscription, info) = (ConnectionInfo.Emulator, BrokerInfo.Emulator);
-            resolved = new(CommandLineStrings.CheckCommand_Namespace, false, ex.Message.Split('\n')[0], CommandLineStrings.CheckCommand_SignInHint);
+            resolved = new(Terms.Broker.One, false, ex.Message.Split('\n')[0], CommandLineStrings.FormatCheckCommand_SignInHint(Terms.Current.SignInHint, Terms.ConnectionOption, Terms.BrokerOption));
         }
         yield return resolved;
         if (!resolved.Ok) yield break;
