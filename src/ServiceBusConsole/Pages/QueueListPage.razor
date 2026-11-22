@@ -2,12 +2,12 @@
 
 @inject NavigationManager Nav
 @inject NavigationState NavState
-@inject ServiceBusConnection Connection
+@inject CurrentBroker Current
 
 <EntityList @ref="_list" TItem="QueueInfo"
             Section="@Section.Queues"
             LoadingText="@PageStrings.QueueList_Loading"
-            Load="@(ct => Connection.Namespace.Queues.GetQueuesAsync(ct))"
+            Load="@(ct => Current.Opened.Queues.GetQueuesAsync(ct))"
             Key="@(q => q.Name)"
             IsRefreshing="@(q => q.IsRefreshing)"
             Stale="@(q => q with { IsRefreshing = false })"
@@ -41,7 +41,7 @@
     </Row>
 </EntityList>
 
-@if (Connection.Current is IHasDeletion { Deletion: var deletion })
+@if (Current.Broker is IHasDeletion { Deletion: var deletion })
 {
     <AsyncCommand @ref="_deleteQueue" TItem="string"
                   ConfirmMessage="@(n => PageStrings.FormatQueueList_DeleteConfirm(n))"
@@ -55,13 +55,13 @@
     <AsyncCommand @ref="_purgeDlq" TItem="string"
                   ConfirmMessage="@(n => PageStrings.FormatList_PurgeDlqConfirm(n))"
                   ConfirmByTyping="true"
-                  Execute="@(n => Connection.Namespace.Messages.PurgeAsync(new MessageSource.Queue(n, IsDlq: true)).LastOrDefaultAsync().AsTask())"
+                  Execute="@(n => Current.Opened.Messages.PurgeAsync(new MessageSource.Queue(n, IsDlq: true)).LastOrDefaultAsync().AsTask())"
                   Activity="@(n => PageStrings.FormatList_PurgedDlq(n))"
                   OnCompleted="@(n => { _list?.Update(n, q => q with { DeadLetterMessageCount = 0 }); return Task.CompletedTask; })" />
 }
 
 @code {
-    private bool HasDeadLetters => Connection.Current is IHasDeadLetters;
+    private bool HasDeadLetters => Current.Broker is IHasDeadLetters;
 
     private EntityList<QueueInfo>? _list;
     private AsyncCommand<string>? _deleteQueue;
@@ -81,13 +81,13 @@
 
     protected override void OnInitialized()
     {
-        if (Connection.CurrentNamespace is null)
+        if (Current.Address is null)
             Nav.NavigateTo("/");
     }
 
     private IEnumerable<KeyBinding> Commands =>
     [
-        .. Connection.Current is IHasDeletion ? [ListKeys.Delete(() => OnFocused(_deleteQueue))] : Array.Empty<KeyBinding>(),
+        .. Current.Broker is IHasDeletion ? [ListKeys.Delete(() => OnFocused(_deleteQueue))] : Array.Empty<KeyBinding>(),
         .. HasDeadLetters ? [ListKeys.PurgeDlq(() => OnFocused(_purgeDlq))] : Array.Empty<KeyBinding>(),
     ];
 

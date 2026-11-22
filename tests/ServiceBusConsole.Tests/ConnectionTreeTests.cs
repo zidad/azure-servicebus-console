@@ -7,14 +7,14 @@ public sealed class ConnectionTreeTests
 {
     private static readonly BrokerInfo Basic = AppHarness.AzureNamespace with
     {
-        Name = "sb-legacy", FullyQualifiedNamespace = "sb-legacy.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Basic"),
+        Name = "sb-legacy", Address = "sb-legacy.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Basic"),
     };
 
     private static AppHarness Harness()
     {
         var app = new AppHarness();
-        app.Namespaces.Subscriptions.Add(AppHarness.AzureSubscription);
-        app.Namespaces.Namespaces.AddRange([AppHarness.AzureNamespace, Basic]);
+        app.Catalog.Connections.Add(AppHarness.Connection);
+        app.Catalog.Brokers.AddRange([AppHarness.AzureNamespace, Basic]);
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
         return app;
     }
@@ -121,14 +121,14 @@ public sealed class ConnectionTreeTests
     public async Task ARecentNamespace_InAnotherSubscription_OpensThere()
     {
         var app = Harness();
-        await app.Recent.RecordAsync(AppHarness.AzureSubscription, Basic);
+        await app.Recent.RecordAsync(AppHarness.Connection, Basic);
         await using var terminal = await OpenTreeAsync(app);
         await terminal.WaitForTextAsync("▾ 🕘 Recent", AppHarness.Timeout, Ct);
 
         // Rows: Recent, sb-legacy (recent), emulator, localhost (selected).
         foreach (var _ in Enumerable.Range(0, 2)) await terminal.SendKeyAsync(ConsoleKey.UpArrow, '\0', cancellationToken: Ct);
-        await terminal.WaitUntilAsync(_ => app.Connection.CurrentNamespace == Basic.FullyQualifiedNamespace, AppHarness.Timeout, cancellationToken: Ct);
-        app.NavState.AzureSubscription.ShouldBe(AppHarness.AzureSubscription);
+        await terminal.WaitUntilAsync(_ => app.Current.Address == Basic.Address, AppHarness.Timeout, cancellationToken: Ct);
+        app.NavState.Connection.ShouldBe(AppHarness.Connection);
         await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
 
         var frame = await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);

@@ -1,5 +1,5 @@
 @inject NavigationState NavState
-@inject ServiceBusConnection Connection
+@inject CurrentBroker Current
 @inject ExplorerTree Tree
 @inject ITerminalViewport Viewport
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
@@ -31,7 +31,7 @@
     public void Open(int left, int top, string? selectKey)
     {
         if (!_open) _returnFocusKey = FocusManager.CurrentFocusKey;
-        if (NavState.AzureSubscription is { } subscription) Tree.Reveal(subscription);
+        if (NavState.Connection is { } subscription) Tree.Reveal(subscription);
         (_open, _left, _top, _selectKey, _filter) = (true, left, top, selectKey, null);
         StateHasChanged();
     }

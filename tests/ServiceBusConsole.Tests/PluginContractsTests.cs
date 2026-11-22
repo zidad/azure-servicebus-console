@@ -18,7 +18,7 @@ public sealed class PluginContractsTests
             DeadLetterReason = deadLetterReason,
         },
         Source = source,
-        Session = new SessionSnapshot { At = DateTimeOffset.UnixEpoch, Namespace = AppHarness.AzureNamespace },
+        Session = new SessionSnapshot { At = DateTimeOffset.UnixEpoch, Broker = AppHarness.AzureNamespace },
         Settings = new ConfigurationBuilder().AddInMemoryCollection(settings.Select(s => KeyValuePair.Create(s.Key, s.Value))).Build(),
         Host = Host,
         Progress = CallbackProgress.None,

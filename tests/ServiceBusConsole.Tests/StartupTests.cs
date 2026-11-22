@@ -11,8 +11,8 @@ public sealed class StartupTests
     private static AppHarness WithAzure(StartupTarget? startup = null)
     {
         var app = new AppHarness();
-        app.Namespaces.Subscriptions.Add(AppHarness.AzureSubscription);
-        app.Namespaces.Namespaces.Add(AppHarness.AzureNamespace);
+        app.Catalog.Connections.Add(AppHarness.Connection);
+        app.Catalog.Brokers.Add(AppHarness.AzureNamespace);
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
         app.NavState.Startup = startup;
         return app;
@@ -27,7 +27,7 @@ public sealed class StartupTests
         var frame = await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
 
         frame.GetLine(0).ShouldContain(QueueHeader);
-        app.Connection.CurrentNamespace.ShouldBe(AppHarness.AzureNamespace.FullyQualifiedNamespace);
+        app.Current.Address.ShouldBe(AppHarness.AzureNamespace.Address);
     }
 
     [Test]
@@ -39,22 +39,22 @@ public sealed class StartupTests
         await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
 
         await terminal.WaitUntilAsync(_ => app.Recent.Items.Count == 1, AppHarness.Timeout, cancellationToken: Ct);
-        app.Recent.Items[0].Is(AppHarness.AzureSubscription, AppHarness.AzureNamespace).ShouldBeTrue();
+        app.Recent.Items[0].Is(AppHarness.Connection, AppHarness.AzureNamespace).ShouldBeTrue();
     }
 
     [Test]
     public async Task OpensAsSoonAsListed_WhileLiveListingsAreStillRunning()
     {
         var app = WithAzure(new("Contoso Development", "sb-orders-dev"));
-        app.Namespaces.HoldListing = new TaskCompletionSource();
-        app.Namespaces.HoldNamespaces = new TaskCompletionSource();
+        app.Catalog.HoldListing = new TaskCompletionSource();
+        app.Catalog.HoldBrokers = new TaskCompletionSource();
         await using var terminal = await app.StartAsync(height: 40);
 
         var frame = await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
 
         frame.GetLine(0).ShouldContain(QueueHeader);
-        app.Namespaces.HoldListing.SetResult();
-        app.Namespaces.HoldNamespaces.SetResult();
+        app.Catalog.HoldListing.SetResult();
+        app.Catalog.HoldBrokers.SetResult();
     }
 
     [Test]
@@ -65,7 +65,7 @@ public sealed class StartupTests
 
         await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
 
-        app.Connection.Current.ShouldBeOfType<FakeEmulatorNamespace>();
+        app.Current.Broker.ShouldBeOfType<FakeEmulatorNamespace>();
     }
 
     [Test]
@@ -88,9 +88,9 @@ public sealed class StartupTests
         await using var terminal = await app.StartAsync(height: 40);
 
         await AppHarness.WaitForTableFocusAsync(terminal);
-        await terminal.WaitUntilAsync(_ => app.Connection.CurrentNamespace == AppHarness.AzureNamespace.FullyQualifiedNamespace, AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(_ => app.Current.Address == AppHarness.AzureNamespace.Address, AppHarness.Timeout, cancellationToken: Ct);
         await terminal.WaitUntilAsync(f => f.ContainsText("1  📬 Queues") && f.ContainsText("sb-orders-dev"), AppHarness.Timeout, cancellationToken: Ct);
-        app.NavState.AzureSubscription.ShouldBe(AppHarness.AzureSubscription);
+        app.NavState.Connection.ShouldBe(AppHarness.Connection);
 
         await terminal.SendKeyAsync(ConsoleKey.F1, '\0', cancellationToken: Ct);
         var frame = await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
@@ -101,22 +101,22 @@ public sealed class StartupTests
     public async Task AzCurrentSubscription_IsSelected_AndMarked_WithoutCommandLine()
     {
         var app = WithAzure();
-        app.Namespaces.CurrentSubscriptionId = AppHarness.AzureSubscription.Id;
+        app.Catalog.CurrentSubscriptionId = AppHarness.Connection.Id;
         await using var terminal = await app.StartAsync(height: 40);
 
-        await terminal.WaitUntilAsync(_ => app.Connection.CurrentNamespace == AppHarness.AzureNamespace.FullyQualifiedNamespace, AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(_ => app.Current.Address == AppHarness.AzureNamespace.Address, AppHarness.Timeout, cancellationToken: Ct);
         await terminal.WaitUntilAsync(f => f.ContainsText("(az default)") && f.ContainsText("sb-orders-dev"), AppHarness.Timeout, cancellationToken: Ct);
-        app.NavState.AzureSubscription.ShouldBe(AppHarness.AzureSubscription);
+        app.NavState.Connection.ShouldBe(AppHarness.Connection);
     }
 
     [Test]
     public async Task AzCurrentSubscription_NotListed_SelectsTheEmulator_Quietly()
     {
         var app = WithAzure();
-        app.Namespaces.CurrentSubscriptionId = "6f1d2c3b-0000-4000-8000-0000000000ff";
+        app.Catalog.CurrentSubscriptionId = "6f1d2c3b-0000-4000-8000-0000000000ff";
         await using var terminal = await app.StartAsync(height: 40);
 
-        await terminal.WaitUntilAsync(_ => app.NavState.AzureSubscription == AzureSubscription.Emulator, AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(_ => app.NavState.Connection == ConnectionInfo.Emulator, AppHarness.Timeout, cancellationToken: Ct);
         var frame = await terminal.WaitForTextAsync("localhost", AppHarness.Timeout, Ct);
         frame.ContainsText("not found").ShouldBeFalse(frame.ScreenText);
     }
@@ -125,10 +125,10 @@ public sealed class StartupTests
     public async Task CommandLineSubscription_WinsOverTheAzCurrentOne()
     {
         var app = WithAzure(new("emulator"));
-        app.Namespaces.CurrentSubscriptionId = AppHarness.AzureSubscription.Id;
+        app.Catalog.CurrentSubscriptionId = AppHarness.Connection.Id;
         await using var terminal = await app.StartAsync(height: 40);
 
-        await terminal.WaitUntilAsync(_ => app.NavState.AzureSubscription == AzureSubscription.Emulator, AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(_ => app.NavState.Connection == ConnectionInfo.Emulator, AppHarness.Timeout, cancellationToken: Ct);
         await terminal.WaitForTextAsync("(az default)", AppHarness.Timeout, Ct);
     }
 
@@ -142,7 +142,7 @@ public sealed class StartupTests
         await terminal.WaitUntilAsync(
             f => f.ContainsText("Namespace \"sb-missing\" not found in Contoso Development.") && f.ContainsText("sb-orders-dev") && f.ContainsText("1  📬 Queues"),
             AppHarness.Timeout, cancellationToken: Ct);
-        app.NavState.AzureSubscription.ShouldBe(AppHarness.AzureSubscription);
+        app.NavState.Connection.ShouldBe(AppHarness.Connection);
     }
 
     [Test]
@@ -154,7 +154,7 @@ public sealed class StartupTests
         await terminal.WaitUntilAsync(
             f => f.ContainsText("Azure subscription \"Contoso Production\" not found.") && f.ContainsText("1  📬 Queues"),
             AppHarness.Timeout, cancellationToken: Ct);
-        app.NavState.AzureSubscription.ShouldBe(AzureSubscription.Emulator);
+        app.NavState.Connection.ShouldBe(ConnectionInfo.Emulator);
     }
 
     [Test]
@@ -237,6 +237,6 @@ public sealed class StartupTests
         await terminal.WaitUntilAsync(
             f => f.ContainsText("Nothing named \"payments\" in sb-orders-dev.") && f.ContainsText("1  📬 Queues"),
             AppHarness.Timeout, cancellationToken: Ct);
-        app.Connection.CurrentNamespace.ShouldBe(AppHarness.AzureNamespace.FullyQualifiedNamespace);
+        app.Current.Address.ShouldBe(AppHarness.AzureNamespace.Address);
     }
 }

@@ -4,7 +4,7 @@ namespace ServiceBusConsole.Core.Messaging;
 /// Keeps the one message browser in use, so its locks survive a trip to the detail page. Records each browser's loads
 /// and operations in the <see cref="ActivityLog"/>.
 /// </summary>
-public sealed class MessageBrowserStore(ServiceBusConnection connection, ActivityLog activity) : IAsyncDisposable
+public sealed class MessageBrowserStore(CurrentBroker broker, ActivityLog activity) : IAsyncDisposable
 {
     public MessageBrowser? Current { get; private set; }
 
@@ -12,8 +12,8 @@ public sealed class MessageBrowserStore(ServiceBusConnection connection, Activit
     /// was already open. Opening another source releases the previous one's locks in the background.</summary>
     public (MessageBrowser Browser, bool IsNew) Open(MessageSource source)
     {
-        var ns = connection.Namespace;
-        if (Current is { } current && current.Source == source && current.Namespace == ns) return (current, false);
+        var ns = broker.Opened;
+        if (Current is { } current && current.Source == source && current.Broker == ns) return (current, false);
         _ = CloseAsync();
         var browser = new MessageBrowser(source, ns);
         browser.Ended += op => Record(browser, op);

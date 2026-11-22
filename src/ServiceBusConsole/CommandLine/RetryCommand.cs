@@ -5,7 +5,7 @@ namespace ServiceBusConsole.CommandLine;
 /// the UI: locked first, moved in transactions where the namespace has them. Only the messages present when it starts,
 /// so one that fails again is not retried in a loop.
 /// </summary>
-public sealed record RetryCommand(string Entity, MessageSelection Selection, bool DryRun = false) : NamespaceCommand
+public sealed record RetryCommand(string Entity, MessageSelection Selection, bool DryRun = false) : BrokerCommand
 {
     public override async Task<int> RunAsync(CommandContext context)
     {

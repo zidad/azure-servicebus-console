@@ -22,17 +22,17 @@ public sealed class ConnectionPageTests
     public async Task AzureSubscription_ListsNamespacesWithDetails_AndF1OpensHighlightedOne()
     {
         var app = new AppHarness();
-        app.Namespaces.Namespaces.AddRange(
+        app.Catalog.Brokers.AddRange(
         [
-            new BrokerInfo { Name = "sb-dev-a", FullyQualifiedNamespace = "sb-dev-a.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Standard", location: "West Europe", resourceGroup: "rg-a", status: "Active") },
-            new BrokerInfo { Name = "sb-dev-b", FullyQualifiedNamespace = "sb-dev-b.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Premium", location: "North Europe", resourceGroup: "rg-b", status: "Active") },
+            new BrokerInfo { Name = "sb-dev-a", Address = "sb-dev-a.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Standard", location: "West Europe", resourceGroup: "rg-a", status: "Active") },
+            new BrokerInfo { Name = "sb-dev-b", Address = "sb-dev-b.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Premium", location: "North Europe", resourceGroup: "rg-b", status: "Active") },
         ]);
-        app.Namespaces.Subscriptions.Add(new AzureSubscription("Contoso Development", "6f1d2c3b-0000-4000-8000-000000000001"));
+        app.Catalog.Connections.Add(new ConnectionInfo("Contoso Development", "6f1d2c3b-0000-4000-8000-000000000001"));
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
         await using var terminal = await app.StartAsync(height: 40);
         await AppHarness.WaitForTableFocusAsync(terminal);
 
-        await app.SelectAzureNamespaceAsync(terminal, app.Namespaces.Namespaces[1]);
+        await app.SelectAzureNamespaceAsync(terminal, app.Catalog.Brokers[1]);
         var frame = terminal.CurrentFrame;
         frame.ContainsText("Premium   North Europe  rg-b            ✅ Active").ShouldBeTrue(frame.ScreenText);
         var connectionFocus = terminal.FocusKey;
@@ -46,14 +46,14 @@ public sealed class ConnectionPageTests
         await terminal.SendKeyAsync(ConsoleKey.Escape, '\u001b', cancellationToken: Ct);
         await terminal.WaitForTextAsync("1  📬 Queues", AppHarness.Timeout, Ct);
         await terminal.WaitForTextAsync("sb-dev-b", AppHarness.Timeout, Ct);
-        app.Connection.CurrentNamespace.ShouldBe("sb-dev-b.servicebus.windows.net");
+        app.Current.Address.ShouldBe("sb-dev-b.servicebus.windows.net");
     }
 
     [Test]
     public async Task SubscriptionListingFails_ShowsError_AndEmulatorStillWorks()
     {
         var app = new AppHarness();
-        app.Namespaces.SubscriptionsError = new InvalidOperationException("Please run 'az login'");
+        app.Catalog.ConnectionsError = new InvalidOperationException("Please run 'az login'");
         await using var terminal = await app.StartAsync();
         await AppHarness.WaitForTableFocusAsync(terminal);
 
@@ -67,11 +67,11 @@ public sealed class ConnectionPageTests
     public async Task TypingFiltersTheTree_AndPicksTheFirstMatch()
     {
         var app = new AppHarness();
-        app.Namespaces.Subscriptions.AddRange(
+        app.Catalog.Connections.AddRange(
         [
-            new AzureSubscription("Contoso Development", "00000000-0000-4000-8000-000000000001"),
-            new AzureSubscription("Contoso Production", "00000000-0000-4000-8000-000000000002"),
-            new AzureSubscription("Contoso Sandbox", "00000000-0000-4000-8000-000000000003"),
+            new ConnectionInfo("Contoso Development", "00000000-0000-4000-8000-000000000001"),
+            new ConnectionInfo("Contoso Production", "00000000-0000-4000-8000-000000000002"),
+            new ConnectionInfo("Contoso Sandbox", "00000000-0000-4000-8000-000000000003"),
         ]);
         await using var terminal = await app.StartAsync(height: 40);
         await AppHarness.WaitForTableFocusAsync(terminal);
@@ -82,7 +82,7 @@ public sealed class ConnectionPageTests
         var frame = await terminal.WaitUntilAsync(f => !f.ContainsText("Contoso Sandbox") && !f.ContainsText("Contoso Development"), AppHarness.Timeout, cancellationToken: Ct);
         frame.ContainsText("Contoso Production").ShouldBeTrue(frame.ScreenText);
         frame.ContainsText("Local Emulator").ShouldBeFalse(frame.ScreenText);
-        await terminal.WaitUntilAsync(_ => app.NavState.AzureSubscription?.Name == "Contoso Production", AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(_ => app.NavState.Connection?.Name == "Contoso Production", AppHarness.Timeout, cancellationToken: Ct);
     }
 
     [Test]
@@ -90,12 +90,12 @@ public sealed class ConnectionPageTests
     {
         var app = new AppHarness();
         // Billing is listed first, so a frame without it must come from the check, not from listing order.
-        app.Namespaces.Subscriptions.AddRange(
+        app.Catalog.Connections.AddRange(
         [
-            new AzureSubscription("Contoso Billing", "00000000-0000-4000-8000-000000000009"),
-            new AzureSubscription("Contoso Development", "00000000-0000-4000-8000-000000000001"),
+            new ConnectionInfo("Contoso Billing", "00000000-0000-4000-8000-000000000009"),
+            new ConnectionInfo("Contoso Development", "00000000-0000-4000-8000-000000000001"),
         ]);
-        app.Namespaces.WithoutNamespaces.Add("00000000-0000-4000-8000-000000000009");
+        app.Catalog.WithoutBrokers.Add("00000000-0000-4000-8000-000000000009");
         await using var terminal = await app.StartAsync(height: 40);
         await AppHarness.WaitForTableFocusAsync(terminal);
 
@@ -108,19 +108,19 @@ public sealed class ConnectionPageTests
     {
         var app = new AppHarness();
         // Billing is listed first, so a frame without it must come from the check, not from listing order.
-        app.Namespaces.Subscriptions.AddRange(
+        app.Catalog.Connections.AddRange(
         [
-            new AzureSubscription("Contoso Billing", "00000000-0000-4000-8000-000000000009"),
-            new AzureSubscription("Contoso Development", "00000000-0000-4000-8000-000000000001"),
+            new ConnectionInfo("Contoso Billing", "00000000-0000-4000-8000-000000000009"),
+            new ConnectionInfo("Contoso Development", "00000000-0000-4000-8000-000000000001"),
         ]);
-        app.Namespaces.WithoutNamespaces.Add("00000000-0000-4000-8000-000000000009");
-        app.Namespaces.HoldListing = new TaskCompletionSource();
+        app.Catalog.WithoutBrokers.Add("00000000-0000-4000-8000-000000000009");
+        app.Catalog.HoldListing = new TaskCompletionSource();
         await using var terminal = await app.StartAsync(height: 40);
         await AppHarness.WaitForTableFocusAsync(terminal);
 
         // Still listing (cached list shown, live refresh pending), yet the empty subscription is already hidden.
         var frame = await terminal.WaitUntilAsync(f => f.ContainsText("Contoso Development") && !f.ContainsText("Contoso Billing"), AppHarness.Timeout, cancellationToken: Ct);
         frame.ContainsText("Listing Azure subscriptions").ShouldBeTrue(frame.ScreenText);
-        app.Namespaces.HoldListing.SetResult();
+        app.Catalog.HoldListing.SetResult();
     }
 }

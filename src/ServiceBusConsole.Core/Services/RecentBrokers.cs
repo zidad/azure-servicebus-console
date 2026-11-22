@@ -1,7 +1,7 @@
 namespace ServiceBusConsole.Core.Services;
 
 /// <summary>The last namespaces the user opened, newest first, kept in the file cache. Changed is raised on any thread.</summary>
-public sealed class RecentNamespaces(FileCache cache, TimeProvider time)
+public sealed class RecentBrokers(FileCache cache, TimeProvider time)
 {
     public const int Capacity = 5;
     private const string CacheKey = "recent-namespaces.json";
@@ -10,12 +10,12 @@ public sealed class RecentNamespaces(FileCache cache, TimeProvider time)
     private readonly SemaphoreSlim _saving = new(1, 1);
     private Task? _load;
 
-    public RecentNamespaces(FileCache cache) : this(cache, TimeProvider.System) { }
+    public RecentBrokers(FileCache cache) : this(cache, TimeProvider.System) { }
 
     public TimeProvider Time { get; } = time;
 
     /// <summary>Newest first; empty until loaded.</summary>
-    public IReadOnlyList<RecentNamespace> Items { get; private set; } = [];
+    public IReadOnlyList<RecentBroker> Items { get; private set; } = [];
 
     public event Action? Changed;
 
@@ -27,16 +27,16 @@ public sealed class RecentNamespaces(FileCache cache, TimeProvider time)
 
     private async Task LoadAsync()
     {
-        var cached = await cache.LoadAsync<RecentNamespace>(CacheKey) ?? [];
+        var cached = await cache.LoadAsync<RecentBroker>(CacheKey) ?? [];
         lock (_sync) Items = [.. cached.Take(Capacity)];
         Changed?.Invoke();
     }
 
-    public DateTimeOffset? OpenedAt(AzureSubscription subscription, BrokerInfo ns) =>
+    public DateTimeOffset? OpenedAt(ConnectionInfo subscription, BrokerInfo ns) =>
         Items.FirstOrDefault(r => r.Is(subscription, ns))?.Opened;
 
     /// <summary>Puts <paramref name="ns"/> first, opened now, and saves the list.</summary>
-    public async Task RecordAsync(AzureSubscription subscription, BrokerInfo ns)
+    public async Task RecordAsync(ConnectionInfo subscription, BrokerInfo ns)
     {
         await EnsureLoadedAsync();
         lock (_sync)

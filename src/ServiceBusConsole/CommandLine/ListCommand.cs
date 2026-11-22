@@ -7,7 +7,7 @@ namespace ServiceBusConsole.CommandLine;
 /// Queues, topics or subscriptions with their counts, live. Subscriptions add when they were last used and where they
 /// forward to, and whether that queue or topic exists: a subscription forwarding nowhere fills its dead-letter queue.
 /// </summary>
-public sealed record ListCommand(ListKind Kind = ListKind.Entities, bool DeadLettersOnly = false) : NamespaceCommand
+public sealed record ListCommand(ListKind Kind = ListKind.Entities, bool DeadLettersOnly = false) : BrokerCommand
 {
     public override async Task<int> RunAsync(CommandContext context)
     {

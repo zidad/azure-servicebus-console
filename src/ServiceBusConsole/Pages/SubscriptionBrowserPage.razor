@@ -1,7 +1,7 @@
 @page "/subscription-browser"
 
 @inject NavigationManager Nav
-@inject ServiceBusConnection Connection
+@inject CurrentBroker Current
 @inject NavigationState NavState
 
 <MessageBrowserView Entity="@(new MessageSource.Subscription(TopicName, SubscriptionName, IsDlq: _dlq))" BackPath="@BackPath">
@@ -26,7 +26,7 @@
     {
         _dlq = !NavState.StartActive;
         NavState.StartActive = false;
-        if (Connection.CurrentNamespace is null)
+        if (Current.Address is null)
             Nav.NavigateTo("/");
     }
 }

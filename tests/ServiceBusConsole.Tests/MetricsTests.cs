@@ -192,10 +192,10 @@ public sealed class MetricsTests
         var service = new CachingMetricsService(new FakeMetricsService(), AppHarness.AzureNamespace, cache);
         var lastWeek = MetricsWindow.Last(TimeSpan.FromHours(24), Quarter, Now.AddDays(-7));
 
-        await service.GetMetricsAsync(new MetricsScope.Namespace(), lastWeek, Ct).ToListAsync(Ct);
+        await service.GetMetricsAsync(new MetricsScope.Broker(), lastWeek, Ct).ToListAsync(Ct);
         await WaitForCacheAsync(cache);
 
-        (await service.GetMetricsAsync(new MetricsScope.Namespace(), Day, Ct).ToListAsync(Ct)).ShouldHaveSingleItem().IsRefreshing.ShouldBeFalse();
+        (await service.GetMetricsAsync(new MetricsScope.Broker(), Day, Ct).ToListAsync(Ct)).ShouldHaveSingleItem().IsRefreshing.ShouldBeFalse();
     }
 
     [Test]

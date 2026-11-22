@@ -11,7 +11,7 @@ public sealed class NamespaceOpenerTests
 
     private static BrokerInfo Azure(string? sku) => new()
     {
-        Name = "sb-orders", FullyQualifiedNamespace = "sb-orders.servicebus.windows.net", Properties = NamespaceProperties.Of(sku, "West Europe", "rg", null, null),
+        Name = "sb-orders", Address = "sb-orders.servicebus.windows.net", Properties = NamespaceProperties.Of(sku, "West Europe", "rg", null, null),
     };
 
     private static string[] Features(IBroker ns) =>

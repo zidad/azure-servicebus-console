@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 namespace ServiceBusConsole.CommandLine;
 
 /// <summary>Prints messages without changing them; redacted where <c>cli.redact.namespaces</c> says so.</summary>
-public sealed record PeekCommand(string Entity, bool Dlq = false, int Max = PeekCommand.DefaultMax, long? From = null, bool Full = false) : NamespaceCommand
+public sealed record PeekCommand(string Entity, bool Dlq = false, int Max = PeekCommand.DefaultMax, long? From = null, bool Full = false) : BrokerCommand
 {
     public const int DefaultMax = 20;
     private const int BodyLimit = 4096;

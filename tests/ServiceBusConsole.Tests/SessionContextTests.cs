@@ -42,8 +42,8 @@ public sealed class SessionContextTests
         await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
         await terminal.WaitUntilAsync(_ => session.Snapshot().Message?.Number() == 2, AppHarness.Timeout, cancellationToken: Ct);
         var inList = session.Snapshot();
-        inList.Namespace.ShouldBe(BrokerInfo.Emulator);
-        inList.Subscription.ShouldBe(AzureSubscription.Emulator);
+        inList.Broker.ShouldBe(BrokerInfo.Emulator);
+        inList.Connection.ShouldBe(ConnectionInfo.Emulator);
         inList.Source.ShouldBe(OrdersDlq);
         inList.Mode.ShouldBe("Peek");
 
@@ -78,7 +78,7 @@ public sealed class SessionContextTests
         await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
 
         var snapshot = session.Snapshot();
-        snapshot.Namespace.ShouldBe(BrokerInfo.Emulator);
+        snapshot.Broker.ShouldBe(BrokerInfo.Emulator);
         snapshot.Source.ShouldBeNull();
         snapshot.Message.ShouldBeNull();
         snapshot.Activity[^1].Text.ShouldBe("Opened /queues");

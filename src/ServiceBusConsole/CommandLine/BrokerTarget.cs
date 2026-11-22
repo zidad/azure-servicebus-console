@@ -4,29 +4,29 @@ namespace ServiceBusConsole.CommandLine;
 /// The namespace a command works on: <c>--subscription</c> by name or ID (else the Azure CLI's current one) and
 /// <c>--namespace</c> by name, host name or a pattern (else the subscription's only namespace). A pattern must match one.
 /// </summary>
-public sealed record NamespaceTarget(string? Subscription = null, string? Namespace = null)
+public sealed record BrokerTarget(string? Connection = null, string? Broker = null)
 {
-    public async Task<(AzureSubscription Subscription, BrokerInfo Namespace)> ResolveAsync(IConnectionCatalog service, CancellationToken ct)
+    public async Task<(ConnectionInfo Subscription, BrokerInfo Namespace)> ResolveAsync(IConnectionCatalog service, CancellationToken ct)
     {
-        var subscription = await FindSubscriptionAsync(service, ct);
-        var namespaces = await service.GetNamespacesAsync(subscription, ct).ToListAsync(ct);
-        return (subscription, PickNamespace(subscription, namespaces));
+        var subscription = await FindConnectionAsync(service, ct);
+        var namespaces = await service.GetBrokersAsync(subscription, ct).ToListAsync(ct);
+        return (subscription, PickBroker(subscription, namespaces));
     }
 
-    private async Task<AzureSubscription> FindSubscriptionAsync(IConnectionCatalog service, CancellationToken ct)
+    private async Task<ConnectionInfo> FindConnectionAsync(IConnectionCatalog service, CancellationToken ct)
     {
-        var wanted = Subscription
-            ?? await service.GetCurrentSubscriptionIdAsync(ct)
+        var wanted = Connection
+            ?? await service.GetCurrentConnectionIdAsync(ct)
             ?? throw new CommandFailure(ExitCodes.Usage, CommandLineStrings.NamespaceTarget_NoSubscription);
         var startup = new StartupTarget(wanted);
-        if (startup.Matches(AzureSubscription.Emulator)) return AzureSubscription.Emulator;
-        return await service.GetSubscriptionsAsync(ct).FirstOrDefaultAsync(startup.Matches, ct)
+        if (startup.Matches(ConnectionInfo.Emulator)) return ConnectionInfo.Emulator;
+        return await service.GetConnectionsAsync(ct).FirstOrDefaultAsync(startup.Matches, ct)
             ?? throw new CommandFailure(ExitCodes.NotFound, CommandLineStrings.FormatNamespaceTarget_SubscriptionNotFound(wanted));
     }
 
-    private BrokerInfo PickNamespace(AzureSubscription subscription, IReadOnlyList<BrokerInfo> namespaces)
+    private BrokerInfo PickBroker(ConnectionInfo subscription, IReadOnlyList<BrokerInfo> namespaces)
     {
-        if (Namespace is not { } wanted)
+        if (Broker is not { } wanted)
             return namespaces switch
             {
                 [var only] => only,
@@ -36,7 +36,7 @@ public sealed record NamespaceTarget(string? Subscription = null, string? Namesp
 
         var glob = new Glob(wanted);
         var startup = new StartupTarget(subscription.Name, wanted);
-        var matches = namespaces.Where(ns => startup.Matches(ns) || (glob.IsPattern && (glob.Matches(ns.Name) || glob.Matches(ns.FullyQualifiedNamespace)))).ToList();
+        var matches = namespaces.Where(ns => startup.Matches(ns) || (glob.IsPattern && (glob.Matches(ns.Name) || glob.Matches(ns.Address)))).ToList();
         return matches switch
         {
             [var one] => one,

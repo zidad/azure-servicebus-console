@@ -17,7 +17,7 @@ internal sealed class NamespaceOpener(
     /// </summary>
     public static NamespaceTier TierOf(BrokerInfo info) => info switch
     {
-        _ when info.FullyQualifiedNamespace == BrokerInfo.Emulator.FullyQualifiedNamespace => NamespaceTier.Emulator,
+        _ when info.Address == BrokerInfo.Emulator.Address => NamespaceTier.Emulator,
         _ when info.Property(NamespaceProperties.Sku) is { } sku && sku.Equals("Basic", StringComparison.OrdinalIgnoreCase) => NamespaceTier.Basic,
         _ => NamespaceTier.Standard,
     };
@@ -25,7 +25,7 @@ internal sealed class NamespaceOpener(
     public IBroker Open(BrokerInfo info)
     {
         var tier = TierOf(info);
-        loggers.CreateLogger<NamespaceOpener>().LogInformation("Opening namespace {Namespace} ({Tier})", info.FullyQualifiedNamespace, tier);
+        loggers.CreateLogger<NamespaceOpener>().LogInformation("Opening namespace {Namespace} ({Tier})", info.Address, tier);
         return tier == NamespaceTier.Emulator ? OpenEmulator() : OpenAzure(info, tier);
     }
 
@@ -41,8 +41,8 @@ internal sealed class NamespaceOpener(
 
     private AzureNamespace OpenAzure(BrokerInfo info, NamespaceTier tier)
     {
-        var bus = new ServiceBusClient(info.FullyQualifiedNamespace, credential, Credentials.ClientOptions(options.Transport));
-        var admin = new ServiceBusAdministrationClient($"https://{info.FullyQualifiedNamespace}", credential);
+        var bus = new ServiceBusClient(info.Address, credential, Credentials.ClientOptions(options.Transport));
+        var admin = new ServiceBusAdministrationClient($"https://{info.Address}", credential);
         var services = new AzureServices(
             Decorate(info, new QueueService(admin, loggers.CreateLogger<QueueService>())),
             new MessageService(bus, loggers),

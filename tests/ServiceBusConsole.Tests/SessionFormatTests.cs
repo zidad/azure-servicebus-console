@@ -27,8 +27,8 @@ public sealed class SessionFormatTests
     private static SessionSnapshot Snapshot(MessageSource source, MessageInfo? message) => new()
     {
         At = At,
-        Subscription = AppHarness.AzureSubscription,
-        Namespace = AppHarness.AzureNamespace,
+        Connection = AppHarness.Connection,
+        Broker = AppHarness.AzureNamespace,
         Source = source,
         Mode = "Peek",
         Message = message,
@@ -151,7 +151,7 @@ public sealed class SessionFormatTests
         var json = doc.RootElement;
 
         json.GetProperty("at").GetString().ShouldBe("2026-11-02T09:30:00.000+00:00");
-        json.GetProperty("subscription").GetProperty("id").GetString().ShouldBe(AppHarness.AzureSubscription.Id);
+        json.GetProperty("subscription").GetProperty("id").GetString().ShouldBe(AppHarness.Connection.Id);
         json.GetProperty("namespace").GetProperty("fullyQualifiedNamespace").GetString().ShouldBe("sb-orders-dev.servicebus.windows.net");
         Compact(json.GetProperty("source")).ShouldBe("""{"kind":"queue","queue":"orders","isDlq":true,"displayName":"orders DLQ"}""");
         json.GetProperty("mode").GetString().ShouldBe("Peek");

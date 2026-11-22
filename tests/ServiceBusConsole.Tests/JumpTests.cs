@@ -45,9 +45,9 @@ public sealed class JumpTests
         JumpIndex.Grouped("order", Targets).Select(g => g.Kind).ShouldBe([JumpKind.Queue, JumpKind.Topic, JumpKind.Subscription]);
     }
 
-    private static readonly JumpNamespace Production = new(new AzureSubscription("Contoso Production", "prod-id"), new BrokerInfo
+    private static readonly JumpBroker Production = new(new ConnectionInfo("Contoso Production", "prod-id"), new BrokerInfo
     {
-        Name = "sb-payments-prd", FullyQualifiedNamespace = "sb-payments-prd.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Standard", location: "West Europe", resourceGroup: "rg-prd"),
+        Name = "sb-payments-prd", Address = "sb-payments-prd.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Standard", location: "West Europe", resourceGroup: "rg-prd"),
     });
 
     [Test]
@@ -57,12 +57,12 @@ public sealed class JumpTests
         [
             new JumpTarget.Queue(new QueueInfo { Name = "payments" }) { Elsewhere = Production },
             new JumpTarget.Queue(new QueueInfo { Name = "payments" }),
-            new JumpTarget.Namespace(Production),
+            new JumpTarget.Broker(Production),
         ];
 
-        JumpIndex.Search("pay", targets).Select(t => t.OtherNamespace).ShouldBe([null, Production, Production]);
+        JumpIndex.Search("pay", targets).Select(t => t.OtherBroker).ShouldBe([null, Production, Production]);
         var groups = JumpIndex.Grouped("pay", targets);
-        groups.Select(g => g.Kind).ShouldBe([JumpKind.Queue, JumpKind.Namespace]);
+        groups.Select(g => g.Kind).ShouldBe([JumpKind.Queue, JumpKind.Broker]);
         groups[1].Targets.Single().Name.ShouldBe("sb-payments-prd");
     }
 
@@ -202,10 +202,10 @@ public sealed class JumpTests
     private static async Task<(AppHarness App, HeadlessTerminal Terminal)> JumpFromDevelopmentAsync()
     {
         var app = new AppHarness();
-        app.Namespaces.Subscriptions.Add(Production.Subscription);
+        app.Catalog.Connections.Add(Production.Subscription);
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
         var cache = new FileCache(NullLogger<FileCache>.Instance, app.CacheDirectory);
-        await cache.SaveAsync(CacheKeys.Namespaces("prod-id"), [Production.Info]);
+        await cache.SaveAsync(CacheKeys.Brokers("prod-id"), [Production.Info]);
         await cache.SaveAsync(CacheKeys.Queues(Production.Info), [new QueueInfo { Name = "refunds", DeadLetterMessageCount = 4 }]);
         var terminal = await app.OpenAzureAsync(ConsoleKey.F1);
         await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
@@ -229,10 +229,10 @@ public sealed class JumpTests
         await terminal.SendKeyAsync(ConsoleKey.Enter, '\r', cancellationToken: Ct);
 
         await terminal.WaitUntilAsync(f => f.GetLine(0).Contains("sb-payments-prd") && f.GetLine(0).Contains("Contoso Production"), AppHarness.Timeout, cancellationToken: Ct);
-        app.Connection.CurrentNamespace.ShouldBe(Production.Info.FullyQualifiedNamespace);
-        app.NavState.AzureSubscription.ShouldBe(Production.Subscription);
+        app.Current.Address.ShouldBe(Production.Info.Address);
+        app.NavState.Connection.ShouldBe(Production.Subscription);
         await terminal.WaitUntilAsync(_ => app.Recent.Items is [var newest, ..] && newest.Is(Production.Subscription, Production.Info), AppHarness.Timeout, cancellationToken: Ct);
-        app.Recent.Items.Select(r => r.Namespace.Name).ShouldBe(["sb-payments-prd", "sb-orders-dev"]);
+        app.Recent.Items.Select(r => r.Broker.Name).ShouldBe(["sb-payments-prd", "sb-orders-dev"]);
     }
 
     [Test]
@@ -252,7 +252,7 @@ public sealed class JumpTests
         await terminal.WaitUntilAsync(f => f.GetLine(0).Contains("sb-payments-prd") && f.GetLine(0).Contains("refunds"), AppHarness.Timeout, cancellationToken: Ct);
         await terminal.WaitUntilAsync(_ => app.Messages.Peeked.Count > 0, AppHarness.Timeout, cancellationToken: Ct);
         app.Messages.Peeked.ShouldBe([new MessageSource.Queue("refunds", IsDlq: true)]);
-        app.Connection.CurrentNamespace.ShouldBe(Production.Info.FullyQualifiedNamespace);
+        app.Current.Address.ShouldBe(Production.Info.Address);
     }
 
     private static string Line(TerminalFrame frame, string text)

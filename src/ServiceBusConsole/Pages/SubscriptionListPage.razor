@@ -2,7 +2,7 @@
 
 @inject NavigationManager Nav
 @inject NavigationState NavState
-@inject ServiceBusConnection Connection
+@inject CurrentBroker Current
 
 <EntityList @ref="_list" TItem="SubscriptionInfo"
             LoadingText="@PageStrings.List_LoadingSubscriptions"
@@ -41,7 +41,7 @@
     </Row>
 </EntityList>
 
-@if (Connection.Current is IHasDeletion { Deletion: var deletion })
+@if (Current.Broker is IHasDeletion { Deletion: var deletion })
 {
     <AsyncCommand @ref="_deleteSub" TItem="string"
                   ConfirmMessage="@(n => PageStrings.FormatList_DeleteSubscriptionConfirm(n, TopicName))"
@@ -55,15 +55,15 @@
     <AsyncCommand @ref="_purgeDlq" TItem="string"
                   ConfirmMessage="@(n => PageStrings.FormatList_PurgeDlqConfirm($"{TopicName}/{n}"))"
                   ConfirmByTyping="true"
-                  Execute="@(n => Connection.Namespace.Messages.PurgeAsync(new MessageSource.Subscription(TopicName, n, IsDlq: true)).LastOrDefaultAsync().AsTask())"
+                  Execute="@(n => Current.Opened.Messages.PurgeAsync(new MessageSource.Subscription(TopicName, n, IsDlq: true)).LastOrDefaultAsync().AsTask())"
                   Activity="@(n => PageStrings.FormatList_PurgedDlq($"{TopicName}/{n}"))"
                   OnCompleted="@(n => { _list?.Update(n, s => s with { DeadLetterMessageCount = 0 }); return Task.CompletedTask; })" />
 }
 
 @code {
-    private bool HasDeadLetters => Connection.Current is IHasDeadLetters;
+    private bool HasDeadLetters => Current.Broker is IHasDeadLetters;
 
-    private ITopicService Topics => Connection.Current is IHasTopics { Topics: var topics } ? topics : throw new InvalidOperationException(PageStrings.List_NoTopics);
+    private ITopicService Topics => Current.Broker is IHasTopics { Topics: var topics } ? topics : throw new InvalidOperationException(PageStrings.List_NoTopics);
 
     private string TopicName => NavState.TopicName ?? "";
 
@@ -83,13 +83,13 @@
 
     protected override void OnInitialized()
     {
-        if (Connection.Current is not IHasTopics)
+        if (Current.Broker is not IHasTopics)
             Nav.NavigateTo("/");
     }
 
     private IEnumerable<KeyBinding> Commands =>
     [
-        .. Connection.Current is IHasDeletion ? [ListKeys.Delete(() => OnFocused(_deleteSub))] : Array.Empty<KeyBinding>(),
+        .. Current.Broker is IHasDeletion ? [ListKeys.Delete(() => OnFocused(_deleteSub))] : Array.Empty<KeyBinding>(),
         .. HasDeadLetters ? [ListKeys.PurgeDlq(() => OnFocused(_purgeDlq))] : Array.Empty<KeyBinding>(),
     ];
 

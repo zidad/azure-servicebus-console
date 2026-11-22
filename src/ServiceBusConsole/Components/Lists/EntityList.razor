@@ -2,7 +2,7 @@
 @implements IDisposable
 
 @inject NavigationManager Nav
-@inject ServiceBusConnection Connection
+@inject CurrentBroker Current
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 @inject ITerminalViewport Viewport
 @inject LiveCountsOptions LiveCounts
@@ -16,7 +16,7 @@
     </Header>
     <Status>@if (_live is { } live) { <LiveStatus List="@live" /> }</Status>
     <Content>
-        @if (Section is { } section) { <SectionTabs Current="@section" Count="@(All.Count > 0 ? All.Count : null)" /> }
+        @if (Section is { } section) { <SectionTabs Selected="@section" Count="@(All.Count > 0 ? All.Count : null)" /> }
         @if (All.Count == 0 && _loadFailed)
         {
             <Padder Padding="@(new(0, 1, 0, 0))">
@@ -67,7 +67,7 @@
         }
     </Content>
     <Footer>
-        @if (ShowMetrics && Connection.Current is IHasMetrics { Metrics: var metrics })
+        @if (ShowMetrics && Current.Broker is IHasMetrics { Metrics: var metrics })
         {
             var entity = MetricsEntity(View);
             <MetricsPanel @ref="_metricsPanel" Metrics="@metrics" Label="@MetricsLabel(entity)" Scope="@(entity is { } e ? new MetricsScope.Entity(e) : null)" OnKeyDown="@HandleKeyDown" />
@@ -157,7 +157,7 @@
 
     private List<TItem> All => (_live ?? throw new InvalidOperationException("List not initialized")).All;
 
-    private bool ShowMetrics => Connection.Current is IHasMetrics && MetricsVisibility.IsVisible(Viewport.Height);
+    private bool ShowMetrics => Current.Broker is IHasMetrics && MetricsVisibility.IsVisible(Viewport.Height);
 
     private int PageSize => FullscreenLayout.PageSizeRoundedTable(Viewport.Height, ShowMetrics, tabs: Section is not null);
 
@@ -209,7 +209,7 @@
 
     private void StartTraffic()
     {
-        if (TrafficEntity is null || Connection.Current is not IHasMetrics { Metrics: var metrics } || Viewport.Width < MinTrafficWidth) return;
+        if (TrafficEntity is null || Current.Broker is not IHasMetrics { Metrics: var metrics } || Viewport.Width < MinTrafficWidth) return;
         _traffic = new IncomingTraffic(metrics, LiveCounts, Logger) { Changed = () => InvokeAsync(StateHasChanged) };
         _ = _traffic.RunAsync();
     }
@@ -226,7 +226,7 @@
 
     private void ToggleMetrics()
     {
-        if (Connection.Current is not IHasMetrics) return;
+        if (Current.Broker is not IHasMetrics) return;
         _ = MetricsVisibility.ToggleAsync(Viewport.Height);
         StateHasChanged();
     }
@@ -239,11 +239,11 @@
             : Array.Empty<KeyBinding>(),
         new("r", $"{Icons.Refresh} {PageStrings.Key_Refresh}", () => _ = Reload()) { Ctrl = true, Aliases = ["F5"] },
         .. Commands,
-        .. Connection.Current is IHasMetrics
+        .. Current.Broker is IHasMetrics
             ? [new KeyBinding("m", $"{Icons.Metrics} {PageStrings.Key_Metrics}", ToggleMetrics) { Aliases = ["F12"] }]
             : Array.Empty<KeyBinding>(),
         .. Section is { } section
-            ? [.. SectionTabs.Bindings(Connection.Current, section, Nav), new KeyBinding(":", $"{Icons.Filter} {Strings.Jump}", () => _ = _jump?.OpenAsync())]
+            ? [.. SectionTabs.Bindings(Current.Broker, section, Nav), new KeyBinding(":", $"{Icons.Filter} {Strings.Jump}", () => _ = _jump?.OpenAsync())]
             : Array.Empty<KeyBinding>(),
         new("?", $"{Icons.Confirm} {Strings.Help}", () => _help?.Open(Keys)),
         new("Escape", $"{Icons.Back} {Strings.Back}", () => Nav.NavigateTo(BackTo)),

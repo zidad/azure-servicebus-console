@@ -20,14 +20,14 @@ public sealed class AppHarness
 
     public AppHarness()
     {
-        OpenNamespace = info => FakeNamespace.For(info, Services);
-        Connection = new(new FakeNamespaceOpener(info => OpenNamespace(info)));
+        OpenNamespace = info => FakeBroker.For(info, Services);
+        Current = new(new FakeBrokerOpener(info => OpenNamespace(info)));
     }
 
-    public FakeNamespaceService Namespaces { get; } = new();
+    public FakeConnectionCatalog Catalog { get; } = new();
 
     /// <summary>What the app lists subscriptions and namespaces with; <see cref="Namespaces"/> unless set, e.g. to a caching one.</summary>
-    public IConnectionCatalog? NamespaceService { get; set; }
+    public IConnectionCatalog? ConnectionCatalog { get; set; }
     public FakeServices Services { get; } = new();
     public FakeQueueService Queues => Services.Queues;
     public LiveCountsOptions LiveCounts { get; } = new();
@@ -38,7 +38,7 @@ public sealed class AppHarness
     /// <summary>What the app sent to the terminal's clipboard (OSC 52 sequences), in order.</summary>
     public System.Collections.Concurrent.ConcurrentQueue<string> Copied { get; } = [];
 
-    /// <summary>The namespace a choice opens; by default like the real opener (<see cref="FakeNamespace.For"/>).</summary>
+    /// <summary>The namespace a choice opens; by default like the real opener (<see cref="FakeBroker.For"/>).</summary>
     public Func<BrokerInfo, IBroker> OpenNamespace { get; set; }
 
     public MetricsOptions MetricsOptions { get; } = new();
@@ -62,9 +62,9 @@ public sealed class AppHarness
     public FileCache Cache => field ??= new(NullLogger<FileCache>.Instance, CacheDirectory);
 
     /// <summary>The recently opened namespaces; record some before starting to show them.</summary>
-    public RecentNamespaces Recent => field ??= new(Cache, Time);
+    public RecentBrokers Recent => field ??= new(Cache, Time);
     public ConsoleNavigationManager Navigation { get; } = new();
-    public ServiceBusConnection Connection { get; }
+    public CurrentBroker Current { get; }
 
     public Task<HeadlessTerminal> StartAsync(int width = 120, int height = 30)
     {
@@ -77,8 +77,8 @@ public sealed class AppHarness
                 {
                     services.AddLogging();
                     services.AddSingleton<NavigationManager>(Navigation);
-                    services.AddSingleton(Connection);
-                    services.AddSingleton(NamespaceService ?? Namespaces);
+                    services.AddSingleton(Current);
+                    services.AddSingleton(ConnectionCatalog ?? Catalog);
                     services.AddSingleton(NavState);
                     services.AddSingleton<MessageBrowserStore>();
                     services.AddSingleton<ActivityLog>();
@@ -86,9 +86,9 @@ public sealed class AppHarness
                     services.AddSingleton<SessionContext>();
                     services.AddSingleton(Cache);
                     services.AddSingleton(Recent);
-                    services.AddSingleton<NamespaceSwitcher>();
-                    services.AddSingleton<SubscriptionCatalog>();
-                    services.AddSingleton<IBrokerOpener>(new FakeNamespaceOpener(info => OpenNamespace(info)));
+                    services.AddSingleton<BrokerSwitcher>();
+                    services.AddSingleton<ConnectionList>();
+                    services.AddSingleton<IBrokerOpener>(new FakeBrokerOpener(info => OpenNamespace(info)));
                     services.AddSingleton<ExplorerTree>();
                     services.AddSyntaxLanguages();
                     services.AddSingleton(LiveCounts);
@@ -108,25 +108,25 @@ public sealed class AppHarness
     /// <summary>Same as <see cref="OpenQueuesAsync"/>, for the topic list.</summary>
     public Task<HeadlessTerminal> OpenTopicsAsync() => OpenAsync(ConsoleKey.F2);
 
-    public static readonly AzureSubscription AzureSubscription = new("Contoso Development", "6f1d2c3b-0000-4000-8000-000000000001");
+    public static readonly ConnectionInfo Connection = new("Contoso Development", "6f1d2c3b-0000-4000-8000-000000000001");
 
     public static readonly BrokerInfo AzureNamespace = new()
     {
-        Name = "sb-orders-dev", FullyQualifiedNamespace = "sb-orders-dev.servicebus.windows.net",
+        Name = "sb-orders-dev", Address = "sb-orders-dev.servicebus.windows.net",
         Properties = ServiceBusProperties(sku: "Standard", location: "West Europe", resourceGroup: "rg-messaging-dev", status: "Active",
             resourceId: "/subscriptions/6f1d2c3b-0000-4000-8000-000000000001/resourceGroups/rg-messaging-dev/providers/Microsoft.ServiceBus/namespaces/sb-orders-dev"),
     };
 
     /// <summary>
-    /// Starts on the connection page, picks <see cref="AzureSubscription"/> and its <paramref name="ns"/> (by default
+    /// Starts on the connection page, picks <see cref="ConnectionInfo"/> and its <paramref name="ns"/> (by default
     /// <see cref="AzureNamespace"/>), then opens the page of <paramref name="key"/> (F1 queues, F2 topics, F3 all subscriptions);
     /// tall enough for the metrics panel.
     /// </summary>
     public async Task<HeadlessTerminal> OpenAzureAsync(ConsoleKey key, int height = 40, BrokerInfo? ns = null)
     {
         var chosen = ns ?? AzureNamespace;
-        Namespaces.Subscriptions.Add(AzureSubscription);
-        Namespaces.Namespaces.Add(chosen);
+        Catalog.Connections.Add(Connection);
+        Catalog.Brokers.Add(chosen);
         var terminal = await StartAsync(height: height);
         await WaitForTableFocusAsync(terminal);
         await SelectAzureNamespaceAsync(terminal, chosen);
@@ -149,7 +149,7 @@ public sealed class AppHarness
         var start = lines.FindLastIndex(l => l.Contains($"{Icons.Namespace} localhost"));
         var rows = lines.FindIndex(start, l => l.Contains(target)) - start;
         foreach (var _ in Enumerable.Range(0, rows)) await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
-        await terminal.WaitUntilAsync(_ => Connection.CurrentNamespace == ns.FullyQualifiedNamespace, Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(_ => Current.Address == ns.Address, Timeout, cancellationToken: Ct);
     }
 
     /// <summary>The connection page's footer button for a section's F-key: its key chip and label.</summary>

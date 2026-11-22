@@ -1,11 +1,11 @@
 namespace ServiceBusConsole.CommandLine;
 
 /// <summary>A command that works on one namespace: check, list, peek, retry, delete, purge or send.</summary>
-public sealed record NamespaceInput : CommandInput
+public sealed record BrokerInput : CommandInput
 {
-    public required NamespaceCommand Command { get; init; }
+    public required BrokerCommand Command { get; init; }
 
-    public NamespaceTarget Target { get; init; } = new();
+    public BrokerTarget Target { get; init; } = new();
 
     /// <summary><c>--json</c>: machine-readable output on standard output.</summary>
     public bool Json { get; init; }

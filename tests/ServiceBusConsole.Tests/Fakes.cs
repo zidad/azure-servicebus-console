@@ -3,37 +3,37 @@ using System.Threading.Channels;
 
 namespace ServiceBusConsole.Tests;
 
-public sealed class FakeNamespaceService : IConnectionCatalog
+public sealed class FakeConnectionCatalog : IConnectionCatalog
 {
-    public List<BrokerInfo> Namespaces { get; } = [];
-    public List<AzureSubscription> Subscriptions { get; } = [];
-    public Exception? SubscriptionsError { get; set; }
+    public List<BrokerInfo> Brokers { get; } = [];
+    public List<ConnectionInfo> Connections { get; } = [];
+    public Exception? ConnectionsError { get; set; }
 
     /// <summary>When set, the listing waits on it after the last subscription, like a slow live refresh.</summary>
     public TaskCompletionSource? HoldListing { get; set; }
 
     /// <summary>When set, namespace listings wait on it after the last namespace, like a slow live refresh.</summary>
-    public TaskCompletionSource? HoldNamespaces { get; set; }
+    public TaskCompletionSource? HoldBrokers { get; set; }
 
     /// <summary>The Azure CLI's current subscription; null like a machine without a profile.</summary>
     public string? CurrentSubscriptionId { get; set; }
 
-    public Task<string?> GetCurrentSubscriptionIdAsync(CancellationToken ct = default) => Task.FromResult(CurrentSubscriptionId);
+    public Task<string?> GetCurrentConnectionIdAsync(CancellationToken ct = default) => Task.FromResult(CurrentSubscriptionId);
 
     /// <summary>Subscription IDs that report no Service Bus namespaces.</summary>
-    public HashSet<string> WithoutNamespaces { get; } = [];
+    public HashSet<string> WithoutBrokers { get; } = [];
 
-    public async IAsyncEnumerable<bool> HasNamespacesAsync(string subscriptionId, [EnumeratorCancellation] CancellationToken ct = default)
+    public async IAsyncEnumerable<bool> HasBrokersAsync(string subscriptionId, [EnumeratorCancellation] CancellationToken ct = default)
     {
         await Task.Yield();
-        yield return !WithoutNamespaces.Contains(subscriptionId);
+        yield return !WithoutBrokers.Contains(subscriptionId);
     }
 
-    public async IAsyncEnumerable<AzureSubscription> GetSubscriptionsAsync([EnumeratorCancellation] CancellationToken ct = default)
+    public async IAsyncEnumerable<ConnectionInfo> GetConnectionsAsync([EnumeratorCancellation] CancellationToken ct = default)
     {
         await Task.Yield();
-        if (SubscriptionsError is not null) throw SubscriptionsError;
-        foreach (var sub in Subscriptions)
+        if (ConnectionsError is not null) throw ConnectionsError;
+        foreach (var sub in Connections)
         {
             await Task.Yield();
             yield return sub;
@@ -41,14 +41,14 @@ public sealed class FakeNamespaceService : IConnectionCatalog
         if (HoldListing is { } hold) await hold.Task.WaitAsync(ct);
     }
 
-    public async IAsyncEnumerable<BrokerInfo> GetNamespacesAsync(string subscriptionId, [EnumeratorCancellation] CancellationToken ct = default)
+    public async IAsyncEnumerable<BrokerInfo> GetBrokersAsync(string subscriptionId, [EnumeratorCancellation] CancellationToken ct = default)
     {
-        foreach (var ns in Namespaces)
+        foreach (var ns in Brokers)
         {
             await Task.Yield();
             yield return ns;
         }
-        if (HoldNamespaces is { } hold) await hold.Task.WaitAsync(ct);
+        if (HoldBrokers is { } hold) await hold.Task.WaitAsync(ct);
     }
 }
 
@@ -454,7 +454,7 @@ public sealed class FakeServices
     public FakeTransactionService Transactions { get; } = new();
 }
 
-public abstract class FakeNamespace(BrokerInfo info, FakeServices services) : IBroker, IHasPeek, IHasSeek
+public abstract class FakeBroker(BrokerInfo info, FakeServices services) : IBroker, IHasPeek, IHasSeek
 {
     protected FakeServices Services => services;
 
@@ -467,7 +467,7 @@ public abstract class FakeNamespace(BrokerInfo info, FakeServices services) : IB
     public bool Disposed { get; private set; }
 
     /// <summary>Like the real opener: the emulator, Basic by its SKU, any other namespace Standard.</summary>
-    public static FakeNamespace For(BrokerInfo info, FakeServices services) => info switch
+    public static FakeBroker For(BrokerInfo info, FakeServices services) => info switch
     {
         _ when info == BrokerInfo.Emulator => new FakeEmulatorNamespace(services),
         _ when info.Property("sku") == "Basic" => new FakeBasicNamespace(info, services),
@@ -482,14 +482,14 @@ public abstract class FakeNamespace(BrokerInfo info, FakeServices services) : IB
 }
 
 /// <summary>Like the local emulator: topics, but no metrics, deletion or transactions.</summary>
-public sealed class FakeEmulatorNamespace(FakeServices services) : FakeNamespace(BrokerInfo.Emulator, services), IHasDeadLetters, IHasTopics
+public sealed class FakeEmulatorNamespace(FakeServices services) : FakeBroker(BrokerInfo.Emulator, services), IHasDeadLetters, IHasTopics
 {
     public IDeadLetterService DeadLetters => DeadLetterService;
     public ITopicService Topics => Services.Topics;
 }
 
 /// <summary>Like the Basic tier: metrics and deletion, no topics or transactions.</summary>
-public sealed class FakeBasicNamespace(BrokerInfo info, FakeServices services) : FakeNamespace(info, services), IHasDeadLetters, IHasMetrics, IHasDeletion
+public sealed class FakeBasicNamespace(BrokerInfo info, FakeServices services) : FakeBroker(info, services), IHasDeadLetters, IHasMetrics, IHasDeletion
 {
     public IDeadLetterService DeadLetters => DeadLetterService;
     public IMetricsService Metrics => Services.Metrics;
@@ -498,7 +498,7 @@ public sealed class FakeBasicNamespace(BrokerInfo info, FakeServices services) :
 
 /// <summary>Like the Standard and Premium tiers: every feature.</summary>
 public sealed class FakeStandardNamespace(BrokerInfo info, FakeServices services)
-    : FakeNamespace(info, services), IHasDeadLetters, IHasTopics, IHasMetrics, IHasDeletion, IHasTransactions
+    : FakeBroker(info, services), IHasDeadLetters, IHasTopics, IHasMetrics, IHasDeletion, IHasTransactions
 {
     public IDeadLetterService DeadLetters => DeadLetterService;
     public ITopicService Topics => Services.Topics;
@@ -508,9 +508,9 @@ public sealed class FakeStandardNamespace(BrokerInfo info, FakeServices services
 }
 
 /// <summary>Queues and messages only: no dead letters, topics, metrics, deletion or transactions.</summary>
-public sealed class FakeQueuesOnlyNamespace(BrokerInfo info, FakeServices services) : FakeNamespace(info, services);
+public sealed class FakeQueuesOnlyNamespace(BrokerInfo info, FakeServices services) : FakeBroker(info, services);
 
-public sealed class FakeNamespaceOpener(Func<BrokerInfo, IBroker> open) : IBrokerOpener
+public sealed class FakeBrokerOpener(Func<BrokerInfo, IBroker> open) : IBrokerOpener
 {
     public IBroker Open(BrokerInfo info) => open(info);
 }

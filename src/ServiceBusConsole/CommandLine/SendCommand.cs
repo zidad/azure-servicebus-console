@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 namespace ServiceBusConsole.CommandLine;
 
 /// <summary>Sends one new message to a queue or topic; the body from <c>--body</c>, <c>--file</c> or standard input.</summary>
-public sealed record SendCommand(string Entity) : NamespaceCommand
+public sealed record SendCommand(string Entity) : BrokerCommand
 {
     public string? Body { get; init; }
     public string? File { get; init; }

@@ -7,7 +7,7 @@
 @inject ITerminalViewport Viewport
 @inject PluginActions PluginActions
 @inject SessionContext Session
-@inject ServiceBusConnection Connection
+@inject CurrentBroker Current
 
 <FullscreenPage OnKeyDown="HandleKeyDown">
     <Header>
@@ -171,7 +171,7 @@
 
 <AsyncCommand @ref="_retry" TItem="IReadOnlyList<MessageInfo>"
               ConfirmMessage="@(l => RetryText.Question(Source, Count(l)))"
-              ConfirmFields="@(_ => RetryText.Fields(Mode, Source, Browser.Namespace is IHasTransactions))"
+              ConfirmFields="@(_ => RetryText.Fields(Mode, Source, Browser.Broker is IHasTransactions))"
               Execute="@(l => Browser.RetryAsync(l))" />
 
 <AsyncCommand @ref="_resend" TItem="IReadOnlyList<MessageInfo>"
@@ -237,7 +237,7 @@
         // Coming back from the message detail page: keep the list, selection and locks.
         _isDlq = (Store.Current is { } current && current.Source with { IsDlq = Entity.IsDlq } == Entity
             ? current.Source.IsDlq
-            : Entity.IsDlq) && Connection.Current is IHasDeadLetters;
+            : Entity.IsDlq) && Current.Broker is IHasDeadLetters;
         if (Attach()) await Peek(new FetchDialog.Request(DefaultPeekCount, null, false));
         // Back from the detail page after it handled the last message: nothing left to browse.
         else if (Browser.Messages.Count == 0) GoBack();

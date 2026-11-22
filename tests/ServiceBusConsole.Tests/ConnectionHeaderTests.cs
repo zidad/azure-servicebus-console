@@ -9,8 +9,8 @@ public sealed class ConnectionHeaderTests
     public async Task DropdownTree_SwitchesNamespace_OnTheSameList()
     {
         var app = new AppHarness();
-        app.Namespaces.Namespaces.Add(new BrokerInfo { Name = "sb-dev-a", FullyQualifiedNamespace = "sb-dev-a.servicebus.windows.net", Properties = ServiceBusProperties(location: "West Europe", resourceGroup: "rg-a") });
-        app.Namespaces.Subscriptions.Add(new AzureSubscription("Contoso Development", "6f1d2c3b-0000-4000-8000-000000000001"));
+        app.Catalog.Brokers.Add(new BrokerInfo { Name = "sb-dev-a", Address = "sb-dev-a.servicebus.windows.net", Properties = ServiceBusProperties(location: "West Europe", resourceGroup: "rg-a") });
+        app.Catalog.Connections.Add(new ConnectionInfo("Contoso Development", "6f1d2c3b-0000-4000-8000-000000000001"));
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
         await using var terminal = await app.OpenQueuesAsync();
         await terminal.WaitForTextAsync("Queues (1)", AppHarness.Timeout, Ct);
@@ -21,9 +21,9 @@ public sealed class ConnectionHeaderTests
         await AppHarness.ClickTextAsync(terminal, "🌐 sb-dev-a");
 
         await terminal.WaitUntilAsync(f => f.GetLine(0).Contains("🔑 Contoso Development  ›  🌐 sb-dev-a  ›  📬 Queues (1)"), AppHarness.Timeout, cancellationToken: Ct);
-        app.Connection.CurrentNamespace.ShouldBe("sb-dev-a.servicebus.windows.net");
+        app.Current.Address.ShouldBe("sb-dev-a.servicebus.windows.net");
         app.Queues.Loads.ShouldBeGreaterThan(loadsBefore);
-        await terminal.WaitUntilAsync(_ => app.Recent.Items.FirstOrDefault()?.Namespace.Name == "sb-dev-a", AppHarness.Timeout, cancellationToken: Ct);
+        await terminal.WaitUntilAsync(_ => app.Recent.Items.FirstOrDefault()?.Broker.Name == "sb-dev-a", AppHarness.Timeout, cancellationToken: Ct);
     }
 
     [Test]
@@ -39,15 +39,15 @@ public sealed class ConnectionHeaderTests
         await terminal.SendKeyAsync(ConsoleKey.Escape, '\u001b', cancellationToken: Ct);
 
         await terminal.WaitUntilAsync(f => !f.ContainsText("Go to"), AppHarness.Timeout, cancellationToken: Ct);
-        app.Connection.CurrentNamespace.ShouldBe("localhost");
+        app.Current.Address.ShouldBe("localhost");
     }
 
     [Test]
     public async Task DropdownTree_OnTopics_SwitchesToANamespaceWithTopics_StaysOnTopics()
     {
         var app = new AppHarness();
-        app.Namespaces.Namespaces.Add(new BrokerInfo { Name = "sb-dev-a", FullyQualifiedNamespace = "sb-dev-a.servicebus.windows.net", Properties = ServiceBusProperties(location: "West Europe", resourceGroup: "rg-a") });
-        app.Namespaces.Subscriptions.Add(new AzureSubscription("Contoso Development", "6f1d2c3b-0000-4000-8000-000000000001"));
+        app.Catalog.Brokers.Add(new BrokerInfo { Name = "sb-dev-a", Address = "sb-dev-a.servicebus.windows.net", Properties = ServiceBusProperties(location: "West Europe", resourceGroup: "rg-a") });
+        app.Catalog.Connections.Add(new ConnectionInfo("Contoso Development", "6f1d2c3b-0000-4000-8000-000000000001"));
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
         app.Topics.Topics.Add(new TopicInfo { Name = "order-events" });
         await using var terminal = await app.OpenQueuesAsync();

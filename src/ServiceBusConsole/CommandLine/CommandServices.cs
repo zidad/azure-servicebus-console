@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 namespace ServiceBusConsole.CommandLine;
 
 /// <summary>What the namespace commands use: the live broker (no cache, so output is current), the settings and the output streams.</summary>
-public sealed record CommandServices(IConnectionCatalog Namespaces, IBrokerOpener Opener, IConfiguration Configuration)
+public sealed record CommandServices(IConnectionCatalog Catalog, IBrokerOpener Opener, IConfiguration Configuration)
 {
     public TextWriter Out { get; init; } = Console.Out;
 

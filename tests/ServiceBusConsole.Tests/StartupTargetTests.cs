@@ -7,20 +7,20 @@ public sealed class StartupTargetTests
     [Arguments("contoso development")]
     [Arguments("6F1D2C3B-0000-4000-8000-000000000001")]
     public void Subscription_MatchesByNameOrId_IgnoringCase(string subscription) =>
-        new StartupTarget(subscription).Matches(AppHarness.AzureSubscription).ShouldBeTrue();
+        new StartupTarget(subscription).Matches(AppHarness.Connection).ShouldBeTrue();
 
     [Test]
     [Arguments("Contoso")]
     [Arguments("emulator")]
     public void Subscription_OtherNames_DoNotMatch(string subscription) =>
-        new StartupTarget(subscription).Matches(AppHarness.AzureSubscription).ShouldBeFalse();
+        new StartupTarget(subscription).Matches(AppHarness.Connection).ShouldBeFalse();
 
     [Test]
     [Arguments("Local Emulator")]
     [Arguments("emulator")]
     [Arguments("Emulator")]
     public void Emulator_MatchesByNameOrAsEmulator(string subscription) =>
-        new StartupTarget(subscription).Matches(AzureSubscription.Emulator).ShouldBeTrue();
+        new StartupTarget(subscription).Matches(ConnectionInfo.Emulator).ShouldBeTrue();
 
     [Test]
     [Arguments("sb-orders-dev")]

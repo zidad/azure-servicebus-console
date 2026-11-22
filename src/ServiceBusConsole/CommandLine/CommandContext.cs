@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 namespace ServiceBusConsole.CommandLine;
 
 /// <summary>One run of a namespace command: its options, the namespace once opened, and where output goes.</summary>
-public sealed class CommandContext(NamespaceInput input, CommandServices services, CancellationToken ct) : IAsyncDisposable
+public sealed class CommandContext(BrokerInput input, CommandServices services, CancellationToken ct) : IAsyncDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -15,7 +15,7 @@ public sealed class CommandContext(NamespaceInput input, CommandServices service
     private IBroker? _opened;
 
     public CommandServices Services { get; } = services;
-    public NamespaceTarget Target => input.Target;
+    public BrokerTarget Target => input.Target;
     public bool Json => input.Json;
     public CancellationToken Token { get; } = ct;
     public TextWriter Out => Services.Out;
@@ -25,7 +25,7 @@ public sealed class CommandContext(NamespaceInput input, CommandServices service
     public async Task<IBroker> OpenAsync()
     {
         if (_opened is { } opened) return opened;
-        var (_, info) = await Target.ResolveAsync(Services.Namespaces, Token);
+        var (_, info) = await Target.ResolveAsync(Services.Catalog, Token);
         _opened = Services.Opener.Open(info);
         return _opened;
     }
@@ -36,7 +36,7 @@ public sealed class CommandContext(NamespaceInput input, CommandServices service
     public void RequireConfirmation(BrokerInfo ns)
     {
         var isProtected = Glob.List(Services.Configuration[ConfigKeys.Protect.ConfigurationPath])
-            .Any(g => g.Matches(ns.Name) || g.Matches(ns.FullyQualifiedNamespace));
+            .Any(g => g.Matches(ns.Name) || g.Matches(ns.Address));
         if (isProtected && !string.Equals(input.Confirm, ns.Name, StringComparison.OrdinalIgnoreCase))
             throw new CommandFailure(ExitCodes.Usage, CommandLineStrings.FormatCommandContext_Protected(ns.Name, ConfigKeys.Protect.Key));
     }

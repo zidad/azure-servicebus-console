@@ -105,7 +105,7 @@ public sealed class OpenTraceAction : IMessageAction
         var setting = context.Settings[AppInsights];
         if (IsResourceId(setting)) return setting;
 
-        var subscription = context.Session.Subscription?.Id
+        var subscription = context.Session.Connection?.Id
             ?? throw new InvalidOperationException(
                 Strings.FormatOpenTraceAction_NoSetting(Plugin, AppInsights, Url));
         context.Progress.Report(Strings.OpenTraceAction_FindingAppInsights);

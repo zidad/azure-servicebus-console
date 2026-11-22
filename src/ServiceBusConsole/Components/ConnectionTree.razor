@@ -3,11 +3,11 @@
 
 @inject NavigationManager Nav
 @inject NavigationState NavState
-@inject ServiceBusConnection Connection
+@inject CurrentBroker Current
 @inject IBrokerOpener Opener
-@inject NamespaceSwitcher Switcher
+@inject BrokerSwitcher Switcher
 @inject ExplorerTree Tree
-@inject RecentNamespaces Recents
+@inject RecentBrokers Recents
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
 
 <SelectableList Items="@_rows"
@@ -93,7 +93,7 @@
     [Parameter] public EventCallback<ExplorerNode?> SelectedChanged { get; set; }
 
     /// <summary>Marked "(az default)".</summary>
-    [Parameter] public string? DefaultSubscriptionId { get; set; }
+    [Parameter] public string? DefaultConnectionId { get; set; }
 
     [Parameter] public EventCallback<string?> FilterChanged { get; set; }
 
@@ -182,7 +182,7 @@
 
     /// <summary>Opens <paramref name="section"/> of the selected namespace, when it has one.</summary>
     public Task OpenSelectedAsync(Section section) =>
-        Selected?.InNamespace is { } ns ? OpenSectionAsync(ns, section) : Task.CompletedTask;
+        Selected?.InBroker is { } ns ? OpenSectionAsync(ns, section) : Task.CompletedTask;
 
     private int IndexOf(string key) => _rows.Select(r => r.Key).ToList().IndexOf(key);
 
@@ -204,12 +204,12 @@
 
     private string Details(ExplorerRow.Item item) => item.Node switch
     {
-        Subscription s when !item.Open && Tree.NamespacesOf(s.Value) is { Namespaces.Count: var count and > 0 } => count == 1
+        Connection s when !item.Open && Tree.BrokersOf(s.Value) is { Brokers.Count: var count and > 0 } => count == 1
             ? ComponentStrings.FormatConnectionTree_NamespaceCountOne(count)
             : ComponentStrings.FormatConnectionTree_NamespaceCountMany(count),
-        Subscription { Value.Id: { } id } => id == DefaultSubscriptionId ? ComponentStrings.FormatConnectionTree_DefaultSubscription(id) : id,
-        Subscription => "localhost:5672",
-        { InNamespace.Info: var ns } => DetailColumns(c => ns.Properties.FirstOrDefault(p => p.Id == c.Id) is { } p
+        Connection { Value.Id: { } id } => id == DefaultConnectionId ? ComponentStrings.FormatConnectionTree_DefaultSubscription(id) : id,
+        Connection => "localhost:5672",
+        { InBroker.Info: var ns } => DetailColumns(c => ns.Properties.FirstOrDefault(p => p.Id == c.Id) is { } p
             ? p.Healthy is { } healthy ? $"{Icons.Health(healthy)} {p.Value}" : p.Value
             : ""),
         _ => "",
@@ -218,7 +218,7 @@
     private string Opened(ExplorerNode node) => node switch
     {
         Recent recent => RelativeTime.Ago(recent.Opened, Recents.Time.GetUtcNow()),
-        Namespace ns when Recents.OpenedAt(ns.Parent.Value, ns.Info) is { } opened => RelativeTime.Ago(opened, Recents.Time.GetUtcNow()),
+        Broker ns when Recents.OpenedAt(ns.Parent.Value, ns.Info) is { } opened => RelativeTime.Ago(opened, Recents.Time.GetUtcNow()),
         _ => "",
     };
 
@@ -230,7 +230,7 @@
     private static IReadOnlyList<DetailColumn> ColumnsOf(IEnumerable<ExplorerRow> rows)
     {
         var listed = rows.OfType<ExplorerRow.Item>()
-            .SelectMany(r => r.Node is Namespace ns ? ns.Info.Properties.Where(p => p.Listed) : [])
+            .SelectMany(r => r.Node is Broker ns ? ns.Info.Properties.Where(p => p.Listed) : [])
             .ToList();
         return [.. listed.DistinctBy(p => p.Id).Select(p => new DetailColumn(p.Id, p.Label,
             Math.Min(MaxColumnWidth, listed.Where(o => o.Id == p.Id).Max(o => o.Value.Length + (o.Healthy is null ? 0 : 2)) + 2)))];
@@ -246,19 +246,19 @@
     // Where the app is: the open subscription and namespace are highlighted.
     private bool IsHere(ExplorerNode node) => node switch
     {
-        Subscription s => s.Value == NavState.AzureSubscription && Connection.Current is not null,
-        { InNamespace: { } ns } => ns.Parent.Value == NavState.AzureSubscription && ns.Info.FullyQualifiedNamespace == Connection.CurrentNamespace,
+        Connection s => s.Value == NavState.Connection && Current.Broker is not null,
+        { InBroker: { } ns } => ns.Parent.Value == NavState.Connection && ns.Info.Address == Current.Address,
         _ => false,
     };
 
     private static ExplorerNode? ParentOf(ExplorerNode node) => node switch
     {
-        Namespace ns => ns.Parent,
+        Broker ns => ns.Parent,
         Recent => RecentGroup.Instance,
         _ => null,
     };
 
-    private async Task OpenAsync(Namespace ns, Section section)
+    private async Task OpenAsync(Broker ns, Section section)
     {
         if (Switcher.IsCurrent(ns.Parent.Value, ns.Info) && "/" + Nav.ToBaseRelativePath(Nav.Uri) == section.Route)
         {
@@ -271,7 +271,7 @@
     }
 
     // A namespace opens on its queues tab, or from a list page on that list when it has one; the open one stays as it is.
-    private async Task OpenNamespaceAsync(Namespace ns)
+    private async Task OpenBrokerAsync(Broker ns)
     {
         var route = "/" + Nav.ToBaseRelativePath(Nav.Uri);
         if (route != "/" && Switcher.IsCurrent(ns.Parent.Value, ns.Info))
@@ -292,8 +292,8 @@
         }
         switch (Selected)
         {
-            case { InNamespace: { } ns }:
-                await OpenNamespaceAsync(ns);
+            case { InBroker: { } ns }:
+                await OpenBrokerAsync(ns);
                 return;
             case { IsBranch: true } branch:
                 Tree.SetOpen(branch, !Tree.IsOpen(branch));
@@ -302,15 +302,15 @@
     }
 
     // F1-F3 open a section of the selected namespace, when it has that section.
-    private async Task OpenSectionAsync(Namespace ns, Section section)
+    private async Task OpenSectionAsync(Broker ns, Section section)
     {
         if (await HasSectionAsync(ns, section)) await OpenAsync(ns, section);
     }
 
     // Opening only composes the namespace's features; it connects on first use, which this never makes.
-    private async Task<bool> HasSectionAsync(Namespace ns, Section section)
+    private async Task<bool> HasSectionAsync(Broker ns, Section section)
     {
-        if (Connection.Current is { } current && current.Info == ns.Info) return Section.Of(current).Contains(section);
+        if (Current.Broker is { } current && current.Info == ns.Info) return Section.Of(current).Contains(section);
         await using var probe = Opener.Open(ns.Info);
         return Section.Of(probe).Contains(section);
     }
@@ -343,7 +343,7 @@
                 if (Tree.IsOpen(node)) Tree.SetOpen(node, false);
                 else if (ParentOf(node) is { } parent) SelectKeyNow(parent.Key);
                 return;
-            case "F1" or "F2" or "F3" when node?.InNamespace is { } ns:
+            case "F1" or "F2" or "F3" when node?.InBroker is { } ns:
                 _ = OpenSectionAsync(ns, e.Key switch { "F1" => Section.Queues, "F2" => Section.Topics, _ => Section.AllSubscriptions });
                 return;
         }
