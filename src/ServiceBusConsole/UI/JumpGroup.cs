@@ -8,6 +8,6 @@ public sealed record JumpGroup(JumpKind Kind, IReadOnlyList<JumpTarget> Targets)
         JumpKind.Queue => Strings.Queues,
         JumpKind.Topic => Strings.Topics,
         JumpKind.Subscription => Strings.Subscriptions,
-        _ => UIStrings.JumpGroup_OtherNamespaces,
+        _ => UIStrings.FormatJumpGroup_OtherBrokers(Terms.Broker.ManyInText),
     };
 }

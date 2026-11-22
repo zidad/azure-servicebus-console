@@ -21,4 +21,46 @@
   <data name="MessageSource_DeadLetterName" xml:space="preserve">
     <value>{name} DLQ</value>
   </data>
+  <data name="BrokerTerms_Connection" xml:space="preserve">
+    <value>Connection</value>
+  </data>
+  <data name="BrokerTerms_Connections" xml:space="preserve">
+    <value>Connections</value>
+  </data>
+  <data name="BrokerTerms_ConnectionInText" xml:space="preserve">
+    <value>connection</value>
+  </data>
+  <data name="BrokerTerms_ConnectionsInText" xml:space="preserve">
+    <value>connections</value>
+  </data>
+  <data name="BrokerTerms_ConnectionOption" xml:space="preserve">
+    <value>Connection to start in, by name or ID</value>
+  </data>
+  <data name="BrokerTerms_ConnectionScriptOption" xml:space="preserve">
+    <value>Connection, by name or ID</value>
+  </data>
+  <data name="BrokerTerms_Broker" xml:space="preserve">
+    <value>Broker</value>
+  </data>
+  <data name="BrokerTerms_Brokers" xml:space="preserve">
+    <value>Brokers</value>
+  </data>
+  <data name="BrokerTerms_BrokerInText" xml:space="preserve">
+    <value>broker</value>
+  </data>
+  <data name="BrokerTerms_BrokersInText" xml:space="preserve">
+    <value>brokers</value>
+  </data>
+  <data name="BrokerTerms_BrokerOption" xml:space="preserve">
+    <value>Broker of that connection to open, by name or address; needs --connection</value>
+  </data>
+  <data name="BrokerTerms_BrokerScriptOption" xml:space="preserve">
+    <value>Broker, by name, address or a pattern with * that matches one. Default: the connection's only broker</value>
+  </data>
+  <data name="BrokerTerms_SignInHint" xml:space="preserve">
+    <value>Check the connection's settings</value>
+  </data>
+  <data name="BrokerTerms_NoDefaultConnection" xml:space="preserve">
+    <value>No --connection given, and there is no default one</value>
+  </data>
 </root>

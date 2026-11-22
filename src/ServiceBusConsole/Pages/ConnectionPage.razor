@@ -40,13 +40,13 @@
 
                 @if (Catalog.Error is { } listError)
                 {
-                    <Markup Content="@(PageStrings.FormatConnection_ListSubscriptionsFailed(listError))" Foreground="@Theme.Danger" />
+                    <Markup Content="@(PageStrings.FormatConnection_ListConnectionsFailed(Terms.Connection.ManyInText, Terms.Current.SignInHint, listError))" Foreground="@Theme.Danger" />
                 }
                 else if (Catalog.Loading)
                 {
                     <Columns>
                         <RazorConsole.Components.Spinner SpinnerType="@Spectre.Console.Spinner.Known.Dots" />
-                        <Markup Content="@PageStrings.Connection_ListingSubscriptions" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
+                        <Markup Content="@PageStrings.FormatConnection_ListingConnections(Terms.Connection.ManyInText)" Foreground="@Theme.Muted" Decoration="@Decoration.Italic" />
                     </Columns>
                 }
 
@@ -74,10 +74,10 @@
     @if (ShowMetrics)
     {
         <MetricsPanel @ref="_metricsPanel"
-                      Label="@($"{Icons.Namespace} {PageStrings.FormatConnection_MetricsLabel(ChosenBroker?.Name)}")"
+                      Label="@($"{Terms.Broker.Icon} {PageStrings.FormatConnection_MetricsLabel(Terms.Broker.OneInText, ChosenBroker?.Name)}")"
                       Metrics="@ChartedMetrics"
                       Scope="@(ChartedMetrics is null ? null : new MetricsScope.Broker())"
-                      Placeholder="@(ChosenBroker is { } chosen ? PageStrings.FormatConnection_MetricsUnavailable(chosen.Name) : PageStrings.Connection_MetricsChooseNamespace)"
+                      Placeholder="@(ChosenBroker is { } chosen ? PageStrings.FormatConnection_MetricsUnavailable(chosen.Name) : PageStrings.FormatConnection_MetricsChooseBroker(Terms.Broker.OneInText))"
                       FocusOrder="9"
                       OnKeyDown="@HandleKeyDown" />
     }
@@ -169,7 +169,7 @@
         {
             if (loading) return;
             _startup = null;
-            if (!startup.IsAzureCliDefault) _startupError = PageStrings.FormatConnection_SubscriptionNotFound(startup.Connection);
+            if (!startup.IsAzureCliDefault) _startupError = PageStrings.FormatConnection_ConnectionNotFound(Terms.Connection.One, startup.Connection);
             SelectNode(ConnectionInfo.Emulator, BrokerInfo.Emulator);
             return;
         }
@@ -191,7 +191,7 @@
         }
         if (!done) return;
         _startup = null;
-        if (startup.Broker is { } missing) _startupError = PageStrings.FormatConnection_NamespaceNotFound(missing, subscription.Name);
+        if (startup.Broker is { } missing) _startupError = PageStrings.FormatConnection_BrokerNotFound(Terms.Broker.One, missing, subscription.Name);
         SelectNode(subscription, namespaces.FirstOrDefault());
     }
 

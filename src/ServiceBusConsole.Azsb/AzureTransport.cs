@@ -10,7 +10,7 @@ public static class AzureTransport
 
     public static ConfigKey Transport { get; } = new("azure.transport", Strings.AzureTransport_Transport, "tcp");
 
-    public static BrokerTransport Broker { get; } = new([Auth, Transport], (services, configuration) => services
+    public static BrokerTransport Broker { get; } = new(ServiceBusTerms.Terms, [Auth, Transport], (services, configuration) => services
         .AddSingleton(_ => AzureSettings.Read(configuration))
         .AddAzureServiceBus());
 }

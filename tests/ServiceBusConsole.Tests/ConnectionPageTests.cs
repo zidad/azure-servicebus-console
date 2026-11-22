@@ -57,7 +57,7 @@ public sealed class ConnectionPageTests
         await using var terminal = await app.StartAsync();
         await AppHarness.WaitForTableFocusAsync(terminal);
 
-        await terminal.WaitForTextAsync("Could not list Azure subscriptions", AppHarness.Timeout, Ct);
+        await terminal.WaitForTextAsync("Could not list subscriptions", AppHarness.Timeout, Ct);
         await terminal.SendKeyAsync(ConsoleKey.F1, '\0', cancellationToken: Ct);
 
         await terminal.WaitUntilAsync(f => !f.ContainsText("1  📬 Queues") && f.ContainsText("📬 Queues"), AppHarness.Timeout, cancellationToken: Ct);
@@ -120,7 +120,7 @@ public sealed class ConnectionPageTests
 
         // Still listing (cached list shown, live refresh pending), yet the empty subscription is already hidden.
         var frame = await terminal.WaitUntilAsync(f => f.ContainsText("Contoso Development") && !f.ContainsText("Contoso Billing"), AppHarness.Timeout, cancellationToken: Ct);
-        frame.ContainsText("Listing Azure subscriptions").ShouldBeTrue(frame.ScreenText);
+        frame.ContainsText("Listing subscriptions").ShouldBeTrue(frame.ScreenText);
         app.Catalog.HoldListing.SetResult();
     }
 }

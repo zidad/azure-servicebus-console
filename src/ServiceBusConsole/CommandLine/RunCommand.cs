@@ -11,12 +11,12 @@ public static class RunCommand
     {
         if (input is { Connection: null, Broker: not null })
         {
-            InvalidUsage(CommandLineStrings.FormatRunCommand_Needs("--namespace", "--subscription", HelpRun));
+            InvalidUsage(CommandLineStrings.FormatRunCommand_Needs(Terms.BrokerOption, Terms.ConnectionOption, HelpRun));
             return false;
         }
         if (input is { Broker: null, Open: not null })
         {
-            InvalidUsage(CommandLineStrings.FormatRunCommand_Needs("--open", "--namespace", HelpRun));
+            InvalidUsage(CommandLineStrings.FormatRunCommand_Needs("--open", Terms.BrokerOption, HelpRun));
             return false;
         }
 

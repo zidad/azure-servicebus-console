@@ -13,7 +13,7 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="SessionContext_Connected" xml:space="preserve">
-    <value>Connected to namespace {ns}</value>
+    <value>Connected to {broker} {name}</value>
   </data>
   <data name="SessionContext_OpenedMessage" xml:space="preserve">
     <value>Opened message #{sequenceNumber}</value>

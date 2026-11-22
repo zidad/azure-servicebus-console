@@ -8,16 +8,17 @@ public static class ConfigKeys
     public static ConfigKey Theme { get; } =
         new("ui.theme", ConfigurationStrings.ConfigKeys_Theme, "auto");
 
-    public static ConfigKey Protect { get; } =
-        new("cli.protect", ConfigurationStrings.ConfigKeys_Protect);
+    // Described in the transport's words, so read after Terms.Use.
+    public static ConfigKey Protect =>
+        new("cli.protect", ConfigurationStrings.FormatConfigKeys_Protect(Terms.Broker.Many, Terms.Broker.OneInText));
 
-    public static ConfigKey RedactNamespaces { get; } =
-        new("cli.redact.namespaces", ConfigurationStrings.ConfigKeys_RedactNamespaces);
+    public static ConfigKey RedactNamespaces =>
+        new("cli.redact.namespaces", ConfigurationStrings.FormatConfigKeys_RedactBrokers(Terms.Broker.Many));
 
-    public static ConfigKey RedactFields { get; } =
-        new("cli.redact.fields", ConfigurationStrings.ConfigKeys_RedactFields);
+    public static ConfigKey RedactFields =>
+        new("cli.redact.fields", ConfigurationStrings.FormatConfigKeys_RedactFields(Terms.Broker.ManyInText));
 
-    public static IReadOnlyList<ConfigKey> App { get; } = [Theme, Protect, RedactNamespaces, RedactFields];
+    public static IReadOnlyList<ConfigKey> App => [Theme, Protect, RedactNamespaces, RedactFields];
 
     /// <summary>The app's keys and <paramref name="extra"/> ones, such as the transport's and a plugin's.</summary>
     public static IReadOnlyList<ConfigKey> With(IEnumerable<ConfigKey> extra) => [.. App, .. extra];

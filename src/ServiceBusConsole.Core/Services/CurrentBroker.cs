@@ -4,13 +4,13 @@ namespace ServiceBusConsole.Core.Services;
 /// The broker being browsed. Choosing another opens it and disposes the previous one in the background; pages read
 /// <see cref="Broker"/> each time, so a broker reopened in place (its live listing replacing a cached one) takes effect.
 /// </summary>
-public sealed class CurrentBroker(IBrokerOpener opener) : IAsyncDisposable
+public sealed class CurrentBroker(IBrokerOpener opener, BrokerTerms terms) : IAsyncDisposable
 {
     /// <summary>Null until a broker is chosen.</summary>
     public IBroker? Broker { get; private set; }
 
     /// <summary>The current broker, for work that needs one.</summary>
-    public IBroker Opened => Broker ?? throw new InvalidOperationException(ServiceStrings.CurrentBroker_None);
+    public IBroker Opened => Broker ?? throw new InvalidOperationException(ServiceStrings.FormatCurrentBroker_None(terms.Broker.OneInText));
 
     public string? Address => Broker?.Info.Address;
 

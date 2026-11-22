@@ -45,7 +45,7 @@
 }
 
 @code {
-    private ITopicService Topics => Current.Broker is IHasTopics { Topics: var topics } ? topics : throw new InvalidOperationException(PageStrings.List_NoTopics);
+    private ITopicService Topics => Current.Broker is IHasTopics { Topics: var topics } ? topics : throw new InvalidOperationException(PageStrings.FormatList_NoTopics(Terms.Broker.OneInText));
 
     private EntityList<TopicInfo>? _list;
     private AsyncCommand<string>? _deleteTopic;

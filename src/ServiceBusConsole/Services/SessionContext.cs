@@ -28,7 +28,7 @@ public sealed class SessionContext(NavigationState navState, CurrentBroker curre
             switched = ns != _namespace;
             _namespace = ns;
         }
-        if (switched && ns is not null) log.Record(ActivityKind.Navigated, ServiceStrings.FormatSessionContext_Connected(ns.Address));
+        if (switched && ns is not null) log.Record(ActivityKind.Navigated, ServiceStrings.FormatSessionContext_Connected(Terms.Broker.OneInText, ns.Address));
         if (page == DetailPath && navState.Message is { } message)
             log.Record(ActivityKind.Navigated, ServiceStrings.FormatSessionContext_OpenedMessage(message.Key), navState.MessageSource);
         else log.Record(ActivityKind.Navigated, ServiceStrings.FormatSessionContext_OpenedPage(page));

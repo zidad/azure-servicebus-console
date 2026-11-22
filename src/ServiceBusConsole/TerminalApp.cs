@@ -12,6 +12,7 @@ public static class TerminalApp
 {
     public static Task<int> RunAsync(string[] args, BrokerTransport transport, IEnumerable<IPlugin> bundledPlugins)
     {
+        Terms.Use(transport.Terms);
         var logFile = Path.Combine(
             Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "logs")).FullName,
             $"session-{DateTime.Now:yyyyMMdd-HHmmss}.log");
@@ -29,6 +30,7 @@ public static class TerminalApp
                 .AddFilter("Microsoft.AspNetCore.Components", LogLevel.Information))
             .ConfigureServices((context, services) => transport.AddServices(services, context.Configuration))
             .ConfigureServices(services => services
+                .AddSingleton(transport.Terms)
                 .AddSingleton<IBrokerDecorator, CachingBrokerDecorator>()
                 .AddSingleton<CurrentBroker>()
                 .AddSingleton<FileCache>()

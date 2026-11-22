@@ -37,9 +37,9 @@ public abstract record JumpTarget
     public string Name => Match(q => q.Info.Name, t => t.Info.Name, s => $"{s.Info.TopicName}/{s.Info.Name}", n => n.Place.Info.Name);
 
     public string Label => Match(q => $"{Icons.Queue} {q.Info.Name}", t => $"{Icons.Topic} {t.Info.Name}", s => $"{Icons.Subscription} {s.Info.TopicName} › {s.Info.Name}",
-        n => $"{Icons.Namespace} {n.Place.Info.Name}");
+        n => $"{Terms.Broker.Icon} {n.Place.Info.Name}");
 
-    public string Kind => Match(_ => UIStrings.JumpTarget_Queue, _ => UIStrings.JumpTarget_Topic, _ => UIStrings.JumpTarget_Subscription, _ => UIStrings.JumpTarget_Namespace);
+    public string Kind => Match(_ => UIStrings.JumpTarget_Queue, _ => UIStrings.JumpTarget_Topic, _ => UIStrings.JumpTarget_Subscription, _ => Terms.Broker.OneInText);
 
     public JumpKind Group => Match(_ => JumpKind.Queue, _ => JumpKind.Topic, _ => JumpKind.Subscription, _ => JumpKind.Broker);
 

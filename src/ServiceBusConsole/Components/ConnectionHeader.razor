@@ -11,7 +11,7 @@
             {
                 <div class="pick-subscription" @onclick="OpenConnections"><Markup Content="@ConnectionLabel" Foreground="@Theme.Muted" Decoration="@Decoration.Underline" /></div>
                 <Markup Content=" › " Foreground="@Theme.Muted" />
-                <div class="pick-namespace" @onclick="OpenBrokers"><Markup Content="@($"{Icons.Namespace} {ns.Name}")" Decoration="@Decoration.Underline" /></div>
+                <div class="pick-namespace" @onclick="OpenBrokers"><Markup Content="@($"{Terms.Broker.Icon} {ns.Name}")" Decoration="@Decoration.Underline" /></div>
                 <Markup Content=" › " Foreground="@Theme.Muted" />
             }
             <CascadingValue Value="this" IsFixed="true">@ChildContent</CascadingValue>
@@ -34,7 +34,7 @@
 
     private string SubscriptionName => NavState.Connection?.Name ?? "";
 
-    private string ConnectionIcon => NavState.Connection?.IsEmulator == true ? Icons.Emulator : Icons.AzureSubscription;
+    private string ConnectionIcon => NavState.Connection?.IsEmulator == true ? Icons.Emulator : Terms.Connection.Icon;
 
     private string ConnectionLabel => $"{ConnectionIcon} {SubscriptionName}";
 

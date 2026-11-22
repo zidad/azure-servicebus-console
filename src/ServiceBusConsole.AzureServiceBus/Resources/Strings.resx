@@ -51,4 +51,46 @@
   <data name="Namespace_ResourceId" xml:space="preserve">
     <value>Resource ID</value>
   </data>
+  <data name="ServiceBusTerms_Subscription" xml:space="preserve">
+    <value>Subscription</value>
+  </data>
+  <data name="ServiceBusTerms_Subscriptions" xml:space="preserve">
+    <value>Subscriptions</value>
+  </data>
+  <data name="ServiceBusTerms_SubscriptionInText" xml:space="preserve">
+    <value>subscription</value>
+  </data>
+  <data name="ServiceBusTerms_SubscriptionsInText" xml:space="preserve">
+    <value>subscriptions</value>
+  </data>
+  <data name="ServiceBusTerms_SubscriptionOption" xml:space="preserve">
+    <value>Azure subscription to start in, by name or ID; emulator for the local emulator</value>
+  </data>
+  <data name="ServiceBusTerms_SubscriptionScriptOption" xml:space="preserve">
+    <value>Azure subscription, by name or ID; emulator for the local emulator. Default: the Azure CLI's current subscription</value>
+  </data>
+  <data name="ServiceBusTerms_Namespace" xml:space="preserve">
+    <value>Namespace</value>
+  </data>
+  <data name="ServiceBusTerms_Namespaces" xml:space="preserve">
+    <value>Namespaces</value>
+  </data>
+  <data name="ServiceBusTerms_NamespaceInText" xml:space="preserve">
+    <value>namespace</value>
+  </data>
+  <data name="ServiceBusTerms_NamespacesInText" xml:space="preserve">
+    <value>namespaces</value>
+  </data>
+  <data name="ServiceBusTerms_NamespaceOption" xml:space="preserve">
+    <value>Namespace of that subscription to open, by name or host name; needs --subscription</value>
+  </data>
+  <data name="ServiceBusTerms_NamespaceScriptOption" xml:space="preserve">
+    <value>Namespace, by name, host name or a pattern with * that matches one. Default: the subscription's only namespace</value>
+  </data>
+  <data name="ServiceBusTerms_SignInHint" xml:space="preserve">
+    <value>Sign in with az login</value>
+  </data>
+  <data name="ServiceBusTerms_NoDefaultSubscription" xml:space="preserve">
+    <value>No --subscription, and the Azure CLI has no current subscription: run az login</value>
+  </data>
 </root>

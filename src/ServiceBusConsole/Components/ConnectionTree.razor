@@ -205,8 +205,8 @@
     private string Details(ExplorerRow.Item item) => item.Node switch
     {
         Connection s when !item.Open && Tree.BrokersOf(s.Value) is { Brokers.Count: var count and > 0 } => count == 1
-            ? ComponentStrings.FormatConnectionTree_NamespaceCountOne(count)
-            : ComponentStrings.FormatConnectionTree_NamespaceCountMany(count),
+            ? ComponentStrings.FormatConnectionTree_BrokerCountOne(count, Terms.Broker.OneInText)
+            : ComponentStrings.FormatConnectionTree_BrokerCountMany(count, Terms.Broker.ManyInText),
         Connection { Value.Id: { } id } => id == DefaultConnectionId ? ComponentStrings.FormatConnectionTree_DefaultSubscription(id) : id,
         Connection => "localhost:5672",
         { InBroker.Info: var ns } => DetailColumns(c => ns.Properties.FirstOrDefault(p => p.Id == c.Id) is { } p
