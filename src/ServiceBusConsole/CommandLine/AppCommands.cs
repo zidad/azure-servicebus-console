@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace ServiceBusConsole.CommandLine;
 
 /// <summary>
-/// The azsb commands: <see cref="RunCommand"/>, the default, the namespace commands (<see cref="NamespaceCommand"/>),
+/// The azsb commands: <see cref="RunCommand"/>, the default, the namespace commands (<see cref="BrokerCommand"/>),
 /// <see cref="ConfigCommand"/>, <see cref="PluginsCommand"/> and help.
 /// System.CommandLine parses without reflection, so the app also runs as a Native AOT binary.
 /// </summary>
@@ -153,12 +153,12 @@ public sealed class AppCommands
         var c when c == _run || c == Root => new RunInput
         {
             HostBuilder = _host,
-            Subscription = result.GetValue(_subscription),
-            Namespace = result.GetValue(_namespace),
+            Connection = result.GetValue(_subscription),
+            Broker = result.GetValue(_namespace),
             Open = result.GetValue(_open),
             Theme = result.GetValue(_theme),
         },
-        var c when NamespaceCommandOf(c, result) is { } command => new NamespaceInput
+        var c when BrokerCommandOf(c, result) is { } command => new BrokerInput
         {
             Command = command,
             Target = new(result.GetValue(_scriptSubscription), result.GetValue(_scriptNamespace)),
@@ -169,7 +169,7 @@ public sealed class AppCommands
         _ => null,
     };
 
-    private NamespaceCommand? NamespaceCommandOf(Command command, ParseResult result) => command switch
+    private BrokerCommand? BrokerCommandOf(Command command, ParseResult result) => command switch
     {
         var c when c == _check => new CheckCommand(),
         var c when c == _list => new ListCommand(result.GetValue(_listKind) ?? ListKind.Entities, result.GetValue(_deadLetters)),
@@ -205,6 +205,6 @@ public sealed class AppCommands
                 async run => await RunCommand.ExecuteAsync(run) ? ExitCodes.Ok : ExitCodes.Failed,
                 config => Task.FromResult(ConfigCommand.Execute(config) ? ExitCodes.Ok : ExitCodes.Failed),
                 plugins => Task.FromResult(PluginsCommand.Execute(plugins) ? ExitCodes.Ok : ExitCodes.Failed),
-                ns => NamespaceCommand.ExecuteAsync(ns, ct))
+                ns => BrokerCommand.ExecuteAsync(ns, ct))
             : ExitCodes.Failed;
 }

@@ -21,9 +21,9 @@ internal static class Contexts
     public static readonly SessionSnapshot Session = new()
     {
         At = DateTimeOffset.UnixEpoch,
-        Namespace = new BrokerInfo
+        Broker = new BrokerInfo
         {
-            Name = "sb-orders-dev", FullyQualifiedNamespace = "sb-orders-dev.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Standard", location: "westeurope", resourceGroup: "rg-orders"),
+            Name = "sb-orders-dev", Address = "sb-orders-dev.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Standard", location: "westeurope", resourceGroup: "rg-orders"),
         },
         Source = Source,
         Mode = "Peek",

@@ -4,8 +4,8 @@ namespace ServiceBusConsole.Abstractions;
 public sealed record SessionSnapshot
 {
     public required DateTimeOffset At { get; init; }
-    public AzureSubscription? Subscription { get; init; }
-    public BrokerInfo? Namespace { get; init; }
+    public ConnectionInfo? Connection { get; init; }
+    public BrokerInfo? Broker { get; init; }
     public MessageSource? Source { get; init; }
 
     /// <summary>How the messages were loaded: <c>Peek</c>, <c>Locked</c> (PeekLock) or <c>Received</c> (ReceiveAndDelete).</summary>

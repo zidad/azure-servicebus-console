@@ -9,9 +9,9 @@ namespace ServiceBusConsole.UI.Explorer;
 /// run, so the tree is as it was after visiting a page. Changed is raised on any thread.
 /// </summary>
 public sealed class ExplorerTree(
-    SubscriptionCatalog catalog,
+    ConnectionList catalog,
     IConnectionCatalog namespaces,
-    RecentNamespaces recent,
+    RecentBrokers recent,
     ILogger<ExplorerTree> logger) : IDisposable
 {
     private const string Root = "";
@@ -55,14 +55,14 @@ public sealed class ExplorerTree(
     }
 
     /// <summary>Opens <paramref name="subscription"/>, so the tree shows where the app is.</summary>
-    public void Reveal(AzureSubscription subscription) => SetOpen(new Subscription(subscription), true);
+    public void Reveal(ConnectionInfo subscription) => SetOpen(new Connection(subscription), true);
 
     /// <summary>A subscription's namespaces listed so far; <c>Done</c> once its listing ended, also on failure.</summary>
-    public Listing NamespacesOf(AzureSubscription subscription)
+    public Listing BrokersOf(ConnectionInfo subscription)
     {
-        var key = new Subscription(subscription).Key;
+        var key = new Connection(subscription).Key;
         lock (_sync)
-            return new([.. Children(key).OfType<Namespace>().Select(n => n.Info)], _loaded.Contains(key) && !_listing.Contains(key));
+            return new([.. Children(key).OfType<Broker>().Select(n => n.Info)], _loaded.Contains(key) && !_listing.Contains(key));
     }
 
     /// <summary>Lists a subscription's namespaces again, after a failure.</summary>
@@ -119,16 +119,16 @@ public sealed class ExplorerTree(
         Root => [.. RecentNodes().Any() ? [RecentGroup.Instance] : Array.Empty<ExplorerNode>(), .. _children.GetValueOrDefault(Root) ?? []],
         _ when key == RecentGroup.Instance.Key => RecentNodes(),
         _ => !_children.TryGetValue(key, out var list) ? []
-            : list.FirstOrDefault() is Namespace ? list.OrderBy(n => n.Name, StringComparer.CurrentCultureIgnoreCase)
+            : list.FirstOrDefault() is Broker ? list.OrderBy(n => n.Name, StringComparer.CurrentCultureIgnoreCase)
             : list,
     };
 
     // As the tree knows them now: the subscription's current name, the namespace's live details once listed.
     private IEnumerable<ExplorerNode> RecentNodes() => recent.Items.Select(r =>
     {
-        var subscription = new Subscription(catalog.Subscriptions.FirstOrDefault(s => s.Id == r.Subscription.Id) ?? r.Subscription);
-        var listed = Children(subscription.Key).OfType<Namespace>().FirstOrDefault(n => n.Info.FullyQualifiedNamespace == r.Namespace.FullyQualifiedNamespace);
-        return new Recent(listed ?? new Namespace(subscription, r.Namespace), r.Opened);
+        var subscription = new Connection(catalog.Connections.FirstOrDefault(s => s.Id == r.Connection.Id) ?? r.Connection);
+        var listed = Children(subscription.Key).OfType<Broker>().FirstOrDefault(n => n.Info.Address == r.Broker.Address);
+        return new Recent(listed ?? new Broker(subscription, r.Broker), r.Opened);
     });
 
     private void OnRecentChanged() => Changed?.Invoke();
@@ -139,9 +139,9 @@ public sealed class ExplorerTree(
         List<ExplorerNode> roots;
         // Read under the lock: a sync that read an older list must not write after one that read a newer list.
         lock (_sync)
-            _children[Root] = roots = [.. catalog.Subscriptions
-                .Where(s => s.IsEmulator || catalog.HasNamespaces(s) != false)
-                .Select(s => new Subscription(s))];
+            _children[Root] = roots = [.. catalog.Connections
+                .Where(s => s.IsEmulator || catalog.HasBrokers(s) != false)
+                .Select(s => new Connection(s))];
         foreach (var root in roots.Where(IsOpen)) Load(root);
         Changed?.Invoke();
     }
@@ -151,25 +151,25 @@ public sealed class ExplorerTree(
         lock (_sync)
         {
             if (!_loaded.Add(node.Key)) return;
-            // Marked before the task starts, so NamespacesOf never reports a listing that hasn't begun as done.
-            if (node is Subscription)
+            // Marked before the task starts, so BrokersOf never reports a listing that hasn't begun as done.
+            if (node is Connection)
             {
                 _listing.Add(node.Key);
                 _notes[node.Key] = (UIStrings.ExplorerTree_Discovering, false);
             }
         }
         // Off the renderer's context, like the catalog's loading.
-        if (node is Subscription s) _ = Task.Run(() => LoadNamespacesAsync(s));
+        if (node is Connection s) _ = Task.Run(() => LoadBrokersAsync(s));
     }
 
-    private async Task LoadNamespacesAsync(Subscription node)
+    private async Task LoadBrokersAsync(Connection node)
     {
         Changed?.Invoke();
         try
         {
-            await foreach (var info in namespaces.GetNamespacesAsync(node.Value, _cts.Token))
+            await foreach (var info in namespaces.GetBrokersAsync(node.Value, _cts.Token))
             {
-                lock (_sync) Add(node.Key, new Namespace(node, info));
+                lock (_sync) Add(node.Key, new Broker(node, info));
                 Changed?.Invoke();
             }
             lock (_sync) _notes.Remove(node.Key);
@@ -193,7 +193,7 @@ public sealed class ExplorerTree(
         list.Upsert(node, n => n.Key == node.Key);
     }
 
-    public readonly record struct Listing(IReadOnlyList<BrokerInfo> Namespaces, bool Done);
+    public readonly record struct Listing(IReadOnlyList<BrokerInfo> Brokers, bool Done);
 
     public void Dispose()
     {

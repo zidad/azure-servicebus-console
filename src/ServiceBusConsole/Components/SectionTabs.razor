@@ -1,12 +1,12 @@
-@inject ServiceBusConnection Connection
+@inject CurrentBroker Current
 @inject FileCache Cache
 @inject NavigationManager Nav
 
 <Flex Justify="FlexJustify.SpaceBetween" FillWidth="true">
     <Flex Gap="1">
-        @foreach (var (section, index) in Section.Of(Connection.Current).Select((s, i) => (s, i)))
+        @foreach (var (section, index) in Section.Of(Current.Broker).Select((s, i) => (s, i)))
         {
-            var current = section == Current;
+            var current = section == Selected;
             <div class="section-tab" @onclick="@(() => Open(section))">
                 <Markup Content="@Label(section, index)"
                         Background="@(current ? Theme.Selection : Color.Default)"
@@ -23,7 +23,7 @@
     /// The namespace's sections as tabs under the header of their list pages: <c>1 📬 Queues 5</c>, the current one
     /// highlighted. Its count is the page's; the others come from the cached listings, so they cost no requests.
     /// </summary>
-    [Parameter, EditorRequired] public required Section Current { get; set; }
+    [Parameter, EditorRequired] public required Section Selected { get; set; }
 
     /// <summary>The current section's count, once its list has loaded.</summary>
     [Parameter] public int? Count { get; set; }
@@ -37,8 +37,8 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        if (Connection.Current is not { Info: var ns } || _loadedFor == ns.FullyQualifiedNamespace) return;
-        _loadedFor = ns.FullyQualifiedNamespace;
+        if (Current.Broker is not { Info: var ns } || _loadedFor == ns.Address) return;
+        _loadedFor = ns.Address;
         _cached = new Dictionary<Section, int>
         {
             [Section.Queues] = (await Cache.LoadAsync<QueueInfo>(CacheKeys.Queues(ns)))?.Count ?? -1,
@@ -48,16 +48,16 @@
     }
 
     private string Label(Section section, int index) =>
-        (section == Current ? Count : _cached.GetValueOrDefault(section, -1) is var n and >= 0 ? n : null) is { } count
+        (section == Selected ? Count : _cached.GetValueOrDefault(section, -1) is var n and >= 0 ? n : null) is { } count
             ? $" {index + 1} {section.Label} {count} "
             : $" {index + 1} {section.Label} ";
 
-    private string Details => Connection.Current is { Info: var ns }
+    private string Details => Current.Broker is { Info: var ns }
         ? string.Join(" · ", ns.Properties.Where(p => p.Listed && p.Healthy is null).Select(p => p.Value))
         : "";
 
     private void Open(Section section)
     {
-        if (section != Current) Nav.NavigateTo(section.Route);
+        if (section != Selected) Nav.NavigateTo(section.Route);
     }
 }

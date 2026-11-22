@@ -18,7 +18,7 @@ public sealed class MessageBrowser(MessageSource source, IBroker ns) : IAsyncDis
     private readonly RenderThrottle _progressThrottle = new(100);
 
     /// <summary>The namespace this browser reads and its locks belong to.</summary>
-    public IBroker Namespace { get; } = ns;
+    public IBroker Broker { get; } = ns;
     public MessageSource Source { get; } = source;
     public BrowseMode Mode { get; private set; } = BrowseMode.Peek;
     public IReadOnlyList<MessageInfo> Messages { get; private set; } = [];
@@ -92,13 +92,13 @@ public sealed class MessageBrowser(MessageSource source, IBroker ns) : IAsyncDis
         Selected.UnionWith(inverted);
     }
 
-    public bool CanPeek => Namespace is IHasPeek;
+    public bool CanPeek => Broker is IHasPeek;
 
     /// <summary>Whether the source has a dead-letter side to switch to.</summary>
-    public bool HasDeadLetters => Namespace is IHasDeadLetters;
+    public bool HasDeadLetters => Broker is IHasDeadLetters;
 
     /// <summary>Whether <see cref="PeekAsync"/> can start from a position.</summary>
-    public bool CanSeek => Namespace is IHasSeek;
+    public bool CanSeek => Broker is IHasSeek;
 
     /// <summary>Peeks into the list page by page, from the front or from <paramref name="from"/>; cancelling keeps what arrived.</summary>
     public async Task PeekAsync(int count, long? from)
@@ -113,7 +113,7 @@ public sealed class MessageBrowser(MessageSource source, IBroker ns) : IAsyncDis
         });
     }
 
-    private IAsyncEnumerable<IReadOnlyList<MessageInfo>> Pages(int count, long? from, CancellationToken ct) => (from, Namespace) switch
+    private IAsyncEnumerable<IReadOnlyList<MessageInfo>> Pages(int count, long? from, CancellationToken ct) => (from, Broker) switch
     {
         ({ } position, IHasSeek { Seek: var seek }) => seek.PeekFromAsync(Source, position, count, ct),
         (null, IHasPeek { Peek: var peek }) => peek.PeekAsync(Source, count, ct),
@@ -193,7 +193,7 @@ public sealed class MessageBrowser(MessageSource source, IBroker ns) : IAsyncDis
         var complete = MessagingStrings.RetryText_MarkComplete;
         var peekLock = Strings.PeekLock;
         var n = targets.Count;
-        return (Mode, Namespace) switch
+        return (Mode, Broker) switch
         {
             (BrowseMode.Received, _) => RunAsync(new(title, [new(requeue, n)]),
                 op => RetryHeldAsync(op, targets, locked: null, "")),
@@ -234,7 +234,7 @@ public sealed class MessageBrowser(MessageSource source, IBroker ns) : IAsyncDis
     {
         // Scanning releases the messages it passes, which bumps their delivery count. Only the dead-letter
         // queue can afford that: in an active queue it would dead-letter unrelated messages.
-        if (!Source.IsDlq || Namespace is not IHasDeadLetters { DeadLetters: var deadLetters })
+        if (!Source.IsDlq || Broker is not IHasDeadLetters { DeadLetters: var deadLetters })
             throw new InvalidOperationException(MessagingStrings.MessageBrowser_RetryNeedsDlq);
         var lockStep = op.Steps[0];
         lockStep.State = StepState.Running;

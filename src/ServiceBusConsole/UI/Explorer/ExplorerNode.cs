@@ -17,14 +17,14 @@ public abstract record ExplorerNode
     public virtual bool Matches(string filter) => Name.Contains(filter, StringComparison.CurrentCultureIgnoreCase);
 
     /// <summary>The namespace this node is, if any.</summary>
-    public Namespace? InNamespace => this switch
+    public Broker? InBroker => this switch
     {
-        Namespace ns => ns,
+        Broker broker => broker,
         Recent recent => recent.Target,
         _ => null,
     };
 
-    public sealed record Subscription(AzureSubscription Value) : ExplorerNode
+    public sealed record Connection(ConnectionInfo Value) : ExplorerNode
     {
         public override string Key => Value.Id ?? "emulator";
         public override string Name => Value.Name;
@@ -34,9 +34,9 @@ public abstract record ExplorerNode
             base.Matches(filter) || (Value.Id?.Contains(filter, StringComparison.OrdinalIgnoreCase) ?? false);
     }
 
-    public sealed record Namespace(Subscription Parent, BrokerInfo Info) : ExplorerNode
+    public sealed record Broker(Connection Parent, BrokerInfo Info) : ExplorerNode
     {
-        public override string Key => $"{Parent.Key}/{Info.FullyQualifiedNamespace}";
+        public override string Key => $"{Parent.Key}/{Info.Address}";
         public override string Name => Info.Name;
         public override string Icon => Icons.Namespace;
     }
@@ -55,7 +55,7 @@ public abstract record ExplorerNode
     }
 
     /// <summary>A namespace opened at <paramref name="Opened"/>; it stands for <paramref name="Target"/>, its row in the tree.</summary>
-    public sealed record Recent(Namespace Target, DateTimeOffset Opened) : ExplorerNode
+    public sealed record Recent(Broker Target, DateTimeOffset Opened) : ExplorerNode
     {
         public override string Key => $"{RecentGroup.Instance.Key}/{Target.Key}";
         public override string Name => Target.Name;

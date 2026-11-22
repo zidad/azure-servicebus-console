@@ -8,10 +8,10 @@ public sealed record RunInput : CommandInput
     public required IHostBuilder HostBuilder { get; init; }
 
     /// <summary><c>--subscription</c>: by name or ID; <c>emulator</c> for the local emulator.</summary>
-    public string? Subscription { get; init; }
+    public string? Connection { get; init; }
 
     /// <summary><c>--namespace</c>: by name or host name; needs <see cref="Subscription"/>.</summary>
-    public string? Namespace { get; init; }
+    public string? Broker { get; init; }
 
     /// <summary><c>--open</c>: an entity path or list in that namespace (<see cref="StartupDestination.Find"/>); needs <see cref="Namespace"/>.</summary>
     public string? Open { get; init; }
@@ -23,5 +23,5 @@ public sealed record RunInput : CommandInput
     public string? ThemeSetting(IConfiguration configuration) => Theme ?? configuration[ConfigKeys.Theme.ConfigurationPath];
 
     /// <summary>Where the app starts; null for the connection page as usual.</summary>
-    public StartupTarget? StartupTarget => Subscription is { } subscription ? new(subscription, Namespace, Open) : null;
+    public StartupTarget? StartupTarget => Connection is { } subscription ? new(subscription, Broker, Open) : null;
 }

@@ -22,7 +22,7 @@ internal static partial class IssueText
     public static string Description(MessageActionContext context, bool includeContext)
     {
         var intro = $"Created from [azsb](https://github.com/zidad/azure-servicebus-console) on `{context.Source.DisplayName}`"
-            + (context.Session.Namespace is { } ns ? $" in namespace `{ns.Name}`" : "")
+            + (context.Session.Broker is { } ns ? $" in namespace `{ns.Name}`" : "")
             + ".\n\n";
         var message = MessageMarkdown.Format(context.Message);
         return includeContext

@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace ServiceBusConsole.Core.Services.Caching;
 
 /// <summary>Every type <see cref="FileCache"/> stores: source-generated, so caching needs no reflection (Native AOT).</summary>
-[JsonSerializable(typeof(List<AzureSubscription>))]
+[JsonSerializable(typeof(List<ConnectionInfo>))]
 [JsonSerializable(typeof(List<BrokerInfo>))]
 [JsonSerializable(typeof(List<QueueInfo>))]
 [JsonSerializable(typeof(List<TopicInfo>))]
@@ -12,5 +12,5 @@ namespace ServiceBusConsole.Core.Services.Caching;
 [JsonSerializable(typeof(List<EntityTraffic>))]
 [JsonSerializable(typeof(List<bool>))]
 [JsonSerializable(typeof(List<TimeSpan>))]
-[JsonSerializable(typeof(List<RecentNamespace>))]
+[JsonSerializable(typeof(List<RecentBroker>))]
 internal sealed partial class CacheJsonContext : JsonSerializerContext;

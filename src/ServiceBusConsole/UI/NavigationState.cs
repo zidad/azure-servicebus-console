@@ -12,7 +12,7 @@ public sealed class NavigationState
     public string? SubscriptionName { get; set; }
     public string? ReturnPath { get; set; }
     public string? FocusedQueueName { get; set; }
-    public AzureSubscription? AzureSubscription { get; set; }
+    public ConnectionInfo? Connection { get; set; }
 
     /// <summary>The next queue or subscription browser opens on its Active tab instead of dead letters; it takes and clears this.</summary>
     public bool StartActive { get; set; }

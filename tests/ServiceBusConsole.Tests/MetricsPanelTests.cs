@@ -291,12 +291,12 @@ public sealed class MetricsPanelTests
     public async Task ConnectionPage_ChartsTheNamespaceBelowTheLists_WhichNeverMove()
     {
         var app = new AppHarness();
-        app.Namespaces.Subscriptions.Add(AppHarness.AzureSubscription);
-        app.Namespaces.Namespaces.Add(AppHarness.AzureNamespace);
+        app.Catalog.Connections.Add(AppHarness.Connection);
+        app.Catalog.Brokers.Add(AppHarness.AzureNamespace);
         await using var terminal = await app.StartAsync(height: 50);
         await AppHarness.WaitForTableFocusAsync(terminal);
         var emulator = await terminal.WaitUntilAsync(
-            f => f.ContainsText(AppHarness.AzureSubscription.Name) && !f.ContainsText("Listing Azure subscriptions")
+            f => f.ContainsText(AppHarness.Connection.Name) && !f.ContainsText("Listing Azure subscriptions")
                 && f.ContainsText("🌐 sb-orders-dev") && f.ContainsText("aren't available for localhost"),
             AppHarness.Timeout, cancellationToken: Ct);
 
@@ -306,10 +306,10 @@ public sealed class MetricsPanelTests
         await terminal.SendKeyAsync(ConsoleKey.UpArrow, '\0', cancellationToken: Ct);
         await terminal.WaitUntilAsync(f => f.ContainsText("aren't available for localhost"), AppHarness.Timeout, cancellationToken: Ct);
 
-        app.Metrics.Requested.ShouldBe([new MetricsScope.Namespace()]);
+        app.Metrics.Requested.ShouldBe([new MetricsScope.Broker()]);
         var choosing = terminal.Frames.SkipWhile(f => !ReferenceEquals(f, emulator)).ToList();
         choosing.ShouldContain(azure);
-        choosing.Select(f => (LineOf(f, "🧪 Local Emulator"), LineOf(f, AppHarness.AzureSubscription.Name), LineOf(f, "🌐 sb-orders-dev"))).Distinct().ShouldHaveSingleItem();
+        choosing.Select(f => (LineOf(f, "🧪 Local Emulator"), LineOf(f, AppHarness.Connection.Name), LineOf(f, "🌐 sb-orders-dev"))).Distinct().ShouldHaveSingleItem();
         LineOf(azure, "🌐 namespace sb-orders-dev").ShouldBe(LineOf(emulator, "aren't available for localhost"));
         LineOf(azure, "🌐 namespace sb-orders-dev").ShouldBeGreaterThan(LineOf(azure, "1  📬 Queues") + 1);
     }
@@ -318,8 +318,8 @@ public sealed class MetricsPanelTests
     public async Task ConnectionPage_PlusZoomsIn_NotIntoTheSubscriptionFilter()
     {
         var app = new AppHarness();
-        app.Namespaces.Subscriptions.Add(AppHarness.AzureSubscription);
-        app.Namespaces.Namespaces.Add(AppHarness.AzureNamespace);
+        app.Catalog.Connections.Add(AppHarness.Connection);
+        app.Catalog.Brokers.Add(AppHarness.AzureNamespace);
         await using var terminal = await app.StartAsync(height: 50);
         await AppHarness.WaitForTableFocusAsync(terminal);
         await app.SelectAzureNamespaceAsync(terminal, AppHarness.AzureNamespace);
@@ -336,8 +336,8 @@ public sealed class MetricsPanelTests
     public async Task ConnectionPage_TooShortForThePanel_StillTogglesItWithF12()
     {
         var app = new AppHarness();
-        app.Namespaces.Subscriptions.Add(AppHarness.AzureSubscription);
-        app.Namespaces.Namespaces.Add(AppHarness.AzureNamespace);
+        app.Catalog.Connections.Add(AppHarness.Connection);
+        app.Catalog.Brokers.Add(AppHarness.AzureNamespace);
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
         app.MetricsOptions.AutoShowHeight = 30; // shown by default, but the connection page needs more lines
         await using var terminal = await app.StartAsync(height: 30);

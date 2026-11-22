@@ -6,7 +6,7 @@ public sealed class NamespaceFeatureTests
 {
     private static readonly BrokerInfo Basic = AppHarness.AzureNamespace with
     {
-        Name = "sb-legacy", FullyQualifiedNamespace = "sb-legacy.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Basic"),
+        Name = "sb-legacy", Address = "sb-legacy.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Basic"),
     };
 
     [Test]
@@ -96,8 +96,8 @@ public sealed class NamespaceFeatureTests
     public async Task WithoutTopics_ConnectionPageOffersQueuesOnly()
     {
         var app = new AppHarness();
-        app.Namespaces.Subscriptions.Add(AppHarness.AzureSubscription);
-        app.Namespaces.Namespaces.Add(Basic);
+        app.Catalog.Connections.Add(AppHarness.Connection);
+        app.Catalog.Brokers.Add(Basic);
         await using var terminal = await app.StartAsync();
         await AppHarness.WaitForTableFocusAsync(terminal);
         await app.SelectAzureNamespaceAsync(terminal, Basic);
@@ -106,7 +106,7 @@ public sealed class NamespaceFeatureTests
         frame.ContainsText("2  📢 Topics").ShouldBeFalse(frame.ScreenText);
         frame.ContainsText("3  📥 All Subscriptions").ShouldBeFalse(frame.ScreenText);
         frame.ContainsText("m  📈 Metrics").ShouldBeTrue(frame.ScreenText);
-        app.Connection.Current.ShouldBeOfType<FakeBasicNamespace>();
+        app.Current.Broker.ShouldBeOfType<FakeBasicNamespace>();
     }
 
     [Test]
@@ -115,7 +115,7 @@ public sealed class NamespaceFeatureTests
         var app = new AppHarness();
         app.Queues.Queues.Add(new QueueInfo { Name = "orders" });
         app.Topics.Topics.Add(new TopicInfo { Name = "order-events" });
-        app.Namespaces.Namespaces.Add(Basic);
+        app.Catalog.Brokers.Add(Basic);
         await using var terminal = await app.OpenAzureAsync(ConsoleKey.F2, height: 30);
         await terminal.WaitForTextAsync("Topics (1)", AppHarness.Timeout, Ct);
 
@@ -124,17 +124,17 @@ public sealed class NamespaceFeatureTests
         await AppHarness.ClickTextAsync(terminal, "🌐 sb-legacy");
 
         await terminal.WaitUntilAsync(f => f.GetLine(0).Contains("🌐 sb-legacy  ›  📬 Queues (1)"), AppHarness.Timeout, cancellationToken: Ct);
-        app.Connection.Current.ShouldBeOfType<FakeBasicNamespace>();
+        app.Current.Broker.ShouldBeOfType<FakeBasicNamespace>();
     }
 
     [Test]
     public async Task SwitchingNamespace_DisposesThePreviousOne()
     {
         var app = new AppHarness();
-        var opened = new List<FakeNamespace>();
+        var opened = new List<FakeBroker>();
         app.OpenNamespace = info =>
         {
-            var ns = FakeNamespace.For(info, app.Services);
+            var ns = FakeBroker.For(info, app.Services);
             opened.Add(ns);
             return ns;
         };

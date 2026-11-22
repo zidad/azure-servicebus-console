@@ -53,7 +53,7 @@ public sealed class MonitorMetricsTests
     [Test]
     public void Filter_SelectsTheEntity()
     {
-        MonitorMetrics.Filter(new MetricsScope.Namespace()).ShouldBeNull();
+        MonitorMetrics.Filter(new MetricsScope.Broker()).ShouldBeNull();
         MonitorMetrics.Filter(new MetricsScope.Entity("orders")).ShouldBe("EntityName eq 'orders'");
         MonitorMetrics.Filter(new MetricsScope.Entity("datahub.auditstore/iskipaudit")).ShouldBe("EntityName eq 'datahub.auditstore/iskipaudit'");
     }

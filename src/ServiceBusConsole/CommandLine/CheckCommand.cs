@@ -8,7 +8,7 @@ namespace ServiceBusConsole.CommandLine;
 /// Whether the namespace can be used from here, step by step until one fails: Azure sign-in and the namespace, DNS
 /// (private or public address), the AMQP port, then a peek, which needs a data-plane role.
 /// </summary>
-public sealed record CheckCommand : NamespaceCommand
+public sealed record CheckCommand : BrokerCommand
 {
     private const int AmqpsPort = 5671;
     private const int EmulatorAmqpPort = 5672;
@@ -41,23 +41,23 @@ public sealed record CheckCommand : NamespaceCommand
     private static async IAsyncEnumerable<Step> StepsAsync(CommandContext context)
     {
         var ct = context.Token;
-        AzureSubscription subscription;
+        ConnectionInfo subscription;
         BrokerInfo info;
         Step resolved;
         try
         {
-            (subscription, info) = await context.Target.ResolveAsync(context.Services.Namespaces, ct);
-            resolved = new(CommandLineStrings.CheckCommand_Namespace, true, $"{subscription.Name} › {info.Name} ({info.FullyQualifiedNamespace})");
+            (subscription, info) = await context.Target.ResolveAsync(context.Services.Catalog, ct);
+            resolved = new(CommandLineStrings.CheckCommand_Namespace, true, $"{subscription.Name} › {info.Name} ({info.Address})");
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            (subscription, info) = (AzureSubscription.Emulator, BrokerInfo.Emulator);
+            (subscription, info) = (ConnectionInfo.Emulator, BrokerInfo.Emulator);
             resolved = new(CommandLineStrings.CheckCommand_Namespace, false, ex.Message.Split('\n')[0], CommandLineStrings.CheckCommand_SignInHint);
         }
         yield return resolved;
         if (!resolved.Ok) yield break;
 
-        var host = info.FullyQualifiedNamespace;
+        var host = info.Address;
         IPAddress[] addresses;
         string? dnsError = null;
         try

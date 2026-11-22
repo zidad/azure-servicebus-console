@@ -15,22 +15,22 @@ public static class JumpTargets
     }
 
     /// <summary>The namespaces cached for <paramref name="subscriptions"/>; the emulator has no listing.</summary>
-    public static async Task<IReadOnlyList<JumpNamespace>> NamespacesAsync(IEnumerable<AzureSubscription> subscriptions, FileCache cache)
+    public static async Task<IReadOnlyList<JumpBroker>> BrokersAsync(IEnumerable<ConnectionInfo> subscriptions, FileCache cache)
     {
         var lists = await Task.WhenAll(subscriptions.Select(async s => s.Id is { } id
-            ? (await cache.LoadAsync<BrokerInfo>(CacheKeys.Namespaces(id)) ?? []).Select(ns => new JumpNamespace(s, ns))
+            ? (await cache.LoadAsync<BrokerInfo>(CacheKeys.Brokers(id)) ?? []).Select(ns => new JumpBroker(s, ns))
             : []));
         return [.. lists.SelectMany(l => l)];
     }
 
     /// <summary>Another namespace's entities from its cached listings only: searching all namespaces makes no requests.</summary>
-    public static async Task<IReadOnlyList<JumpTarget>> CachedAsync(JumpNamespace place, FileCache cache) =>
+    public static async Task<IReadOnlyList<JumpTarget>> CachedAsync(JumpBroker place, FileCache cache) =>
         Entities(await cache.LoadAsync<QueueInfo>(CacheKeys.Queues(place.Info)) ?? [],
             await cache.LoadAsync<TopicInfo>(CacheKeys.Topics(place.Info)) ?? [],
             await cache.LoadAsync<SubscriptionInfo>(CacheKeys.AllSubscriptions(place.Info)) ?? [],
             place);
 
-    private static IReadOnlyList<JumpTarget> Entities(IEnumerable<QueueInfo> queues, IEnumerable<TopicInfo> topics, IEnumerable<SubscriptionInfo> subscriptions, JumpNamespace? elsewhere) =>
+    private static IReadOnlyList<JumpTarget> Entities(IEnumerable<QueueInfo> queues, IEnumerable<TopicInfo> topics, IEnumerable<SubscriptionInfo> subscriptions, JumpBroker? elsewhere) =>
         [.. queues.Select(q => (JumpTarget)new JumpTarget.Queue(q) { Elsewhere = elsewhere }),
             .. topics.Select(t => new JumpTarget.Topic(t) { Elsewhere = elsewhere }),
             .. subscriptions.Select(s => new JumpTarget.Subscription(s) { Elsewhere = elsewhere })];

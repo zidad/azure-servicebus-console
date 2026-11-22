@@ -11,11 +11,11 @@ internal sealed class NamespaceService(ArmClient armClient, ILogger<NamespaceSer
     // Bounds live namespace checks across all subscriptions; cached answers never wait for this.
     private readonly SemaphoreSlim _checks = new(4);
 
-    public IAsyncEnumerable<AzureSubscription> GetSubscriptionsAsync(CancellationToken ct = default) =>
+    public IAsyncEnumerable<ConnectionInfo> GetConnectionsAsync(CancellationToken ct = default) =>
         armClient.GetSubscriptions().GetAllAsync(ct)
-            .Select(sub => new AzureSubscription(sub.Data.DisplayName, sub.Data.SubscriptionId));
+            .Select(sub => new ConnectionInfo(sub.Data.DisplayName, sub.Data.SubscriptionId));
 
-    public async Task<string?> GetCurrentSubscriptionIdAsync(CancellationToken ct = default)
+    public async Task<string?> GetCurrentConnectionIdAsync(CancellationToken ct = default)
     {
         try
         {
@@ -28,7 +28,7 @@ internal sealed class NamespaceService(ArmClient armClient, ILogger<NamespaceSer
         }
     }
 
-    public async IAsyncEnumerable<bool> HasNamespacesAsync(string subscriptionId, [EnumeratorCancellation] CancellationToken ct = default)
+    public async IAsyncEnumerable<bool> HasBrokersAsync(string subscriptionId, [EnumeratorCancellation] CancellationToken ct = default)
     {
         bool has;
         await _checks.WaitAsync(ct);
@@ -43,13 +43,13 @@ internal sealed class NamespaceService(ArmClient armClient, ILogger<NamespaceSer
         yield return has;
     }
 
-    public IAsyncEnumerable<BrokerInfo> GetNamespacesAsync(string subscriptionId, CancellationToken ct = default)
+    public IAsyncEnumerable<BrokerInfo> GetBrokersAsync(string subscriptionId, CancellationToken ct = default)
     {
         logger.LogInformation("Listing namespaces for subscription {SubscriptionId}", subscriptionId);
         return Subscription(subscriptionId).GetServiceBusNamespacesAsync(ct).Select(ns => new BrokerInfo
         {
             Name = ns.Data.Name,
-            FullyQualifiedNamespace = $"{ns.Data.Name}.servicebus.windows.net",
+            Address = $"{ns.Data.Name}.servicebus.windows.net",
             Properties = NamespaceProperties.Of(ns.Data.Sku?.Name.ToString(), ns.Data.Location.DisplayName ?? ns.Data.Location.Name,
                 ns.Id?.ResourceGroupName, ns.Data.Status, ns.Id?.ToString()),
         });

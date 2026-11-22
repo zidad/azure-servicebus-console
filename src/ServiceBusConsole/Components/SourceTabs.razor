@@ -1,4 +1,4 @@
-@inject ServiceBusConnection Connection
+@inject CurrentBroker Current
 @inject FileCache Cache
 
 <Flex Justify="FlexJustify.SpaceBetween" FillWidth="true">
@@ -41,7 +41,7 @@
     protected override async Task OnParametersSetAsync()
     {
         var entity = Entity with { IsDlq = false };
-        if (Connection.Current is not { Info: var ns } || entity == _loadedFor) return;
+        if (Current.Broker is not { Info: var ns } || entity == _loadedFor) return;
         _loadedFor = entity;
         _counts = await entity.Match(
             async q => (await Cache.LoadAsync<QueueInfo>(CacheKeys.Queues(ns)))?.FirstOrDefault(i => i.Name == q.Name) is { } info

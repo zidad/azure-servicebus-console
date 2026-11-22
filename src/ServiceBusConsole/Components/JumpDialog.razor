@@ -1,9 +1,9 @@
 @inject RazorConsole.Core.Focus.FocusManager FocusManager
-@inject ServiceBusConnection Connection
+@inject CurrentBroker Current
 @inject FileCache Cache
 @inject NavigationState NavState
-@inject SubscriptionCatalog Catalog
-@inject NamespaceSwitcher Switcher
+@inject ConnectionList Catalog
+@inject BrokerSwitcher Switcher
 
 <Dialog IsOpened="@IsOpened" Icon="@Icons.Filter" Title="@ComponentStrings.JumpDialog_Title" Width="@Width" Padding="@(new(1, 0, 1, 0))">
     <ChildContent>
@@ -13,7 +13,7 @@
             <TextInput @ref="_input" @key="_opened" OnInput="@OnQuery"
                        Placeholder="@ComponentStrings.JumpDialog_Placeholder" FocusOrder="100" @onkeydown="HandleKey" FillWidth="true" />
         </div>
-        @if (Connection.Current is { } here)
+        @if (Current.Broker is { } here)
         {
             <Markup Content="@((_everywhere ? ComponentStrings.FormatJumpDialog_ScopeAll(here.Info.Name) : ComponentStrings.FormatJumpDialog_ScopeHere(here.Info.Name)).PadLeft(Width - 4))"
                     Foreground="@Theme.Muted" />
@@ -76,7 +76,7 @@
     private int _opened;
     private int _cursor;
     private IReadOnlyList<JumpTarget> _targets = [];
-    private IReadOnlyList<JumpNamespace> _namespaces = [];
+    private IReadOnlyList<JumpBroker> _namespaces = [];
     // The other namespaces' entities, loaded on the first ^a.
     private IReadOnlyList<JumpTarget>? _elsewhere;
     private bool _everywhere;
@@ -88,7 +88,7 @@
 
     private sealed record JumpAction(string Icon, string Text, string Key, Action Run);
 
-    private bool HasDeadLetters => Connection.Current is IHasDeadLetters;
+    private bool HasDeadLetters => Current.Broker is IHasDeadLetters;
 
     private IReadOnlyList<JumpAction> Actions => HasDeadLetters && _results.ElementAtOrDefault(_subject) is { DeadLetters: > 0 } t and not JumpTarget.Topic
         ? [new(Icons.DeadLetter, ComponentStrings.FormatJumpDialog_OpenDeadLetter(t.Name), "⇥", () => Open(t, deadLetters: true)),
@@ -108,17 +108,17 @@
         StateHasChanged();
         _targets = await LoadAsync();
         var here = Here;
-        _namespaces = [.. (await JumpTargets.NamespacesAsync(Catalog.Subscriptions, Cache))
-            .Where(ns => !ns.Is(here?.Subscription, here?.Info.FullyQualifiedNamespace))];
+        _namespaces = [.. (await JumpTargets.BrokersAsync(Catalog.Connections, Cache))
+            .Where(ns => !ns.Is(here?.Subscription, here?.Info.Address))];
         _loading = false;
         Search();
         StateHasChanged();
     }
 
-    private JumpNamespace? Here => Connection.Current is { } current && NavState.AzureSubscription is { } subscription ? new(subscription, current.Info) : null;
+    private JumpBroker? Here => Current.Broker is { } current && NavState.Connection is { } subscription ? new(subscription, current.Info) : null;
 
     private Task<IReadOnlyList<JumpTarget>> LoadAsync() =>
-        Connection.Current is { } current ? JumpTargets.LoadAsync(current, Cache) : Task.FromResult<IReadOnlyList<JumpTarget>>([]);
+        Current.Broker is { } current ? JumpTargets.LoadAsync(current, Cache) : Task.FromResult<IReadOnlyList<JumpTarget>>([]);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -137,7 +137,7 @@
 
     private void Search()
     {
-        _groups = JumpIndex.Grouped(_query, [.. _targets, .. _everywhere ? _elsewhere ?? [] : [], .. _namespaces.Select(ns => new JumpTarget.Namespace(ns))]);
+        _groups = JumpIndex.Grouped(_query, [.. _targets, .. _everywhere ? _elsewhere ?? [] : [], .. _namespaces.Select(ns => new JumpTarget.Broker(ns))]);
         _results = [.. _groups.SelectMany(g => g.Targets)];
     }
 
@@ -145,7 +145,7 @@
     private static string Line(JumpTarget t)
     {
         var info = t.DeadLetters > 0 ? $"{Icons.DeadLetter} {t.DeadLetters:N0}" : "";
-        var where = t is JumpTarget.Namespace n ? n.Place.Subscription.Name : t.Elsewhere?.Info.Name ?? t.Kind;
+        var where = t is JumpTarget.Broker n ? n.Place.Subscription.Name : t.Elsewhere?.Info.Name ?? t.Kind;
         return $" {Fit(t.Label, 46)}{Fit(where, 22)}{info}".PadRight(Width - 4);
     }
 
@@ -222,7 +222,7 @@
     {
         IsOpened = false;
         var route = NavState.RouteTo(target, active: !deadLetters);
-        if (target.OtherNamespace is { } place) await Switcher.OpenAsync(place.Subscription, place.Info, route);
+        if (target.OtherBroker is { } place) await Switcher.OpenAsync(place.Subscription, place.Info, route);
         else Switcher.Show(route);
     }
 

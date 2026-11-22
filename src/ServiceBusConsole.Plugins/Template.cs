@@ -18,7 +18,7 @@ public static partial class Template
         "messageid" => context.Message.MessageId,
         "key" => context.Message.Key.Value,
         "entity" => context.Source.DisplayName,
-        "namespace" => context.Session.Namespace?.Name ?? "",
+        "namespace" => context.Session.Broker?.Name ?? "",
         "deadletterreason" => context.Message.DeadLetterReason ?? "",
         var other => context.Message.TransportProperties.FirstOrDefault(p => p.Id.Equals(other, StringComparison.OrdinalIgnoreCase))?.Text,
     };

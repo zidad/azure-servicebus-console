@@ -6,12 +6,12 @@ using Microsoft.Extensions.Hosting;
 
 namespace ServiceBusConsole.Tests;
 
-public sealed class NamespaceCommandTests
+public sealed class BrokerCommandTests
 {
     private sealed class Cli
     {
         public FakeServices Services { get; } = new();
-        public FakeNamespaceService Namespaces { get; } = new();
+        public FakeConnectionCatalog Namespaces { get; } = new();
         public Dictionary<string, string?> Settings { get; } = [];
         public StringWriter Out { get; private set; } = new();
         public StringWriter Error { get; private set; } = new();
@@ -19,17 +19,17 @@ public sealed class NamespaceCommandTests
 
         public Cli()
         {
-            Namespaces.Subscriptions.Add(AppHarness.AzureSubscription);
-            Namespaces.Namespaces.Add(AppHarness.AzureNamespace);
-            Namespaces.CurrentSubscriptionId = AppHarness.AzureSubscription.Id;
+            Namespaces.Connections.Add(AppHarness.Connection);
+            Namespaces.Brokers.Add(AppHarness.AzureNamespace);
+            Namespaces.CurrentSubscriptionId = AppHarness.Connection.Id;
         }
 
-        public Func<BrokerInfo, FakeServices, IBroker> Open { get; set; } = FakeNamespace.For;
+        public Func<BrokerInfo, FakeServices, IBroker> Open { get; set; } = FakeBroker.For;
 
         public AppCommands Commands => new(Host.CreateDefaultBuilder(), PluginCatalog.Empty, services: () =>
             new CommandServices(
                 Namespaces,
-                new FakeNamespaceOpener(info => Open(info, Services)),
+                new FakeBrokerOpener(info => Open(info, Services)),
                 new ConfigurationBuilder().AddInMemoryCollection(Settings).Build())
             {
                 Out = Out, Error = Error, Input = () => Input is { } text ? new MemoryStream(Encoding.UTF8.GetBytes(text)) : null,
@@ -55,10 +55,10 @@ public sealed class NamespaceCommandTests
     public void Peek_BindsItsOptions()
     {
         var input = new Cli().Commands.Bind("peek", "orders", "--dlq", "--max", "5", "-s", "Contoso Development", "-n", "sb-*", "--json")
-            .ShouldBeOfType<NamespaceInput>();
+            .ShouldBeOfType<BrokerInput>();
 
         input.Command.ShouldBe(new PeekCommand("orders", Dlq: true, Max: 5));
-        input.Target.ShouldBe(new NamespaceTarget("Contoso Development", "sb-*"));
+        input.Target.ShouldBe(new BrokerTarget("Contoso Development", "sb-*"));
         input.Json.ShouldBeTrue();
     }
 
@@ -66,7 +66,7 @@ public sealed class NamespaceCommandTests
     public void Retry_BindsRepeatedIds()
     {
         var command = new Cli().Commands.Bind("retry", "orders", "--message-id", "a", "--message-id", "b", "--sequence", "7")
-            .ShouldBeOfType<NamespaceInput>().Command.ShouldBeOfType<RetryCommand>();
+            .ShouldBeOfType<BrokerInput>().Command.ShouldBeOfType<RetryCommand>();
 
         command.Selection.MessageIds.ShouldBe(["a", "b"]);
         command.Selection.SequenceNumbers.ShouldBe([7L]);
@@ -88,7 +88,7 @@ public sealed class NamespaceCommandTests
     public async Task NamespacePattern_MatchingOne_IsUsed()
     {
         var cli = new Cli();
-        cli.Namespaces.Namespaces.Add(AppHarness.AzureNamespace with { Name = "sb-billing-tst", FullyQualifiedNamespace = "sb-billing-tst.servicebus.windows.net" });
+        cli.Namespaces.Brokers.Add(AppHarness.AzureNamespace with { Name = "sb-billing-tst", Address = "sb-billing-tst.servicebus.windows.net" });
 
         (await cli.RunAsync("list", "-n", "sb-orders-*")).ShouldBe(ExitCodes.Ok);
         (await cli.RunAsync("list", "-n", "sb-*")).ShouldBe(ExitCodes.Usage);

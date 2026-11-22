@@ -328,7 +328,7 @@ public sealed class QueueListPageTests
     public async Task GoingBack_KeepsTheOpenedQueueSelected_WithCachedRows()
     {
         var app = WithQueues();
-        app.OpenNamespace = info => new CachedQueuesNamespace(FakeNamespace.For(info, app.Services), app.Cache);
+        app.OpenNamespace = info => new CachedQueuesNamespace(FakeBroker.For(info, app.Services), app.Cache);
         await using var terminal = await app.OpenQueuesAsync();
         await AppHarness.WaitForSettledAsync(terminal, f => f.ContainsText("Queues (3)") && f.ContainsText("● live"));
         await terminal.SendKeyAsync(ConsoleKey.DownArrow, '\0', cancellationToken: Ct);
@@ -343,11 +343,11 @@ public sealed class QueueListPageTests
         await terminal.WaitUntilAsync(f => !f.ContainsText("Queues (") && f.GetLine(0).Contains("emails"), AppHarness.Timeout, cancellationToken: Ct);
     }
 
-    // The real opener caches listings (CachingNamespaceDecorator): going back shows cached rows first.
+    // The real opener caches listings (CachingBrokerDecorator): going back shows cached rows first.
     private sealed class CachedQueuesNamespace(IBroker inner, FileCache cache) : IBroker
     {
         public BrokerInfo Info => inner.Info;
-        public IQueueService Queues { get; } = new CachingNamespaceDecorator(cache).Decorate(inner.Info, inner.Queues);
+        public IQueueService Queues { get; } = new CachingBrokerDecorator(cache).Decorate(inner.Info, inner.Queues);
         public IMessageService Messages => inner.Messages;
         public ValueTask DisposeAsync() => inner.DisposeAsync();
     }

@@ -28,7 +28,7 @@ public sealed class Screenshots
         await app.SelectAzureNamespaceAsync(terminal, AppHarness.AzureNamespace);
         var tree = terminal.Services.GetRequiredService<ExplorerTree>();
         foreach (var name in new[] { "Contoso Production", "Contoso Sandbox" })
-            tree.SetOpen(new ExplorerNode.Subscription(app.Namespaces.Subscriptions.Single(s => s.Name == name)), false);
+            tree.SetOpen(new ExplorerNode.Connection(app.Catalog.Connections.Single(s => s.Name == name)), false);
         await terminal.WaitUntilAsync(f => f.ContainsText("▸ 🔑 Contoso Sandbox"), AppHarness.Timeout, cancellationToken: Ct);
         await Save(terminal, dir, "connection");
 
@@ -251,9 +251,9 @@ public sealed class Screenshots
         var now = DateTimeOffset.UtcNow;
         var time = new FixedTime(now.AddDays(-1));
         app.Time = time;
-        await app.Recent.RecordAsync(AzureSubscription.Emulator, BrokerInfo.Emulator);
+        await app.Recent.RecordAsync(ConnectionInfo.Emulator, BrokerInfo.Emulator);
         time.Now = now.AddHours(-2);
-        await app.Recent.RecordAsync(AppHarness.AzureSubscription, AppHarness.AzureNamespace);
+        await app.Recent.RecordAsync(AppHarness.Connection, AppHarness.AzureNamespace);
         time.Now = now;
     }
 
@@ -262,17 +262,17 @@ public sealed class Screenshots
         // Shown on the connection page; keep the real home folder out of published screenshots.
         var app = new AppHarness { CacheDirectory = "/home/you/.local/share/sb-console" };
         app.MetricsOptions.Debounce = TimeSpan.FromMilliseconds(50);
-        app.Namespaces.Subscriptions.AddRange(
+        app.Catalog.Connections.AddRange(
         [
-            new AzureSubscription("Contoso Production", "6f1d2c3b-0000-4000-8000-000000000002"),
-            new AzureSubscription("Contoso Development", "6f1d2c3b-0000-4000-8000-000000000001"),
-            new AzureSubscription("Contoso Sandbox", "6f1d2c3b-0000-4000-8000-000000000003"),
+            new ConnectionInfo("Contoso Production", "6f1d2c3b-0000-4000-8000-000000000002"),
+            new ConnectionInfo("Contoso Development", "6f1d2c3b-0000-4000-8000-000000000001"),
+            new ConnectionInfo("Contoso Sandbox", "6f1d2c3b-0000-4000-8000-000000000003"),
         ]);
-        app.Namespaces.Namespaces.AddRange(
+        app.Catalog.Brokers.AddRange(
         [
-            new BrokerInfo { Name = "sb-orders-dev", FullyQualifiedNamespace = "sb-orders-dev.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Standard", location: "West Europe", resourceGroup: "rg-messaging-dev", status: "Active") },
-            new BrokerInfo { Name = "sb-orders-prd", FullyQualifiedNamespace = "sb-orders-prd.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Premium", location: "West Europe", resourceGroup: "rg-messaging-prd", status: "Active") },
-            new BrokerInfo { Name = "sb-legacy", FullyQualifiedNamespace = "sb-legacy.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Basic", location: "North Europe", resourceGroup: "rg-legacy", status: "Disabled") },
+            new BrokerInfo { Name = "sb-orders-dev", Address = "sb-orders-dev.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Standard", location: "West Europe", resourceGroup: "rg-messaging-dev", status: "Active") },
+            new BrokerInfo { Name = "sb-orders-prd", Address = "sb-orders-prd.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Premium", location: "West Europe", resourceGroup: "rg-messaging-prd", status: "Active") },
+            new BrokerInfo { Name = "sb-legacy", Address = "sb-legacy.servicebus.windows.net", Properties = ServiceBusProperties(sku: "Basic", location: "North Europe", resourceGroup: "rg-legacy", status: "Disabled") },
         ]);
         app.Queues.Queues.AddRange(
         [

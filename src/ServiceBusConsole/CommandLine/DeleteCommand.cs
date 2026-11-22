@@ -4,7 +4,7 @@ namespace ServiceBusConsole.CommandLine;
 /// Removes dead-lettered messages for good, chosen by ID or sequence number. Only in a dead-letter queue: finding a message
 /// means receiving the ones before it, which in an active queue would dead-letter unrelated messages.
 /// </summary>
-public sealed record DeleteCommand(string Entity, bool Dlq, MessageSelection Selection, bool DryRun = false) : NamespaceCommand
+public sealed record DeleteCommand(string Entity, bool Dlq, MessageSelection Selection, bool DryRun = false) : BrokerCommand
 {
     public override async Task<int> RunAsync(CommandContext context)
     {

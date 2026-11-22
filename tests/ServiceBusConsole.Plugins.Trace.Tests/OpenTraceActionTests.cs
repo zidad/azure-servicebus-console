@@ -21,12 +21,12 @@ public sealed class OpenTraceActionTests
     };
 
     private static MessageActionContext Context(
-        FakePluginHost host, MessageInfo? message = null, AzureSubscription? subscription = null, params (string Key, string Value)[] settings) => new()
+        FakePluginHost host, MessageInfo? message = null, ConnectionInfo? subscription = null, params (string Key, string Value)[] settings) => new()
     {
         PluginId = "trace",
         Message = message ?? Message,
         Source = new MessageSource.Queue("orders", IsDlq: true),
-        Session = new SessionSnapshot { At = DateTimeOffset.UnixEpoch, Subscription = subscription ?? new AzureSubscription("Orders", "sub-1") },
+        Session = new SessionSnapshot { At = DateTimeOffset.UnixEpoch, Connection = subscription ?? new ConnectionInfo("Orders", "sub-1") },
         Settings = new ConfigurationBuilder()
             .AddInMemoryCollection(new TracePlugin().Settings.Where(s => s.Default is not null).Select(s => KeyValuePair.Create(s.Key, s.Default)))
             .AddInMemoryCollection(settings.Select(s => KeyValuePair.Create(s.Key, (string?)s.Value)))
@@ -227,7 +227,7 @@ public sealed class OpenTraceActionTests
 
         var none = await Should.ThrowAsync<InvalidOperationException>(new OpenTraceAction().RunAsync(Context(host), Ct));
         var unknown = await Should.ThrowAsync<InvalidOperationException>(new OpenTraceAction().RunAsync(Context(host, settings: ("appInsights", "ai-x")), Ct));
-        var emulator = await Should.ThrowAsync<InvalidOperationException>(new OpenTraceAction().RunAsync(Context(host, subscription: AzureSubscription.Emulator), Ct));
+        var emulator = await Should.ThrowAsync<InvalidOperationException>(new OpenTraceAction().RunAsync(Context(host, subscription: ConnectionInfo.Emulator), Ct));
 
         none.Message.ShouldBe("No Application Insights in this subscription; set one: azsb config set plugins.trace.appInsights <resource id>");
         unknown.Message.ShouldBe("Application Insights ai-x not found in this subscription; set its resource id instead");

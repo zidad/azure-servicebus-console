@@ -24,7 +24,7 @@ public sealed class Redaction
 
     /// <summary>The configured redaction when <paramref name="ns"/> matches <c>cli.redact.namespaces</c>, else <see cref="None"/>.</summary>
     public static Redaction For(BrokerInfo ns, IConfiguration configuration) =>
-        Glob.List(configuration[ConfigKeys.RedactNamespaces.ConfigurationPath]).Any(g => g.Matches(ns.Name) || g.Matches(ns.FullyQualifiedNamespace))
+        Glob.List(configuration[ConfigKeys.RedactNamespaces.ConfigurationPath]).Any(g => g.Matches(ns.Name) || g.Matches(ns.Address))
             ? Of(configuration[ConfigKeys.RedactFields.ConfigurationPath])
             : None;
 

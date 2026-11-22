@@ -1,12 +1,12 @@
 namespace ServiceBusConsole.CommandLine;
 
 /// <summary>What a namespace command does; returns its exit code (<see cref="ExitCodes"/>).</summary>
-public abstract record NamespaceCommand
+public abstract record BrokerCommand
 {
     public abstract Task<int> RunAsync(CommandContext context);
 
     /// <summary>Runs <paramref name="input"/>; failures go to standard error as one line and set the exit code.</summary>
-    public static async Task<int> ExecuteAsync(NamespaceInput input, CancellationToken ct)
+    public static async Task<int> ExecuteAsync(BrokerInput input, CancellationToken ct)
     {
         CommandServices services;
         try

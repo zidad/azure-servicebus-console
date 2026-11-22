@@ -28,12 +28,12 @@ public static class SessionMarkdown
 
     private static IEnumerable<string> Where(SessionSnapshot snapshot)
     {
-        if (snapshot.Subscription is { } subscription)
+        if (snapshot.Connection is { } subscription)
             yield return subscription.Id is { } id ? $"Azure subscription: {subscription.Name} (`{id}`)" : $"Azure subscription: {subscription.Name}";
-        if (snapshot.Namespace is { } ns)
+        if (snapshot.Broker is { } ns)
         {
             var extra = string.Join(", ", ns.Properties.Select(p => $"{p.Label}: {p.Value}"));
-            yield return $"Namespace: {ns.Name} (`{ns.FullyQualifiedNamespace}`)" + (extra.Length > 0 ? $", {extra}" : "");
+            yield return $"Namespace: {ns.Name} (`{ns.Address}`)" + (extra.Length > 0 ? $", {extra}" : "");
         }
         if (snapshot.Source is { } source)
             yield return source.Match(

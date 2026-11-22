@@ -10,10 +10,10 @@ public static class SessionJson
     public static JsonObject ToNode(SessionSnapshot snapshot) => new()
     {
         ["at"] = ContextText.Time(snapshot.At),
-        ["subscription"] = snapshot.Subscription is { } s
+        ["subscription"] = snapshot.Connection is { } s
             ? new JsonObject { ["name"] = s.Name, ["id"] = s.Id, ["isEmulator"] = s.IsEmulator }
             : null,
-        ["namespace"] = snapshot.Namespace is { } ns ? Namespace(ns) : null,
+        ["namespace"] = snapshot.Broker is { } ns ? Namespace(ns) : null,
         ["source"] = Source(snapshot.Source),
         ["mode"] = snapshot.Mode,
         ["message"] = snapshot.Message is { } m ? MessageJson.ToNode(m) : null,
@@ -33,7 +33,7 @@ public static class SessionJson
     private static JsonObject Namespace(BrokerInfo ns) =>
         new([
             new("name", ns.Name),
-            new("fullyQualifiedNamespace", ns.FullyQualifiedNamespace),
+            new("fullyQualifiedNamespace", ns.Address),
             .. ns.Properties.Select(p => new KeyValuePair<string, JsonNode?>(p.Id, p.Value)),
         ]);
 }

@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 namespace ServiceBusConsole.CommandLine;
 
 /// <summary>Deletes every message of a queue or subscription, or of its dead-letter queue; needs <c>--yes</c>.</summary>
-public sealed record PurgeCommand(string Entity, bool Dlq, bool Yes) : NamespaceCommand
+public sealed record PurgeCommand(string Entity, bool Dlq, bool Yes) : BrokerCommand
 {
     public override async Task<int> RunAsync(CommandContext context)
     {

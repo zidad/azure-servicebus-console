@@ -3,14 +3,14 @@
 
 @inject NavigationManager Nav
 @inject NavigationState NavState
-@inject IConnectionCatalog NamespaceService
-@inject SubscriptionCatalog Catalog
-@inject ServiceBusConnection Connection
+@inject IConnectionCatalog ConnectionCatalog
+@inject ConnectionList Catalog
+@inject CurrentBroker Current
 @inject FileCache FileCache
 @inject ITerminalViewport Viewport
 @inject MetricsVisibility MetricsVisibility
 @inject ExplorerTree Tree
-@inject NamespaceSwitcher Switcher
+@inject BrokerSwitcher Switcher
 @inject MessageBrowserStore Store
 
 @* With the metrics panel, a column of the terminal's height keeps it at the bottom, wherever the lists end. *@
@@ -28,7 +28,7 @@
                                 MaxRows="@TreeRows"
                                 FocusOrder="1"
                                 SelectKey="@_selectKey"
-                                DefaultSubscriptionId="@_azDefaultId"
+                                DefaultConnectionId="@_azDefaultId"
                                 SelectedChanged="@Follow"
                                 TakeKey="@StepRange"
                                 OnKeyDown="@HandleKeyDown" />
@@ -74,10 +74,10 @@
     @if (ShowMetrics)
     {
         <MetricsPanel @ref="_metricsPanel"
-                      Label="@($"{Icons.Namespace} {PageStrings.FormatConnection_MetricsLabel(ChosenNamespace?.Name)}")"
+                      Label="@($"{Icons.Namespace} {PageStrings.FormatConnection_MetricsLabel(ChosenBroker?.Name)}")"
                       Metrics="@ChartedMetrics"
-                      Scope="@(ChartedMetrics is null ? null : new MetricsScope.Namespace())"
-                      Placeholder="@(ChosenNamespace is { } chosen ? PageStrings.FormatConnection_MetricsUnavailable(chosen.Name) : PageStrings.Connection_MetricsChooseNamespace)"
+                      Scope="@(ChartedMetrics is null ? null : new MetricsScope.Broker())"
+                      Placeholder="@(ChosenBroker is { } chosen ? PageStrings.FormatConnection_MetricsUnavailable(chosen.Name) : PageStrings.Connection_MetricsChooseNamespace)"
                       FocusOrder="9"
                       OnKeyDown="@HandleKeyDown" />
     }
@@ -106,14 +106,14 @@
     private string? _startupError;
     private string? _azDefaultId;
 
-    private BrokerInfo? ChosenNamespace => _selected?.InNamespace?.Info;
+    private BrokerInfo? ChosenBroker => _selected?.InBroker?.Info;
 
     // When the tree keeps a few rows next to it: by the terminal only, never by the selection, so choosing moves nothing.
     private bool ShowMetrics => MetricsVisibility.IsVisible(Viewport.Height, LogoLines + ChromeLines + MinTreeRows + MetricsLines);
 
     // Only once the chosen namespace is open.
     private IMetricsService? ChartedMetrics =>
-        Connection.Current is { Info: var open } and IHasMetrics { Metrics: var metrics } && open == ChosenNamespace ? metrics : null;
+        Current.Broker is { Info: var open } and IHasMetrics { Metrics: var metrics } && open == ChosenBroker ? metrics : null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -122,13 +122,13 @@
         _startup = NavState.Startup;
         NavState.Startup = null;
         var fromCommandLine = _startup is not null;
-        var returning = NavState.AzureSubscription is not null;
-        var subscription = NavState.AzureSubscription ?? AzureSubscription.Emulator;
-        var ns = returning ? Connection.Current?.Info : BrokerInfo.Emulator;
+        var returning = NavState.Connection is not null;
+        var subscription = NavState.Connection ?? ConnectionInfo.Emulator;
+        var ns = returning ? Current.Broker?.Info : BrokerInfo.Emulator;
         Tree.Reveal(subscription);
         _selectKey = KeyOf(subscription, ns);
         _ = Catalog.EnsureLoadedAsync();
-        _azDefaultId = await NamespaceService.GetCurrentSubscriptionIdAsync();
+        _azDefaultId = await ConnectionCatalog.GetCurrentConnectionIdAsync();
         if (!returning && !fromCommandLine && _azDefaultId is { } current)
             _startup = new StartupTarget(current) { IsAzureCliDefault = true };
         ApplyStartup();
@@ -146,13 +146,13 @@
         StateHasChanged();
     });
 
-    private static string KeyOf(AzureSubscription subscription, BrokerInfo? ns)
+    private static string KeyOf(ConnectionInfo subscription, BrokerInfo? ns)
     {
-        var node = new ExplorerNode.Subscription(subscription);
-        return ns is null ? node.Key : new ExplorerNode.Namespace(node, ns).Key;
+        var node = new ExplorerNode.Connection(subscription);
+        return ns is null ? node.Key : new ExplorerNode.Broker(node, ns).Key;
     }
 
-    private void SelectNode(AzureSubscription subscription, BrokerInfo? ns)
+    private void SelectNode(ConnectionInfo subscription, BrokerInfo? ns)
     {
         Tree.Reveal(subscription);
         _selectKey = KeyOf(subscription, ns);
@@ -165,17 +165,17 @@
         if (_startup is not { } startup) return;
         // Before the list: the catalog loads on another thread, and a list read first may predate the end of loading.
         var loading = Catalog.Loading;
-        if (Catalog.Subscriptions.FirstOrDefault(startup.Matches) is not { } subscription)
+        if (Catalog.Connections.FirstOrDefault(startup.Matches) is not { } subscription)
         {
             if (loading) return;
             _startup = null;
-            if (!startup.IsAzureCliDefault) _startupError = PageStrings.FormatConnection_SubscriptionNotFound(startup.Subscription);
-            SelectNode(AzureSubscription.Emulator, BrokerInfo.Emulator);
+            if (!startup.IsAzureCliDefault) _startupError = PageStrings.FormatConnection_SubscriptionNotFound(startup.Connection);
+            SelectNode(ConnectionInfo.Emulator, BrokerInfo.Emulator);
             return;
         }
         Tree.Reveal(subscription);
-        var (namespaces, done) = Tree.NamespacesOf(subscription);
-        if (startup.Namespace is not null && namespaces.FirstOrDefault(startup.Matches) is { } ns)
+        var (namespaces, done) = Tree.BrokersOf(subscription);
+        if (startup.Broker is not null && namespaces.FirstOrDefault(startup.Matches) is { } ns)
         {
             _startup = null;
             _leaving = true;
@@ -183,7 +183,7 @@
             return;
         }
         // Without a namespace, its first one is selected, ready for F1.
-        if (startup.Namespace is null && namespaces is [var first, ..])
+        if (startup.Broker is null && namespaces is [var first, ..])
         {
             _startup = null;
             SelectNode(subscription, first);
@@ -191,17 +191,17 @@
         }
         if (!done) return;
         _startup = null;
-        if (startup.Namespace is { } missing) _startupError = PageStrings.FormatConnection_NamespaceNotFound(missing, subscription.Name);
+        if (startup.Broker is { } missing) _startupError = PageStrings.FormatConnection_NamespaceNotFound(missing, subscription.Name);
         SelectNode(subscription, namespaces.FirstOrDefault());
     }
 
     // --open: what it names, else the namespace stays selected here with the error.
-    private async Task OpenAsync(AzureSubscription subscription, BrokerInfo ns, string path)
+    private async Task OpenAsync(ConnectionInfo subscription, BrokerInfo ns, string path)
     {
         try
         {
             await Switcher.SwitchAsync(subscription, ns);
-            if (Connection.Current is not { } current) return;
+            if (Current.Broker is not { } current) return;
             if (StartupDestination.Find(path, await JumpTargets.LoadAsync(current, FileCache), Section.Of(current)) is { } destination)
             {
                 Nav.NavigateTo(destination.Match(e => NavState.RouteTo(e.Target, e.Active), l => l.Section.Route));
@@ -224,17 +224,17 @@
         // The tree may first report its initial row after the startup target opened.
         if (_leaving) return;
         _selected = node;
-        if (node is ExplorerNode.Subscription s) NavState.AzureSubscription = s.Value;
-        if (node?.InNamespace is { } ns)
+        if (node is ExplorerNode.Connection s) NavState.Connection = s.Value;
+        if (node?.InBroker is { } ns)
         {
-            NavState.AzureSubscription = ns.Parent.Value;
-            if (Connection.CurrentNamespace is var before && before != ns.Info.FullyQualifiedNamespace)
+            NavState.Connection = ns.Parent.Value;
+            if (Current.Address is var before && before != ns.Info.Address)
             {
                 // The store keys browsers by queue name only; a same-named queue elsewhere must not reuse its locks.
                 await Store.CloseAsync();
                 // A later selection, or the startup target, switched while closing: that one wins.
-                if (_selected != node || Connection.CurrentNamespace != before) return;
-                Connection.SetNamespace(ns.Info);
+                if (_selected != node || Current.Address != before) return;
+                Current.Set(ns.Info);
             }
         }
         StateHasChanged();
@@ -253,10 +253,10 @@
 
     private IReadOnlyList<KeyBinding> Keys =>
     [
-        .. ChosenNamespace is null ? Array.Empty<KeyBinding>() :
+        .. ChosenBroker is null ? Array.Empty<KeyBinding>() :
         [
             new("1", $"{Icons.Queue} {Strings.Queues}", () => _ = Open(Section.Queues)) { Aliases = ["F1"] },
-            .. Connection.Current is IHasTopics
+            .. Current.Broker is IHasTopics
                 ? [new KeyBinding("2", $"{Icons.Topic} {Strings.Topics}", () => _ = Open(Section.Topics)) { Aliases = ["F2"] },
                    new KeyBinding("3", $"{Icons.Subscription} {Strings.AllSubscriptions}", () => _ = Open(Section.AllSubscriptions)) { Aliases = ["F3"] }]
                 : Array.Empty<KeyBinding>(),

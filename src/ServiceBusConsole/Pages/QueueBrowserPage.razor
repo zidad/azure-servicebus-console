@@ -1,7 +1,7 @@
 @page "/queues/{QueueName}"
 
 @inject NavigationManager Nav
-@inject ServiceBusConnection Connection
+@inject CurrentBroker Current
 @inject NavigationState NavState
 
 <MessageBrowserView Entity="@(new MessageSource.Queue(QueueName, IsDlq: _dlq))" BackPath="/queues">
@@ -21,7 +21,7 @@
     {
         _dlq = !NavState.StartActive;
         NavState.StartActive = false;
-        if (Connection.CurrentNamespace is null)
+        if (Current.Address is null)
             Nav.NavigateTo("/");
     }
 }

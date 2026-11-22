@@ -1,10 +1,10 @@
 namespace ServiceBusConsole.Services;
 
 /// <summary>
-/// What the user is looking at (from <see cref="NavigationState"/>, <see cref="ServiceBusConnection"/> and
+/// What the user is looking at (from <see cref="NavigationState"/>, <see cref="CurrentBroker"/> and
 /// <see cref="MessageBrowserStore"/>) and what happened (<see cref="ActivityLog"/>), as a <see cref="SessionSnapshot"/>.
 /// </summary>
-public sealed class SessionContext(NavigationState navState, ServiceBusConnection connection, MessageBrowserStore store, ActivityLog log)
+public sealed class SessionContext(NavigationState navState, CurrentBroker current, MessageBrowserStore store, ActivityLog log)
 {
     private const string DetailPath = "message";
 
@@ -20,7 +20,7 @@ public sealed class SessionContext(NavigationState navState, ServiceBusConnectio
     public void Navigated(string path)
     {
         var page = path.Trim('/');
-        var ns = connection.Current?.Info;
+        var ns = current.Broker?.Info;
         bool switched;
         lock (_lock)
         {
@@ -28,7 +28,7 @@ public sealed class SessionContext(NavigationState navState, ServiceBusConnectio
             switched = ns != _namespace;
             _namespace = ns;
         }
-        if (switched && ns is not null) log.Record(ActivityKind.Navigated, ServiceStrings.FormatSessionContext_Connected(ns.FullyQualifiedNamespace));
+        if (switched && ns is not null) log.Record(ActivityKind.Navigated, ServiceStrings.FormatSessionContext_Connected(ns.Address));
         if (page == DetailPath && navState.Message is { } message)
             log.Record(ActivityKind.Navigated, ServiceStrings.FormatSessionContext_OpenedMessage(message.Key), navState.MessageSource);
         else log.Record(ActivityKind.Navigated, ServiceStrings.FormatSessionContext_OpenedPage(page));
@@ -38,17 +38,17 @@ public sealed class SessionContext(NavigationState navState, ServiceBusConnectio
     {
         string page;
         lock (_lock) page = _path;
-        var ns = connection.Current;
+        var ns = current.Broker;
         var onDetail = page == DetailPath;
-        // The store keeps a browser while its detail page is open, and until the next browser page or the connection
+        // The store keeps a browser while its detail page is open, and until the next browser page or the current
         // page replaces it; only one in view counts.
-        var browser = store.Current is { } b && b.Namespace == ns && (onDetail || IsBrowserPage(page)) ? b : null;
+        var browser = store.Current is { } b && b.Broker == ns && (onDetail || IsBrowserPage(page)) ? b : null;
         var source = onDetail ? navState.MessageSource : browser?.Source;
         return new SessionSnapshot
         {
             At = log.Time.GetUtcNow(),
-            Subscription = navState.AzureSubscription,
-            Namespace = ns?.Info,
+            Connection = navState.Connection,
+            Broker = ns?.Info,
             Source = source,
             Mode = browser is not null && browser.Source == source ? browser.Mode.ToString() : null,
             Message = onDetail ? navState.Message : browser?.Focused,

@@ -2,7 +2,7 @@
 @implements IDisposable
 
 @inject NavigationManager Nav
-@inject ServiceBusConnection Connection
+@inject CurrentBroker Current
 @inject NavigationState NavState
 @inject MessageBrowserStore Store
 @inject ITerminalViewport Viewport
@@ -96,7 +96,7 @@ else
 
 <AsyncCommand @ref="_retry" TItem="MessageInfo"
               ConfirmMessage="@(m => NavState.MessageSource is { } source ? RetryText.Question(source, Strings.FormatOneMessage(m.Key)) : "")"
-              ConfirmFields="@(_ => Mode is { } mode && NavState.MessageSource is { } source ? RetryText.Fields(mode, source, _browser?.Namespace is IHasTransactions) : [])"
+              ConfirmFields="@(_ => Mode is { } mode && NavState.MessageSource is { } source ? RetryText.Fields(mode, source, _browser?.Broker is IHasTransactions) : [])"
               Execute="@(m => Act(m, (b, l) => b.RetryAsync(l)))" />
 
 <AsyncCommand @ref="_resend" TItem="MessageInfo"

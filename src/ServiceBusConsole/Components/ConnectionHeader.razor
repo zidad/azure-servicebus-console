@@ -1,4 +1,4 @@
-@inject ServiceBusConnection Connection
+@inject CurrentBroker Current
 @inject NavigationState NavState
 @inject ITerminalViewport Viewport
 
@@ -7,11 +7,11 @@
         <Columns>
             <Markup Content="azsb" Foreground="@Theme.Accent" Decoration="@Decoration.Bold" />
             <Markup Content=" │ " Foreground="@Theme.Border" />
-            @if (Connection.Current is { Info: var ns })
+            @if (Current.Broker is { Info: var ns })
             {
-                <div class="pick-subscription" @onclick="OpenSubscriptions"><Markup Content="@SubscriptionLabel" Foreground="@Theme.Muted" Decoration="@Decoration.Underline" /></div>
+                <div class="pick-subscription" @onclick="OpenConnections"><Markup Content="@ConnectionLabel" Foreground="@Theme.Muted" Decoration="@Decoration.Underline" /></div>
                 <Markup Content=" › " Foreground="@Theme.Muted" />
-                <div class="pick-namespace" @onclick="OpenNamespaces"><Markup Content="@($"{Icons.Namespace} {ns.Name}")" Decoration="@Decoration.Underline" /></div>
+                <div class="pick-namespace" @onclick="OpenBrokers"><Markup Content="@($"{Icons.Namespace} {ns.Name}")" Decoration="@Decoration.Underline" /></div>
                 <Markup Content=" › " Foreground="@Theme.Muted" />
             }
             <CascadingValue Value="this" IsFixed="true">@ChildContent</CascadingValue>
@@ -32,26 +32,26 @@
 
     private ConnectionPicker? _picker;
 
-    private string SubscriptionName => NavState.AzureSubscription?.Name ?? "";
+    private string SubscriptionName => NavState.Connection?.Name ?? "";
 
-    private string SubscriptionIcon => NavState.AzureSubscription?.IsEmulator == true ? Icons.Emulator : Icons.AzureSubscription;
+    private string ConnectionIcon => NavState.Connection?.IsEmulator == true ? Icons.Emulator : Icons.AzureSubscription;
 
-    private string SubscriptionLabel => $"{SubscriptionIcon} {SubscriptionName}";
+    private string ConnectionLabel => $"{ConnectionIcon} {SubscriptionName}";
 
     // "azsb │ " puts the subscription at x = 7; the dropdown opens there, whichever crumb was clicked.
-    private const int SubscriptionX = 7;
+    private const int ConnectionX = 7;
 
-    private ExplorerNode.Subscription? SubscriptionNode => NavState.AzureSubscription is { } s ? new(s) : null;
+    private ExplorerNode.Connection? ConnectionNode => NavState.Connection is { } s ? new(s) : null;
 
-    private ExplorerNode.Namespace? NamespaceNode =>
-        SubscriptionNode is { } s && Connection.Current is { Info: var ns } ? new(s, ns) : null;
+    private ExplorerNode.Broker? BrokerNode =>
+        ConnectionNode is { } s && Current.Broker is { Info: var ns } ? new(s, ns) : null;
 
-    private void OpenSubscriptions(MouseEventArgs e) => _picker?.Open(SubscriptionX - 1, (int)e.ClientY + 1, SubscriptionNode?.Key);
+    private void OpenConnections(MouseEventArgs e) => _picker?.Open(ConnectionX - 1, (int)e.ClientY + 1, ConnectionNode?.Key);
 
-    private void OpenNamespaces(MouseEventArgs e) => _picker?.Open(SubscriptionX - 1, (int)e.ClientY + 1, NamespaceNode?.Key);
+    private void OpenBrokers(MouseEventArgs e) => _picker?.Open(ConnectionX - 1, (int)e.ClientY + 1, BrokerNode?.Key);
 
     /// <summary>Opens the dropdown under a clicked <see cref="SectionCrumb"/>, at the current namespace; the tabs switch sections.</summary>
-    public void OpenSections(int top) => _picker?.Open(SubscriptionX - 1, top, NamespaceNode?.Key);
+    public void OpenSections(int top) => _picker?.Open(ConnectionX - 1, top, BrokerNode?.Key);
 
     /// <summary>Item count for a page header: "(3)", or "(1 of 3)" while filtered.</summary>
     public static string Count(int shown, int total) => shown == total ? ComponentStrings.FormatConnectionHeader_Count(total) : ComponentStrings.FormatConnectionHeader_CountFiltered(shown, total);

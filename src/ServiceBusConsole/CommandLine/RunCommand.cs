@@ -9,12 +9,12 @@ public static class RunCommand
 {
     public static async Task<bool> ExecuteAsync(RunInput input)
     {
-        if (input is { Subscription: null, Namespace: not null })
+        if (input is { Connection: null, Broker: not null })
         {
             InvalidUsage(CommandLineStrings.FormatRunCommand_Needs("--namespace", "--subscription", HelpRun));
             return false;
         }
-        if (input is { Namespace: null, Open: not null })
+        if (input is { Broker: null, Open: not null })
         {
             InvalidUsage(CommandLineStrings.FormatRunCommand_Needs("--open", "--namespace", HelpRun));
             return false;

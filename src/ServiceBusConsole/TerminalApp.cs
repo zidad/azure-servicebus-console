@@ -29,13 +29,13 @@ public static class TerminalApp
                 .AddFilter("Microsoft.AspNetCore.Components", LogLevel.Information))
             .ConfigureServices((context, services) => transport.AddServices(services, context.Configuration))
             .ConfigureServices(services => services
-                .AddSingleton<IBrokerDecorator, CachingNamespaceDecorator>()
-                .AddSingleton<ServiceBusConnection>()
+                .AddSingleton<IBrokerDecorator, CachingBrokerDecorator>()
+                .AddSingleton<CurrentBroker>()
                 .AddSingleton<FileCache>()
                 .AddSingleton<NavigationState>()
-                .AddSingleton<SubscriptionCatalog>()
-                .AddSingleton<RecentNamespaces>()
-                .AddSingleton<NamespaceSwitcher>()
+                .AddSingleton<ConnectionList>()
+                .AddSingleton<RecentBrokers>()
+                .AddSingleton<BrokerSwitcher>()
                 .AddSingleton<ExplorerTree>()
                 .AddSingleton<MessageBrowserStore>()
                 .AddSingleton<ActivityLog>()
@@ -46,7 +46,7 @@ public static class TerminalApp
                 .AddSingleton<MetricsVisibility>()
                 .AddSingleton<MetricsRange>()
                 .AddSyntaxLanguages()
-                .Decorate<IConnectionCatalog, CachingNamespaceService>()
+                .Decorate<IConnectionCatalog, CachingConnectionCatalog>()
                 .Configure<ConsoleAppOptions>(options =>
                 {
                     options.AutoClearConsole = true;

@@ -42,4 +42,18 @@ public sealed class FileCacheTests
         loaded.Name.ShouldBe("sb-a");
         loaded.Properties.ShouldBeEmpty();
     }
+
+    [Test]
+    public async Task RecentBrokers_CachedUnderTheirEarlierNames_Load()
+    {
+        var cache = NewCache();
+        Directory.CreateDirectory(cache.CacheDirectory);
+        await File.WriteAllTextAsync(Path.Combine(cache.CacheDirectory, "recent-namespaces.json"),
+            """[{"Subscription":{"Name":"Dev","Id":"sub-1"},"Namespace":{"Name":"sb-a","FullyQualifiedNamespace":"sb-a.servicebus.windows.net"},"Opened":"2026-11-01T10:00:00+00:00"}]""", Ct);
+
+        var recent = (await cache.LoadAsync<RecentBroker>("recent-namespaces.json")).ShouldNotBeNull().ShouldHaveSingleItem();
+
+        recent.Connection.ShouldBe(new ConnectionInfo("Dev", "sub-1"));
+        recent.Broker.Address.ShouldBe("sb-a.servicebus.windows.net");
+    }
 }
